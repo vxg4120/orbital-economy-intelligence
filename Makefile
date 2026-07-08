@@ -43,3 +43,9 @@ web-build:
 
 # Build the SPA, then serve it (and the API) from a single process at :8600.
 fe: web-build api
+
+# Expose the local terminal on the public web via a free Cloudflare quick tunnel.
+# Prints a random *.trycloudflare.com URL; the API must already be running (make fe).
+# URL is ephemeral: it changes on every run and dies with the process / laptop sleep.
+share:
+	cloudflared tunnel --url http://localhost:8600
