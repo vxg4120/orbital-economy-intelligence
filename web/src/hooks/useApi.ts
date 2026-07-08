@@ -10,7 +10,10 @@ export interface AsyncState<T> {
 /**
  * Run an async loader whenever `deps` change, tracking loading/error/data.
  * Stale responses are dropped (cancel flag) so fast successive queries — e.g.
- * typing in the resolver search — never render an out-of-order result.
+ * typing in the resolver search — never render an out-of-order result. `data` is
+ * also cleared at the start of each run so a dep change (e.g. navigating between
+ * two objects) never renders the previous result under the new identity while the
+ * next one loads.
  */
 export function useApi<T>(loader: () => Promise<T>, deps: unknown[]): AsyncState<T> {
   const [data, setData] = useState<T | null>(null);
@@ -26,6 +29,7 @@ export function useApi<T>(loader: () => Promise<T>, deps: unknown[]): AsyncState
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setData(null); // drop the prior identity's data so it never shows under a new dep
     run()
       .then((result) => {
         if (!cancelled) {

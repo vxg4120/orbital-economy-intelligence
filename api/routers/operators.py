@@ -15,8 +15,10 @@ router = APIRouter(prefix="/operators", tags=["operators"])
 
 _SORTS = {"fleet": "fleet_total DESC, operator_id", "name": "canonical_name, operator_id"}
 
-# Current owned fleet per operator, joined to latest status; windowed total for pagination.
-_LEAGUE_SQL = """
+# Current owned fleet per operator, joined to latest status. The shared CTE feeds both the
+# paged SELECT and a separate count(*) so the pagination total is stable at any offset (a
+# windowed count(*) OVER() vanishes to 0 once OFFSET passes the last row).
+_LEAGUE_CTE = """
 WITH latest_status AS (
     SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
     FROM satellite_status_history
@@ -38,6 +40,9 @@ agg AS (
     LEFT JOIN latest_status ls ON ls.satellite_id = ow.satellite_id
     GROUP BY o.operator_id
 )
+"""
+
+_LEAGUE_PAGE_SQL = _LEAGUE_CTE + """
 SELECT
     agg.*,
     (SELECT p.canonical_name
@@ -45,12 +50,13 @@ SELECT
        WHERE orl.child_id = agg.operator_id
          AND orl.valid_from <= current_date
          AND (orl.valid_to IS NULL OR orl.valid_to > current_date)
-       ORDER BY orl.valid_from DESC LIMIT 1) AS parent_name,
-    count(*) OVER() AS total
+       ORDER BY orl.valid_from DESC LIMIT 1) AS parent_name
 FROM agg
 ORDER BY {order}
 LIMIT %(limit)s OFFSET %(offset)s
 """
+
+_LEAGUE_COUNT_SQL = _LEAGUE_CTE + "SELECT count(*) AS total FROM agg"
 
 
 @router.get("")
@@ -64,11 +70,10 @@ def league_table(
     if order is None:
         raise HTTPException(status_code=422, detail=f"sort must be one of {sorted(_SORTS)}")
     with db.cursor() as cur:
-        cur.execute(_LEAGUE_SQL.format(order=order), {"limit": limit, "offset": offset})
+        cur.execute(_LEAGUE_COUNT_SQL)
+        total = cur.fetchone()["total"]
+        cur.execute(_LEAGUE_PAGE_SQL.format(order=order), {"limit": limit, "offset": offset})
         rows = cur.fetchall()
-    total = rows[0]["total"] if rows else 0
-    for r in rows:
-        r.pop("total", None)
     return {"rows": rows, "total": total}
 
 

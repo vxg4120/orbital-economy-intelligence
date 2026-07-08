@@ -31,12 +31,15 @@ const STATUS_FILL: Record<string, string> = {
   DECAYED: "#c06a54",
   UNKNOWN: "#626d7e",
 };
-// regime is an ordinal (altitude-ordered) bucket -> one-hue ramp, light rises with altitude
+// regime is an ordinal (altitude-ordered) bucket -> one-hue ramp, light rises with altitude.
+// NO_ELEMENTS (owned sats lacking a current element set) is off-ramp -> a neutral slate so the
+// chart accounts for the whole fleet and its shares don't overstate the classified regimes.
 const REGIME_FILL: Record<string, string> = {
   LEO: "#1c5688",
   MEO: "#2472b3",
   GEO: "#3a92dd",
   HEO: "#62b4ff",
+  NO_ELEMENTS: "#5a6472",
 };
 
 export function Operators() {
@@ -48,7 +51,10 @@ export function Operators() {
   const league = useApi(() => getOperators(LIMIT, offset, sort), [sort, offset]);
   const congestion = useApi(() => getCongestion(), []);
 
-  const idNum = operatorId ? Number(operatorId) : null;
+  // A non-numeric param (e.g. /operators/foo) must not fire GET /api/operators/NaN; treat it as
+  // "not found" (idNum null) rather than issuing a bad request.
+  const parsed = operatorId ? Number(operatorId) : null;
+  const idNum = parsed !== null && Number.isFinite(parsed) ? parsed : null;
   const detail = useApi<OperatorDetail | null>(
     () => (idNum !== null ? getOperator(idNum) : Promise.resolve(null)),
     [idNum],
@@ -111,14 +117,14 @@ export function Operators() {
         </Async>
       </Panel>
 
-      {idNum !== null ? (
-        detail.error ? (
-          <ErrorState message={detail.error} onRetry={detail.reload} />
-        ) : detail.loading && detail.data === null ? (
-          <Loading label="Loading operator" />
-        ) : detail.data ? (
-          <OperatorDetailPanel detail={detail.data} />
-        ) : null
+      {operatorId === undefined ? null : idNum === null ? (
+        <EmptyState title="Operator not found" message={`No operator with id “${operatorId}”.`} />
+      ) : detail.error ? (
+        <ErrorState message={detail.error} onRetry={detail.reload} />
+      ) : detail.loading && detail.data === null ? (
+        <Loading label="Loading operator" />
+      ) : detail.data ? (
+        <OperatorDetailPanel detail={detail.data} />
       ) : null}
 
       <Panel title="Orbital congestion" meta="full field · 0–2000 km">
@@ -133,7 +139,13 @@ export function Operators() {
 function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
   const o = detail.operator;
   const statusData = Object.entries(detail.fleet_by_status).map(([name, value]) => ({ name, value }));
-  const regimeData = REGIME_ORDER.filter((r) => r in detail.fleet_by_regime).map((name) => ({
+  // Ordered four regimes first, then any off-ramp bucket (e.g. NO_ELEMENTS) so the shares
+  // sum over the true fleet rather than just the classified objects.
+  const regimeNames = [
+    ...REGIME_ORDER.filter((r) => r in detail.fleet_by_regime),
+    ...Object.keys(detail.fleet_by_regime).filter((r) => !REGIME_ORDER.includes(r)),
+  ];
+  const regimeData = regimeNames.map((name) => ({
     name,
     value: detail.fleet_by_regime[name],
   }));

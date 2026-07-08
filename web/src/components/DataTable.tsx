@@ -64,12 +64,14 @@ export function DataTable<Row>({
           {rows.map((row) => {
             const clickable = Boolean(onRowClick);
             return (
+              // Keep the native row semantics (role="row") so screen readers still
+              // associate cells with their column headers; the row stays clickable and
+              // Enter/Space-activatable via tabIndex + onKeyDown, no role override.
               <tr
                 key={rowKey(row)}
                 className={clickable ? "is-link" : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 tabIndex={clickable ? 0 : undefined}
-                role={clickable ? "link" : undefined}
                 onKeyDown={
                   onRowClick
                     ? (e) => {

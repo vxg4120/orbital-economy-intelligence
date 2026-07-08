@@ -87,3 +87,14 @@ def test_detail_exposes_mso_hierarchy(client):
 @pytest.mark.db
 def test_detail_unknown_id_is_404(client):
     assert client.get("/api/operators/999999999").status_code == 404
+
+
+@pytest.mark.db
+def test_total_is_stable_past_last_row(client):
+    # Regression: an offset beyond the last operator must still report the true total (not 0) and
+    # return an empty page -- the windowed count(*) OVER() used to collapse once the page emptied.
+    true_total = client.get("/api/operators?limit=1&offset=0").json()["total"]
+    assert true_total > 0
+    beyond = client.get(f"/api/operators?limit=50&offset={true_total + 500}").json()
+    assert beyond["rows"] == []
+    assert beyond["total"] == true_total

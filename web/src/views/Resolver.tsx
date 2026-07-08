@@ -53,7 +53,10 @@ export function Resolver() {
     [debounced],
   );
 
-  const idNum = satelliteId ? Number(satelliteId) : null;
+  // A non-numeric param (e.g. /resolver/foo) must not fire GET /api/satellites/NaN; treat it as
+  // "not found" (idNum null) while a missing param stays "no selection" (see gate below).
+  const parsed = satelliteId ? Number(satelliteId) : null;
+  const idNum = parsed !== null && Number.isFinite(parsed) ? parsed : null;
   const detail = useApi<SatelliteDetail | null>(
     () => (idNum !== null ? getSatellite(idNum) : Promise.resolve(null)),
     [idNum],
@@ -103,11 +106,13 @@ export function Resolver() {
         </Panel>
 
         <div className="resolver-detail">
-          {idNum === null ? (
+          {satelliteId === undefined ? (
             <EmptyState
               title="Select an object"
               message="Pick a search result to open its identity card."
             />
+          ) : idNum === null ? (
+            <EmptyState title="Not found" message={`No object with id “${satelliteId}”.`} />
           ) : detail.error ? (
             <ErrorState message={detail.error} onRetry={detail.reload} />
           ) : detail.loading && detail.data === null ? (

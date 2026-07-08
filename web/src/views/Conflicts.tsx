@@ -14,33 +14,18 @@ import type {
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtInt } from "../lib/format";
+import { CONFLICT_TABS, toConflictTab } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
 import { Cell, DataTable, Pager, type Column } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { Async } from "../components/States";
 
-type TabKey = "status" | "decay" | "stale";
 const LIMIT = 50;
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "status", label: "Status" },
-  { key: "decay", label: "Decay dates" },
-  { key: "stale", label: "Stale owners" },
-];
-
-const HEADLINE: Record<TabKey, string> = {
-  status:
-    "Objects where SATCAT and GCAT map to different canonical states — one source calls it active, the other reentered. Resolved by the deterministic ordering (observed_at, ingest_run, source_key).",
-  decay:
-    "Objects whose reentry date differs across sources once parsed to a real date, so “1957 Dec 1 1000?” and “1957-12-01” don't count. The raw claims stay visible.",
-  stale:
-    "Objects whose latest catalog owner still resolves to a company that has since been acquired — the graph knows the parent; the catalog still names the child.",
-};
 
 export function Conflicts() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const tab = (params.get("tab") as TabKey) || "status";
+  const tab = toConflictTab(params.get("tab"));
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {
@@ -71,27 +56,24 @@ export function Conflicts() {
 
       <Panel title="Cross-source conflicts" flush>
         <div className="tabs">
-          {TABS.map((t) => {
-            const count =
-              t.key === "status"
-                ? counts?.status
-                : t.key === "decay"
-                  ? counts?.decay
-                  : counts?.stale_owners;
+          {CONFLICT_TABS.map((t) => {
+            const count = counts?.[t.statsKey];
             return (
               <button
                 key={t.key}
                 className={`tab${tab === t.key ? " is-active" : ""}`}
                 onClick={() => setParams({ tab: t.key })}
               >
-                {t.label}
+                {t.tabLabel}
                 {count !== undefined ? <span className="tab__count num">{fmtInt(count)}</span> : null}
               </button>
             );
           })}
         </div>
 
-        <p className="conflict-headline">{HEADLINE[tab]}</p>
+        <p className="conflict-headline">
+          {CONFLICT_TABS.find((t) => t.key === tab)?.headline}
+        </p>
 
         <Async state={page} loadingLabel="Loading conflicts">
           {(data) => (

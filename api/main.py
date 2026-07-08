@@ -30,18 +30,25 @@ if (_WEB_DIST / "index.html").exists():
     from fastapi.staticfiles import StaticFiles
 
     class _SpaStaticFiles(StaticFiles):
-        """StaticFiles that falls back to index.html so SPA deep links survive hard refresh."""
+        """StaticFiles that falls back to index.html so SPA deep links survive hard refresh.
+
+        Unknown ``/api/*`` paths are exempt: they keep their real 404 (a JSON error) instead of
+        being swallowed into the SPA shell, so a mistyped/removed endpoint surfaces as an error
+        rather than a 200 HTML body the JSON client can't parse.
+        """
 
         async def get_response(self, path, scope):
             from starlette.exceptions import HTTPException as StarletteHTTPException
 
+            # ``path`` is relative to the mount ('/'), so /api/nope -> 'api/nope'.
+            is_api = path == "api" or path.startswith("api/")
             try:
                 response = await super().get_response(path, scope)
             except StarletteHTTPException as exc:
-                if exc.status_code != 404:
+                if is_api or exc.status_code != 404:
                     raise
                 return await super().get_response("index.html", scope)
-            if response.status_code == 404:
+            if response.status_code == 404 and not is_api:
                 response = await super().get_response("index.html", scope)
             return response
 

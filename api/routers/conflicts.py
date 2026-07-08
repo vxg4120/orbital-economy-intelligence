@@ -153,16 +153,20 @@ def count_decay_conflicts(db) -> int:
 
 
 def _paginate_sql(db, cte: str, source: str, limit: int, offset: int) -> tuple[list, int]:
-    """Run ``cte`` + a windowed SELECT over ``source``, returning (page rows, total)."""
+    """Run ``cte`` + a page SELECT over ``source``, returning (page rows, total).
+
+    ``total`` is computed by a separate ``count(*)`` over the same CTE so it stays correct
+    for any offset. A windowed ``count(*) OVER()`` only rides along with the returned rows, so
+    once OFFSET passes the last row the page is empty and the count vanishes to 0.
+    """
     with db.cursor() as cur:
+        cur.execute(cte + f"SELECT count(*) AS total FROM {source}")
+        total = cur.fetchone()["total"]
         cur.execute(
-            cte + f"SELECT *, count(*) OVER() AS total FROM {source} LIMIT %s OFFSET %s",
+            cte + f"SELECT * FROM {source} LIMIT %s OFFSET %s",
             (limit, offset),
         )
         rows = cur.fetchall()
-    total = rows[0]["total"] if rows else 0
-    for r in rows:
-        r.pop("total", None)
     return rows, total
 
 

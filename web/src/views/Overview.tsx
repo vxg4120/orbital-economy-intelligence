@@ -2,18 +2,13 @@ import { Link } from "react-router-dom";
 import { getCongestion, getStats } from "../api/client";
 import { useApi } from "../hooks/useApi";
 import { compact, fmtInt } from "../lib/format";
+import { CONFLICT_TABS } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
 import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
 import { LedgerTable } from "../components/LedgerTable";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
 import { Async } from "../components/States";
-
-const CONFLICT_LINKS = [
-  { key: "status", label: "Status disagreements", sub: "SATCAT vs GCAT canonical state" },
-  { key: "decay", label: "Decay-date conflicts", sub: "Reentry date across sources" },
-  { key: "stale_owners", label: "Stale post-M&A owners", sub: "Catalog names the acquired child" },
-] as const;
 
 export function Overview() {
   const stats = useApi(() => getStats(), []);
@@ -89,14 +84,14 @@ export function Overview() {
 
               <Panel title="Open conflicts" meta="disagreements are data">
                 <div className="conflict-list">
-                  {CONFLICT_LINKS.map((c) => (
+                  {CONFLICT_TABS.map((c) => (
                     <Link key={c.key} to={`/conflicts?tab=${c.key}`} className="conflict-row">
                       <span className="conflict-row__count num">
-                        {fmtInt(s.conflicts[c.key])}
+                        {fmtInt(s.conflicts[c.statsKey])}
                       </span>
                       <span className="conflict-row__body">
-                        <span className="conflict-row__label">{c.label}</span>
-                        <span className="conflict-row__sub">{c.sub}</span>
+                        <span className="conflict-row__label">{c.cardLabel}</span>
+                        <span className="conflict-row__sub">{c.cardSub}</span>
                       </span>
                       <span className="conflict-row__arrow" aria-hidden="true">
                         →

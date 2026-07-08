@@ -16,11 +16,12 @@
   --rule: #1b212c;
   --rule-2: #262e3b;
 
-  /* ---- ink ---- */
+  /* ---- ink (dimmest two lifted to clear WCAG AA on --surface: faint ~4.5:1 for
+     small body text, ghost ~3:1 for the null-placeholder em-dash) ---- */
   --ink: #e6ecf2;
   --ink-dim: #98a2b3;
-  --ink-faint: #626d7e;
-  --ink-ghost: #3a434f;
+  --ink-faint: #7d8798;
+  --ink-ghost: #5a6472;
 
   /* ---- signal: interactive accent AND sequential-ramp anchor ---- */
   --signal: #4da6ff;

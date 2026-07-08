@@ -69,3 +69,15 @@ def test_pagination_is_bounded_and_offsets(client):
     assert len(first["rows"]) == 1
     # Same deterministic ordering -> distinct rows across offsets.
     assert first["rows"][0]["satellite_id"] != second["rows"][0]["satellite_id"]
+
+
+@pytest.mark.db
+@pytest.mark.parametrize("path", ["/api/conflicts/status", "/api/conflicts/stale-owners"])
+def test_total_is_stable_past_last_row(client, path):
+    # Regression: an offset beyond the last row must still report the true total (not 0) and
+    # return an empty page -- a windowed count(*) OVER() used to vanish once the page was empty.
+    true_total = client.get(f"{path}?limit=1&offset=0").json()["total"]
+    assert true_total > 0
+    beyond = client.get(f"{path}?limit=50&offset={true_total + 500}").json()
+    assert beyond["rows"] == []
+    assert beyond["total"] == true_total
