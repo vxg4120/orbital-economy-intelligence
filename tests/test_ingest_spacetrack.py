@@ -1,0 +1,189 @@
+"""Space-Track client tests: login flow, batching, backoff, missing creds. Network mocked with
+`responses`; anything that touches the ingest_run ledger is marked `db`."""
+
+import re
+
+import pytest
+import requests
+import responses
+
+from ingest import spacetrack_client
+from ingest.spacetrack_client import SpaceTrackAuthError, SpaceTrackClient
+from tests.fixtures.dbutil import cleanup_since, run_id_baseline
+
+GP_HISTORY_RE = re.compile(
+    r"^https://www\.space-track\.org/basicspacedata/query/class/gp_history/NORAD_CAT_ID/.*"
+)
+DECAY_RE = re.compile(
+    r"^https://www\.space-track\.org/basicspacedata/query/class/decay/NORAD_CAT_ID/.*"
+)
+
+
+def _gp_row(norad_id: int, epoch: str = "2024-01-01T00:00:00") -> dict:
+    return {
+        "NORAD_CAT_ID": str(norad_id),
+        "EPOCH": epoch,
+        "MEAN_MOTION": "15.50000000",
+        "ECCENTRICITY": "0.00040000",
+        "CREATION_DATE": "2024-01-01T02:00:00",
+    }
+
+
+@pytest.fixture
+def clean_db(db_conn):
+    baseline = run_id_baseline(db_conn)
+    yield db_conn
+    cleanup_since(db_conn, baseline)
+
+
+@pytest.fixture
+def no_throttle(monkeypatch):
+    """These tests aren't exercising the min-interval spacing (that's covered by its own
+    test below with a fake clock) — skip the real delay so they run fast and deterministically."""
+    monkeypatch.setattr(SpaceTrackClient, "_throttle", lambda self: None)
+
+
+def _client(conn, **kwargs):
+    kwargs.setdefault("identity", "user@example.com")
+    kwargs.setdefault("password", "hunter2")
+    return SpaceTrackClient(conn, **kwargs)
+
+
+def test_missing_credentials_raise_a_clear_error(monkeypatch):
+    monkeypatch.delenv("SPACETRACK_IDENTITY", raising=False)
+    monkeypatch.delenv("SPACETRACK_PASSWORD", raising=False)
+    with pytest.raises(SpaceTrackAuthError, match="SPACETRACK_IDENTITY"):
+        SpaceTrackClient(None)
+
+
+def test_throttle_enforces_minimum_interval_via_sleep(monkeypatch):
+    # 1st _throttle(): _last_request_at is None -> no wait, consumes one monotonic() call.
+    # 2nd _throttle(): only 0.5s elapsed -> must sleep for the remaining 2.5s.
+    clock = iter([0.0, 0.5, 3.5])
+    monkeypatch.setattr(spacetrack_client.time, "monotonic", lambda: next(clock))
+    sleeps = []
+    monkeypatch.setattr(spacetrack_client.time, "sleep", sleeps.append)
+
+    client = SpaceTrackClient(None, identity="u", password="p")
+    client._throttle()
+    client._throttle()
+
+    assert sleeps == [2.5]
+
+
+@pytest.mark.db
+@responses.activate
+def test_login_happens_before_first_data_request(clean_db, no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    client = _client(clean_db)
+    rows = list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    assert len(rows) == 1
+    assert len(responses.calls) == 2
+    assert responses.calls[0].request.method == "POST"
+    assert responses.calls[0].request.url == spacetrack_client.LOGIN_URL
+    assert responses.calls[1].request.method == "GET"
+
+
+@pytest.mark.db
+@responses.activate
+def test_gp_history_batches_150_ids_into_2_requests(clean_db, no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000101)], status=200)
+
+    norad_ids = list(range(900000001, 900000151))  # 150 synthetic ids
+    client = _client(clean_db)
+    rows = list(client.gp_history(norad_ids, "2024-01-01", "2024-02-01"))
+
+    data_calls = [c for c in responses.calls if c.request.method == "GET"]
+    assert len(data_calls) == 2
+    assert len(rows) == 2
+    assert data_calls[0].request.url.count(",") == 99  # first batch: 100 ids -> 99 commas
+    assert data_calls[1].request.url.count(",") == 49  # second batch: 50 ids -> 49 commas
+
+
+@pytest.mark.db
+@responses.activate
+def test_backoff_retries_on_429_then_succeeds(clean_db, monkeypatch, no_throttle):
+    sleeps = []
+    monkeypatch.setattr(spacetrack_client.time, "sleep", sleeps.append)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, body="rate limited", status=429)
+    responses.add(responses.GET, GP_HISTORY_RE, body="rate limited", status=429)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    client = _client(clean_db)
+    rows = list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    assert len(rows) == 1
+    assert sleeps == [30.0, 60.0]  # base * 2**0, base * 2**1
+
+
+@pytest.mark.db
+@responses.activate
+def test_backoff_raises_after_max_retries_exceeded(clean_db, monkeypatch, no_throttle):
+    monkeypatch.setattr(spacetrack_client.time, "sleep", lambda s: None)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    for _ in range(spacetrack_client.MAX_RETRIES + 1):
+        responses.add(responses.GET, GP_HISTORY_RE, body="rate limited", status=429)
+
+    client = _client(clean_db)
+    with pytest.raises(requests.HTTPError):
+        list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT status FROM ingest_run WHERE source = 'spacetrack' "
+            "ORDER BY ingest_run_id DESC LIMIT 1"
+        )
+        (status,) = cur.fetchone()
+    assert status == "error"
+
+
+@pytest.mark.db
+@responses.activate
+def test_decay_is_thin_and_does_not_land_anything(clean_db, no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(
+        responses.GET,
+        DECAY_RE,
+        json=[{"NORAD_CAT_ID": "900000001", "DECAY_EPOCH": "2024-05-01T00:00:00"}],
+        status=200,
+    )
+
+    client = _client(clean_db)
+    rows = client.decay([900000001])
+
+    assert rows == [{"NORAD_CAT_ID": "900000001", "DECAY_EPOCH": "2024-05-01T00:00:00"}]
+    with clean_db.cursor() as cur:
+        cur.execute("SELECT count(*) FROM gp_elements WHERE norad_id = 900000001")
+        (count,) = cur.fetchone()
+    assert count == 0  # decay() never writes to gp_elements — landing is deferred
+
+
+@pytest.mark.db
+def test_land_gp_history_lands_into_gp_elements_with_spacetrack_source(clean_db):
+    rows = [_gp_row(900000001), _gp_row(900000002)]
+
+    n = spacetrack_client.land_gp_history(clean_db, rows)
+
+    assert n == 2
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT norad_id, source FROM gp_elements "
+            "WHERE norad_id IN (900000001, 900000002) ORDER BY norad_id"
+        )
+        landed = cur.fetchall()
+    assert landed == [(900000001, "spacetrack_gp_history"), (900000002, "spacetrack_gp_history")]
+
+    # Re-landing the same rows must not duplicate (ON CONFLICT DO NOTHING).
+    spacetrack_client.land_gp_history(clean_db, rows)
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM gp_elements WHERE norad_id IN (900000001, 900000002)"
+        )
+        (count,) = cur.fetchone()
+    assert count == 2

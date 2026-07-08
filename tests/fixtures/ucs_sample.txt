@@ -1,0 +1,4 @@
+Name of Satellite, Alternate Names	Country of Operator/Owner	Operator/Owner	Users	Purpose	NORAD Number	COSPAR Number	Date of Launch
+OEI Test Sat 1	USA	OEI Test Org	Commercial	Communications	900000001	2020-001A	1/5/2020
+OEI Test Sat 2	USA	OEI Test Org	Commercial	Remote Sensing	900000002	2020-002A	2/11/2020
+OEI Test Analyst Obj	USA	OEI Test Org	Commercial	Technology Development			
