@@ -153,7 +153,11 @@ Screenshots below:
 
 ![Orbital Economy Terminal — Overview](docs/img/terminal-overview.png)
 
-![Orbital Economy Terminal — Resolver](docs/img/terminal-resolver.png)
+![Orbital Economy Terminal — Resolver: OneWeb L1-001 with its SCD2 ownership transfer to Eutelsat](docs/img/terminal-resolver.png)
+
+![Orbital Economy Terminal — Conflict Explorer: SATCAT vs GCAT status disagreements](docs/img/terminal-conflicts.png)
+
+![Orbital Economy Terminal — Operator league table](docs/img/terminal-operators.png)
 
 ---
 

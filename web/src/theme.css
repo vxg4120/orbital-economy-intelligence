@@ -196,6 +196,7 @@ button {
   letter-spacing: 0.1em;
   color: var(--ink-faint);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .topbar__tele {
   flex: 1;
@@ -747,7 +748,7 @@ button {
 }
 .conflict-row {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: minmax(64px, max-content) 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 12px 2px;
