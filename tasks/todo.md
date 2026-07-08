@@ -68,3 +68,13 @@ then a pg17 service-container db job); README rewrite; this file.
 - Final: 151 tests, -W error, ruff clean. DQ report: 100% operator coverage, 76.8% status
   coverage, 100% of on-orbit payloads with >=2 source identifiers, 35 SATCAT-vs-GCAT status
   disagreements, 4,229 decay-date conflicts.
+
+### Frontend wave (Orbital Economy Terminal)
+
+- FastAPI read-only API (9 endpoints, Postgres-level read_only enforced) + React/Vite/TS SPA,
+  built by two parallel agents against a locked DTO contract; F3 integration fixed 2 type drifts,
+  14/14 e2e endpoints green on the live DB. SPA deep-link catch-all added.
+- Views: Overview (stat tiles, coverage meters, conflicts panel, ingest ledger, congestion
+  teaser), Resolver (crosswalk + SCD2 ownership timeline + assertions), Conflicts (3 tabs),
+  Operators (league table + detail). Screenshots in docs/img/, wired into README.
+- `make fe` → http://localhost:8600. Suite: 169 passed -W error; pnpm build clean.
