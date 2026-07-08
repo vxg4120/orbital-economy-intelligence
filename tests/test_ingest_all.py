@@ -41,9 +41,11 @@ def test_main_runs_all_sources_in_order_and_survives_one_failure(monkeypatch, ca
 
     rc = ingest_all.main(["--source", "all"], conn=conn)
 
-    assert rc == 0
+    assert rc == 1  # a partially-failed ingest exits non-zero so cron/CI can detect it
     assert calls == ["satcat", "gcat", "gp", "supgp", "ucs"]  # gp failing didn't stop the rest
-    assert "gp failed" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "gp failed" in err
+    assert "FAILED sources (1): gp" in err  # aggregate failure summary line
     # A DB-level failure aborts the transaction; without a rollback every later loader's first
     # query would cascade-fail with InFailedSqlTransaction. Exactly one failure -> one rollback.
     assert conn.rollback_calls == 1
@@ -101,7 +103,7 @@ def test_a_db_level_failure_does_not_cascade_into_later_loaders(db_conn):
         ingest_all._print_run_table = orig_print
         db_conn.rollback()
 
-    assert rc == 0
+    assert rc == 1  # satcat aborted -> non-zero exit, but the rest still ran
     assert calls == ["ok", "ok", "ok", "ok"]  # all 4 loaders after the broken one still ran
     with db_conn.cursor() as cur:
         cur.execute("SELECT 1")  # connection is healthy again after main() returns

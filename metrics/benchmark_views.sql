@@ -5,8 +5,14 @@
 -- v_sat_operator_daily
 -- ---------------------------------------------------------------------------------------------
 -- Operator attribution happens ABOVE the sat_daily continuous aggregate, in this plain view, via
--- a temporal range-join to satellite_operator (role='owner', day::date BETWEEN valid_from AND
--- COALESCE(valid_to,'infinity')). This is deliberate: identity churn -- an acquisition, a
+-- a temporal range-join to satellite_operator (role='owner'). The range is HALF-OPEN
+-- [valid_from, valid_to): a day is attributed to the operator whose window starts on/before it and
+-- ends strictly after it. This matches how identity/resolve.py writes SCD2 ownership -- an
+-- acquisition split writes child=(launch, split] and parent=[split, NULL) as two adjacent rows
+-- that SHARE the split boundary date, so a closed BETWEEN would match BOTH on the transition day
+-- and double-count that satellite/day under both operators. Half-open attributes the boundary day
+-- to exactly one operator: the incoming (parent) one whose window is [split, ...). This is
+-- deliberate: identity churn -- an acquisition, a
 -- re-flagged owner code -- must not invalidate the underlying physics aggregate in sat_daily.
 -- A satellite's orbit does not change the day its owner changes; only which operator this view
 -- attributes that orbit to changes. This is the mechanic behind the "killer chart": the same
@@ -30,7 +36,9 @@ JOIN satellite s ON s.norad_id = sd.norad_id
 LEFT JOIN satellite_operator so
     ON so.satellite_id = s.satellite_id
    AND so.role = 'owner'
-   AND sd.day::date BETWEEN so.valid_from AND COALESCE(so.valid_to, 'infinity'::date)
+   -- Half-open SCD2 window [valid_from, valid_to): boundary day belongs to the incoming operator.
+   AND sd.day::date >= so.valid_from
+   AND sd.day::date < COALESCE(so.valid_to, 'infinity'::date)
 LEFT JOIN operator o ON o.operator_id = so.operator_id;
 
 -- ---------------------------------------------------------------------------------------------

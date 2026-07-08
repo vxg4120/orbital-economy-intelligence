@@ -167,3 +167,55 @@ def test_scd2_single_row_for_post_acquisition_launch(db_conn):
         rows = cur.fetchall()
     assert rows == [(oneweb, dt.date(2024, 1, 1), None)]
     db_conn.rollback()
+
+
+def test_scd2_launch_exactly_on_split_date_is_single_row(db_conn):
+    """The exact boundary the strict `<` exists to decide: launch_date == the M&A valid_from
+    (2023-09-28). `launch < split` is False, so the else branch fires -> a single open-ended row,
+    no pre/post split. Regression guard: flipping `<` to `<=` would silently split this instead."""
+    build_graph.seed_operators(db_conn)
+    with db_conn.cursor() as cur:
+        run = _run(cur)
+        oneweb = _operator_id(cur, "OneWeb")
+        sat = _sat(cur, 910000351, launch=dt.date(2023, 9, 28))  # exactly the close date
+        _assert_row(cur, sat, "owner", "OneWeb", "gcat", run)
+
+    resolve.resolve(db_conn)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT operator_id, valid_from, valid_to FROM satellite_operator "
+            "WHERE satellite_id=%s ORDER BY valid_from",
+            (sat,),
+        )
+        rows = cur.fetchall()
+    assert rows == [(oneweb, dt.date(2023, 9, 28), None)]
+    db_conn.rollback()
+
+
+def test_scd2_launch_one_day_before_split_is_two_rows(db_conn):
+    """One day before the split (2023-09-27) `launch < split` is True -> the pre/post split fires:
+    OneWeb [launch, 2023-09-28), Eutelsat [2023-09-28, NULL). Pairs with the exact-boundary test to
+    pin both sides of the strict comparison."""
+    build_graph.seed_operators(db_conn)
+    with db_conn.cursor() as cur:
+        run = _run(cur)
+        oneweb = _operator_id(cur, "OneWeb")
+        eutelsat = _operator_id(cur, "Eutelsat")
+        sat = _sat(cur, 910000352, launch=dt.date(2023, 9, 27))  # one day before the close
+        _assert_row(cur, sat, "owner", "OneWeb", "gcat", run)
+
+    resolve.resolve(db_conn)
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT operator_id, valid_from, valid_to FROM satellite_operator "
+            "WHERE satellite_id=%s ORDER BY valid_from",
+            (sat,),
+        )
+        rows = cur.fetchall()
+    assert rows == [
+        (oneweb, dt.date(2023, 9, 27), dt.date(2023, 9, 28)),
+        (eutelsat, dt.date(2023, 9, 28), None),
+    ]
+    db_conn.rollback()

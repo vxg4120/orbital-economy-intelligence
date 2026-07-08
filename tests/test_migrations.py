@@ -52,6 +52,11 @@ def test_gp_elements_is_a_hypertable(db_conn):
 
 @pytest.mark.db
 def test_iss_like_row_generated_columns(db_conn):
+    # ISS-like orbit (mean_motion ~15.5 -> sma ~6795 km), but keyed on a reserved synthetic NORAD
+    # id (900000xxx) rather than the real ISS (25544): the dev DB is shared and gp_elements will
+    # hold the real GP pull (25544 among them) once the pending backfill lands, so a real-id row
+    # risks a (norad_id, epoch, source) collision with a concurrent transaction. The physics is
+    # independent of the id.
     with db_conn.cursor() as cur:
         cur.execute(
             "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
@@ -65,7 +70,7 @@ def test_iss_like_row_generated_columns(db_conn):
             INSERT INTO gp_elements
                 (norad_id, epoch, mean_motion, eccentricity, source)
             VALUES
-                (25544, %s, 15.5, 0.0004, 'celestrak_gp')
+                (900000544, %s, 15.5, 0.0004, 'celestrak_gp')
             RETURNING semi_major_axis_km, perigee_km, apogee_km
             """,
             (dt.datetime.now(dt.timezone.utc),),

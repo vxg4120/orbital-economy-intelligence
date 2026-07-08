@@ -81,14 +81,18 @@ def _seed_acquisition_fixture(cur):
     )
     op_ids = dict(cur.fetchall())
 
+    # Adjacent SCD2 rows that SHARE the split boundary (ALPHA.valid_to == BETA.valid_from == DAY_3),
+    # exactly as identity/resolve.py writes an acquisition split. Under the (buggy) closed BETWEEN
+    # DAY_3 matched BOTH rows (double-count); under the half-open [valid_from, valid_to) join it
+    # belongs to exactly one operator -- the incoming BETA.
     cur.execute(
         "INSERT INTO satellite_operator "
         "(satellite_id, operator_id, role, valid_from, valid_to, source) VALUES "
-        "(%s, %s, 'owner', %s, %s, 'test'), "  # SAT_A -> ALPHA, pre-acquisition
-        "(%s, %s, 'owner', %s, NULL, 'test'), "  # SAT_A -> BETA, post-acquisition
+        "(%s, %s, 'owner', %s, %s, 'test'), "  # SAT_A -> ALPHA, pre-acquisition [DAY_1, DAY_3)
+        "(%s, %s, 'owner', %s, NULL, 'test'), "  # SAT_A -> BETA, post-acquisition [DAY_3, NULL)
         "(%s, %s, 'owner', %s, NULL, 'test')",  # SAT_B -> ALPHA, unchanged
         (
-            sat_ids[SAT_A], op_ids[OP_ALPHA], DAY_1, DAY_2,
+            sat_ids[SAT_A], op_ids[OP_ALPHA], DAY_1, DAY_3,
             sat_ids[SAT_A], op_ids[OP_BETA], DAY_3,
             sat_ids[SAT_B], op_ids[OP_ALPHA], DAY_1,
         ),
@@ -141,6 +145,28 @@ def test_v_sat_operator_daily_attributes_days_by_ownership_window(db_conn):
             )
             distinct_smas = cur.fetchall()
         assert len(distinct_smas) == 1, "physics aggregate must not change across the acquisition"
+    finally:
+        db_conn.rollback()
+
+
+@pytest.mark.db
+def test_v_sat_operator_daily_transition_day_attributes_single_owner(db_conn):
+    """Half-open SCD2 boundary: on the exact split date (DAY_3), where ALPHA.valid_to ==
+    BETA.valid_from, the satellite/day must be attributed to EXACTLY ONE operator -- the incoming
+    BETA -- not double-counted under both. Guards the closed-BETWEEN regression."""
+    try:
+        with db_conn.cursor() as cur:
+            _seed_acquisition_fixture(cur)
+
+            cur.execute(
+                "SELECT operator_name FROM v_sat_operator_daily "
+                "WHERE norad_id = %s AND day::date = %s",
+                (SAT_A, DAY_3),
+            )
+            rows = cur.fetchall()
+
+        assert len(rows) == 1, f"transition day must yield exactly one owner row, got {rows}"
+        assert rows[0][0] == OP_BETA, "boundary day belongs to the incoming operator"
     finally:
         db_conn.rollback()
 

@@ -28,9 +28,15 @@ def _assertions(conn, attribute):
     """Return {satellite_id: {source: (value, observed_at)}} for one attribute (latest per src)."""
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
+        # Ascending order with deterministic tiebreakers: within one source, all assertions of a
+        # snapshot share observed_at (= loaded_at), so ordering by observed_at alone leaves the
+        # dict-overwrite winner up to physical row order (non-deterministic across VACUUM/re-runs).
+        # (ingest_run_id, source_key) breaks the tie stably; the last row iterated (the max tuple)
+        # is the kept winner.
         cur.execute(
             "SELECT satellite_id, source, value, observed_at FROM source_assertion "
-            "WHERE attribute = %s AND satellite_id IS NOT NULL ORDER BY observed_at",
+            "WHERE attribute = %s AND satellite_id IS NOT NULL "
+            "ORDER BY observed_at, ingest_run_id, source_key",
             (attribute,),
         )
         for sat_id, source, value, observed_at in cur.fetchall():

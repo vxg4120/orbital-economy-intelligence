@@ -120,7 +120,11 @@ _ISO = re.compile(r"(\d{4})-(\d{1,2})-(\d{1,2})")
 _TEXT_YMD = re.compile(r"(\d{4})\s+([A-Za-z]{3})\s+(\d{1,2})")
 _TEXT_YM = re.compile(r"(\d{4})\s+([A-Za-z]{3})")
 _MDY = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
-_YEAR_ONLY = re.compile(r"^\s*(\d{4})\s*$")
+# Bare year, tolerating GCAT's trailing '?' uncertainty marker ('1971?' -> 1971). The full
+# YMD/YM branches above already survive a trailing '?' because they use .search(); this keeps the
+# bare-year branch consistent instead of silently dropping '1971?' to None. Decade forms ('2000s?')
+# stay unparseable — the 's' breaks the anchor — because the specific year is genuinely ambiguous.
+_YEAR_ONLY = re.compile(r"^\s*(\d{4})\s*\??\s*$")
 
 
 def parse_date_loose(s) -> dt.date | None:
@@ -128,7 +132,9 @@ def parse_date_loose(s) -> dt.date | None:
 
     Accepts ``datetime.date`` (SATCAT DATE columns) as-is, ISO 'YYYY-MM-DD',
     GCAT text 'YYYY Mon DD' / 'YYYY Mon' (day/month default to 1), US 'M/D/YYYY',
-    and bare 'YYYY'. GCAT '-' sentinels and blanks return None.
+    and bare 'YYYY'. GCAT's trailing '?' uncertainty marker is tolerated on all of these
+    (e.g. '1957 Dec  1 1000?', '1971?' -> the certain part). GCAT '-' sentinels, blanks, and
+    genuinely-ambiguous decade forms ('2000s?') return None.
     """
     if s is None:
         return None

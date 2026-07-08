@@ -66,18 +66,36 @@ def test_full_pipeline_on_synthetic_fixture(db_conn, tmp_path):
 
     summary = build_graph.run_pipeline(db_conn, review_csv=review)
 
-    # exactly the 5 physical objects
-    assert summary["satellites"] == 5
-
-    ids = summary["identifiers_by_type"]
-    assert ids.get("norad", 0) == 4          # 201, 202, 203, 205
-    assert ids.get("gcat_id", 0) == 4        # G201-G204
-    assert ids.get("name_satcat", 0) == 4
-
+    # Global summary fields that stay valid on a shared/populated dev DB (the identity build is
+    # committed there); the per-object graph shape is asserted synthetic-scoped below so this test
+    # is robust to the reserved-range convention rather than assuming an empty DB.
     assert summary["merge_log_rows"] > 0, "every link must be audited in merge_log"
     assert {"satcat", "gcat"} <= set(summary["assertions_by_source"])
 
     with db_conn.cursor() as cur:
+        # exactly the 5 synthetic physical objects: 4 by NORAD (201/202/203/205) + 1 COSPAR-only
+        # analyst (G204 -> 2023-090Z).
+        cur.execute(
+            "SELECT count(DISTINCT s.satellite_id) FROM satellite s "
+            "LEFT JOIN satellite_identifier si ON si.satellite_id = s.satellite_id "
+            "WHERE s.norad_id BETWEEN 910000201 AND 910000205 "
+            "   OR (si.id_type='cospar' AND si.id_value='2023-090Z')"
+        )
+        assert cur.fetchone()[0] == 5
+
+        cur.execute(
+            "SELECT count(*) FROM satellite_identifier "
+            "WHERE id_type='norad' AND id_value = ANY(%s)",
+            (["910000201", "910000202", "910000203", "910000205"],),
+        )
+        assert cur.fetchone()[0] == 4
+        cur.execute(
+            "SELECT count(*) FROM satellite_identifier "
+            "WHERE id_type='gcat_id' AND id_value = ANY(%s)",
+            (["G201", "G202", "G203", "G204"],),
+        )
+        assert cur.fetchone()[0] == 4  # G201-G204 all linked (G204 via COSPAR)
+
         cur.execute("SELECT satellite_id FROM satellite WHERE norad_id = 910000201")
         obj_a = cur.fetchone()[0]
         # the SATCAT/GCAT status disagreement survives as data in source_assertion
@@ -95,7 +113,23 @@ def test_full_pipeline_on_synthetic_fixture(db_conn, tmp_path):
         )
         assert cur.fetchone()[0] >= 1
 
-    # A/B/C resolve to SpaceX (GCAT owner + launch dates present); E/D do not
-    assert summary["operator_resolved"] == 3
+        # A/B/C resolve to SpaceX (GCAT owner + launch dates present); each gets one owner row.
+        cur.execute(
+            "SELECT DISTINCT o.canonical_name FROM satellite_operator so "
+            "JOIN operator o ON o.operator_id = so.operator_id "
+            "JOIN satellite s ON s.satellite_id = so.satellite_id "
+            "WHERE s.norad_id IN (910000201, 910000202, 910000203) "
+            "  AND so.role='owner' AND so.source='resolve'"
+        )
+        resolved_ops = [r[0] for r in cur.fetchall()]
+        assert resolved_ops == ["SpaceX"], resolved_ops
+        cur.execute(
+            "SELECT count(*) FROM satellite_operator so JOIN satellite s "
+            "ON s.satellite_id = so.satellite_id "
+            "WHERE s.norad_id IN (910000201, 910000202, 910000203) "
+            "  AND so.role='owner' AND so.source='resolve'"
+        )
+        assert cur.fetchone()[0] == 3  # E (SATCAT-only, no GCAT owner) and D (analyst) do not
+
     assert summary["status_coverage_pct"] > 0
     db_conn.rollback()

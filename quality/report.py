@@ -119,14 +119,14 @@ def _section_status_disagreements(cur):
             FROM source_assertion a
             JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
             WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC
+            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
         ),
         gcat AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
             FROM source_assertion a
             JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
             WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC
+            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
         )
         SELECT
             s.norad_id,
@@ -158,7 +158,7 @@ def _section_decay_date_conflicts(cur):
             SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_at
             FROM source_assertion
             WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, source, observed_at DESC
+            ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key
         ) l
         JOIN satellite s ON s.satellite_id = l.satellite_id
         ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source
@@ -188,7 +188,7 @@ def _section_stale_post_ma_owners(cur):
             SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw, observed_at
             FROM source_assertion
             WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, observed_at DESC
+            ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
         ),
         owner_operator AS (
             SELECT lso.satellite_id, lso.owner_raw, oa.operator_id

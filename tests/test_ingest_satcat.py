@@ -52,6 +52,9 @@ def test_run_lands_rows_into_raw_satcat(clean_db, monkeypatch, tmp_path):
         status=200,
     )
     monkeypatch.setattr(celestrak_satcat, "DATA_DIR", tmp_path)  # avoid touching repo data/
+    # Unique endpoint so the real 'satcat_bulk' freshness ledger row on the shared dev DB never
+    # skips this pull; cleanup_since removes the run + rows afterwards.
+    monkeypatch.setattr(celestrak_satcat, "ENDPOINT", "satcat_bulk_test_lands")
 
     n = celestrak_satcat.run(clean_db)
 
@@ -77,6 +80,7 @@ def test_run_lands_rows_into_raw_satcat(clean_db, monkeypatch, tmp_path):
 @responses.activate
 def test_run_skips_when_fresh(clean_db, monkeypatch, tmp_path):
     monkeypatch.setattr(celestrak_satcat, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(celestrak_satcat, "ENDPOINT", "satcat_bulk_test_fresh")
     responses.add(responses.GET, celestrak_satcat.URL, body=FIXTURE.read_text(), status=200)
 
     first = celestrak_satcat.run(clean_db)
@@ -86,3 +90,30 @@ def test_run_skips_when_fresh(clean_db, monkeypatch, tmp_path):
     second = celestrak_satcat.run(clean_db)
     assert second == 0
     assert len(responses.calls) == 1  # no new HTTP call on the fresh re-run
+
+
+@pytest.mark.db
+@responses.activate
+def test_run_still_finishes_ok_when_raw_file_save_fails(clean_db, monkeypatch):
+    """Finding #8: a raw-file save failure after rows land must NOT orphan the ingest_run (leaving
+    status NULL). The run is finished 'ok' before the best-effort save, so the ledger stays
+    consistent with the committed rows."""
+    monkeypatch.setattr(celestrak_satcat, "ENDPOINT", "satcat_bulk_test_savefail")
+    responses.add(responses.GET, celestrak_satcat.URL, body=FIXTURE.read_text(), status=200)
+
+    def _boom(_text):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(celestrak_satcat, "_save_raw_file", _boom)
+
+    n = celestrak_satcat.run(clean_db)  # must not raise
+
+    assert n == 5
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT status, rows_ingested FROM ingest_run "
+            "WHERE endpoint = 'satcat_bulk_test_savefail' ORDER BY ingest_run_id DESC LIMIT 1"
+        )
+        status, rows_ingested = cur.fetchone()
+    assert status == "ok"  # not NULL/orphaned
+    assert rows_ingested == 5

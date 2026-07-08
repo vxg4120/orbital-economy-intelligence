@@ -75,6 +75,24 @@ def test_run_twice_does_not_duplicate_rows(clean_db):
     assert count_after_second == 3  # ON CONFLICT DO NOTHING: no duplicates
 
 
+@pytest.mark.db
+@responses.activate
+def test_run_skips_when_fresh(clean_db):
+    """Finding #9: a second run() within the 2h freshness window issues zero new HTTP requests,
+    exercising celestrak_gp.run()'s own skip path end-to-end (a unique group keeps this off the
+    real 'gp_active' ledger row on the shared dev DB)."""
+    group = "testfresh"
+    responses.add(responses.GET, _gp_url(group), body=FIXTURE.read_text(), status=200)
+
+    first = celestrak_gp.run(clean_db, group=group)
+    assert first == 3
+    assert len(responses.calls) == 1
+
+    second = celestrak_gp.run(clean_db, group=group)
+    assert second == 0
+    assert len(responses.calls) == 1  # no new HTTP call within the 2h freshness window
+
+
 def test_land_gp_rows_field_mapping_is_pure(monkeypatch):
     """land_gp_rows only needs a cursor-yielding conn; verify it maps every OMM field without
     hitting a real database (fast, no `db` marker needed)."""

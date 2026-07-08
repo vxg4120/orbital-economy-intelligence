@@ -89,6 +89,33 @@ def test_parse_date_loose(raw, expected):
 @pytest.mark.parametrize(
     "raw,expected",
     [
+        # Real GCAT LDate/DDate vague forms straight from .superpowers/sdd/gcat-satcat-head.txt:
+        # a full date carries a HHMM time and a trailing '?' uncertainty marker; the day is what we
+        # keep. These already worked via .search(), now pinned by tests.
+        ("1957 Dec  1 1000?", dt.date(1957, 12, 1)),
+        ("1957 Oct  4", dt.date(1957, 10, 4)),
+        ("1958 Jan  4?", dt.date(1958, 1, 4)),
+        ("1958 Apr 14 0200?", dt.date(1958, 4, 14)),
+        ("1970 Mar 31 1045?", dt.date(1970, 3, 31)),
+        # Bare year with GCAT's '?' marker: previously returned None (bug the finding flagged);
+        # now degrades to the certain year rather than silently dropping the claim entirely.
+        ("1971?", dt.date(1971, 1, 1)),
+        ("2026?", dt.date(2026, 1, 1)),
+        # Genuinely-ambiguous decade forms stay None (which year in the 2000s?).
+        ("2000s?", None),
+        ("1990s", None),
+        # '-' sentinel and blanks stay None.
+        ("-", None),
+        ("   ", None),
+    ],
+)
+def test_parse_date_loose_gcat_vague_forms(raw, expected):
+    assert parse_date_loose(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
         ("PAYLOAD", "PAYLOAD"),
         ("PAY", "PAYLOAD"),
         ("P", "PAYLOAD"),

@@ -92,6 +92,34 @@ def test_deterministic_norad_and_cospar_linking(db_conn):
     db_conn.rollback()
 
 
+def test_cospar_ambiguity_links_lowest_satellite_id_and_is_counted(db_conn):
+    """Finding #7: when a COSPAR maps to more than one satellite, a NORAD-less piece must resolve
+    deterministically (lowest satellite_id, not run-dependent), and the ambiguity must be counted
+    as a DQ signal in the build stats."""
+    with db_conn.cursor() as cur:
+        srun = _new_run(cur, "satcat")
+        # Two DIFFERENT physical objects sharing one COSPAR -> that COSPAR maps to 2 satellites.
+        _satcat(cur, srun, 910000401, "AMBIG-A", "2023-500A", "2023-05-01", 540, 560)
+        _satcat(cur, srun, 910000402, "AMBIG-B", "2023-500A", "2023-05-01", 540, 560)
+        grun = _new_run(cur, "gcat")
+        # NORAD-less GCAT piece carrying the same standard COSPAR -> resolved via the COSPAR pass.
+        _gcat(cur, grun, "G-AMBIG", None, "2023-500A", "Ambiguous Piece", "2023 May 1")
+
+    stats = match.deterministic(db_conn)
+
+    assert stats["ambiguous_cospar_links"] >= 1
+    with db_conn.cursor() as cur:
+        low = _sat_id_by_norad(cur, 910000401)
+        high = _sat_id_by_norad(cur, 910000402)
+        assert low < high
+        cur.execute(
+            "SELECT satellite_id FROM satellite_identifier "
+            "WHERE id_type='gcat_id' AND id_value='G-AMBIG'"
+        )
+        assert cur.fetchone()[0] == low, "ambiguous COSPAR must resolve to the lowest satellite_id"
+    db_conn.rollback()
+
+
 def test_probabilistic_true_positive_autolinks(db_conn, tmp_path):
     review = tmp_path / "review.csv"
     with db_conn.cursor() as cur:

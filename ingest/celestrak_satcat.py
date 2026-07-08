@@ -112,7 +112,23 @@ def run(conn) -> int:
         return 0
 
     rows = parse_rows(resp.text)
-    n = _land_rows(conn, rows, resp.oei_run_id)
-    _save_raw_file(resp.text)
+    try:
+        n = _land_rows(conn, rows, resp.oei_run_id)
+    except Exception as exc:
+        # A landing failure aborts the transaction; close the run as 'error' instead of leaving an
+        # orphaned open row (status NULL) that the freshness gate and assertion extractor ignore.
+        conn.rollback()
+        runlog.finish_run(
+            conn, resp.oei_run_id, rows=0, bytes_dl=resp.oei_bytes, status="error",
+            notes=str(exc)[:2000],
+        )
+        raise
+    # Rows are committed and the run is 'ok' BEFORE the raw-file save: the local copy is a
+    # debugging convenience, so a disk/permission failure there must not orphan a run whose data
+    # already landed. Save best-effort and only warn on failure.
     runlog.finish_run(conn, resp.oei_run_id, rows=n, bytes_dl=resp.oei_bytes, status="ok")
+    try:
+        _save_raw_file(resp.text)
+    except OSError as exc:
+        logger.warning("satcat: raw-file save failed (%s); rows already landed", exc)
     return n

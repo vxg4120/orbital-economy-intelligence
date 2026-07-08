@@ -133,6 +133,7 @@ def summarize(conn, prob_stats, resolve_stats, review_csv) -> dict:
         "unmatched_owners": resolve_stats.get("unmatched_owners", []),
         "review_queue_size": review_size,
         "auto_links": prob_stats.get("auto_links", 0),
+        "ambiguous_cospar_links": prob_stats.get("ambiguous_cospar_links", 0),
     }
 
 
@@ -149,6 +150,7 @@ def _print_summary(s: dict) -> None:
     print(f"satellites:              {s['satellites']}")
     print(f"merge_log rows:          {s['merge_log_rows']}")
     print(f"probabilistic auto-links:{s['auto_links']}")
+    print(f"ambiguous COSPAR links:  {s['ambiguous_cospar_links']}")
     print(f"review-queue size:       {s['review_queue_size']}")
     print("identifiers by type:")
     for id_type, count in sorted(s["identifiers_by_type"].items()):

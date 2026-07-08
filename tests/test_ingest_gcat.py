@@ -69,9 +69,17 @@ def test_process_satcat_rows_missing_satcat_number_is_null_norad():
     assert analyst.get("norad_id") is None
 
 
+@pytest.fixture
+def _unique_gcat_endpoints(monkeypatch):
+    """Unique endpoint tags so the real 'gcat_satcat'/'gcat_psatcat' freshness ledger rows on the
+    shared dev DB never skip these pulls; cleanup_since removes the runs + rows afterwards."""
+    monkeypatch.setattr(gcat_loader, "SATCAT_ENDPOINT", "gcat_satcat_test")
+    monkeypatch.setattr(gcat_loader, "PSATCAT_ENDPOINT", "gcat_psatcat_test")
+
+
 @pytest.mark.db
 @responses.activate
-def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path):
+def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpoints):
     monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
     responses.add(responses.GET, gcat_loader.SATCAT_URL, body=SATCAT_FIXTURE.read_text(), status=200)
     responses.add(responses.GET, gcat_loader.PSATCAT_URL, body=PSATCAT_FIXTURE.read_text(), status=200)
@@ -93,3 +101,22 @@ def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path):
         cur.execute("SELECT count(*) FROM raw_gcat_psatcat WHERE jcat LIKE '2020-00%A'")
         (count,) = cur.fetchone()
     assert count == 2
+
+
+@pytest.mark.db
+@responses.activate
+def test_run_twice_skips_both_endpoints_when_fresh(clean_db, monkeypatch, tmp_path,
+                                                    _unique_gcat_endpoints):
+    """Finding #9: a second run() within the freshness window issues zero new HTTP requests for
+    BOTH the satcat and psatcat legs."""
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    responses.add(responses.GET, gcat_loader.SATCAT_URL, body=SATCAT_FIXTURE.read_text(), status=200)
+    responses.add(responses.GET, gcat_loader.PSATCAT_URL, body=PSATCAT_FIXTURE.read_text(), status=200)
+
+    first = gcat_loader.run(clean_db)
+    assert first == {"satcat": 3, "psatcat": 2}
+    assert len(responses.calls) == 2  # one GET per endpoint
+
+    second = gcat_loader.run(clean_db)
+    assert second == {"satcat": 0, "psatcat": 0}
+    assert len(responses.calls) == 2  # no new HTTP calls on the fresh re-run

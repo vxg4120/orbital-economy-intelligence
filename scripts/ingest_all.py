@@ -71,12 +71,14 @@ def main(argv: list[str] | None = None, conn=None) -> int:
 
     owns_conn = conn is None
     conn = conn or get_conn()
+    failed: list[str] = []
     try:
         for name in sources:
             try:
                 _RUNNERS[name](conn)
             except Exception as exc:  # one source's failure must not stop the rest
                 print(f"[ingest_all] {name} failed: {exc}", file=sys.stderr)
+                failed.append(name)
                 # A DB-level failure (as opposed to an HTTP error, which polite_get already
                 # commits before raising) leaves the transaction aborted; without a rollback
                 # every subsequent loader's first query would cascade-fail too.
@@ -85,6 +87,11 @@ def main(argv: list[str] | None = None, conn=None) -> int:
     finally:
         if owns_conn:
             conn.close()
+    if failed:
+        # Make a partially-failed ingest observable to cron/CI via a non-zero exit code — a
+        # stderr line alone is invisible to a wrapper that only checks $?.
+        print(f"[ingest_all] FAILED sources ({len(failed)}): {', '.join(failed)}", file=sys.stderr)
+        return 1
     return 0
 
 

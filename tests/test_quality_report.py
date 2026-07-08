@@ -10,7 +10,14 @@ import re
 
 import pytest
 
-from quality.report import generate_report, write_report
+from quality.report import (
+    _section_decay_date_conflicts,
+    _section_stale_post_ma_owners,
+    _section_status_disagreements,
+    _section_supgp_cross_tags,
+    generate_report,
+    write_report,
+)
 
 # Reserved synthetic norad-id range for this task's db tests (distinct from test_metrics.py's
 # range so the two test modules' fixtures never collide within a shared dev DB).
@@ -186,39 +193,69 @@ def seeded(db_conn):
         db_conn.rollback()
 
 
+def _row_for_norad(rows, norad_id):
+    """Find the section row whose first column is the given synthetic norad id.
+
+    Section queries are asserted directly (rather than the rendered report) so the tests are robust
+    to a shared dev DB where thousands of real disagreements would push a high synthetic norad past
+    the report's top-N example truncation.
+    """
+    return next((r for r in rows if r[0] == norad_id), None)
+
+
 @pytest.mark.db
 def test_report_generates_and_contains_planted_status_disagreement(seeded, tmp_path):
+    # The report still renders end-to-end to a file...
     out_path = tmp_path / "dq_report.md"
     written = write_report(seeded, path=out_path)
-
     assert written == out_path
     assert out_path.exists()
-    content = out_path.read_text()
+    assert "## 1. Status disagreements" in out_path.read_text()
 
-    section = content.split("## 1. Status disagreements")[1].split("## 2.")[0]
-    assert str(NORAD_STATUS_DISAGREE) in section
-    assert "ZZ TEST STATUS DISAGREE" in section
-    assert "ACTIVE" in section
-    assert "DECAYED" in section
+    # ...and the planted SATCAT-ACTIVE vs GCAT-DECAYED disagreement is present in the section data.
+    with seeded.cursor() as cur:
+        _, rows = _section_status_disagreements(cur)
+    row = _row_for_norad(rows, NORAD_STATUS_DISAGREE)
+    assert row is not None, "planted status disagreement missing from section"
+    norad, name, satcat_status, gcat_status = row
+    assert name == "ZZ TEST STATUS DISAGREE"
+    assert satcat_status == "ACTIVE"
+    assert gcat_status == "DECAYED"
 
 
 @pytest.mark.db
-def test_report_contains_decay_conflict_and_stale_owner_and_supgp(seeded, tmp_path):
-    content = generate_report(seeded)
+def test_report_contains_decay_conflict_and_stale_owner_and_supgp(seeded):
+    with seeded.cursor() as cur:
+        _, decay_rows = _section_decay_date_conflicts(cur)
+        _, stale_rows = _section_stale_post_ma_owners(cur)
+        supgp_total, _, supgp_rows = _section_supgp_cross_tags(cur)
 
-    decay_section = content.split("## 2. Decay-date conflicts")[1].split("## 3.")[0]
-    assert str(NORAD_DECAY_CONFLICT) in decay_section
-    assert "2024-01-15" in decay_section
-    assert "2024-02-20" in decay_section
+    decay = _row_for_norad(decay_rows, NORAD_DECAY_CONFLICT)
+    assert decay is not None
+    assert "2024-01-15" in decay[2] and "2024-02-20" in decay[2]
 
-    stale_section = content.split("## 3. Stale post-M&A owners")[1].split("## 4.")[0]
-    assert str(NORAD_STALE_OWNER) in stale_section
-    assert "ZZ Test Child Co" in stale_section
-    assert "ZZ Test Parent Co" in stale_section
+    stale = _row_for_norad(stale_rows, NORAD_STALE_OWNER)
+    assert stale is not None
+    assert "ZZ Test Child Co" in stale  # resolved_to_child
+    assert "ZZ Test Parent Co" in stale  # should_be_parent
 
-    supgp_section = content.split("## 4. SupGP cross-tag anomalies")[1].split("## 5.")[0]
-    assert "NO_MATCH" in supgp_section
-    assert str(NORAD_STATUS_DISAGREE) in supgp_section
+    supgp = next((r for r in supgp_rows if r[0] == NORAD_STATUS_DISAGREE), None)
+    assert supgp is not None
+    assert supgp[3] == "NO_MATCH"  # flag column
+
+
+@pytest.mark.db
+def test_report_is_byte_identical_across_runs_modulo_timestamp(seeded):
+    """quality/report.py promises byte-identical output across runs except the generated-at header.
+    Every 'latest per source' query has a deterministic tiebreaker, so two renders of the same
+    seeded data must match once the timestamp line is stripped."""
+
+    def _strip_ts(md):
+        return "\n".join(line for line in md.splitlines() if not line.startswith("Generated at:"))
+
+    first = generate_report(seeded)
+    second = generate_report(seeded)
+    assert _strip_ts(first) == _strip_ts(second)
 
 
 @pytest.mark.db

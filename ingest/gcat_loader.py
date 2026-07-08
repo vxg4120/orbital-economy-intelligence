@@ -215,15 +215,39 @@ def _save_raw_file(name: str, text: str) -> Path:
     return out_path
 
 
+def _land_and_finish(conn, resp, land_fn, raw_filename: str) -> int:
+    """Land rows, close the run 'ok', then best-effort save the raw file.
+
+    A landing failure closes the run as 'error' (never leaves an orphaned open row); the raw-file
+    save runs only AFTER the run is finished 'ok', so a disk/permission failure there cannot orphan
+    a run whose data already committed."""
+    try:
+        n = land_fn()
+    except Exception as exc:
+        conn.rollback()
+        runlog.finish_run(
+            conn, resp.oei_run_id, rows=0, bytes_dl=resp.oei_bytes, status="error",
+            notes=str(exc)[:2000],
+        )
+        raise
+    runlog.finish_run(conn, resp.oei_run_id, rows=n, bytes_dl=resp.oei_bytes, status="ok")
+    try:
+        _save_raw_file(raw_filename, resp.text)
+    except OSError as exc:
+        logger.warning("gcat: raw-file save failed (%s); rows already landed", exc)
+    return n
+
+
 def run(conn) -> dict:
     counts = {"satcat": 0, "psatcat": 0}
 
     resp = runlog.polite_get(conn, SOURCE, SATCAT_ENDPOINT, SATCAT_URL, MIN_INTERVAL)
     if resp is not None:
         processed = process_satcat_rows(parse_tsv(resp.text))
-        n = _land_satcat_rows(conn, processed, resp.oei_run_id)
-        _save_raw_file(f"satcat-{dt.date.today().isoformat()}.tsv", resp.text)
-        runlog.finish_run(conn, resp.oei_run_id, rows=n, bytes_dl=resp.oei_bytes, status="ok")
+        n = _land_and_finish(
+            conn, resp, lambda: _land_satcat_rows(conn, processed, resp.oei_run_id),
+            f"satcat-{dt.date.today().isoformat()}.tsv",
+        )
         counts["satcat"] = n
     else:
         logger.info("gcat satcat: skipped, fresh run within %s", MIN_INTERVAL)
@@ -231,9 +255,10 @@ def run(conn) -> dict:
     resp = runlog.polite_get(conn, SOURCE, PSATCAT_ENDPOINT, PSATCAT_URL, MIN_INTERVAL)
     if resp is not None:
         processed = process_psatcat_rows(parse_tsv(resp.text))
-        n = _land_psatcat_rows(conn, processed, resp.oei_run_id)
-        _save_raw_file(f"psatcat-{dt.date.today().isoformat()}.tsv", resp.text)
-        runlog.finish_run(conn, resp.oei_run_id, rows=n, bytes_dl=resp.oei_bytes, status="ok")
+        n = _land_and_finish(
+            conn, resp, lambda: _land_psatcat_rows(conn, processed, resp.oei_run_id),
+            f"psatcat-{dt.date.today().isoformat()}.tsv",
+        )
         counts["psatcat"] = n
     else:
         logger.info("gcat psatcat: skipped, fresh run within %s", MIN_INTERVAL)

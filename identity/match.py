@@ -88,25 +88,35 @@ def _create_satellite(cur, cospar, name, obj_type, launch) -> int:
     return cur.fetchone()[0]
 
 
-def _find_by_cospar(cur, cospar: str) -> int | None:
+def _find_by_cospar(cur, cospar: str) -> tuple[int | None, bool]:
+    """Return (satellite_id, ambiguous). A COSPAR can map to more than one satellite (48 such on
+    the live catalog); pick the lowest satellite_id deterministically so a NORAD-less piece is
+    never linked to an arbitrary (run-dependent) physical object, and flag the ambiguity so the
+    build can count it as a DQ signal."""
     cur.execute(
         "SELECT satellite_id FROM satellite_identifier "
-        "WHERE id_type = 'cospar' AND id_value = %s LIMIT 1",
+        "WHERE id_type = 'cospar' AND id_value = %s ORDER BY satellite_id LIMIT 2",
         (cospar,),
     )
-    row = cur.fetchone()
-    return row[0] if row else None
+    rows = cur.fetchall()
+    if not rows:
+        return None, False
+    return rows[0][0], len(rows) > 1
 
 
 # --- deterministic passes -----------------------------------------------------
 
 
-def deterministic(conn) -> None:
-    """NORAD-exact then COSPAR-exact linking across the latest snapshot of each source."""
+def deterministic(conn) -> dict:
+    """NORAD-exact then COSPAR-exact linking across the latest snapshot of each source.
+
+    Returns DQ stats: ``ambiguous_cospar_links`` = number of NORAD-less pieces linked via a COSPAR
+    that resolves to more than one satellite (a data-quality signal, not a hard error)."""
     _deterministic_satcat(conn)
     _deterministic_gcat_norad(conn)
     _deterministic_ucs_norad(conn)
-    _cospar_pass(conn)
+    ambiguous = _cospar_pass(conn)
+    return {"ambiguous_cospar_links": ambiguous}
 
 
 def _bulk_upsert_satellites_by_norad(cur, stage_table: str) -> None:
@@ -253,8 +263,11 @@ def _deterministic_ucs_norad(conn) -> None:
                                       "source": "ucs"}, "norad_exact", 1.000)
 
 
-def _cospar_pass(conn) -> None:
-    """Link NORAD-less rows whose normalized COSPAR is standard and already known/creatable."""
+def _cospar_pass(conn) -> int:
+    """Link NORAD-less rows whose normalized COSPAR is standard and already known/creatable.
+
+    Returns the count of links made against an ambiguous COSPAR (one mapping to >1 satellite)."""
+    ambiguous = 0
     grun = _latest_run(conn, "raw_gcat_satcat")
     if grun is not None:
         with conn.cursor() as cur:
@@ -269,10 +282,11 @@ def _cospar_pass(conn) -> None:
             if not (cospar and standard):
                 continue
             with conn.cursor() as cur:
-                sat_id = _find_by_cospar(cur, cospar)
+                sat_id, is_ambiguous = _find_by_cospar(cur, cospar)
                 if sat_id is None:
                     sat_id = _create_satellite(cur, cospar, pl_name or name,
                                                obj_type, parse_date_loose(launch))
+            ambiguous += is_ambiguous
             merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
                                       "source": "gcat"}, "cospar_exact", 1.000)
             merge.link(conn, sat_id, {"id_type": "gcat_id", "id_value": jcat,
@@ -292,14 +306,16 @@ def _cospar_pass(conn) -> None:
             if not (cospar and standard):
                 continue
             with conn.cursor() as cur:
-                sat_id = _find_by_cospar(cur, cospar)
+                sat_id, is_ambiguous = _find_by_cospar(cur, cospar)
                 if sat_id is None:
                     sat_id = _create_satellite(cur, cospar, name, None,
                                                parse_date_loose(launch))
+            ambiguous += is_ambiguous
             merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
                                       "source": "ucs"}, "cospar_exact", 1.000)
             merge.link(conn, sat_id, {"id_type": "ucs_row", "id_value": row_key,
                                       "source": "ucs"}, "cospar_exact", 1.000)
+    return ambiguous
 
 
 # --- probabilistic pass -------------------------------------------------------
@@ -486,7 +502,10 @@ def load_config(config_path=None) -> dict:
 
 
 def run_matchers(conn, config_path=None, review_csv=None) -> dict:
-    """Full matcher: deterministic passes then the probabilistic pass. Returns prob stats."""
+    """Full matcher: deterministic passes then the probabilistic pass. Returns combined stats
+    (probabilistic stats plus the deterministic passes' ``ambiguous_cospar_links`` DQ count)."""
     config = load_config(config_path)
-    deterministic(conn)
-    return probabilistic(conn, config, Path(review_csv or _REVIEW_DEFAULT))
+    det_stats = deterministic(conn)
+    stats = probabilistic(conn, config, Path(review_csv or _REVIEW_DEFAULT))
+    stats.update(det_stats)
+    return stats
