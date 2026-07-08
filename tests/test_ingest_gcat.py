@@ -22,6 +22,7 @@ def clean_db(db_conn):
 
 def test_parse_tsv_reads_hash_prefixed_header_dynamically():
     raw_rows = gcat_loader.parse_tsv(SATCAT_FIXTURE.read_text())
+    # The "# Updated ..." banner line after the header is a comment, not a data row.
     assert len(raw_rows) == 3
     # Header keys come from the file, not a hardcoded position list.
     assert set(raw_rows[0]) == {
@@ -29,6 +30,24 @@ def test_parse_tsv_reads_hash_prefixed_header_dynamically():
         "Dest", "Owner", "State", "Manufacturer", "Bus", "Mass", "Perigee", "Apogee", "Inc",
         "OpOrbit", "AltNames", "ODate",
     }
+
+
+def test_parse_tsv_skips_update_banner_comment_line():
+    """The real GCAT files carry a '# Updated <date>' line under the header; it must never land
+    as a bogus one-column row (JCAT ids never start with '#')."""
+    raw_rows = gcat_loader.parse_tsv(SATCAT_FIXTURE.read_text())
+    assert all(not row["JCAT"].startswith("#") for row in raw_rows)
+
+
+def test_coerce_satcat_types_is_defensive_on_bad_numeric():
+    """A single unparseable numeric in a 40k-row live pull must degrade to NULL (preserved in
+    extra) instead of aborting the whole landing transaction."""
+    bad = "#JCAT\tSatcat\tPerigee\tApogee\tInc\n" "S99999\t50000\t550\tNOT_A_NUMBER\t53.0\n"
+    typed, extra = gcat_loader.process_satcat_rows(gcat_loader.parse_tsv(bad))[0]
+    assert typed["norad_id"] == 50000
+    assert typed["perigee_km"] == pytest.approx(550)
+    assert typed["apogee_km"] is None  # unparseable -> NULL
+    assert extra["_unparsed_apogee_km"] == "NOT_A_NUMBER"  # raw value preserved, nothing lost
 
 
 def test_process_satcat_rows_maps_types_nulls_dashes_and_keeps_extra():

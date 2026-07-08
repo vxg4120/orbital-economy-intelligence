@@ -1,4 +1,4 @@
-.PHONY: venv up down psql migrate test lint
+.PHONY: venv up down psql migrate metrics report test lint
 
 venv:
 	python3 -m venv .venv
@@ -18,6 +18,12 @@ psql:
 
 migrate:
 	.venv/bin/python scripts/migrate.py
+
+metrics:
+	.venv/bin/python scripts/apply_metrics.py
+
+report:
+	.venv/bin/python quality/report.py
 
 test:
 	.venv/bin/python -m pytest -q

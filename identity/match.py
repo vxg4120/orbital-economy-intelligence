@@ -109,32 +109,96 @@ def deterministic(conn) -> None:
     _cospar_pass(conn)
 
 
+def _bulk_upsert_satellites_by_norad(cur, stage_table: str) -> None:
+    """Create/refresh a satellite row for every NORAD in a staging table in one statement.
+
+    Same semantics as ``_upsert_norad`` applied row-by-row: canonical_name falls back to the
+    NORAD id, object_type falls back to UNKNOWN, and ON CONFLICT only bumps ``updated_at`` so an
+    already-known satellite keeps the attributes an earlier source gave it. The staging table must
+    expose columns ``norad, cospar, name, obj_type, launch``.
+
+    ``DISTINCT ON (norad)`` collapses rows that share a NORAD id (GCAT registers several JCAT
+    pieces under one Satcat number): a single INSERT ... ON CONFLICT DO UPDATE cannot touch the
+    same target row twice, and one representative row per object is all a norad-keyed dimension
+    needs — the losing attributes still resolve later from source_assertion."""
+    cur.execute(
+        f"""
+        INSERT INTO satellite (norad_id, cospar_id, canonical_name, object_type, launch_date)
+        SELECT DISTINCT ON (norad)
+               norad, cospar, COALESCE(name, norad::text), COALESCE(obj_type, 'UNKNOWN'), launch
+        FROM {stage_table}
+        ORDER BY norad
+        ON CONFLICT (norad_id) DO UPDATE SET updated_at = now()
+        """
+    )
+
+
+def _bulk_link_by_norad(cur, stage_table, id_type, value_expr, source, rule) -> None:
+    """Attach one identifier per staged NORAD row and log exactly the links actually created.
+
+    The identifier insert is ON CONFLICT DO NOTHING (idempotent); ``RETURNING`` yields only the
+    rows that were genuinely inserted, and ``merge_log`` is written for exactly those. This is the
+    same "no silent link, no duplicate audit row on re-run" invariant as ``merge.link``, done
+    set-based over the whole snapshot instead of one network round-trip per identifier —
+    ``value_expr`` is a trusted SQL expression over the ``st``-aliased staging table."""
+    cur.execute(
+        f"""
+        WITH ins AS (
+            INSERT INTO satellite_identifier
+                (satellite_id, id_type, id_value, source, confidence)
+            SELECT s.satellite_id, %(id_type)s, {value_expr}, %(source)s, 1.00
+            FROM {stage_table} st
+            JOIN satellite s ON s.norad_id = st.norad
+            WHERE ({value_expr}) IS NOT NULL
+            ON CONFLICT (id_type, id_value, source, satellite_id) DO NOTHING
+            RETURNING satellite_id, id_type, id_value, source
+        )
+        INSERT INTO merge_log (surviving_id, merged_id, rule_fired, score, details)
+        SELECT satellite_id, satellite_id, %(rule)s, 1.000,
+               jsonb_build_object('id_type', id_type, 'id_value', id_value, 'source', source)
+        FROM ins
+        """,
+        {"id_type": id_type, "source": source, "rule": rule},
+    )
+
+
 def _deterministic_satcat(conn) -> None:
+    """NORAD-exact linking of the whole SATCAT snapshot, set-based: COPY the normalized rows into
+    a temp table, then create satellites and link norad/cospar/name in a handful of statements
+    instead of ~4 round-trips per object (which is minutes on the ~70k-row live catalog)."""
     run = _latest_run(conn, "raw_satcat")
     if run is None:
         return
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT norad_cat_id, object_id, object_name, object_type, launch_date, "
-            "apogee, perigee FROM raw_satcat WHERE ingest_run_id = %s",
+            "SELECT norad_cat_id, object_id, object_name, object_type, launch_date "
+            "FROM raw_satcat WHERE ingest_run_id = %s",
             (run,),
         )
-        rows = cur.fetchall()
-    for norad, object_id, name, obj_type, launch, _apogee, _perigee in rows:
-        cospar, _ = norm_cospar(object_id)
-        with conn.cursor() as cur:
-            sat_id = _upsert_norad(cur, norad, cospar, name, obj_type, launch)
-        merge.link(conn, sat_id, {"id_type": "norad", "id_value": str(norad),
-                                  "source": "satcat"}, "norad_exact", 1.000)
-        if cospar:
-            merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
-                                      "source": "satcat"}, "norad_exact", 1.000)
-        if name:
-            merge.link(conn, sat_id, {"id_type": "name_satcat", "id_value": name,
-                                      "source": "satcat"}, "norad_exact", 1.000)
+        staged = [
+            (norad, norm_cospar(object_id)[0], name, obj_type, launch)
+            for norad, object_id, name, obj_type, launch in cur.fetchall()
+        ]
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TEMP TABLE _stage_satcat "
+            "(norad bigint, cospar text, name text, obj_type text, launch date) ON COMMIT DROP"
+        )
+        with cur.copy(
+            "COPY _stage_satcat (norad, cospar, name, obj_type, launch) FROM STDIN"
+        ) as cp:
+            for rec in staged:
+                cp.write_row(rec)
+        _bulk_upsert_satellites_by_norad(cur, "_stage_satcat")
+        _bulk_link_by_norad(cur, "_stage_satcat", "norad", "st.norad::text", "satcat", "norad_exact")
+        _bulk_link_by_norad(cur, "_stage_satcat", "cospar", "st.cospar", "satcat", "norad_exact")
+        _bulk_link_by_norad(cur, "_stage_satcat", "name_satcat", "st.name", "satcat", "norad_exact")
+        cur.execute("DROP TABLE _stage_satcat")
 
 
 def _deterministic_gcat_norad(conn) -> None:
+    """NORAD-exact linking of every GCAT row that carries a Satcat (NORAD) number, set-based
+    (same COPY-then-link shape as the SATCAT pass; ~69k rows on the live catalog)."""
     run = _latest_run(conn, "raw_gcat_satcat")
     if run is None:
         return
@@ -144,21 +208,27 @@ def _deterministic_gcat_norad(conn) -> None:
             "FROM raw_gcat_satcat WHERE ingest_run_id = %s AND norad_id IS NOT NULL",
             (run,),
         )
-        rows = cur.fetchall()
-    for jcat, norad, piece, obj_type, name, pl_name, launch in rows:
-        cospar, _ = norm_cospar(piece)
-        with conn.cursor() as cur:
-            sat_id = _upsert_norad(cur, norad, cospar, pl_name or name,
-                                   obj_type, parse_date_loose(launch))
-        merge.link(conn, sat_id, {"id_type": "gcat_id", "id_value": jcat,
-                                  "source": "gcat"}, "norad_exact", 1.000)
-        gname = pl_name or name
-        if gname:
-            merge.link(conn, sat_id, {"id_type": "name_gcat", "id_value": gname,
-                                      "source": "gcat"}, "norad_exact", 1.000)
-        if cospar:
-            merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
-                                      "source": "gcat"}, "norad_exact", 1.000)
+        staged = [
+            (norad, jcat, norm_cospar(piece)[0], pl_name or name, obj_type,
+             parse_date_loose(launch))
+            for jcat, norad, piece, obj_type, name, pl_name, launch in cur.fetchall()
+        ]
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TEMP TABLE _stage_gcat "
+            "(norad bigint, jcat text, cospar text, name text, obj_type text, launch date) "
+            "ON COMMIT DROP"
+        )
+        with cur.copy(
+            "COPY _stage_gcat (norad, jcat, cospar, name, obj_type, launch) FROM STDIN"
+        ) as cp:
+            for rec in staged:
+                cp.write_row(rec)
+        _bulk_upsert_satellites_by_norad(cur, "_stage_gcat")
+        _bulk_link_by_norad(cur, "_stage_gcat", "gcat_id", "st.jcat", "gcat", "norad_exact")
+        _bulk_link_by_norad(cur, "_stage_gcat", "name_gcat", "st.name", "gcat", "norad_exact")
+        _bulk_link_by_norad(cur, "_stage_gcat", "cospar", "st.cospar", "gcat", "norad_exact")
+        cur.execute("DROP TABLE _stage_gcat")
 
 
 def _deterministic_ucs_norad(conn) -> None:

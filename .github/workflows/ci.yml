@@ -1,0 +1,131 @@
+name: CI
+
+# Orbital Economy Intelligence CI.
+#
+# Two jobs:
+#   lint-and-unit  — ruff + the network-free unit tests (no database needed). Fast gate.
+#   db             — spins up a real TimescaleDB pg17 service container, migrates, applies the
+#                    metrics layer, runs the FULL suite (including @pytest.mark.db tests), then
+#                    regenerates the Data Quality report from the committed synthetic fixtures and
+#                    uploads it as a build artifact.
+#
+# The repo is local-only today; this file runs whenever the project is eventually pushed to GitHub.
+# No live network pulls ever happen in CI — HTTP is mocked with the small fixtures in tests/.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Unit tests (network-free, no database)
+        run: pytest -q -W error -m "not db"
+
+  db:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://oei:oei@localhost:5433/oei
+    services:
+      timescaledb:
+        image: timescale/timescaledb:latest-pg17
+        env:
+          POSTGRES_DB: oei
+          POSTGRES_USER: oei
+          POSTGRES_PASSWORD: oei
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U oei -d oei"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Migrate schema
+        run: python scripts/migrate.py
+
+      - name: Apply metrics layer (continuous aggregate + benchmark views)
+        run: python scripts/apply_metrics.py
+
+      - name: Full test suite (unit + database)
+        run: pytest -q -W error
+
+      - name: Generate DQ report from synthetic fixtures
+        run: |
+          python - <<'PY'
+          # Drive the real ingest -> identity -> resolve -> report pipeline against the committed
+          # test fixtures (HTTP mocked with `responses`), so the uploaded report is produced by the
+          # exact code path the live build uses — just on tiny deterministic data.
+          import sys
+          from pathlib import Path
+
+          import responses
+
+          sys.path.insert(0, "scripts")  # scripts/ is a script dir, not an importable package
+          import build_graph
+
+          from common.db import get_conn
+          from ingest import celestrak_gp, celestrak_satcat, gcat_loader
+          from quality import report
+
+          fx = Path("tests/fixtures")
+          with responses.RequestsMock(assert_all_requests_are_fired=False) as mock:
+              mock.add(responses.GET, celestrak_satcat.URL,
+                       body=(fx / "satcat_sample.csv").read_text(), status=200)
+              mock.add(responses.GET, gcat_loader.SATCAT_URL,
+                       body=(fx / "gcat_satcat_sample.tsv").read_text(), status=200)
+              mock.add(responses.GET, gcat_loader.PSATCAT_URL,
+                       body=(fx / "gcat_psatcat_sample.tsv").read_text(), status=200)
+              mock.add(responses.GET, celestrak_gp.URL_TMPL.format(group="active"),
+                       body=(fx / "gp_sample.json").read_text(), status=200)
+              conn = get_conn()
+              celestrak_satcat.run(conn)
+              gcat_loader.run(conn)
+              celestrak_gp.run(conn)
+              conn.commit()
+              conn.close()
+
+          conn = get_conn()
+          build_graph.run_pipeline(conn)
+          conn.commit()
+          conn.close()
+
+          conn = get_conn()
+          out = report.write_report(conn)
+          conn.close()
+          print(f"wrote {out}")
+          PY
+
+      - name: Upload DQ report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dq-report
+          path: docs/reports/dq_report.md

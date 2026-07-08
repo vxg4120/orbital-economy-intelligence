@@ -1,4 +1,5 @@
 #JCAT	Satcat	Piece	Type	Name	PLName	LDate	DDate	Status	Dest	Owner	State	Manufacturer	Bus	Mass	Perigee	Apogee	Inc	OpOrbit	AltNames	ODate
+# Updated 2026 Jul  7 1654:27
 2020-001A	900000001	A	P	OEI-TEST-SAT-1	OEI Test Sat 1	2020 Jan  5	-	O	EO	OEI Test Org	US	OEI Labs	OEIBus-1	150	550	560	53.05	LEO	-	2020 Jan  6
 2020-002A	900000002	A	P	OEI-TEST-SAT-2	OEI Test Sat 2	2020 Feb 11	-	O	EO	OEI Test Org	US	OEI Labs	OEIBus-1	145	545	555	53.02	LEO	-	2020 Feb 12
 OEI-ANALYST-1	-	-	P	OEI-TEST-ANALYST	-	-	-	U	-	-	-	-	-	-	-	-	-	-	-	-

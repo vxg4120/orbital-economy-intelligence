@@ -99,7 +99,12 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     seed_status_map(conn)
     prob_stats = match.run_matchers(conn, review_csv=review_csv)
     assertions.extract(conn)
-    resolve_stats = resolve.resolve(conn)
+    # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
+    # psycopg pipeline mode batches those thousands of statements into far fewer round-trips,
+    # turning the resolve phase from minutes into seconds on the full ~70k-object catalog. The SQL
+    # is identical — this is purely a transport optimization.
+    with conn.pipeline():
+        resolve_stats = resolve.resolve(conn)
     return summarize(conn, prob_stats, resolve_stats, review_csv)
 
 

@@ -1,8 +1,11 @@
 """Generates docs/reports/dq_report.md -- the Data Quality & Conflict Report. SPEC.md §8.
 
-Pure SQL against the schema (no import of identity/ -- this module must work standalone against
-whatever the identity engine has written to the dimension tables) + string formatting, no
-plotting deps. Safe to re-run: it always overwrites the target file from scratch.
+SQL against the schema (it reads only the tables the identity engine populated, never invokes the
+engine) + string formatting, no plotting deps. The one identity/ import is the pure, stdlib-only
+``parse_date_loose`` helper, reused so the decay-date conflict section compares *dates* rather than
+raw strings (GCAT's "1957 Dec 1 1000?" and SATCAT's "1957-12-01" are the same date in different
+clothes and must not read as a conflict). Safe to re-run: it always overwrites the file from
+scratch.
 
 Determinism: every query below has an explicit ORDER BY so that, given the same underlying data,
 the generated markdown is byte-identical except for the "generated at" header timestamp -- making
@@ -24,6 +27,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.normalize import parse_date_loose
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "dq_report.md"
@@ -80,35 +84,50 @@ def _review_queue_size() -> int:
 
 
 def _section_header(cur):
+    # Last run per (source, endpoint, status): CelesTrak serves satcat, gp AND supgp all under
+    # source='celestrak', so collapsing on (source, status) alone would hide the satcat and gp
+    # pulls behind whichever endpoint finished last. Keying on endpoint too keeps every pull —
+    # and the skipped_fresh rows that prove the politeness gate fired — visible.
     cols, rows = _rows(
         cur,
         """
         SELECT source, endpoint, status, finished_at, rows_ingested, bytes_downloaded
         FROM (
-            SELECT DISTINCT ON (source, status)
+            SELECT DISTINCT ON (source, endpoint, status)
                 source, endpoint, status, finished_at, rows_ingested, bytes_downloaded
             FROM ingest_run
-            ORDER BY source, status, finished_at DESC NULLS LAST
-        ) last_per_source_status
-        ORDER BY source, status
+            ORDER BY source, endpoint, status, finished_at DESC NULLS LAST
+        ) last_per_endpoint_status
+        ORDER BY source, endpoint, status
         """,
     )
     return cols, rows
 
 
 def _section_status_disagreements(cur):
+    # Cross-source disagreement lives in source_assertion (what each source *claimed*), not in
+    # satellite_status_history (which only holds the resolver's single winning status per object).
+    # Each source's raw status is mapped to the canonical taxonomy via status_mapping; a
+    # disagreement is two *concrete* (non-UNKNOWN) statuses that differ -- e.g. SATCAT still says
+    # ACTIVE while GCAT records the object as reentered (DECAYED). Comparing to UNKNOWN would just
+    # surface GCAT's silence on operational health, which is not a real conflict.
     cols, rows = _rows(
         cur,
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (satellite_id, source)
-                satellite_id, source, canonical_status, observed_at
-            FROM satellite_status_history
-            WHERE source IN ('satcat', 'gcat')
-            ORDER BY satellite_id, source, observed_at DESC
+        WITH satcat AS (
+            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
+            FROM source_assertion a
+            JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
+            WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
+            ORDER BY a.satellite_id, a.observed_at DESC
         ),
-        satcat AS (SELECT satellite_id, canonical_status FROM latest WHERE source = 'satcat'),
-        gcat   AS (SELECT satellite_id, canonical_status FROM latest WHERE source = 'gcat')
+        gcat AS (
+            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
+            FROM source_assertion a
+            JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
+            WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
+            ORDER BY a.satellite_id, a.observed_at DESC
+        )
         SELECT
             s.norad_id,
             s.canonical_name,
@@ -117,7 +136,9 @@ def _section_status_disagreements(cur):
         FROM satcat sc
         JOIN gcat gc ON gc.satellite_id = sc.satellite_id
         JOIN satellite s ON s.satellite_id = sc.satellite_id
-        WHERE sc.canonical_status IS DISTINCT FROM gc.canonical_status
+        WHERE sc.canonical_status <> gc.canonical_status
+          AND sc.canonical_status <> 'UNKNOWN'
+          AND gc.canonical_status <> 'UNKNOWN'
         ORDER BY s.norad_id NULLS LAST, s.satellite_id
         """,
     )
@@ -125,29 +146,37 @@ def _section_status_disagreements(cur):
 
 
 def _section_decay_date_conflicts(cur):
-    cols, rows = _rows(
-        cur,
+    # A conflict is a genuine disagreement about *when* an object decayed, so we parse each
+    # source's raw value to a date and compare those -- otherwise every object would "conflict"
+    # purely because GCAT writes "1957 Dec  1 1000?" where SATCAT writes "1957-12-01". The raw
+    # strings are still shown in the examples so the provenance is visible. Rows arrive ordered by
+    # (norad NULLS LAST, satellite_id) from SQL; dict insertion order preserves that determinism.
+    cur.execute(
         """
-        WITH latest AS (
-            SELECT DISTINCT ON (satellite_id, source)
-                satellite_id, source, value, observed_at
+        SELECT s.norad_id, s.canonical_name, l.satellite_id, l.source, l.value
+        FROM (
+            SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_at
             FROM source_assertion
             WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
             ORDER BY satellite_id, source, observed_at DESC
-        ),
-        conflicting AS (
-            SELECT satellite_id,
-                   string_agg(source || ': ' || value, '; ' ORDER BY source) AS sources_and_dates
-            FROM latest
-            GROUP BY satellite_id
-            HAVING count(DISTINCT value) > 1
-        )
-        SELECT s.norad_id, s.canonical_name, c.sources_and_dates
-        FROM conflicting c
-        JOIN satellite s ON s.satellite_id = c.satellite_id
-        ORDER BY s.norad_id NULLS LAST, s.satellite_id
-        """,
+        ) l
+        JOIN satellite s ON s.satellite_id = l.satellite_id
+        ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source
+        """
     )
+    per_sat: dict = {}
+    for norad, name, sat_id, source, value in cur.fetchall():
+        entry = per_sat.setdefault(sat_id, {"norad": norad, "name": name, "claims": []})
+        entry["claims"].append((source, value))
+
+    cols = ["norad_id", "canonical_name", "sources_and_dates"]
+    rows = []
+    for entry in per_sat.values():
+        parsed = {parse_date_loose(v) for _, v in entry["claims"]}
+        parsed.discard(None)  # an unparseable value can't establish a date conflict
+        if len(parsed) > 1:
+            sources_and_dates = "; ".join(f"{s}: {v}" for s, v in entry["claims"])
+            rows.append((entry["norad"], entry["name"], sources_and_dates))
     return cols, rows
 
 

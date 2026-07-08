@@ -56,12 +56,32 @@ def seeded(db_conn):
         _insert_ingest_run(cur, "gp", "https://celestrak.org/NORAD/elements/gp.php", "skipped_fresh")
 
         # --- Section: status disagreements (SATCAT vs GCAT) ---
+        # The section compares each source's *asserted* status, mapped to canonical via
+        # status_mapping (not the resolver's single winning status), so seed both: SATCAT still
+        # calls the object ACTIVE while GCAT records it as reentered (DECAYED).
         sat_disagree = _insert_satellite(cur, NORAD_STATUS_DISAGREE, "ZZ TEST STATUS DISAGREE")
+        cur.execute(
+            "INSERT INTO status_mapping (source, source_value, canonical_status) VALUES "
+            "('satcat', 'ZZACT', 'ACTIVE'), ('gcat', 'ZZDEC', 'DECAYED') "
+            "ON CONFLICT (source, source_value) DO NOTHING"
+        )
+        cur.execute(
+            "INSERT INTO source_assertion "
+            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
+            "VALUES "
+            "(%s, %s, 'status', 'ZZACT', 'satcat', now(), %s), "
+            "(%s, %s, 'status', 'ZZDEC', 'gcat', now(), %s)",
+            (
+                sat_disagree, str(NORAD_STATUS_DISAGREE), run_satcat,
+                sat_disagree, str(NORAD_STATUS_DISAGREE), run_gcat,
+            ),
+        )
+        # A resolved on-orbit status keeps this object in the coverage denominator too.
         cur.execute(
             "INSERT INTO satellite_status_history "
             "(satellite_id, canonical_status, observed_at, source) VALUES "
-            "(%s, 'ACTIVE', now(), 'satcat'), (%s, 'INACTIVE', now(), 'gcat')",
-            (sat_disagree, sat_disagree),
+            "(%s, 'ACTIVE', now(), 'satcat')",
+            (sat_disagree,),
         )
 
         # --- Section: decay-date conflicts ---
@@ -179,7 +199,7 @@ def test_report_generates_and_contains_planted_status_disagreement(seeded, tmp_p
     assert str(NORAD_STATUS_DISAGREE) in section
     assert "ZZ TEST STATUS DISAGREE" in section
     assert "ACTIVE" in section
-    assert "INACTIVE" in section
+    assert "DECAYED" in section
 
 
 @pytest.mark.db

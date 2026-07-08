@@ -50,15 +50,22 @@ def _snake(header: str) -> str:
 
 
 def _coerce(field: str, value: str | None):
+    """Coerce one CSV cell to its column type. Defensive: the live catalog is ~60k rows pulled
+    exactly once, so a single malformed numeric/date cell must not abort the whole load — an
+    un-coercible typed value degrades to NULL (logged) rather than raising."""
     value = (value or "").strip()
     if value == "":
         return None
-    if field in _INT_FIELDS:
-        return int(value)
-    if field in _NUMERIC_FIELDS:
-        return float(value)
-    if field in _DATE_FIELDS:
-        return dt.date.fromisoformat(value)
+    try:
+        if field in _INT_FIELDS:
+            return int(value)
+        if field in _NUMERIC_FIELDS:
+            return float(value)
+        if field in _DATE_FIELDS:
+            return dt.date.fromisoformat(value)
+    except ValueError:
+        logger.warning("satcat: dropping unparseable %s=%r -> NULL", field, value)
+        return None
     return value
 
 

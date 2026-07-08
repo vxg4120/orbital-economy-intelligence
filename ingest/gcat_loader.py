@@ -99,7 +99,12 @@ def _clean(value: str | None) -> str | None:
 
 def parse_tsv(text: str) -> list[dict]:
     """Split GCAT TSV text into header-keyed row dicts. The first line is the header and starts
-    with `#`; short/ragged rows are padded so a dict is always fully keyed."""
+    with `#`; short/ragged rows are padded so a dict is always fully keyed.
+
+    GCAT files carry an extra comment line after the header (``# Updated 2026 Jul  7 1654:27``)
+    and may sprinkle further ``#``-prefixed comments in the body. JCAT ids never start with ``#``,
+    so any body line beginning with ``#`` is a comment and is skipped — otherwise the update
+    banner would land as a bogus one-column row every pull."""
     lines = [line for line in text.splitlines() if line != ""]
     if not lines:
         return []
@@ -110,6 +115,8 @@ def parse_tsv(text: str) -> list[dict]:
 
     rows = []
     for line in lines[1:]:
+        if line.startswith("#"):
+            continue  # comment line (e.g. "# Updated ..."), not data
         cells = line.split("\t")
         if len(cells) < len(headers):
             cells = cells + [""] * (len(headers) - len(cells))
@@ -130,13 +137,30 @@ def _split_row(raw_row: dict, field_map: dict) -> tuple[dict, dict]:
     return typed, extra
 
 
-def _coerce_satcat_types(typed: dict) -> dict:
+_SATCAT_NUMERIC = ("perigee_km", "apogee_km", "inc_deg")
+
+
+def _coerce_satcat_types(typed: dict, extra: dict) -> dict:
+    """Coerce the numeric subset defensively. GCAT is 40k+ rows; a single unexpected value
+    (a merged flag, a range, a stray symbol) must not abort the whole landing transaction, so a
+    value that won't parse is dropped from the typed column and preserved verbatim in ``extra``
+    (nothing is lost, the row still lands)."""
     out = dict(typed)
-    if out.get("norad_id") is not None:
-        out["norad_id"] = int(out["norad_id"])
-    for field in ("perigee_km", "apogee_km", "inc_deg"):
-        if out.get(field) is not None:
-            out[field] = float(out[field])
+    raw_norad = out.get("norad_id")
+    if raw_norad is not None:
+        try:
+            out["norad_id"] = int(raw_norad)
+        except (TypeError, ValueError):
+            out["norad_id"] = None
+            extra["_unparsed_satcat"] = raw_norad
+    for field in _SATCAT_NUMERIC:
+        raw = out.get(field)
+        if raw is not None:
+            try:
+                out[field] = float(raw)
+            except (TypeError, ValueError):
+                out[field] = None
+                extra[f"_unparsed_{field}"] = raw
     return out
 
 
@@ -144,7 +168,7 @@ def process_satcat_rows(raw_rows: list[dict]) -> list[tuple[dict, dict]]:
     processed = []
     for raw_row in raw_rows:
         typed, extra = _split_row(raw_row, _SATCAT_FIELD_MAP)
-        processed.append((_coerce_satcat_types(typed), extra))
+        processed.append((_coerce_satcat_types(typed, extra), extra))
     return processed
 
 
