@@ -7,6 +7,7 @@ in a finally block -- nothing is ever committed to the shared dev DB.
 
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -21,9 +22,14 @@ SAT_B = 920100002
 OP_ALPHA = "ZZ TEST OPERATOR ALPHA (test_metrics)"
 OP_BETA = "ZZ TEST OPERATOR BETA (test_metrics)"
 
-DAY_1 = "2026-06-01"
-DAY_2 = "2026-06-02"
-DAY_3 = "2026-06-03"  # acquisition takes effect this day
+# Dynamic FUTURE dates: sat_daily is a real-time continuous aggregate, so uncommitted
+# synthetic gp_elements rows are only visible in queries ABOVE the materialization
+# watermark (which trails now() once any full refresh has run). Fixed past dates fall
+# below the watermark and silently vanish from the view under rollback isolation.
+_BASE = date.today() + timedelta(days=30)
+DAY_1 = _BASE.isoformat()
+DAY_2 = (_BASE + timedelta(days=1)).isoformat()
+DAY_3 = (_BASE + timedelta(days=2)).isoformat()  # acquisition takes effect this day
 
 
 def _run_apply_metrics():

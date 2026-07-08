@@ -8,7 +8,9 @@ Plan: docs/plans/phase-0-1-plan.md · Spec: docs/SPEC.md
 - [x] Task 4: Identity graph engine (normalize/match/merge/resolve + seeds)
 - [x] Task 5: Metrics SQL + DQ & Conflict Report
 - [x] Task 6: Live pulls, E2E Phase 1 build, CI, README
-- [ ] Final multi-lens review + fixes
+- [x] Final multi-lens review + fixes (5 lenses, adversarial verification, 11/11 findings fixed)
+- [x] BONUS: GCAT orgs.tsv operator enrichment (owner coverage 2.4% → 100% of on-orbit payloads)
+- [x] GP element sets landed after 2h politeness window (15,932 rows, cagg + operator views live)
 - [ ] USER ACTION: request Space-Track account (creds → .env)
 
 ## Review
@@ -48,3 +50,21 @@ which broke a naive `ON CONFLICT DO UPDATE`.
 then a pg17 service-container db job); README rewrite; this file.
 
 **Verification:** `pytest -q -W error` → 111 passed (109 + 2 new). `ruff check .` clean.
+
+### Final review + enrichment wave
+
+- 5-lens review (correctness, spec, data-model, silent-failures, test-quality) with per-finding
+  adversarial refutation: 5 confirmed serious + 6 minors, all 11 fixed with covering tests.
+  Standouts: half-open SCD2 range join (the spec's own illustrative BETWEEN double-counted the
+  transition day — proven live on INTELSAT I); SupGP parser rewritten against the real
+  warn-badge page structure (was silently landing 0 rows with status ok).
+- Operator enrichment: GCAT orgs.tsv as data-driven operator source (1,435 operators, 4,391
+  aliases, 128 subsidiary edges; seed's 17 canonical operators + M&A chains take precedence).
+  On-orbit owner coverage 2.4% → 100%; unmatched-owner backlog 1,969 → 8 (JV combined codes).
+- GP landed after the 2h window (15,932 OMM element sets); sat_daily cagg refreshed; every daily
+  bucket operator-attributed via the identity graph.
+- Fixed a real-time-cagg test pitfall: synthetic-data tests must use dates above the
+  materialization watermark (dynamic future dates), else rows vanish under rollback isolation.
+- Final: 151 tests, -W error, ruff clean. DQ report: 100% operator coverage, 76.8% status
+  coverage, 100% of on-orbit payloads with >=2 source identifiers, 35 SATCAT-vs-GCAT status
+  disagreements, 4,229 decay-date conflicts.

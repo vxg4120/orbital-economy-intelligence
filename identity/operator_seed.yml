@@ -24,124 +24,129 @@
 # is exactly the "SATCAT owner goes stale / is too coarse" problem the graph exists to fix.
 
 operators:
+  # gcat_codes below carry the real GCAT orgs.tsv Owner CODES (not just human names) that
+  # appear in satcat.tsv for each operator, so data-driven enrichment attaches them to the seed
+  # (seed wins) instead of spawning duplicates — this is what keeps the M&A chains firing on the
+  # GCAT owner path (e.g. OneWeb ONEWEB/ONEWEBN -> Eutelsat, Intelsat INTELU -> SES). Codes were
+  # read off the live orgs.tsv <-> satcat.tsv join; ambiguous joint ventures were left unassigned.
   - name: SpaceX
     country: US
     class: commercial
     aliases: [Starlink, Space Exploration Technologies, SpaceX Starlink]
     satcat_codes: []
-    gcat_codes: [SpaceX]
+    gcat_codes: [SPXS, SPX, SPXES, SPXTX]
 
   - name: OneWeb
     country: UK
     class: commercial
     aliases: [OneWeb, Eutelsat OneWeb, WorldVu, WorldVu Satellites]
     satcat_codes: []
-    gcat_codes: [OneWeb]
+    gcat_codes: [ONEWEB, ONEWEBN]
 
   - name: Eutelsat
     country: France
     class: commercial
     aliases: [Eutelsat, Eutelsat Group, Eutelsat Communications]
     satcat_codes: [EUTE]
-    gcat_codes: [Eutelsat]
+    gcat_codes: [EUTSA, EUTAM, ONEWEBE]
 
   - name: Amazon
     country: US
     class: commercial
     aliases: [Kuiper, Project Kuiper, Amazon Kuiper, Kuiper Systems]
     satcat_codes: []
-    gcat_codes: [Amazon, Kuiper]
+    gcat_codes: [KUIP, AMAZ]
 
   - name: Planet Labs
     country: US
     class: commercial
     aliases: [Planet, Planet Labs, Cosmogia, Terra Bella, Skybox Imaging, BlackBridge, RapidEye]
     satcat_codes: []
-    gcat_codes: [Planet, Cosmogia, Skybox, BlackBridge]
+    gcat_codes: [PLAN, PLABS, PLABST, TBELLA, COSMOG, SKYBOX]
 
   - name: Spire
     country: US
     class: commercial
     aliases: [Spire, Spire Global, Nanosatisfi]
     satcat_codes: []
-    gcat_codes: [Spire, Nanosatisfi]
+    gcat_codes: [SPIRE, SPIREL, NANSFI]
 
   - name: Iridium
     country: US
     class: commercial
     aliases: [Iridium, Iridium Communications, Iridium NEXT, Iridium Satellite LLC]
     satcat_codes: [IRID]
-    gcat_codes: [Iridium]
+    gcat_codes: [IRIDS, IRID]
 
   - name: Globalstar
     country: US
     class: commercial
     aliases: [Globalstar, Globalstar LP]
     satcat_codes: [GLOB]
-    gcat_codes: [Globalstar]
+    gcat_codes: [GLOBT, GLOBL, GLOB]
 
   - name: ICEYE
     country: Finland
     class: commercial
     aliases: [ICEYE, ICEYE Oy]
     satcat_codes: []
-    gcat_codes: [ICEYE]
+    gcat_codes: [ICEYE, ICEUS]
 
   - name: Capella Space
     country: US
     class: commercial
     aliases: [Capella, Capella Space]
     satcat_codes: []
-    gcat_codes: [Capella]
+    gcat_codes: [CAPSP]
 
   - name: Telesat
     country: Canada
     class: commercial
     aliases: [Telesat, Telesat Canada, Telesat Lightspeed, Loral]
     satcat_codes: []
-    gcat_codes: [Telesat]
+    gcat_codes: [TCAN, TCANL, TSKY, TSKYB, TMI, TSKYBR]
 
   - name: Inmarsat
     country: UK
     class: commercial
     aliases: [Inmarsat, Inmarsat Global]
     satcat_codes: [IM]
-    gcat_codes: [Inmarsat]
+    gcat_codes: [INMAR, INMRL]
 
   - name: Viasat
     country: US
     class: commercial
     aliases: [Viasat, ViaSat]
     satcat_codes: []
-    gcat_codes: [Viasat]
+    gcat_codes: [VIA]
 
   - name: Intelsat
     country: US
     class: commercial
     aliases: [Intelsat, PanAmSat, Intelsat SA]
     satcat_codes: [ITSO]
-    gcat_codes: [Intelsat]
+    gcat_codes: [INTEL, INTELU, INTELD, INTELB, PAN]
 
   - name: SES
     country: Luxembourg
     class: commercial
     aliases: [SES, SES Astra, SES World Skies, O3b, O3b Networks, Astra]
     satcat_codes: [SES, O3B]
-    gcat_codes: [SES, O3b]
+    gcat_codes: [SESSA, SESSL, SESA, SESGL, SESS, SESSAP, AMCS, O3BS, O3B]
 
   - name: EchoStar
     country: US
     class: commercial
     aliases: [EchoStar, Hughes, HughesNet, Hughes Network Systems, Dish, EchoStar Hughes]
     satcat_codes: []
-    gcat_codes: [EchoStar, Hughes]
+    gcat_codes: [ECHO, ECHOC, ECHOM, ECHOAU, EHNS, DISH, HNS, HCI, HCG, HSES]
 
   - name: Sky Perfect JSAT
     country: Japan
     class: commercial
     aliases: [JSAT, Sky Perfect JSAT, SKY Perfect JSAT, SJC]
     satcat_codes: []
-    gcat_codes: [JSAT, SKY Perfect JSAT]
+    gcat_codes: [SKPJ, SCCJ]
 
 relationships:
   - child: OneWeb

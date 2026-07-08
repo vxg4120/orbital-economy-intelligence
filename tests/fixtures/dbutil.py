@@ -14,6 +14,7 @@ _RAW_TABLES_BY_RUN = (
     "raw_satcat",
     "raw_gcat_satcat",
     "raw_gcat_psatcat",
+    "raw_gcat_orgs",
     "raw_ucs",
     "raw_supgp_status",
 )

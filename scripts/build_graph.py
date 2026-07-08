@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, match, resolve  # noqa: E402
+from identity import assertions, enrich_operators, match, resolve  # noqa: E402
 
 _OPERATOR_SEED = REPO_ROOT / "identity" / "operator_seed.yml"
 _STATUS_MAP = REPO_ROOT / "identity" / "status_map.yml"
@@ -94,9 +94,13 @@ def seed_status_map(conn, path=_STATUS_MAP) -> None:
 
 
 def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
-    """Seed + match + assert + resolve, without committing. Returns a summary dict."""
+    """Seed + enrich + match + assert + resolve, without committing. Returns a summary dict."""
     seed_operators(conn)
     seed_status_map(conn)
+    # Data-driven operator enrichment: turn GCAT/SATCAT owner CODES into operators + code aliases
+    # (after the YAML seed so seed operators win, before resolve so the resolver's alias lookup sees
+    # every code). This is what lifts operator coverage from ~4% to the large majority.
+    enrich_stats = enrich_operators.enrich(conn)
     prob_stats = match.run_matchers(conn, review_csv=review_csv)
     assertions.extract(conn)
     # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
@@ -105,10 +109,10 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # is identical — this is purely a transport optimization.
     with conn.pipeline():
         resolve_stats = resolve.resolve(conn)
-    return summarize(conn, prob_stats, resolve_stats, review_csv)
+    return summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats)
 
 
-def summarize(conn, prob_stats, resolve_stats, review_csv) -> dict:
+def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) -> dict:
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM satellite")
         satellites = cur.fetchone()[0]
@@ -118,6 +122,10 @@ def summarize(conn, prob_stats, resolve_stats, review_csv) -> dict:
         merge_rows = cur.fetchone()[0]
         cur.execute("SELECT source, count(*) FROM source_assertion GROUP BY source")
         assertions_by_source = dict(cur.fetchall())
+        cur.execute("SELECT count(*) FROM operator")
+        operators = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM operator_alias")
+        operator_aliases = cur.fetchone()[0]
     review_size = _review_size(review_csv)
     total = satellites or 1
     return {
@@ -125,6 +133,9 @@ def summarize(conn, prob_stats, resolve_stats, review_csv) -> dict:
         "identifiers_by_type": identifiers,
         "merge_log_rows": merge_rows,
         "assertions_by_source": assertions_by_source,
+        "operators": operators,
+        "operator_aliases": operator_aliases,
+        "enrich_stats": enrich_stats or {},
         "operator_resolved": resolve_stats.get("operator_resolved", 0),
         "status_resolved": resolve_stats.get("status_resolved", 0),
         "operator_coverage_pct": round(100 * resolve_stats.get("operator_resolved", 0) / total, 1),
@@ -158,6 +169,18 @@ def _print_summary(s: dict) -> None:
     print("assertions by source:")
     for source, count in sorted(s["assertions_by_source"].items()):
         print(f"  {source:<12} {count}")
+    print(f"operators:               {s.get('operators', 0)}  (aliases {s.get('operator_aliases', 0)})")
+    es = s.get("enrich_stats") or {}
+    if es:
+        print(
+            "operator enrichment:     "
+            f"gcat codes used {es.get('gcat_codes_used', 0)} "
+            f"(seed {es.get('gcat_seed_attached', 0)}, new {es.get('gcat_operators_created', 0)}, "
+            f"no-org {es.get('gcat_codes_no_org', 0)}); "
+            f"satcat codes {es.get('satcat_codes_used', 0)} "
+            f"(new {es.get('satcat_operators_created', 0)}); "
+            f"subsidiary edges {es.get('relationships_added', 0)}"
+        )
     print(f"operator coverage:       {s['operator_coverage_pct']}%  ({s['operator_resolved']})")
     print(f"status coverage:         {s['status_coverage_pct']}%  ({s['status_resolved']})")
     print(f"unmapped status values:  {len(s['unmapped_status'])}")

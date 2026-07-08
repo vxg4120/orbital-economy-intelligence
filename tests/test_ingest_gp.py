@@ -27,9 +27,12 @@ def _gp_url(group="active"):
 @pytest.mark.db
 @responses.activate
 def test_run_lands_gp_rows(clean_db):
-    responses.add(responses.GET, _gp_url(), body=FIXTURE.read_text(), status=200)
+    # Unique group keeps run() off the real 'gp_active' freshness ledger row on the shared dev DB
+    # (a background GP job's fresh run would otherwise make this run() skip and land 0 rows).
+    group = "testland"
+    responses.add(responses.GET, _gp_url(group), body=FIXTURE.read_text(), status=200)
 
-    n = celestrak_gp.run(clean_db)
+    n = celestrak_gp.run(clean_db, group=group)
 
     assert n == 3
     with clean_db.cursor() as cur:
@@ -50,9 +53,12 @@ def test_run_lands_gp_rows(clean_db):
 @pytest.mark.db
 @responses.activate
 def test_run_twice_does_not_duplicate_rows(clean_db):
-    responses.add(responses.GET, _gp_url(), body=FIXTURE.read_text(), status=200)
+    # Unique group so the first run() actually fetches instead of skipping on the shared dev DB's
+    # live 'gp_active' freshness row (see test_run_lands_gp_rows).
+    group = "testdup"
+    responses.add(responses.GET, _gp_url(group), body=FIXTURE.read_text(), status=200)
 
-    celestrak_gp.run(clean_db)
+    celestrak_gp.run(clean_db, group=group)
     with clean_db.cursor() as cur:
         cur.execute(
             "SELECT count(*) FROM gp_elements WHERE norad_id BETWEEN 900000001 AND 900000003"

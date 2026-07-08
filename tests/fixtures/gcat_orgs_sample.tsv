@@ -1,0 +1,4 @@
+#Code	UCode	StateCode	Type	Class	TStart	TStop	ShortName	Name	Location	Longitude	Latitude	Error	Parent	ShortEName	EName	UName
+# Updated 2026 Jul  7 1652:59
+OEIORGA	OEIORGA	US	O/PL	B	2010	-	OEI-A	OEI Org Alpha	Seattle	-122.0	47.0	0.1	OEIORGB	OEI-A	OEI Org Alpha	OEIORGA
+OEIORGB	OEIORGB	RU	O	C	2000	-	OEI-B	Рос Тест	Moscow	37.6	55.7	0.1	-	OEI-B-E	Roskosmos Test Org	OEIORGB

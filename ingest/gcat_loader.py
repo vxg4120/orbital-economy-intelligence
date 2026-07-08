@@ -27,6 +27,8 @@ SATCAT_ENDPOINT = "gcat_satcat"
 SATCAT_URL = "https://planet4589.org/space/gcat/tsv/cat/satcat.tsv"
 PSATCAT_ENDPOINT = "gcat_psatcat"
 PSATCAT_URL = "https://planet4589.org/space/gcat/tsv/cat/psatcat.tsv"
+ORGS_ENDPOINT = "gcat_orgs"
+ORGS_URL = "https://planet4589.org/space/gcat/tsv/tables/orgs.tsv"
 MIN_INTERVAL = dt.timedelta(hours=24)
 DATA_DIR = Path("data/gcat")
 
@@ -86,6 +88,37 @@ _PSATCAT_FIELD_MAP = {
 }
 
 _PSATCAT_COLUMNS = ["jcat", "piece", "name"]
+
+# GCAT orgs.tsv header name (normalized: lowercased, alnum-only) -> raw_gcat_orgs column. Anything
+# not listed here (Location, Longitude, Latitude, UName, ShortEName, TStartApprox, ...) falls
+# through to `extra` untouched, so a source-schema change never drops a column.
+_ORGS_FIELD_MAP = {
+    "code": "code",
+    "ucode": "ucode",
+    "statecode": "state_code",
+    "type": "org_type",
+    "class": "org_class",
+    "tstart": "t_start",
+    "tstop": "t_stop",
+    "shortname": "short_name",
+    "name": "name",
+    "ename": "e_name",
+    "parent": "parent_code",
+}
+
+_ORGS_COLUMNS = [
+    "code",
+    "ucode",
+    "state_code",
+    "org_type",
+    "org_class",
+    "t_start",
+    "t_stop",
+    "short_name",
+    "name",
+    "e_name",
+    "parent_code",
+]
 
 
 def _norm_key(header: str) -> str:
@@ -176,6 +209,17 @@ def process_psatcat_rows(raw_rows: list[dict]) -> list[tuple[dict, dict]]:
     return [_split_row(raw_row, _PSATCAT_FIELD_MAP) for raw_row in raw_rows]
 
 
+def process_orgs_rows(raw_rows: list[dict]) -> list[tuple[dict, dict]]:
+    """Split GCAT orgs rows into (typed, extra). Rows without a `Code` (the PK / join key) are
+    dropped — a code-less org line carries nothing the identity layer can join on."""
+    processed = []
+    for raw_row in raw_rows:
+        typed, extra = _split_row(raw_row, _ORGS_FIELD_MAP)
+        if typed.get("code"):
+            processed.append((typed, extra))
+    return processed
+
+
 def _land_satcat_rows(conn, processed_rows: list[tuple[dict, dict]], run_id: int) -> int:
     with conn.cursor() as cur:
         for typed, extra in processed_rows:
@@ -206,6 +250,26 @@ def _land_psatcat_rows(conn, processed_rows: list[tuple[dict, dict]], run_id: in
             )
     conn.commit()
     return len(processed_rows)
+
+
+def _land_orgs_rows(conn, processed_rows: list[tuple[dict, dict]], run_id: int) -> int:
+    """Land orgs rows. `ON CONFLICT DO NOTHING` guards against a duplicate Code inside a single
+    snapshot (GCAT's PK is Code, but a defensive guard keeps one stray dup from aborting the pull)."""
+    landed = 0
+    with conn.cursor() as cur:
+        for typed, extra in processed_rows:
+            values = [typed.get(col) for col in _ORGS_COLUMNS] + [Jsonb(extra), run_id]
+            cur.execute(
+                "INSERT INTO raw_gcat_orgs ({cols}, extra, ingest_run_id) "
+                "VALUES ({phs}, %s, %s) ON CONFLICT (code, ingest_run_id) DO NOTHING".format(
+                    cols=", ".join(_ORGS_COLUMNS),
+                    phs=", ".join(["%s"] * len(_ORGS_COLUMNS)),
+                ),
+                values,
+            )
+            landed += 1
+    conn.commit()
+    return landed
 
 
 def _save_raw_file(name: str, text: str) -> Path:
@@ -264,3 +328,19 @@ def run(conn) -> dict:
         logger.info("gcat psatcat: skipped, fresh run within %s", MIN_INTERVAL)
 
     return counts
+
+
+def run_orgs(conn) -> int:
+    """Pull GCAT's organizations file (orgs.tsv) through the same polite ledger and land it into
+    raw_gcat_orgs. Kept a separate entry point from run() so the operator-enrichment build can pull
+    exactly this one endpoint without touching the satcat/psatcat freshness gates. Returns the row
+    count (0 when a fresh run already exists within MIN_INTERVAL)."""
+    resp = runlog.polite_get(conn, SOURCE, ORGS_ENDPOINT, ORGS_URL, MIN_INTERVAL)
+    if resp is None:
+        logger.info("gcat orgs: skipped, fresh run within %s", MIN_INTERVAL)
+        return 0
+    processed = process_orgs_rows(parse_tsv(resp.text))
+    return _land_and_finish(
+        conn, resp, lambda: _land_orgs_rows(conn, processed, resp.oei_run_id),
+        f"orgs-{dt.date.today().isoformat()}.tsv",
+    )
