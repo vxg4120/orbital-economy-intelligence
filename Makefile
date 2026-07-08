@@ -1,0 +1,26 @@
+.PHONY: venv up down psql migrate test lint
+
+venv:
+	python3 -m venv .venv
+	.venv/bin/pip install -r requirements-dev.txt
+
+up:
+	docker compose up -d
+	@echo "Waiting for oei-db to be healthy..."
+	@until [ "$$(docker inspect --format '{{.State.Health.Status}}' oei-db 2>/dev/null)" = "healthy" ]; do sleep 1; done
+	@echo "oei-db is healthy."
+
+down:
+	docker compose down
+
+psql:
+	docker exec -it oei-db psql -U oei -d oei
+
+migrate:
+	.venv/bin/python scripts/migrate.py
+
+test:
+	.venv/bin/python -m pytest -q
+
+lint:
+	.venv/bin/ruff check .

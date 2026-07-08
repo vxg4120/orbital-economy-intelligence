@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+markers = [
+    "db: test requires a reachable DATABASE_URL",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"

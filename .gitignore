@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.env
+.superpowers/
+.pytest_cache/
+.ruff_cache/
+pgdata/
+reports/scratch/
