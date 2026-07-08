@@ -1,0 +1,14 @@
+{
+  "total": 128,
+  "rows": [
+    { "satellite_id": 1317, "norad_id": 1317, "canonical_name": "INTELSAT I (EARLY BIRD)", "catalog_owner": "ITSO", "resolved_operator": "Intelsat", "acquired_by": "SES", "acquisition_date": "2025-07-17" },
+    { "satellite_id": 2514, "norad_id": 2514, "canonical_name": "INTELSAT II F-1", "catalog_owner": "ITSO", "resolved_operator": "Intelsat", "acquired_by": "SES", "acquisition_date": "2025-07-17" },
+    { "satellite_id": 2639, "norad_id": 2639, "canonical_name": "INTELSAT II F-2", "catalog_owner": "ITSO", "resolved_operator": "Intelsat", "acquired_by": "SES", "acquisition_date": "2025-07-17" },
+    { "satellite_id": 45440, "norad_id": 45440, "canonical_name": "OneWeb L3-015", "catalog_owner": "UK", "resolved_operator": "OneWeb", "acquired_by": "Eutelsat", "acquisition_date": "2023-09-28" },
+    { "satellite_id": 45123, "norad_id": 45123, "canonical_name": "OneWeb L2-002", "catalog_owner": "UK", "resolved_operator": "OneWeb", "acquired_by": "Eutelsat", "acquisition_date": "2023-09-28" },
+    { "satellite_id": 43113, "norad_id": 43113, "canonical_name": "INMARSAT 5-F4", "catalog_owner": "INMR", "resolved_operator": "Inmarsat", "acquired_by": "Viasat", "acquisition_date": "2023-05-31" },
+    { "satellite_id": 40384, "norad_id": 40384, "canonical_name": "INMARSAT 5-F2", "catalog_owner": "INMR", "resolved_operator": "Inmarsat", "acquired_by": "Viasat", "acquisition_date": "2023-05-31" },
+    { "satellite_id": 41748, "norad_id": 41748, "canonical_name": "INTELSAT 33E", "catalog_owner": "ITSO", "resolved_operator": "Intelsat", "acquired_by": "SES", "acquisition_date": "2025-07-17" },
+    { "satellite_id": 90042, "norad_id": null, "canonical_name": "ONEWEB SPARE ANL-12", "catalog_owner": "UK", "resolved_operator": "OneWeb", "acquired_by": "Eutelsat", "acquisition_date": "2023-09-28" }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "45440": {
+    "satellite": {
+      "satellite_id": 45440,
+      "norad_id": 45440,
+      "cospar_id": "2020-020S",
+      "canonical_name": "OneWeb L3-015",
+      "object_type": "PAYLOAD",
+      "launch_date": "2020-03-21",
+      "decay_date": null,
+      "operator_name": "Eutelsat",
+      "canonical_status": "ACTIVE"
+    },
+    "identifiers": [
+      { "id_type": "norad", "id_value": "45440", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "cospar", "id_value": "2020-020S", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_satcat", "id_value": "ONEWEB-0037", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "cospar", "id_value": "2020-020S", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "gcat_id", "id_value": "S45440", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_gcat", "id_value": "OneWeb L3-015", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_operator", "id_value": "ONEWEB-0037", "source": "ucs", "confidence": 0.95, "valid_from": null, "valid_to": null }
+    ],
+    "ownership": [
+      { "operator_id": 2, "operator_name": "OneWeb", "role": "owner", "valid_from": "2020-03-21", "valid_to": "2023-09-28", "source": "resolve", "confidence": 1.0 },
+      { "operator_id": 3, "operator_name": "Eutelsat", "role": "owner", "valid_from": "2023-09-28", "valid_to": null, "source": "resolve", "confidence": 1.0 }
+    ],
+    "status_history": [
+      { "canonical_status": "ACTIVE", "observed_at": "2026-07-08T04:24:06.761142Z", "source": "satcat" },
+      { "canonical_status": "ACTIVE", "observed_at": "2026-07-08T04:24:24.651576Z", "source": "gcat" }
+    ],
+    "assertions": [
+      { "attribute": "name", "value": "ONEWEB-0037", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "name", "value": "OneWeb L3-015", "source": "gcat", "observed_at": "2026-07-08T04:24:24.651576Z" },
+      { "attribute": "owner", "value": "UK", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "owner", "value": "ONEWEB", "source": "gcat", "observed_at": "2026-07-08T04:24:24.651576Z" },
+      { "attribute": "object_type", "value": "PAY", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "object_type", "value": "P      T m", "source": "gcat", "observed_at": "2026-07-08T04:24:24.651576Z" },
+      { "attribute": "status", "value": "+", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "status", "value": "O", "source": "gcat", "observed_at": "2026-07-08T04:24:24.651576Z" }
+    ],
+    "conflicts": ["name", "owner", "object_type"],
+    "latest_elements": {
+      "epoch": "2026-07-07T18:13:44.224896Z",
+      "semi_major_axis_km": 7595.4215,
+      "apogee_km": 1218.8195,
+      "perigee_km": 1215.7495,
+      "inclination": 87.8898,
+      "eccentricity": 0.0002021,
+      "mean_motion": 13.11520074
+    },
+    "merge_events": [
+      { "rule_fired": "norad_exact", "score": 1.0, "merged_at": "2026-07-08T04:25:55.600309Z", "details": { "source": "satcat", "id_type": "norad", "id_value": "45440" } },
+      { "rule_fired": "cospar_exact", "score": 1.0, "merged_at": "2026-07-08T04:25:55.600309Z", "details": { "source": "gcat", "id_type": "cospar", "id_value": "2020-020S" } }
+    ]
+  },
+  "1317": {
+    "satellite": {
+      "satellite_id": 1317,
+      "norad_id": 1317,
+      "cospar_id": "1965-028A",
+      "canonical_name": "INTELSAT I (EARLY BIRD)",
+      "object_type": "PAYLOAD",
+      "launch_date": "1965-04-06",
+      "decay_date": null,
+      "operator_name": "SES",
+      "canonical_status": "INACTIVE"
+    },
+    "identifiers": [
+      { "id_type": "norad", "id_value": "1317", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "cospar", "id_value": "1965-028A", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_satcat", "id_value": "INTELSAT 1-F1 (EARLY BIRD)", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "gcat_id", "id_value": "S01317", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_gcat", "id_value": "Early Bird", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null }
+    ],
+    "ownership": [
+      { "operator_id": 11, "operator_name": "Intelsat", "role": "owner", "valid_from": "1965-04-06", "valid_to": null, "source": "satcat", "confidence": 0.9 }
+    ],
+    "status_history": [
+      { "canonical_status": "INACTIVE", "observed_at": "2026-07-08T04:24:06.761142Z", "source": "satcat" }
+    ],
+    "assertions": [
+      { "attribute": "owner", "value": "ITSO", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "status", "value": "D", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" }
+    ],
+    "conflicts": [],
+    "latest_elements": null,
+    "merge_events": [
+      { "rule_fired": "norad_exact", "score": 1.0, "merged_at": "2026-07-08T04:25:55.600309Z", "details": { "source": "satcat", "id_type": "norad", "id_value": "1317" } }
+    ]
+  },
+  "23728": {
+    "satellite": {
+      "satellite_id": 23728,
+      "norad_id": 23728,
+      "cospar_id": "1995-066A",
+      "canonical_name": "Enhanced CRYSTAL 2105",
+      "object_type": "PAYLOAD",
+      "launch_date": "1995-12-05",
+      "decay_date": null,
+      "operator_name": "US National Reconnaissance Office",
+      "canonical_status": "INACTIVE"
+    },
+    "identifiers": [
+      { "id_type": "norad", "id_value": "23728", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "cospar", "id_value": "1995-066A", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_satcat", "id_value": "USA 116", "source": "satcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "gcat_id", "id_value": "S23728", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null },
+      { "id_type": "name_gcat", "id_value": "Enhanced CRYSTAL 2105", "source": "gcat", "confidence": 1.0, "valid_from": null, "valid_to": null }
+    ],
+    "ownership": [
+      { "operator_id": 60, "operator_name": "US National Reconnaissance Office", "role": "owner", "valid_from": "1995-12-05", "valid_to": null, "source": "resolve", "confidence": 0.98 }
+    ],
+    "status_history": [
+      { "canonical_status": "DECAYED", "observed_at": "2026-07-08T04:24:24.651576Z", "source": "gcat" },
+      { "canonical_status": "INACTIVE", "observed_at": "2026-07-08T04:24:06.761142Z", "source": "satcat" }
+    ],
+    "assertions": [
+      { "attribute": "status", "value": "D", "source": "satcat", "observed_at": "2026-07-08T04:24:06.761142Z" },
+      { "attribute": "status", "value": "R", "source": "gcat", "observed_at": "2026-07-08T04:24:24.651576Z" }
+    ],
+    "conflicts": ["status"],
+    "latest_elements": null,
+    "merge_events": [
+      { "rule_fired": "norad_exact", "score": 1.0, "merged_at": "2026-07-08T04:25:55.600309Z", "details": { "source": "satcat", "id_type": "norad", "id_value": "23728" } }
+    ]
+  },
+  "900001": {
+    "satellite": {
+      "satellite_id": 900001,
+      "norad_id": null,
+      "cospar_id": null,
+      "canonical_name": "ANALYST OBJECT 2024-ANL-07",
+      "object_type": "UNKNOWN",
+      "launch_date": null,
+      "decay_date": null,
+      "operator_name": null,
+      "canonical_status": "UNKNOWN"
+    },
+    "identifiers": [
+      { "id_type": "name_operator", "id_value": "ANL-07", "source": "ucs", "confidence": 0.6, "valid_from": null, "valid_to": null },
+      { "id_type": "ucs_row", "id_value": "ucs:2024:anl:07", "source": "ucs", "confidence": 0.6, "valid_from": null, "valid_to": null }
+    ],
+    "ownership": [],
+    "status_history": [],
+    "assertions": [
+      { "attribute": "name", "value": "ANL-07", "source": "ucs", "observed_at": "2026-07-07T22:10:02.114000Z" }
+    ],
+    "conflicts": [],
+    "latest_elements": null,
+    "merge_events": []
+  }
+}

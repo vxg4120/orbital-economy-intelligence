@@ -1,0 +1,19 @@
+{
+  "total": 1435,
+  "rows": [
+    { "operator_id": 1, "canonical_name": "SpaceX", "country": "US", "operator_class": "commercial", "parent_name": null, "fleet_total": 13011, "fleet_on_orbit": 7842, "fleet_active": 7681 },
+    { "operator_id": 40, "canonical_name": "Guojia Hangtian Ju (CNSA)", "country": "CN", "operator_class": "civil", "parent_name": null, "fleet_total": 2587, "fleet_on_orbit": 641, "fleet_active": 598 },
+    { "operator_id": 30, "canonical_name": "NASA Goddard Space Flight Center", "country": "US", "operator_class": "civil", "parent_name": null, "fleet_total": 3112, "fleet_on_orbit": 214, "fleet_active": 134 },
+    { "operator_id": 10, "canonical_name": "SES", "country": "LU", "operator_class": "commercial", "parent_name": null, "fleet_total": 428, "fleet_on_orbit": 402, "fleet_active": 366 },
+    { "operator_id": 3, "canonical_name": "Eutelsat", "country": "FR", "operator_class": "commercial", "parent_name": null, "fleet_total": 688, "fleet_on_orbit": 651, "fleet_active": 634 },
+    { "operator_id": 12, "canonical_name": "Viasat", "country": "US", "operator_class": "commercial", "parent_name": null, "fleet_total": 96, "fleet_on_orbit": 88, "fleet_active": 79 },
+    { "operator_id": 21, "canonical_name": "Iridium", "country": "US", "operator_class": "commercial", "parent_name": null, "fleet_total": 174, "fleet_on_orbit": 82, "fleet_active": 75 },
+    { "operator_id": 20, "canonical_name": "Planet Labs", "country": "US", "operator_class": "commercial", "parent_name": null, "fleet_total": 561, "fleet_on_orbit": 198, "fleet_active": 176 },
+    { "operator_id": 2, "canonical_name": "OneWeb", "country": "UK", "operator_class": "commercial", "parent_name": "Eutelsat", "fleet_total": 634, "fleet_on_orbit": 620, "fleet_active": 612 },
+    { "operator_id": 11, "canonical_name": "Intelsat", "country": "US", "operator_class": "commercial", "parent_name": "SES", "fleet_total": 91, "fleet_on_orbit": 54, "fleet_active": 48 },
+    { "operator_id": 13, "canonical_name": "Inmarsat", "country": "UK", "operator_class": "commercial", "parent_name": "Viasat", "fleet_total": 15, "fleet_on_orbit": 14, "fleet_active": 13 },
+    { "operator_id": 60, "canonical_name": "US National Reconnaissance Office", "country": "US", "operator_class": "defense", "parent_name": null, "fleet_total": 312, "fleet_on_orbit": 96, "fleet_active": 71 },
+    { "operator_id": 33, "canonical_name": "NOAA", "country": "US", "operator_class": "civil", "parent_name": null, "fleet_total": 58, "fleet_on_orbit": 21, "fleet_active": 14 },
+    { "operator_id": 22, "canonical_name": "Orbcomm", "country": "US", "operator_class": "commercial", "parent_name": null, "fleet_total": 72, "fleet_on_orbit": 31, "fleet_active": 24 }
+  ]
+}

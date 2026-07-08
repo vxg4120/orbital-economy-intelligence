@@ -1,0 +1,76 @@
+{
+  "satellites": 69878,
+  "on_orbit_payloads": 5332,
+  "operators": 1435,
+  "identifier_rows": 418086,
+  "merge_events": 418086,
+  "gp_elements": 15932,
+  "coverage": {
+    "operator_pct": 92.4,
+    "status_pct": 78.6,
+    "multi_source_pct": 61.2
+  },
+  "conflicts": {
+    "status": 35,
+    "decay": 214,
+    "stale_owners": 128
+  },
+  "ingest_runs": [
+    {
+      "source": "celestrak",
+      "endpoint": "satcat_bulk",
+      "status": "ok",
+      "finished_at": "2026-07-08T04:24:19.753052Z",
+      "rows_ingested": 69705
+    },
+    {
+      "source": "celestrak",
+      "endpoint": "gp_active",
+      "status": "ok",
+      "finished_at": "2026-07-08T05:56:08.643270Z",
+      "rows_ingested": 15932
+    },
+    {
+      "source": "celestrak",
+      "endpoint": "gp_active",
+      "status": "error",
+      "finished_at": "2026-07-08T04:24:48.910018Z",
+      "rows_ingested": 0
+    },
+    {
+      "source": "celestrak",
+      "endpoint": "supgp_index",
+      "status": "skipped_fresh",
+      "finished_at": "2026-07-08T04:24:50.885935Z",
+      "rows_ingested": 0
+    },
+    {
+      "source": "gcat",
+      "endpoint": "gcat_satcat",
+      "status": "ok",
+      "finished_at": "2026-07-08T04:24:39.077548Z",
+      "rows_ingested": 69935
+    },
+    {
+      "source": "gcat",
+      "endpoint": "gcat_psatcat",
+      "status": "ok",
+      "finished_at": "2026-07-08T04:24:46.620670Z",
+      "rows_ingested": 27879
+    },
+    {
+      "source": "gcat",
+      "endpoint": "gcat_orgs",
+      "status": "ok",
+      "finished_at": "2026-07-08T05:38:36.546620Z",
+      "rows_ingested": 4090
+    },
+    {
+      "source": "ucs",
+      "endpoint": "ucs_database",
+      "status": "ok",
+      "finished_at": "2026-07-07T22:10:02.114000Z",
+      "rows_ingested": 7560
+    }
+  ]
+}

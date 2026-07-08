@@ -1,0 +1,64 @@
+{
+  "3": {
+    "operator": { "operator_id": 3, "canonical_name": "Eutelsat", "country": "FR", "operator_class": "commercial" },
+    "parents": [],
+    "children": [
+      { "operator_id": 2, "canonical_name": "OneWeb", "relationship": "acquired_by", "valid_from": "2023-09-28", "valid_to": null }
+    ],
+    "fleet_by_status": { "ACTIVE": 634, "SPARE": 9, "INACTIVE": 33, "DECAYED": 12 },
+    "fleet_by_regime": { "LEO": 620, "MEO": 0, "GEO": 60, "HEO": 8 },
+    "acquisitions": [
+      { "child": "OneWeb", "relationship": "acquired_by", "valid_from": "2023-09-28", "valid_to": null }
+    ],
+    "top_satellites": [
+      { "satellite_id": 45440, "norad_id": 45440, "cospar_id": "2020-020S", "canonical_name": "OneWeb L3-015", "object_type": "PAYLOAD", "launch_date": "2020-03-21", "decay_date": null, "operator_name": "Eutelsat", "canonical_status": "ACTIVE" },
+      { "satellite_id": 45123, "norad_id": 45123, "cospar_id": "2020-008E", "canonical_name": "OneWeb L2-002", "object_type": "PAYLOAD", "launch_date": "2020-02-06", "decay_date": null, "operator_name": "Eutelsat", "canonical_status": "ACTIVE" },
+      { "satellite_id": 40128, "norad_id": 40128, "cospar_id": "2014-050A", "canonical_name": "EUTELSAT 3B", "object_type": "PAYLOAD", "launch_date": "2014-05-26", "decay_date": null, "operator_name": "Eutelsat", "canonical_status": "ACTIVE" }
+    ]
+  },
+  "10": {
+    "operator": { "operator_id": 10, "canonical_name": "SES", "country": "LU", "operator_class": "commercial" },
+    "parents": [],
+    "children": [
+      { "operator_id": 11, "canonical_name": "Intelsat", "relationship": "acquired_by", "valid_from": "2025-07-17", "valid_to": null }
+    ],
+    "fleet_by_status": { "ACTIVE": 366, "SPARE": 12, "INACTIVE": 34, "GRAVEYARD": 16 },
+    "fleet_by_regime": { "LEO": 0, "MEO": 26, "GEO": 372, "HEO": 30 },
+    "acquisitions": [
+      { "child": "Intelsat", "relationship": "acquired_by", "valid_from": "2025-07-17", "valid_to": null }
+    ],
+    "top_satellites": [
+      { "satellite_id": 23528, "norad_id": 23528, "cospar_id": "1995-023A", "canonical_name": "INTELSAT 701", "object_type": "PAYLOAD", "launch_date": "1995-05-17", "decay_date": null, "operator_name": "SES", "canonical_status": "GRAVEYARD" },
+      { "satellite_id": 40128, "norad_id": 40128, "cospar_id": "2014-050A", "canonical_name": "O3B FM9", "object_type": "PAYLOAD", "launch_date": "2014-07-10", "decay_date": null, "operator_name": "SES", "canonical_status": "SPARE" },
+      { "satellite_id": 1317, "norad_id": 1317, "cospar_id": "1965-028A", "canonical_name": "INTELSAT I (EARLY BIRD)", "object_type": "PAYLOAD", "launch_date": "1965-04-06", "decay_date": null, "operator_name": "SES", "canonical_status": "INACTIVE" }
+    ]
+  },
+  "1": {
+    "operator": { "operator_id": 1, "canonical_name": "SpaceX", "country": "US", "operator_class": "commercial" },
+    "parents": [],
+    "children": [],
+    "fleet_by_status": { "ACTIVE": 7681, "SPARE": 41, "INACTIVE": 120, "DECAYED": 5169 },
+    "fleet_by_regime": { "LEO": 7842, "MEO": 0, "GEO": 0, "HEO": 0 },
+    "acquisitions": [],
+    "top_satellites": [
+      { "satellite_id": 44713, "norad_id": 44713, "cospar_id": "2019-074A", "canonical_name": "STARLINK-1007", "object_type": "PAYLOAD", "launch_date": "2019-11-11", "decay_date": null, "operator_name": "SpaceX", "canonical_status": "ACTIVE" },
+      { "satellite_id": 44219, "norad_id": 44219, "cospar_id": "2019-029A", "canonical_name": "STARLINK-44", "object_type": "PAYLOAD", "launch_date": "2019-05-24", "decay_date": "2020-10-27", "operator_name": "SpaceX", "canonical_status": "DECAYED" },
+      { "satellite_id": 48120, "norad_id": 48120, "cospar_id": "2021-024A", "canonical_name": "STARLINK-1855", "object_type": "PAYLOAD", "launch_date": "2021-03-14", "decay_date": null, "operator_name": "SpaceX", "canonical_status": "ACTIVE" }
+    ]
+  },
+  "2": {
+    "operator": { "operator_id": 2, "canonical_name": "OneWeb", "country": "UK", "operator_class": "commercial" },
+    "parents": [
+      { "operator_id": 3, "canonical_name": "Eutelsat", "relationship": "acquired_by", "valid_from": "2023-09-28", "valid_to": null }
+    ],
+    "children": [],
+    "fleet_by_status": { "ACTIVE": 612, "SPARE": 8, "INACTIVE": 10, "DECAYED": 4 },
+    "fleet_by_regime": { "LEO": 634, "MEO": 0, "GEO": 0, "HEO": 0 },
+    "acquisitions": [
+      { "parent": "Eutelsat", "relationship": "acquired_by", "valid_from": "2023-09-28", "valid_to": null }
+    ],
+    "top_satellites": [
+      { "satellite_id": 45440, "norad_id": 45440, "cospar_id": "2020-020S", "canonical_name": "OneWeb L3-015", "object_type": "PAYLOAD", "launch_date": "2020-03-21", "decay_date": null, "operator_name": "Eutelsat", "canonical_status": "ACTIVE" }
+    ]
+  }
+}
