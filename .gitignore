@@ -8,3 +8,5 @@ data/
 .ruff_cache/
 pgdata/
 reports/scratch/
+web/node_modules/
+web/dist/

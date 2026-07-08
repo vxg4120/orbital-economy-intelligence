@@ -1,4 +1,4 @@
-.PHONY: venv up down psql migrate metrics report test lint
+.PHONY: venv up down psql migrate metrics report test lint api web-dev web-build fe
 
 venv:
 	python3 -m venv .venv
@@ -30,3 +30,16 @@ test:
 
 lint:
 	.venv/bin/ruff check .
+
+# --- Orbital Economy Terminal (frontend) ---------------------------------
+api:
+	.venv/bin/uvicorn api.main:app --port 8600 --reload
+
+web-dev:
+	pnpm -C web dev
+
+web-build:
+	pnpm -C web build
+
+# Build the SPA, then serve it (and the API) from a single process at :8600.
+fe: web-build api

@@ -128,6 +128,35 @@ early re-pull attempt — the ledger recorded it as `error`, exactly as designed
 
 ---
 
+## Orbital Economy Terminal (frontend)
+
+A read-only **mission-control terminal** over the identity graph — the interview demo that makes the
+resolution layer *visible*: crosswalks, provenance, temporal ownership, and the disagreements between
+catalogs, not just headline totals. A FastAPI JSON service (`api/`, read-only — every query
+parameterized and LIMIT-bounded) reads the live graph through the existing `common/db.py`, and a
+Vite + React + TypeScript SPA (`web/`) renders it as a dark, monospace instrument. In single-process
+demo mode the API serves the built SPA at `/`, so the whole terminal runs from one port.
+
+**Four views:**
+
+- **Overview (`/`)** — fleet-wide stat tiles, coverage meters, conflict counts, the ingest-run ledger, and a congestion-heatmap teaser.
+- **Resolver (`/resolver`)** — search any object by name, NORAD, or COSPAR and read its full identity card: identifier crosswalk grouped by source, the SCD2 ownership timeline, status history, and conflicting assertions flagged amber.
+- **Conflicts (`/conflicts`)** — the DQ report made browsable: status disagreements, decay-date conflicts, and stale post-M&A owners, each row deep-linking into the resolver.
+- **Operators (`/operators`)** — the MSO league table with a per-operator panel: parent/child hierarchy, fleet-by-status and by-regime mix, acquisition history, and the full orbital-congestion field.
+
+```bash
+make fe            # build the SPA, then serve the API + app from one process
+# then open http://localhost:8600
+```
+
+Screenshots below:
+
+![Orbital Economy Terminal — Overview](docs/img/terminal-overview.png)
+
+![Orbital Economy Terminal — Resolver](docs/img/terminal-resolver.png)
+
+---
+
 ## Quickstart
 
 ```bash

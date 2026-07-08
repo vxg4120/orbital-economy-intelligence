@@ -29,4 +29,20 @@ if (_WEB_DIST / "index.html").exists():
     # Imported lazily so the API has no hard dependency on the SPA being built.
     from fastapi.staticfiles import StaticFiles
 
-    app.mount("/", StaticFiles(directory=str(_WEB_DIST), html=True), name="spa")
+    class _SpaStaticFiles(StaticFiles):
+        """StaticFiles that falls back to index.html so SPA deep links survive hard refresh."""
+
+        async def get_response(self, path, scope):
+            from starlette.exceptions import HTTPException as StarletteHTTPException
+
+            try:
+                response = await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+                return await super().get_response("index.html", scope)
+            if response.status_code == 404:
+                response = await super().get_response("index.html", scope)
+            return response
+
+    app.mount("/", _SpaStaticFiles(directory=str(_WEB_DIST), html=True), name="spa")

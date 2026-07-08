@@ -190,19 +190,31 @@ export interface Acquisition {
   valid_to: string | null;
 }
 
+/* Fleet-sample rows from GET /api/operators/{id}: a reduced satellite summary —
+   the API omits launch_date, decay_date and operator_name in this context. */
+export type FleetSatellite = Pick<
+  SatelliteSummary,
+  "satellite_id" | "norad_id" | "cospar_id" | "canonical_name" | "object_type" | "canonical_status"
+>;
+
 export interface OperatorDetail {
+  // The API returns the operator header plus its current fleet counts (the spec
+  // leaves the sub-shape open; these three are always present — reconciled in F3).
   operator: {
     operator_id: number;
     canonical_name: string;
     country: string | null;
     operator_class: string | null;
+    fleet_total: number;
+    fleet_on_orbit: number;
+    fleet_active: number;
   };
   parents: OperatorRef[];
   children: OperatorRef[];
   fleet_by_status: Record<string, number>;
   fleet_by_regime: Record<string, number>;
   acquisitions: Acquisition[];
-  top_satellites: SatelliteSummary[];
+  top_satellites: FleetSatellite[];
 }
 
 /* ---- GET /api/congestion ---- */
