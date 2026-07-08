@@ -1,0 +1,12 @@
+# Conflict-resolution precedence per attribute (config, not code).
+# "disagreements are data, not errors": the resolver picks the winner by this order and writes it
+# to the dimension tables; every losing assertion stays queryable in source_assertion.
+#
+# Order = highest precedence first. Source tokens that have no assertions yet in Phase 1
+# (operator_seed, spacetrack_decay) are intentional higher-precedence slots reserved for later
+# phases; they simply have nothing to contribute now, so the next source wins.
+owner: [operator_seed, gcat, ucs, satcat]        # curated seed beats catalogs; commercial > coarse code
+status: [gcat, satcat, ucs]                       # GCAT authoritative for decay; falls through for live ops
+decay_date: [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT
+object_type: [gcat, satcat]                        # GCAT taxonomy preferred
+name: [ucs, gcat, satcat]                          # commercial names beat uplink/catalog names

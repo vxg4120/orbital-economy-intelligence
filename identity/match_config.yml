@@ -1,0 +1,10 @@
+# Probabilistic matcher configuration (config, not code).
+# Score = name*w_name + launch*w_launch + regime*w_regime, gated by hard consistency checks.
+weights:
+  name: 0.60      # difflib.SequenceMatcher ratio on normalized names
+  launch: 0.25    # launch-date proximity (1.0 at same day -> 0.0 at window edge)
+  regime: 0.15    # orbital-regime agreement (1.0 same, 0.0 unknown-on-one-side)
+thresholds:
+  auto_link: 0.92   # score >= this: auto-link with confidence = score, logged to merge_log
+  review_low: 0.75  # review_low <= score < auto_link: append to human-review CSV, do not link
+launch_window_days: 30   # +/- days; hard gate when both launch dates are known

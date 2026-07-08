@@ -1,0 +1,66 @@
+# Per-source status code -> canonical status, populated ONLY from source documentation.
+# Canonical set: ACTIVE | PARTIAL | SPARE | INACTIVE | GRAVEYARD | DECAYED | UNKNOWN
+#
+# Loaded into the status_mapping table by scripts/build_graph.py (idempotent upsert).
+# Schema:  <source>:  <source_value>: {canonical: <CANONICAL>, notes: "<source doc meaning>"}
+#
+# Sources:
+#   satcat: https://celestrak.org/satcat/status.php  (OPS_STATUS_CODE)
+#   gcat:   https://planet4589.org/space/gcat/web/intro/phases.html  (Status/phase codes)
+#   ucs:    UCS Satellite Database (frozen May 2023) — every row is "operational as of freeze".
+#
+# Resolver note: GCAT Status is a *physical* phase, not an operational-health field. Its in-orbit
+# phases therefore map to UNKNOWN (GCAT asserts nothing about whether the payload works) and the
+# resolver falls through to SATCAT's operational code; GCAT's reentry/landing phases are
+# authoritative for DECAYED. See identity/resolve.py.
+
+satcat:
+  # From the CelesTrak SATCAT operational-status documentation. "Active" per the doc =
+  # any of +, P, B, S, X (active does not require power/comms).
+  "+": {canonical: ACTIVE, notes: "Operational."}
+  "-": {canonical: INACTIVE, notes: "Nonoperational."}
+  "P": {canonical: PARTIAL, notes: "Partially Operational: partially fulfilling primary or secondary mission(s)."}
+  "B": {canonical: SPARE, notes: "Backup/Standby: previously operational satellite put into reserve status."}
+  "S": {canonical: SPARE, notes: "Spare: new satellite awaiting full activation."}
+  "X": {canonical: ACTIVE, notes: "Extended Mission (counted as active by the source doc)."}
+  "D": {canonical: DECAYED, notes: "Decayed."}
+  "?": {canonical: UNKNOWN, notes: "Unknown."}
+
+gcat:
+  # GCAT phase codes (planet4589 phases doc). In-orbit / attached / deep-space phases -> UNKNOWN
+  # (physical presence, no operational claim). Reentry / landing / destruction phases -> DECAYED.
+  "O": {canonical: UNKNOWN, notes: "In orbit: separated from parent, in free flight (no operational claim)."}
+  "OX": {canonical: UNKNOWN, notes: "In orbit (probably) but lost: no recent tracking data."}
+  "AO": {canonical: UNKNOWN, notes: "Attached in orbit: externally attached to parent."}
+  "AO IN": {canonical: UNKNOWN, notes: "Attached inside: inside parent object."}
+  "DK": {canonical: UNKNOWN, notes: "Docked with another object."}
+  "GRP": {canonical: UNKNOWN, notes: "Grappled: captured/grappled by another object."}
+  "ATT": {canonical: UNKNOWN, notes: "Attached: transferred from one parent to another."}
+  "DSO": {canonical: UNKNOWN, notes: "Deep space: crossed the deep-space boundary."}
+  "DSA": {canonical: UNKNOWN, notes: "Deep space attached: crossed boundary while externally attached."}
+  "EO": {canonical: UNKNOWN, notes: "Escape: departed a body's sphere of influence."}
+  "OI": {canonical: UNKNOWN, notes: "Orbit insertion: entered bound orbit around a body."}
+  "N": {canonical: UNKNOWN, notes: "Renamed: name/owner changed while in orbit (still on orbit)."}
+  "NA": {canonical: UNKNOWN, notes: "Renamed attached: name changed while attached."}
+  "LEASE": {canonical: UNKNOWN, notes: "Lease: temporary ownership transfer (still on orbit)."}
+  "REL": {canonical: UNKNOWN, notes: "Released: separated from an attached parent."}
+  "DEP": {canonical: UNKNOWN, notes: "Deployed: released from a planetary surface."}
+  "E": {canonical: DECAYED, notes: "Exploded: breakup in orbit (destroyed)."}
+  "C": {canonical: DECAYED, notes: "Collided: destroyed in a collision event."}
+  "R": {canonical: DECAYED, notes: "Reentered: destroyed in the atmosphere after natural decay."}
+  "D": {canonical: DECAYED, notes: "Deorbited: destroyed via an active deorbit maneuver."}
+  "L": {canonical: DECAYED, notes: "Landed: landed or splashed down (no longer on orbit)."}
+  "LF": {canonical: DECAYED, notes: "Failed landing: intact touchdown but destroyed on impact."}
+  "S": {canonical: DECAYED, notes: "Targeted suborbital entry/impact: destroyed at end of launch trajectory."}
+  "F": {canonical: DECAYED, notes: "Failed: destroyed during a launch failure."}
+  "AF": {canonical: DECAYED, notes: "Failed attached: destroyed with parent during launch failure."}
+  "AR": {canonical: DECAYED, notes: "Reentered attached: destroyed with parent in the atmosphere."}
+  "AR IN": {canonical: DECAYED, notes: "Reentered inside: inside parent during atmospheric reentry."}
+  "AS": {canonical: DECAYED, notes: "Suborbital reentered attached: parent reentered while attached."}
+  "AL": {canonical: DECAYED, notes: "Landed attached: landed with attached parent."}
+  "AL IN": {canonical: DECAYED, notes: "Landed inside: inside parent during landing."}
+  "TX": {canonical: DECAYED, notes: "Transmission ended: operated on a surface until cessation (no longer on orbit)."}
+  "ERR": {canonical: UNKNOWN, notes: "Error: no actual object; cataloging/tracking error."}
+
+ucs:
+  operational: {canonical: ACTIVE, notes: "UCS lists only satellites operational as of the May 2023 freeze; treat as ACTIVE but stale — do not trust for current status."}

@@ -1,0 +1,158 @@
+# Canonical operator MSO tree (the taxonomy) — hand-curated seed.
+#
+# Schema:
+#   operators:
+#     - name:         canonical operator name (UNIQUE; becomes operator.canonical_name)
+#       country:      ISO-ish country of the operating entity
+#       class:        commercial | civil | defense | academic | mixed  (operator.operator_class)
+#       aliases:      free-text names seen in catalogs / press (source tag 'seed')
+#       satcat_codes: CelesTrak SATCAT owner/source codes  (source tag 'satcat')
+#                     from https://celestrak.org/satcat/sources.php
+#       gcat_codes:   GCAT owner strings seen in satcat.tsv  (source tag 'gcat')
+#   relationships:
+#     - child:        canonical name that was acquired/merged
+#       parent:       canonical name of the surviving entity
+#       relationship: acquired_by | merged_into | subsidiary_of | brand_of
+#       valid_from:   effective date (deal close) — SCD2 split date
+#
+# M&A close dates verified against public record (July 2026):
+#   OneWeb -> Eutelsat (Eutelsat Group): all-share combination closed 2023-09-28.
+#   Inmarsat -> Viasat: acquisition completed 2023-05-30.
+#   Intelsat -> SES: global acquisition closed 2025-07-17.
+# Note: most modern LEO constellations have no distinct SATCAT owner code (SATCAT owner is
+# country-coarse, e.g. Starlink -> 'US'); those operators carry gcat_codes only. That coarseness
+# is exactly the "SATCAT owner goes stale / is too coarse" problem the graph exists to fix.
+
+operators:
+  - name: SpaceX
+    country: US
+    class: commercial
+    aliases: [Starlink, Space Exploration Technologies, SpaceX Starlink]
+    satcat_codes: []
+    gcat_codes: [SpaceX]
+
+  - name: OneWeb
+    country: UK
+    class: commercial
+    aliases: [OneWeb, Eutelsat OneWeb, WorldVu, WorldVu Satellites]
+    satcat_codes: []
+    gcat_codes: [OneWeb]
+
+  - name: Eutelsat
+    country: France
+    class: commercial
+    aliases: [Eutelsat, Eutelsat Group, Eutelsat Communications]
+    satcat_codes: [EUTE]
+    gcat_codes: [Eutelsat]
+
+  - name: Amazon
+    country: US
+    class: commercial
+    aliases: [Kuiper, Project Kuiper, Amazon Kuiper, Kuiper Systems]
+    satcat_codes: []
+    gcat_codes: [Amazon, Kuiper]
+
+  - name: Planet Labs
+    country: US
+    class: commercial
+    aliases: [Planet, Planet Labs, Cosmogia, Terra Bella, Skybox Imaging, BlackBridge, RapidEye]
+    satcat_codes: []
+    gcat_codes: [Planet, Cosmogia, Skybox, BlackBridge]
+
+  - name: Spire
+    country: US
+    class: commercial
+    aliases: [Spire, Spire Global, Nanosatisfi]
+    satcat_codes: []
+    gcat_codes: [Spire, Nanosatisfi]
+
+  - name: Iridium
+    country: US
+    class: commercial
+    aliases: [Iridium, Iridium Communications, Iridium NEXT, Iridium Satellite LLC]
+    satcat_codes: [IRID]
+    gcat_codes: [Iridium]
+
+  - name: Globalstar
+    country: US
+    class: commercial
+    aliases: [Globalstar, Globalstar LP]
+    satcat_codes: [GLOB]
+    gcat_codes: [Globalstar]
+
+  - name: ICEYE
+    country: Finland
+    class: commercial
+    aliases: [ICEYE, ICEYE Oy]
+    satcat_codes: []
+    gcat_codes: [ICEYE]
+
+  - name: Capella Space
+    country: US
+    class: commercial
+    aliases: [Capella, Capella Space]
+    satcat_codes: []
+    gcat_codes: [Capella]
+
+  - name: Telesat
+    country: Canada
+    class: commercial
+    aliases: [Telesat, Telesat Canada, Telesat Lightspeed, Loral]
+    satcat_codes: []
+    gcat_codes: [Telesat]
+
+  - name: Inmarsat
+    country: UK
+    class: commercial
+    aliases: [Inmarsat, Inmarsat Global]
+    satcat_codes: [IM]
+    gcat_codes: [Inmarsat]
+
+  - name: Viasat
+    country: US
+    class: commercial
+    aliases: [Viasat, ViaSat]
+    satcat_codes: []
+    gcat_codes: [Viasat]
+
+  - name: Intelsat
+    country: US
+    class: commercial
+    aliases: [Intelsat, PanAmSat, Intelsat SA]
+    satcat_codes: [ITSO]
+    gcat_codes: [Intelsat]
+
+  - name: SES
+    country: Luxembourg
+    class: commercial
+    aliases: [SES, SES Astra, SES World Skies, O3b, O3b Networks, Astra]
+    satcat_codes: [SES, O3B]
+    gcat_codes: [SES, O3b]
+
+  - name: EchoStar
+    country: US
+    class: commercial
+    aliases: [EchoStar, Hughes, HughesNet, Hughes Network Systems, Dish, EchoStar Hughes]
+    satcat_codes: []
+    gcat_codes: [EchoStar, Hughes]
+
+  - name: Sky Perfect JSAT
+    country: Japan
+    class: commercial
+    aliases: [JSAT, Sky Perfect JSAT, SKY Perfect JSAT, SJC]
+    satcat_codes: []
+    gcat_codes: [JSAT, SKY Perfect JSAT]
+
+relationships:
+  - child: OneWeb
+    parent: Eutelsat
+    relationship: merged_into
+    valid_from: 2023-09-28
+  - child: Inmarsat
+    parent: Viasat
+    relationship: acquired_by
+    valid_from: 2023-05-30
+  - child: Intelsat
+    parent: SES
+    relationship: acquired_by
+    valid_from: 2025-07-17
