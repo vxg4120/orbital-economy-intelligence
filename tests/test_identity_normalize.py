@@ -116,13 +116,32 @@ def test_parse_date_loose_gcat_vague_forms(raw, expected):
 @pytest.mark.parametrize(
     "raw,expected",
     [
+        # Plain enum words / single letters.
         ("PAYLOAD", "PAYLOAD"),
         ("PAY", "PAYLOAD"),
         ("P", "PAYLOAD"),
         ("ROCKET BODY", "ROCKET_BODY"),
         ("R/B", "ROCKET_BODY"),
         ("DEBRIS", "DEBRIS"),
+        # SATCAT codes (celestrak object_type vocabulary).
+        ("DEB", "DEBRIS"),
+        ("UNK", "UNKNOWN"),
+        # GCAT space-padded SatType strings — the bug: leading class byte must win after strip.
+        ("P           ", "PAYLOAD"),   # bare payload, right-padded
+        ("P      O    ", "PAYLOAD"),   # payload in orbit
+        ("PX-C---", "PAYLOAD"),        # PX non-standard payload
+        ("R2", "ROCKET_BODY"),         # 2nd stage
+        ("R3", "ROCKET_BODY"),
+        ("D  P", "DEBRIS"),            # fragmentation debris piece
+        ("C  F", "DEBRIS"),            # component: fairing
+        ("C  M", "DEBRIS"),            # component: module/cabin part
+        ("S", "PAYLOAD"),              # suborbital payload
+        ("Z  X", "UNKNOWN"),           # spurious tracking artifact
+        ("X", "UNKNOWN"),              # deleted catalog entry
+        # Junk / empty -> UNKNOWN.
         ("TBA", "UNKNOWN"),
+        ("", "UNKNOWN"),
+        ("   ", "UNKNOWN"),
         (None, "UNKNOWN"),
     ],
 )

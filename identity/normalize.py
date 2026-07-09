@@ -92,19 +92,45 @@ def orbital_regime(perigee_km: float | None, apogee_km: float | None) -> str:
 
 # --- object type --------------------------------------------------------------
 
+# GCAT stores object type as a space-padded 12-byte SatType string whose *first* byte is the coarse
+# class ('P      O', 'D  P', 'C  F', 'R3', 'PX-C---'); only byte 1 carries the class, so we key on
+# the leading non-space character. That same key subsumes SATCAT's 'PAY'/'R/B'/'DEB'/'UNK' and the
+# plain enum words 'PAYLOAD'/'ROCKET BODY'/'DEBRIS' (their first letters agree with the GCAT class).
+# Source: GCAT SatType scheme, https://planet4589.org/space/gcat/web/intro/type.html (Byte 1: Coarse
+# Type). Per-class decisions:
+#   P  Payload            -> PAYLOAD      (incl. PX non-standard payloads, PA aliases, PH crewed)
+#   S  Suborbital payload -> PAYLOAD      (sounding-rocket payload / reentry vehicle: still a payload)
+#   R  Launch-vehicle stage -> ROCKET_BODY  (R1-R5; SATCAT 'R/B')
+#   C  Component          -> DEBRIS       (separated subsystem hardware: fairing, adapter, deployer;
+#                                          not a functioning payload -> debris-class, matching SATCAT)
+#   D  Fragmentation debris -> DEBRIS     (SATCAT 'DEB')
+#   X  Deleted            -> UNKNOWN      (catalog entry removed; no real object)
+#   Z  Spurious           -> UNKNOWN      (tracking artifact; no real object)
+_OBJECT_TYPE_BY_CLASS = {
+    "P": "PAYLOAD",
+    "S": "PAYLOAD",
+    "R": "ROCKET_BODY",
+    "C": "DEBRIS",
+    "D": "DEBRIS",
+    "X": "UNKNOWN",
+    "Z": "UNKNOWN",
+}
+
 
 def canonical_object_type(s: str | None) -> str:
-    """Map source object-type strings to PAYLOAD | ROCKET_BODY | DEBRIS | UNKNOWN."""
+    """Map a source object-type code to PAYLOAD | ROCKET_BODY | DEBRIS | UNKNOWN.
+
+    Whitespace is stripped before matching so GCAT's space-padded SatType codes ('P      O',
+    'D  P', 'C  F', 'PX-C---') resolve on their leading coarse-type byte; SATCAT's 'PAY'/'R/B'/'DEB'
+    and the plain enum words are covered by the same first-character key. Empty/unknown -> UNKNOWN.
+    See _OBJECT_TYPE_BY_CLASS for the per-class rationale and the GCAT SatType source.
+    """
     if not s:
         return "UNKNOWN"
     t = str(s).strip().upper()
-    if t.startswith("PAY") or t == "P":
-        return "PAYLOAD"
-    if "R/B" in t or t.startswith("ROCKET") or t == "R":
-        return "ROCKET_BODY"
-    if t.startswith("DEB") or t == "D":
-        return "DEBRIS"
-    return "UNKNOWN"
+    if not t:
+        return "UNKNOWN"
+    return _OBJECT_TYPE_BY_CLASS.get(t[0], "UNKNOWN")
 
 
 # --- lenient date parsing (GCAT vague dates, UCS text, SATCAT DATE objects) ----
