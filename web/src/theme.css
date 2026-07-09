@@ -710,6 +710,10 @@ button {
 .run-skip {
   background: var(--ink-faint);
 }
+.run-live {
+  background: var(--signal);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--signal) 55%, transparent);
+}
 
 /* pager */
 .pager {
@@ -1497,4 +1501,49 @@ button {
   body::before {
     opacity: 0.08;
   }
+}
+
+/* screen-level error boundary fallback (main.tsx) — a visible stop, never a black page */
+.fault {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--void);
+  z-index: 9999;
+}
+.fault__box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 60ch;
+  padding: 24px 28px;
+  border: 1px solid var(--err);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--err) 30%, transparent);
+}
+.fault__title {
+  font-size: var(--fs-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--err);
+}
+.fault__msg {
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.fault__detail {
+  padding: 10px 12px;
+  border: 1px solid var(--rule-2);
+  background: var(--surface-2);
+  color: var(--ink-faint);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+.fault .btn {
+  align-self: flex-start;
 }

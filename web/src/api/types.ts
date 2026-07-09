@@ -24,7 +24,9 @@ export type ObjectType = "PAYLOAD" | "ROCKET_BODY" | "DEBRIS" | "UNKNOWN";
 export interface IngestRun {
   source: string;
   endpoint: string;
-  status: string; // ok | skipped_fresh | error
+  // ok | skipped_fresh | error | running | stale — and null for a row still in flight (the API
+  // normalizes NULL to running/stale, but the type stays nullable so the SPA never trusts it).
+  status: string | null;
   finished_at: string | null;
   rows_ingested: number | null;
 }

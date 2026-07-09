@@ -52,15 +52,44 @@ SELECT
         ON ic.satellite_id = oo.satellite_id AND ic.n_ids >= 2) AS with_2plus_ids
 """
 
-# Last run per (source, endpoint, status), matching quality/report.py _section_header.
+# Last run per (source, normalized endpoint, status). Space-Track writes one ingest_run row PER
+# 100-NORAD batch with the whole query URL as `endpoint` and a NULL status while in flight — left
+# raw that floods the ledger with thousands of rows and leaks nulls the SPA crashes on. So:
+#   * collapse spacetrack-style endpoints to their stable class name ('gp_history', 'decay') via
+#     the `class/<name>` segment, falling back to the endpoint as-is for everything else;
+#   * an in-flight row (status NULL) reads as 'running' if it started within 24h, else 'stale'
+#     (killed/orphaned) — never a null;
+#   * keep only the most recent run per (source, label, status) and cap the list at the 20
+#     most-recently-active groups.
 _INGEST_SQL = """
+WITH normalized AS (
+    SELECT
+        source,
+        COALESCE(substring(endpoint from 'class/([a-z_]+)'), endpoint) AS label,
+        CASE
+            WHEN status IS NOT NULL THEN status
+            WHEN started_at >= now() - interval '24 hours' THEN 'running'
+            ELSE 'stale'
+        END AS status,
+        started_at,
+        finished_at,
+        rows_ingested
+    FROM ingest_run
+),
+last_per_group AS (
+    SELECT DISTINCT ON (source, label, status)
+        source, label, status, started_at, finished_at, rows_ingested
+    FROM normalized
+    ORDER BY source, label, status, started_at DESC NULLS LAST, finished_at DESC NULLS LAST
+)
 SELECT source, endpoint, status, finished_at, rows_ingested
 FROM (
-    SELECT DISTINCT ON (source, endpoint, status)
-        source, endpoint, status, finished_at, rows_ingested
-    FROM ingest_run
-    ORDER BY source, endpoint, status, finished_at DESC NULLS LAST
-) last_per_endpoint_status
+    SELECT source, label AS endpoint, status, finished_at, rows_ingested,
+        COALESCE(finished_at, started_at) AS activity
+    FROM last_per_group
+    ORDER BY COALESCE(finished_at, started_at) DESC NULLS LAST
+    LIMIT 20
+) recent_groups
 ORDER BY source, endpoint, status
 """
 

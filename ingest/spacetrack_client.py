@@ -86,11 +86,17 @@ class SpaceTrackClient:
             return resp
 
     def _ledgered_batches(self, path: str, norad_ids: list[int], query_suffix: str):
-        """Yield (rows, endpoint) per NORAD-id batch, each pull logged in ingest_run."""
+        """Yield rows per NORAD-id batch, each pull logged in ingest_run.
+
+        The ledger `endpoint` is the stable Space-Track class name ('gp_history', 'decay') — NOT
+        the per-batch query URL, which carries 100 comma-joined NORAD ids and would otherwise turn
+        the ledger into thousands of one-off rows. The full query URL is stashed in `notes` so the
+        exact request is still recoverable for forensics.
+        """
+        endpoint = path.rsplit("/", 1)[-1]
         for batch in _chunk(norad_ids, BATCH_SIZE):
             norad_list = ",".join(str(n) for n in batch)
-            endpoint = f"{path}/NORAD_CAT_ID/{norad_list}{query_suffix}"
-            url = BASE_URL + endpoint
+            url = f"{BASE_URL}{path}/NORAD_CAT_ID/{norad_list}{query_suffix}"
             run_id = runlog.start_run(self.conn, "spacetrack", endpoint)
             try:
                 resp = self._request(url)
@@ -101,7 +107,8 @@ class SpaceTrackClient:
                 raise
             rows = resp.json()
             runlog.finish_run(
-                self.conn, run_id, rows=len(rows), bytes_dl=len(resp.content), status="ok"
+                self.conn, run_id, rows=len(rows), bytes_dl=len(resp.content), status="ok",
+                notes=url,
             )
             yield rows
 

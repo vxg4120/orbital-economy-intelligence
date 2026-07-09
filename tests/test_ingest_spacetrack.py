@@ -164,6 +164,40 @@ def test_decay_is_thin_and_does_not_land_anything(clean_db, no_throttle):
     assert count == 0  # decay() never writes to gp_elements — landing is deferred
 
 
+@responses.activate
+def test_ledger_uses_stable_class_name_and_stashes_url_in_notes(monkeypatch, no_throttle):
+    """Ledger hygiene: the ingest_run `endpoint` must be the stable class name ('gp_history'),
+    not the 100-NORAD query URL, and the full URL is stashed in `notes` for forensics. Mocked at
+    the runlog boundary so it touches neither the network ledger nor the shared dev DB (a live
+    Space-Track backfill is writing that DB concurrently)."""
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    started_endpoints: list[str] = []
+    finished_notes: list[str | None] = []
+
+    def fake_start(conn, source, endpoint):
+        assert source == "spacetrack"
+        started_endpoints.append(endpoint)
+        return len(started_endpoints)
+
+    def fake_finish(conn, run_id, rows, bytes_dl, status, notes=None):
+        finished_notes.append(notes)
+
+    monkeypatch.setattr(spacetrack_client.runlog, "start_run", fake_start)
+    monkeypatch.setattr(spacetrack_client.runlog, "finish_run", fake_finish)
+
+    client = _client(None)
+    rows = list(client.gp_history([900000001, 900000002], "2024-01-01", "2024-02-01"))
+
+    assert rows  # rows still flow through
+    # endpoint is the stable class label, never the comma-joined NORAD query URL.
+    assert started_endpoints == ["gp_history"]
+    # the full query URL is preserved in notes for forensics.
+    assert finished_notes and finished_notes[-1] is not None
+    assert "NORAD_CAT_ID" in finished_notes[-1] and "gp_history" in finished_notes[-1]
+
+
 @pytest.mark.db
 def test_land_gp_history_lands_into_gp_elements_with_spacetrack_source(clean_db):
     rows = [_gp_row(900000001), _gp_row(900000002)]

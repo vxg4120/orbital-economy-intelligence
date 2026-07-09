@@ -32,10 +32,23 @@ export function sourceClass(source: string): string {
 /** Fleet regime ordering for consistent chart/legend order. */
 export const REGIME_ORDER = ["LEO", "MEO", "GEO", "HEO"];
 
-/** Ledger run status -> dot color class. */
-export function runStatusClass(status: string): string {
-  const s = status.toLowerCase();
-  if (s === "ok") return "run-ok";
-  if (s === "error") return "run-err";
-  return "run-skip";
+export interface RunStatusMeta {
+  className: string; // run-dot color class
+  label: string;
+}
+
+const RUN_STATUS: Record<string, RunStatusMeta> = {
+  ok: { className: "run-ok", label: "ok" },
+  error: { className: "run-err", label: "error" },
+  skipped_fresh: { className: "run-skip", label: "skipped_fresh" },
+  running: { className: "run-live", label: "running" },
+  stale: { className: "run-skip", label: "stale" },
+};
+
+/** Ledger run status -> dot color class + display label. Defensively total: a null/undefined
+    status (a batch still in flight, no status written yet) renders a neutral 'running' badge and
+    NEVER throws — an unrecognised string echoes back under the neutral dot. */
+export function runStatusMeta(status: string | null | undefined): RunStatusMeta {
+  if (!status) return { className: "run-live", label: "running" };
+  return RUN_STATUS[status.toLowerCase()] ?? { className: "run-skip", label: status };
 }
