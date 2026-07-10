@@ -143,6 +143,56 @@ def test_backoff_raises_after_max_retries_exceeded(clean_db, monkeypatch, no_thr
     assert status == "error"
 
 
+_RATE_LIMIT_STUB = [
+    {
+        "error": "You've violated your query rate limit.  Please refer to our Acceptable Use "
+        "guidelines for further information on how to avoid this message in the future."
+    }
+]
+
+
+@pytest.mark.db
+@responses.activate
+def test_http200_rate_limit_stub_is_retried_then_succeeds(clean_db, monkeypatch, no_throttle):
+    """Space-Track throttles with HTTP 200 + [{"error": "...rate limit..."}], an error dressed as
+    success. It must be retried with the 429 backoff, not returned as a degraded stub row."""
+    sleeps = []
+    monkeypatch.setattr(spacetrack_client.time, "sleep", sleeps.append)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=_RATE_LIMIT_STUB, status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=_RATE_LIMIT_STUB, status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    client = _client(clean_db)
+    rows = list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    assert rows == [_gp_row(900000001)]
+    assert sleeps == [30.0, 60.0]  # base * 2**0, base * 2**1
+
+
+@pytest.mark.db
+@responses.activate
+def test_http200_rate_limit_stub_raises_and_ledgers_error(clean_db, monkeypatch, no_throttle):
+    """Persistent throttle stubs raise SpaceTrackRateLimitError (never silently land 0 rows), and
+    the pull is recorded status='error' in the ledger so the backfill window is not checkpointed."""
+    monkeypatch.setattr(spacetrack_client.time, "sleep", lambda s: None)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    for _ in range(spacetrack_client.MAX_RETRIES + 1):
+        responses.add(responses.GET, GP_HISTORY_RE, json=_RATE_LIMIT_STUB, status=200)
+
+    client = _client(clean_db)
+    with pytest.raises(spacetrack_client.SpaceTrackRateLimitError):
+        list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT status FROM ingest_run WHERE source = 'spacetrack' "
+            "ORDER BY ingest_run_id DESC LIMIT 1"
+        )
+        (status,) = cur.fetchone()
+    assert status == "error"
+
+
 @pytest.mark.db
 @responses.activate
 def test_decay_is_thin_and_does_not_land_anything(clean_db, no_throttle):
@@ -254,3 +304,21 @@ def test_read_timeout_raises_after_max_retries(clean_db, monkeypatch, no_throttl
     client = _client(clean_db)
     with pytest.raises(requests.exceptions.ReadTimeout):
         list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+
+@pytest.mark.db
+@responses.activate
+def test_pre_request_hook_fires_once_per_attempt_including_retries(clean_db, monkeypatch, no_throttle):
+    """External pacers hook pre_request; retries are real requests and must consume budget."""
+    monkeypatch.setattr(spacetrack_client.time, "sleep", lambda s: None)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, body="rate limited", status=429)
+    responses.add(responses.GET, GP_HISTORY_RE, body="rate limited", status=429)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    calls = []
+    client = _client(clean_db, pre_request=lambda: calls.append(1))
+    rows = list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    assert len(rows) == 1
+    assert len(calls) == 3  # initial attempt + two retries

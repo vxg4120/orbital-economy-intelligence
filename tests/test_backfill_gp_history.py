@@ -176,7 +176,7 @@ def test_run_backfill_skips_checkpointed_units(tmp_path):
     client = FakeClient(rows_per_batch=2)
     summary = bf.run_backfill(
         None, client, _small_plan(), _WINDOWS, cp,
-        land_fn=_fake_land, pacer=_no_wait_pacer(),
+        land_fn=_fake_land,
     )
 
     # The pre-done OpA/window0 unit must not have been requested again.
@@ -196,7 +196,7 @@ def test_run_backfill_full_resume_is_a_noop(tmp_path):
     cp = bf.Checkpoint(path)
     first = bf.run_backfill(
         None, FakeClient(), _small_plan(), _WINDOWS, cp,
-        land_fn=_fake_land, pacer=_no_wait_pacer(),
+        land_fn=_fake_land,
     )
     assert first["requests_issued"] == 1 * 2 + 2 * 2  # OpA 2 units x1 batch + OpB 2 units x2 batches
     assert len(cp.units) == 4
@@ -206,7 +206,7 @@ def test_run_backfill_full_resume_is_a_noop(tmp_path):
     client2 = FakeClient()
     second = bf.run_backfill(
         None, client2, _small_plan(), _WINDOWS, cp_reload,
-        land_fn=_fake_land, pacer=_no_wait_pacer(),
+        land_fn=_fake_land,
     )
     assert client2.calls == []
     assert second["requests_issued"] == 0
@@ -223,7 +223,7 @@ def test_run_backfill_stop_mid_run_leaves_unit_uncheckpointed(tmp_path):
 
     summary = bf.run_backfill(
         None, FakeClient(), _small_plan(), _WINDOWS, cp,
-        land_fn=_fake_land, pacer=_no_wait_pacer(), stop_requested=stop_after_first,
+        land_fn=_fake_land, stop_requested=stop_after_first,
     )
     assert summary["stopped"] is True
     # The in-progress unit must NOT be checkpointed (so it restarts idempotently).
@@ -235,7 +235,7 @@ def test_run_backfill_counts_rows(tmp_path):
     client = FakeClient(rows_per_batch=3)
     summary = bf.run_backfill(
         None, client, _small_plan(), _WINDOWS, cp,
-        land_fn=_fake_land, pacer=_no_wait_pacer(),
+        land_fn=_fake_land,
     )
     # OpA: 2 windows x 1 batch x 3 rows = 6 ; OpB: 2 windows x 2 batches x 3 rows = 12 => 18
     assert summary["cumulative_rows"] == 18

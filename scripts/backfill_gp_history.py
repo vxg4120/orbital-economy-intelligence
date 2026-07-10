@@ -308,8 +308,7 @@ def run_backfill(
     checkpoint: Checkpoint,
     *,
     land_fn=land_gp_history,
-    pacer: HourlyPacer | None = None,
-    max_requests_per_hour: int = DEFAULT_MAX_RPH,
+    max_requests_per_hour: int = DEFAULT_MAX_RPH,  # ETA estimation only; pacing is in the client
     stop_requested=lambda: False,
     out=print,
 ) -> dict:
@@ -317,9 +316,6 @@ def run_backfill(
 
     Returns a summary dict. Sets summary['stopped']=True if a stop was requested mid-run (the
     in-progress unit is left un-checkpointed so it restarts idempotently on resume)."""
-    if pacer is None:
-        pacer = HourlyPacer(max_requests_per_hour)
-
     # Estimated requests remaining (skip already-checkpointed units) drives the ETA.
     est_total = sum(
         p["n_batches"]
@@ -346,7 +342,8 @@ def run_backfill(
             unit_rows = 0
             unit_requests = 0
             for batch in _chunk(ids, BATCH_SIZE):
-                pacer.acquire()
+                # Pacing happens inside the client (pre_request hook, per HTTP attempt incl.
+                # retries) — see main(). No per-batch acquire here or requests double-count.
                 rows = list(client.gp_history(batch, since_s, before_s))
                 unit_rows += land_fn(conn, rows)
                 unit_requests += 1
@@ -444,8 +441,12 @@ def main(argv=None) -> int:
 
         signal.signal(signal.SIGINT, _handle_sigint)
 
-        client = SpaceTrackClient(conn)
+        # The pacer hooks the client's pre-request callback so RETRIES count against the hourly
+        # budget too — pacing only the per-batch call undercounts during retry storms (observed
+        # live: ~450/hr actual vs the 260/hr per-call budget, which tripped Space-Track's
+        # HTTP-200 rate-limit stubs and silently emptied whole windows).
         pacer = HourlyPacer(args.max_requests_per_hour)
+        client = SpaceTrackClient(conn, pre_request=pacer.acquire)
         try:
             summary = run_backfill(
                 conn,
@@ -453,7 +454,6 @@ def main(argv=None) -> int:
                 plan,
                 windows,
                 checkpoint,
-                pacer=pacer,
                 max_requests_per_hour=args.max_requests_per_hour,
                 stop_requested=lambda: stop["flag"],
             )

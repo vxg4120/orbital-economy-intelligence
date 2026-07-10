@@ -303,6 +303,73 @@ def _section_coverage(cur):
     }
 
 
+BENCHMARK_OPERATORS = (
+    "SpaceX", "Eutelsat", "Planet Labs", "Spire", "Iridium", "ICEYE", "Capella Space", "Amazon",
+)
+
+
+def _section_phase2_metrics(cur):
+    """Phase 2 benchmark metrics (SPEC §7 + the §12 killer chart), per benchmark operator.
+
+    One row per benchmark operator: satellites carrying gp_history + elset count (attributed via the
+    current SCD2 owner), median time-to-operational (v_time_to_operational_by_operator), and the p50
+    30-day rolling sma-stddev station-keeping tightness (v_station_keeping_operator). Operators with
+    no landed gp_history surface as 0/blank -- deliberately, so the attribution coverage gap is
+    visible rather than hidden. Deterministic ORDER BY keeps the rendered report byte-stable.
+    """
+    per_op_cols, per_op_rows = _rows(
+        cur,
+        """
+        WITH bench AS (
+            SELECT operator_id, canonical_name FROM operator WHERE canonical_name = ANY(%s)
+        ),
+        hist AS (
+            SELECT so.operator_id,
+                   count(DISTINCT ge.norad_id) AS sats,
+                   count(*) AS elsets
+            FROM gp_elements ge
+            JOIN satellite s ON s.norad_id = ge.norad_id
+            JOIN satellite_operator so
+                ON so.satellite_id = s.satellite_id AND so.role = 'owner' AND so.valid_to IS NULL
+            WHERE ge.source = 'spacetrack_gp_history'
+            GROUP BY so.operator_id
+        )
+        SELECT
+            b.canonical_name AS operator,
+            COALESCE(h.sats, 0) AS sats_with_history,
+            COALESCE(h.elsets, 0) AS elset_count,
+            round(tto.median_days_to_operational::numeric, 1) AS median_days_to_operational,
+            tto.n_satellites AS tto_n,
+            round(sk.p50_station_keeping_km::numeric, 4) AS station_keeping_p50_km,
+            sk.active_satellite_count AS sk_active_n
+        FROM bench b
+        LEFT JOIN hist h ON h.operator_id = b.operator_id
+        LEFT JOIN v_time_to_operational_by_operator tto ON tto.operator_id = b.operator_id
+        LEFT JOIN v_station_keeping_operator sk ON sk.operator_id = b.operator_id
+        ORDER BY COALESCE(h.elsets, 0) DESC, b.canonical_name
+        """,
+        (list(BENCHMARK_OPERATORS),),
+    )
+
+    # Killer-chart summary: window totals for the operator with the largest attribution delta.
+    # The honest showcase for this window is Eutelsat (ex-OneWeb LEO fleet, coded 'UK' by SATCAT).
+    cur.execute(
+        """
+        SELECT
+            operator_name,
+            sum(temporal_sat_days)::bigint AS temporal_sat_days,
+            sum(naive_satcat_sat_days)::bigint AS naive_satcat_sat_days,
+            max(temporal_sats) AS temporal_sats,
+            max(naive_satcat_sats) AS naive_satcat_sats
+        FROM v_killer_chart
+        WHERE operator_name = 'Eutelsat'
+        GROUP BY operator_name
+        """
+    )
+    killer = cur.fetchone()
+    return per_op_cols, per_op_rows, killer
+
+
 def _pct(numerator: int, denominator: int) -> str:
     if denominator == 0:
         return "0.0%"
@@ -331,6 +398,7 @@ def generate_report(conn) -> str:
         supgp_total, supgp_cols, supgp_rows = _section_supgp_cross_tags(cur)
         match_merge = _section_match_merge_stats(cur)
         coverage = _section_coverage(cur)
+        p2_cols, p2_rows, p2_killer = _section_phase2_metrics(cur)
 
     out.append("# Data Quality and Conflict Report\n")
     out.append(f"Generated at: {now}\n")
@@ -390,6 +458,31 @@ def generate_report(conn) -> str:
         f"- With >=2 source identifiers (graph vs list): {coverage['with_2plus_ids']}/{total} "
         f"({_pct(coverage['with_2plus_ids'], total)})\n"
     )
+
+    out.append("\n## 7. Phase 2 metrics (per benchmark operator)\n")
+    out.append(
+        "\nSPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count` are "
+        "attributed via the current SCD2 owner; `median_days_to_operational` is over in-window LEO "
+        "launches that acquired their shell band (v_time_to_operational); `station_keeping_p50_km` "
+        "is the p50 of per-satellite median 30-day rolling sma-stddev for ACTIVE payloads. Blank = "
+        "no landed gp_history for that operator (see the attribution note below).\n\n"
+    )
+    out.append(_md_table(p2_cols, p2_rows))
+    if p2_killer is not None:
+        op, t_days, n_days, t_sats, n_sats = p2_killer
+        ratio = (t_days / n_days) if n_days else None
+        ratio_txt = f"{ratio:.1f}x" if ratio is not None else "n/a (naive attributes 0)"
+        out.append(
+            f"\n### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- {op}\n\n"
+            "SATCAT's OWNER field is a country/agency code, not a company: the ex-OneWeb LEO fleet "
+            "is coded 'UK' (maps to no operator) while only Eutelsat's legacy birds carry 'EUTE'. "
+            "Temporal identity resolution assigns the whole fleet to its actual current operator; "
+            "naive SATCAT owner codes cannot.\n\n"
+            f"- Temporal (SCD2) attribution: **{t_sats}** sats, **{t_days:,}** elset-days.\n"
+            f"- Naive SATCAT owner code: **{n_sats}** sats, **{n_days:,}** elset-days.\n"
+            f"- Delta: **{t_sats - n_sats}** sats / **{t_days - n_days:,}** elset-days "
+            f"({ratio_txt} more elset-days attributed under temporal resolution).\n"
+        )
 
     return "".join(out)
 

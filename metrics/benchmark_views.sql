@@ -1,5 +1,5 @@
--- Operator benchmark views. SPEC.md §7 metrics, as far as computable pre-Phase-2-backfill.
--- All views are CREATE OR REPLACE so this file is safe to re-apply.
+-- Operator benchmark views. SPEC.md §7 metrics + the §12 killer chart, computed over the Phase-2
+-- gp_history backfill. All views are CREATE OR REPLACE so this file is safe to re-apply.
 
 -- ---------------------------------------------------------------------------------------------
 -- v_sat_operator_daily
@@ -210,10 +210,195 @@ JOIN latest_status ls ON ls.satellite_id = s.satellite_id
 LEFT JOIN last_active la ON la.satellite_id = s.satellite_id
 WHERE ls.canonical_status IN ('DECAYED', 'INACTIVE');
 
--- ---------------------------------------------------------------------------------------------
--- Time-to-operational (SPEC §7.2) -- Phase 2 placeholder.
--- ---------------------------------------------------------------------------------------------
--- Days from launch to orbit acquisition (sma settling within a band of the constellation shell's
--- median and holding for N consecutive days). Requires the orbit-raising curve, i.e. gp_history
--- backfill for each satellite's early post-launch element sets -- not available until Phase 2.
--- No view defined here; intentionally deferred.
+-- ============================ v_time_to_operational (SPEC §7.2) ============================
+CREATE OR REPLACE VIEW v_time_to_operational AS
+WITH window_start AS (
+    SELECT min(day)::date AS d FROM sat_daily
+),
+leo_daily AS (
+    -- LEO payload daily orbit series, temporally attributed. LEO gate on sma_avg (semi-major axis,
+    -- km from Earth centre): ~6478 km (100 km alt) .. 8378 km (2000 km alt). Payloads only, launched
+    -- within the data window (launch_date on/after the earliest daily bucket).
+    SELECT
+        v.satellite_id, v.norad_id, v.operator_id, v.operator_name,
+        s.launch_date, v.day::date AS d, v.sma_avg
+    FROM v_sat_operator_daily v
+    JOIN satellite s ON s.satellite_id = v.satellite_id
+    CROSS JOIN window_start ws
+    WHERE v.satellite_id IS NOT NULL
+      AND v.operator_id IS NOT NULL
+      AND s.object_type = 'PAYLOAD'
+      AND s.launch_date IS NOT NULL
+      AND s.launch_date >= ws.d
+      AND v.sma_avg BETWEEN 6478 AND 8378
+),
+per_sat AS (
+    -- One row per satellite: its operator (on its latest data day) and its "eventual stable sma"
+    -- = median sma over its LAST 30 observed days (its settled/operational orbit, after any
+    -- orbit-raising). Requires >=7 observed days so the settle estimate isn't a single blip.
+    SELECT
+        satellite_id, norad_id, operator_id, operator_name, launch_date,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY sma_avg)
+            FILTER (WHERE d > max_d - 30) AS stable_sma,
+        count(*) AS n_days
+    FROM (
+        SELECT ld.*, max(d) OVER (PARTITION BY satellite_id) AS max_d
+        FROM leo_daily ld
+    ) x
+    GROUP BY satellite_id, norad_id, operator_id, operator_name, launch_date
+    HAVING count(*) >= 7
+),
+shell AS (
+    -- Constellation shell = operator x 50 km altitude bin of the satellite's eventual stable sma.
+    -- Shell median sma is the target band centre. shell_n = members, surfaced so the rollup can
+    -- discount 1-2 member shells (a lone member trivially sits at its own median).
+    SELECT
+        operator_id, floor(stable_sma / 50.0)::int AS alt_bin_50km,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY stable_sma) AS shell_median_sma,
+        count(*) AS shell_n
+    FROM per_sat
+    GROUP BY operator_id, floor(stable_sma / 50.0)::int
+),
+flagged AS (
+    -- Per satellite-day: is sma_avg within +/-15 km of its shell median? Gaps-and-islands key
+    -- (d - row_number()) is constant across a run of consecutive calendar days that are all
+    -- in-band; a missing day or an out-of-band day shifts the row_number and breaks the run.
+    SELECT
+        ld.satellite_id, ps.norad_id, ps.operator_id, ps.operator_name, ps.launch_date,
+        sh.shell_n, ld.d,
+        (ld.d - (row_number() OVER (PARTITION BY ld.satellite_id ORDER BY ld.d))::int) AS grp
+    FROM leo_daily ld
+    JOIN per_sat ps ON ps.satellite_id = ld.satellite_id
+    JOIN shell sh ON sh.operator_id = ps.operator_id
+                 AND sh.alt_bin_50km = floor(ps.stable_sma / 50.0)::int
+    WHERE abs(ld.sma_avg - sh.shell_median_sma) <= 15
+),
+streaks AS (
+    -- Each in-band island: its start day and length. A "7 consecutive in-band days" streak is an
+    -- island of length >= 7; the satellite is deemed operational on the island's FIRST day.
+    SELECT satellite_id, norad_id, operator_id, operator_name, launch_date, shell_n,
+           min(d) AS streak_start, count(*) AS streak_len
+    FROM flagged
+    GROUP BY satellite_id, norad_id, operator_id, operator_name, launch_date, shell_n, grp
+    HAVING count(*) >= 7
+)
+-- Earliest qualifying streak per satellite -> time-to-operational (days from launch). Only
+-- satellites that actually acquire the shell band appear (non-converging birds are omitted, not
+-- counted as 0). Guard streak_start >= launch_date so a pre-launch data artefact can't go negative.
+SELECT DISTINCT ON (satellite_id)
+    satellite_id, norad_id, operator_id, operator_name, launch_date,
+    streak_start AS operational_date,
+    (streak_start - launch_date) AS days_to_operational,
+    shell_n
+FROM streaks
+WHERE streak_start >= launch_date
+ORDER BY satellite_id, streak_start;
+
+-- Per-operator rollup: median days-to-operational and n over converging in-window LEO payloads.
+-- Restricted to shells with >= 3 members (a meaningful shell median). n is the converging count.
+CREATE OR REPLACE VIEW v_time_to_operational_by_operator AS
+SELECT
+    operator_id, operator_name,
+    count(*) AS n_satellites,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY days_to_operational) AS median_days_to_operational,
+    percentile_cont(0.9) WITHIN GROUP (ORDER BY days_to_operational) AS p90_days_to_operational
+FROM v_time_to_operational
+WHERE shell_n >= 3
+GROUP BY operator_id, operator_name;
+
+-- ======================= v_station_keeping_operator (SPEC §7.1 rollup) =======================
+-- Per-operator station-keeping tightness over the REAL history: for each ACTIVE payload take the
+-- median of its 30-day rolling sma stddev across all its days (its typical tightness), then report
+-- the operator-level p50/p90/mean of those per-satellite medians. Percentiles over per-satellite
+-- medians (not raw sat-days) so long-lived birds don't dominate. Lower = tighter station-keeping.
+-- Sanity (live history): SpaceX p50 ~40 m with a multi-km p90 tail (birds mid orbit-raising),
+-- Eutelsat/OneWeb p50 ~5 m (very stable ~1200 km shells), Planet Labs p50 ~0.7 km (drifting doves).
+CREATE OR REPLACE VIEW v_station_keeping_operator AS
+WITH per_sat AS (
+    SELECT
+        satellite_id, operator_id, operator_name,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY rolling_stddev_30d) AS sat_median_stddev_km
+    FROM v_station_keeping_30d
+    WHERE rolling_stddev_30d IS NOT NULL
+    GROUP BY satellite_id, operator_id, operator_name
+)
+SELECT
+    operator_id, operator_name,
+    count(*) AS active_satellite_count,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY sat_median_stddev_km) AS p50_station_keeping_km,
+    percentile_cont(0.9) WITHIN GROUP (ORDER BY sat_median_stddev_km) AS p90_station_keeping_km,
+    avg(sat_median_stddev_km) AS mean_station_keeping_km
+FROM per_sat
+WHERE operator_id IS NOT NULL
+GROUP BY operator_id, operator_name;
+
+-- ================================= v_killer_chart (SPEC §12) =================================
+-- The Phase-2 acceptance chart: a per-operator metric that VISIBLY changes under temporal identity
+-- resolution vs naive SATCAT owner codes. Grain: (month, operator). Two attributions side by side:
+--   (a) temporal SCD2 -- v_sat_operator_daily, each sat-day owned by whoever held it that day;
+--   (b) naive SATCAT owner code -- the latest SATCAT 'owner' assertion mapped through
+--       operator_alias(source='satcat'), applied to ALL history.
+-- Why this is the honest variant for THIS window: the only M&A boundary landing mid-window
+-- (Intelsat->SES, 2025-07-17) is GEO -- those fleets were not backfilled, so they have zero
+-- gp_history. The showcase the data DOES support is OneWeb->Eutelsat (merged 2023-09-28): SATCAT's
+-- OWNER field is a country/agency code, not a company -- the 654-satellite ex-OneWeb LEO fleet is
+-- coded 'UK' (which maps to no operator) and only Eutelsat's 54 legacy birds carry 'EUTE'. So naive
+-- SATCAT owner codes attribute ~54 sats to Eutelsat while the identity graph's temporal resolution
+-- attributes all ~708 -- and because the metric is computed over that fleet, sma-stability and
+-- elset-days per month move with it. Live headline: Eutelsat ~260k temporal elset-days vs ~19k
+-- naive (13.6x); the entire ex-OneWeb LEO fleet is invisible to naive SATCAT-owner attribution.
+-- This is the identity graph's core value: resolving coarse country codes + M&A history into the
+-- actual operating company.
+CREATE OR REPLACE VIEW v_killer_chart AS
+WITH temporal AS (
+    SELECT
+        date_trunc('month', day)::date AS month,
+        operator_id, operator_name, norad_id, sma_stddev
+    FROM v_sat_operator_daily
+    WHERE operator_id IS NOT NULL
+),
+satcat_owner AS (
+    SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_code
+    FROM source_assertion
+    WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
+    ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
+),
+naive_map AS (
+    -- norad -> operator strictly via the SATCAT owner code (country/agency string -> operator_alias)
+    SELECT s.norad_id, oa.operator_id, o.canonical_name AS operator_name
+    FROM satellite s
+    JOIN satcat_owner so ON so.satellite_id = s.satellite_id
+    JOIN operator_alias oa ON oa.source = 'satcat' AND lower(oa.alias) = lower(so.owner_code)
+    JOIN operator o ON o.operator_id = oa.operator_id
+),
+naive AS (
+    SELECT
+        date_trunc('month', sd.day)::date AS month,
+        nm.operator_id, nm.operator_name, sd.norad_id, sd.sma_stddev
+    FROM sat_daily sd
+    JOIN naive_map nm ON nm.norad_id = sd.norad_id
+),
+temporal_agg AS (
+    SELECT month, operator_id, operator_name,
+           count(DISTINCT norad_id) AS sats, count(*) AS sat_days, avg(sma_stddev) AS sma_stability
+    FROM temporal GROUP BY month, operator_id, operator_name
+),
+naive_agg AS (
+    SELECT month, operator_id, operator_name,
+           count(DISTINCT norad_id) AS sats, count(*) AS sat_days, avg(sma_stddev) AS sma_stability
+    FROM naive GROUP BY month, operator_id, operator_name
+)
+SELECT
+    COALESCE(t.month, n.month) AS month,
+    COALESCE(t.operator_id, n.operator_id) AS operator_id,
+    COALESCE(t.operator_name, n.operator_name) AS operator_name,
+    COALESCE(t.sats, 0) AS temporal_sats,
+    COALESCE(t.sat_days, 0) AS temporal_sat_days,
+    t.sma_stability AS temporal_sma_stability_km,
+    COALESCE(n.sats, 0) AS naive_satcat_sats,
+    COALESCE(n.sat_days, 0) AS naive_satcat_sat_days,
+    n.sma_stability AS naive_satcat_sma_stability_km,
+    COALESCE(t.sat_days, 0) - COALESCE(n.sat_days, 0) AS delta_sat_days,
+    COALESCE(t.sats, 0) - COALESCE(n.sats, 0) AS delta_sats
+FROM temporal_agg t
+FULL OUTER JOIN naive_agg n USING (month, operator_id, operator_name);
