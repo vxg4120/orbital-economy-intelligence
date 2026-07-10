@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.oei.daily-ingest</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/vgupta/Development/repos/space/scripts/daily_ingest.sh</string>
+  </array>
+  <!-- 07:10 and 19:10 local: two cycles/day, well within every source's politeness window. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>10</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/Users/vgupta/Development/repos/space/data/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/vgupta/Development/repos/space/data/launchd.err.log</string>
+</dict>
+</plist>

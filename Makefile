@@ -49,3 +49,12 @@ fe: web-build api
 # URL is ephemeral: it changes on every run and dies with the process / laptop sleep.
 share:
 	cloudflared tunnel --url http://localhost:8600
+
+# Install/remove the twice-daily ingest launchd job (user-level; your call to activate).
+schedule-install:
+	cp ops/com.oei.daily-ingest.plist ~/Library/LaunchAgents/
+	launchctl load ~/Library/LaunchAgents/com.oei.daily-ingest.plist
+	@echo "installed: twice-daily ingest at 07:10 and 19:10 local"
+schedule-remove:
+	launchctl unload ~/Library/LaunchAgents/com.oei.daily-ingest.plist || true
+	rm -f ~/Library/LaunchAgents/com.oei.daily-ingest.plist
