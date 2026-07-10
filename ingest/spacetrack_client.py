@@ -24,7 +24,10 @@ BATCH_SIZE = 100
 MIN_REQUEST_INTERVAL_S = 3.0
 BACKOFF_BASE_S = 30.0
 MAX_RETRIES = 3
-TIMEOUT_S = 120
+# Space-Track gp_history queries can legitimately take minutes server-side (observed live:
+# repeated ReadTimeouts at 120s on 100-id batches). Generous read timeout + timeouts are
+# retryable below, same backoff as 429/5xx.
+TIMEOUT_S = 300
 
 
 class SpaceTrackAuthError(RuntimeError):
@@ -75,7 +78,17 @@ class SpaceTrackClient:
         attempt = 0
         while True:
             self._throttle()
-            resp = self.session.get(url, timeout=TIMEOUT_S, headers={"User-Agent": runlog.USER_AGENT})
+            try:
+                resp = self.session.get(
+                    url, timeout=TIMEOUT_S, headers={"User-Agent": runlog.USER_AGENT}
+                )
+            except (requests.Timeout, requests.ConnectionError):
+                # Transient network/server slowness: retry with the same backoff as 429/5xx.
+                if attempt >= MAX_RETRIES:
+                    raise
+                time.sleep(BACKOFF_BASE_S * (2**attempt))
+                attempt += 1
+                continue
             if resp.status_code == 429 or resp.status_code >= 500:
                 if attempt >= MAX_RETRIES:
                     resp.raise_for_status()

@@ -221,3 +221,36 @@ def test_land_gp_history_lands_into_gp_elements_with_spacetrack_source(clean_db)
         )
         (count,) = cur.fetchone()
     assert count == 2
+
+
+@pytest.mark.db
+@responses.activate
+def test_read_timeout_is_retried_with_backoff_then_succeeds(clean_db, monkeypatch, no_throttle):
+    """Observed live: Space-Track gp_history can exceed the read timeout on a slow query.
+
+    Timeouts must join the 429/5xx retry set instead of killing a multi-hour backfill.
+    """
+    sleeps = []
+    monkeypatch.setattr(spacetrack_client.time, "sleep", sleeps.append)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, body=requests.exceptions.ReadTimeout("read timed out"))
+    responses.add(responses.GET, GP_HISTORY_RE, json=[_gp_row(900000001)], status=200)
+
+    client = _client(clean_db)
+    rows = list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+
+    assert len(rows) == 1
+    assert sleeps == [30.0]
+
+
+@pytest.mark.db
+@responses.activate
+def test_read_timeout_raises_after_max_retries(clean_db, monkeypatch, no_throttle):
+    monkeypatch.setattr(spacetrack_client.time, "sleep", lambda s: None)
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    for _ in range(spacetrack_client.MAX_RETRIES + 1):
+        responses.add(responses.GET, GP_HISTORY_RE, body=requests.exceptions.ReadTimeout("read timed out"))
+
+    client = _client(clean_db)
+    with pytest.raises(requests.exceptions.ReadTimeout):
+        list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
