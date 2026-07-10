@@ -1,5 +1,5 @@
 # Data Quality and Conflict Report
-Generated at: 2026-07-10 04:27:59 UTC
+Generated at: 2026-07-10 05:02:43 UTC
 
 Every number below comes from a live query against the identity graph and fact layer -- disagreements are data, not errors (SPEC.md §8).
 
@@ -1657,7 +1657,7 @@ Every number below comes from a live query against the identity graph and fact l
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/69819,69820,69821,69822,69823,69824,69825,69826,69827,69828,69829,69830,69831,69832,69833,69834,69835,69836,69837,69838,69839,69840,69841/CREATION_DATE/2026-06-01--2026-07-01/orderby/CREATION_DATE asc/format/json | ok | 2026-07-10T02:14:08.001655+00:00 | 0 | 2 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/69819,69820,69821,69822,69823,69824,69825,69826,69827,69828,69829,69830,69831,69832,69833,69834,69835,69836,69837,69838,69839,69840,69841/CREATION_DATE/2026-07-01--2026-07-09/orderby/CREATION_DATE asc/format/json | ok | 2026-07-10T02:41:03.502663+00:00 | 0 | 2 |
 | spacetrack | gp_history | error | 2026-07-10T03:55:26.043428+00:00 | 0 | 0 |
-| spacetrack | gp_history | ok | 2026-07-10T04:27:04.784217+00:00 | 5800 | 6560265 |
+| spacetrack | gp_history | ok | 2026-07-10T05:00:41.905225+00:00 | 1852 | 2096817 |
 | spacetrack | gp_history |  |  |  |  |
 
 ## 1. Status disagreements: SATCAT vs GCAT
@@ -1753,14 +1753,14 @@ SPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count`
 
 | operator | sats_with_history | elset_count | median_days_to_operational | tto_n | station_keeping_p50_km | sk_active_n |
 | --- | --- | --- | --- | --- | --- | --- |
-| SpaceX | 11233 | 8385717 | 49.0 | 3101 | 0.0417 | 10305 |
-| Eutelsat | 708 | 762878 |  |  | 0.0050 | 672 |
-| Planet Labs | 184 | 119196 | 20.0 | 41 | 0.6650 | 97 |
-| ICEYE | 47 | 42761 | 28.0 | 8 | 0.2667 | 36 |
-| Amazon | 365 | 31625 | 109.0 | 284 | 0.2419 | 363 |
-| Iridium | 107 | 7266 |  |  | 0.0010 | 80 |
-| Spire | 51 | 4771 | 140.0 | 23 | 0.2087 | 49 |
-| Capella Space | 9 | 593 | 146.0 | 4 | 0.2089 | 9 |
+| SpaceX | 11233 | 8385717 | 78.0 | 6386 | 0.0417 | 10305 |
+| Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0050 | 672 |
+| Amazon | 367 | 185119 | 73.0 | 343 | 0.6215 | 363 |
+| Planet Labs | 184 | 132023 | 167.0 | 109 | 0.6546 | 97 |
+| Iridium | 107 | 117981 |  |  | 0.0026 | 80 |
+| ICEYE | 47 | 42761 | 30.0 | 21 | 0.2667 | 36 |
+| Spire | 54 | 36109 | 28.0 | 38 | 0.3848 | 49 |
+| Capella Space | 9 | 6468 | 28.0 | 7 | 0.1832 | 9 |
 
 ### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- Eutelsat
 
