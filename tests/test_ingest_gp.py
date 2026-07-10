@@ -128,3 +128,24 @@ def test_land_gp_rows_field_mapping_is_pure(monkeypatch):
     assert captured[0][0] == 900000001  # norad_id
     assert captured[0][10] == "celestrak_gp"  # source
     assert captured[0][2] == pytest.approx(15.5)  # mean_motion
+
+
+@pytest.mark.db
+def test_land_gp_rows_skips_stub_rows_missing_required_keys(db_conn):
+    """Observed live: Space-Track under load can return degraded stub rows (missing
+    NORAD_CAT_ID). One bad row must not kill a multi-hour backfill — skip and count."""
+    good = dict(FIXTURE_ROWS[0], NORAD_CAT_ID=900000601)
+    stub_no_norad = {k: v for k, v in FIXTURE_ROWS[1].items() if k != "NORAD_CAT_ID"}
+    stub_no_epoch = dict(
+        {k: v for k, v in FIXTURE_ROWS[2].items() if k != "EPOCH"}, NORAD_CAT_ID=900000603
+    )
+
+    landed = celestrak_gp.land_gp_rows(
+        db_conn, [good, stub_no_norad, stub_no_epoch], source="test_stub_skip"
+    )
+    assert landed == 1
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM gp_elements WHERE source = 'test_stub_skip'")
+        assert cur.fetchone()[0] == 1
+        cur.execute("DELETE FROM gp_elements WHERE source = 'test_stub_skip'")
+    db_conn.commit()

@@ -51,9 +51,19 @@ def _to_int(value) -> int | None:
 def land_gp_rows(conn, rows: list[dict], source: str) -> int:
     """INSERT OMM rows into gp_elements tagged with `source`. Duplicates (same norad/epoch/
     source) are silently skipped via ON CONFLICT DO NOTHING — re-running the same pull is safe.
+
+    Rows missing NORAD_CAT_ID or EPOCH are skipped and counted, not fatal: Space-Track has
+    been observed returning degraded stub rows under load, and one bad row must not abort a
+    long backfill. Returns the number of rows actually submitted for insert.
     """
+    landed = 0
+    skipped = 0
     with conn.cursor() as cur:
         for row in rows:
+            if not row.get("NORAD_CAT_ID") or not row.get("EPOCH"):
+                skipped += 1
+                continue
+            landed += 1
             cur.execute(
                 GP_INSERT_SQL,
                 (
@@ -72,7 +82,9 @@ def land_gp_rows(conn, rows: list[dict], source: str) -> int:
                 ),
             )
     conn.commit()
-    return len(rows)
+    if skipped:
+        print(f"[land_gp_rows] skipped {skipped} stub row(s) missing NORAD_CAT_ID/EPOCH")
+    return landed
 
 
 def run(conn, group: str = DEFAULT_GROUP) -> int:
