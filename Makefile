@@ -1,4 +1,4 @@
-.PHONY: venv up down psql migrate metrics report test lint api web-dev web-build fe
+.PHONY: venv up down psql migrate metrics report test lint api web-dev web-build fe gold-queue review gold-score
 
 venv:
 	python3 -m venv .venv
@@ -24,6 +24,19 @@ metrics:
 
 report:
 	.venv/bin/python quality/report.py
+
+# --- Gold evaluation set (identity-resolution ground truth) --------------
+# (re)select hard cases into gold_case; idempotent, never overwrites verdicts.
+gold-queue:
+	.venv/bin/python scripts/build_gold_queue.py
+
+# arbitrate unlabeled cases interactively (resumable). Pass ARGS='--type owner_dispute --limit 20'.
+review:
+	.venv/bin/python scripts/review.py $(ARGS)
+
+# write docs/reports/gold_eval.md from verdicts so far (graceful at 0 labeled).
+gold-score:
+	.venv/bin/python scripts/score_gold.py
 
 test:
 	.venv/bin/python -m pytest -q
