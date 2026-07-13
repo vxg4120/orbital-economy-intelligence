@@ -3,3 +3,4 @@ pytest
 responses
 ruff
 httpx
+matplotlib  # analysis/case_studies.py — behavioral-status exemplar charts
