@@ -43,9 +43,12 @@ def test_stats_shape(client):
     assert isinstance(body["strata"], list) and body["strata"]
     for s in body["strata"]:
         assert set(s) == {
-            "case_type", "total", "labeled", "correct", "incorrect", "partial", "unresolvable",
+            "case_type", "total", "labeled", "dossiers_ready",
+            "correct", "incorrect", "partial", "unresolvable",
         }
         assert s["total"] >= s["labeled"] >= 0
+        assert 0 <= s["dossiers_ready"] <= s["total"]
+    assert body["overall"]["dossiers_ready"] >= 0
     overall = body["overall"]
     assert overall["total"] >= overall["labeled"]
     # The real build carries the 246-case queue.
@@ -62,9 +65,13 @@ def test_cases_list_and_filters(client):
     assert set(body) == {"rows", "total"}
     assert body["total"] >= 1
     for row in body["rows"]:
-        assert set(row) == {"case_id", "case_type", "subject_ref", "question", "verdict", "labeled_at"}
+        assert set(row) == {
+            "case_id", "case_type", "subject_ref", "question", "verdict", "labeled_at",
+            "has_dossier",
+        }
         assert row["case_type"] == "status_conflict"
         assert row["verdict"] is None  # only=unlabeled
+        assert isinstance(row["has_dossier"], bool)
 
     # Pagination + stable ordering (case_type, case_id).
     page = client.get("/api/review/cases", params={"only": "all", "limit": 5, "offset": 0}).json()
@@ -83,11 +90,67 @@ def test_case_detail_has_evidence(client):
     assert r.status_code == 200
     body = r.json()
     for key in ("case_id", "case_type", "satellite_id", "subject_ref", "question",
-                "system_answer", "evidence", "verdict", "corrected_answer", "labeled_at"):
+                "system_answer", "evidence", "verdict", "corrected_answer", "labeled_at",
+                "dossier"):
         assert key in body
     assert isinstance(body["evidence"], dict)  # JSONB decoded to an object
+    # dossier is null until a research agent lands one (LEFT JOIN); when present it's an object.
+    assert body["dossier"] is None or isinstance(body["dossier"], dict)
 
     assert client.get("/api/review/cases/99999999").status_code == 404
+
+
+@pytest.mark.db
+def test_case_detail_includes_dossier(client, planted_case):
+    """A dossier LEFT-JOINs onto the case detail: null until one lands, an object once inserted.
+
+    Operates only on the reserved temp case (never the real 246); deletes the dossier before the
+    planted_case fixture tears the case down, respecting the FK gold_dossier.case_id -> gold_case.
+    Research agents are concurrently INSERTing dossiers for the REAL cases — using our own temp row
+    keeps this test isolated from that traffic.
+    """
+    import json
+
+    # No dossier yet -> null on the detail.
+    assert client.get(f"/api/review/cases/{planted_case}").json()["dossier"] is None
+
+    evidence = [
+        {"claim": "SATCAT lists a day-level decay.", "source_name": "CelesTrak",
+         "url": "https://celestrak.org/"},
+        {"claim": "GCAT lists only a month.", "source_name": "GCAT",
+         "url": "https://planet4589.org/"},
+        {"claim": "Space-Track agrees.", "source_name": "Space-Track",
+         "url": "https://www.space-track.org/"},
+    ]
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO gold_dossier (case_id, recommended_verdict, recommended_answer, "
+                "confidence, summary, evidence, caveats, agent_model) "
+                "VALUES (%s, 'correct', 'the day-level date', 'high', 'why this call', "
+                "%s::jsonb, 'a caveat', 'unit-test-agent')",
+                (planted_case, json.dumps(evidence)),
+            )
+        conn.commit()
+
+        d = client.get(f"/api/review/cases/{planted_case}").json()["dossier"]
+        assert d is not None
+        assert d["recommended_verdict"] == "correct"
+        assert d["recommended_answer"] == "the day-level date"
+        assert d["confidence"] == "high"
+        assert d["summary"] == "why this call"
+        assert d["caveats"] == "a caveat"
+        assert d["agent_model"] == "unit-test-agent"
+        assert d["researched_at"] is not None
+        assert isinstance(d["evidence"], list) and len(d["evidence"]) == 3
+        assert set(d["evidence"][0]) == {"claim", "source_name", "url"}
+        assert d["evidence"][0]["source_name"] == "CelesTrak"
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM gold_dossier WHERE case_id = %s", (planted_case,))
+        conn.commit()
+        conn.close()
 
 
 @pytest.mark.db

@@ -209,8 +209,9 @@ const byStableOrder = (a: ReviewCaseDetail, b: ReviewCaseDetail) =>
 function mockReviewStats(): ReviewStats {
   const tally = new Map<string, Record<string, number>>();
   for (const c of reviewStore) {
-    const row = tally.get(c.case_type) ?? { total: 0 };
+    const row = tally.get(c.case_type) ?? { total: 0, dossiers: 0 };
     row.total += 1;
+    if (c.dossier) row.dossiers += 1;
     if (c.verdict) row[c.verdict] = (row[c.verdict] ?? 0) + 1;
     tally.set(c.case_type, row);
   }
@@ -221,19 +222,24 @@ function mockReviewStats(): ReviewStats {
   });
   const agg: Record<string, number> = { correct: 0, incorrect: 0, partial: 0, unresolvable: 0 };
   let aggTotal = 0;
+  let aggDossiers = 0;
   const strata: ReviewStratum[] = types.map((t) => {
     const row = tally.get(t)!;
     const counts = Object.fromEntries(VERDICTS.map((v) => [v, row[v] ?? 0])) as Record<Verdict, number>;
     const labeled = VERDICTS.reduce((n, v) => n + counts[v], 0);
     for (const v of VERDICTS) agg[v] += counts[v];
     aggTotal += row.total;
-    return { case_type: t, total: row.total, labeled, ...counts };
+    aggDossiers += row.dossiers;
+    return { case_type: t, total: row.total, labeled, dossiers_ready: row.dossiers, ...counts };
   });
   const labeled = VERDICTS.reduce((n, v) => n + agg[v], 0);
   const gradable = labeled - agg.unresolvable;
   return {
     strata,
-    overall: { case_type: "overall", total: aggTotal, labeled, ...(agg as Record<Verdict, number>) },
+    overall: {
+      case_type: "overall", total: aggTotal, labeled, dossiers_ready: aggDossiers,
+      ...(agg as Record<Verdict, number>),
+    },
     accuracy_so_far: gradable > 0 ? (agg.correct + 0.5 * agg.partial) / gradable : null,
   };
 }
@@ -257,6 +263,7 @@ function mockReviewCases(
     question: c.question,
     verdict: c.verdict,
     labeled_at: c.labeled_at,
+    has_dossier: c.dossier != null,
   }));
   return { rows, total: filtered.length };
 }

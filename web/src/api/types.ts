@@ -243,6 +243,7 @@ export interface ReviewStratum {
   case_type: string;
   total: number;
   labeled: number;
+  dossiers_ready: number; // AI-research dossiers landed for this stratum (grows over time)
   correct: number;
   incorrect: number;
   partial: number;
@@ -265,6 +266,7 @@ export interface ReviewCaseRow {
   question: string;
   verdict: Verdict | null;
   labeled_at: string | null;
+  has_dossier: boolean; // an AI-research dossier exists for this case
 }
 
 export interface ReviewCasesResponse {
@@ -345,6 +347,28 @@ export function isCosparEvidence(ev: GoldEvidence): ev is GoldCosparEvidence {
   return Array.isArray((ev as GoldCosparEvidence).satellites);
 }
 
+/* ---- AI-research dossier (gold_dossier; LEFT-JOINed onto the case detail) ----
+   Written by research agents over time — present for some cases, null for others; that absence is
+   expected, not an error. The human reviewer stays the adjudicator; this is a suggestion. */
+export type DossierConfidence = "high" | "medium" | "low";
+
+export interface DossierEvidence {
+  claim: string;
+  source_name: string;
+  url: string;
+}
+
+export interface Dossier {
+  recommended_verdict: Verdict;
+  recommended_answer: string | null;
+  confidence: DossierConfidence;
+  summary: string; // plain-language explainer: what is going on + why this call
+  evidence: DossierEvidence[];
+  caveats: string | null;
+  researched_at: string;
+  agent_model: string | null;
+}
+
 /* ---- GET /api/review/cases/{id} ---- */
 export interface ReviewCaseDetail {
   case_id: number;
@@ -358,6 +382,7 @@ export interface ReviewCaseDetail {
   corrected_answer: string | null;
   verdict_notes: string | null;
   labeled_at: string | null;
+  dossier: Dossier | null;
 }
 
 /* ---- POST /api/review/cases/{id}/verdict ---- */

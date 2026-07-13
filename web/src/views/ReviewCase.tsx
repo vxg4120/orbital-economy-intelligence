@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import { ApiError } from "../api/client";
 import type {
+  Dossier,
   GoldSatelliteEvidence,
   ReviewCaseDetail,
   Verdict,
@@ -20,7 +21,9 @@ import {
   VERDICT_META,
   buildCanonicalMap,
   stratumLabel,
+  verdictMeta,
 } from "../lib/reviewStrata";
+import { fmtDateTime } from "../lib/format";
 import { guideFor } from "../lib/reviewGuides";
 import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
@@ -108,9 +111,14 @@ function CaseBody({
   const ev = detail.evidence;
   const cluster = isCosparEvidence(ev);
   const guide = guideFor(detail.case_type);
+  const dossier = detail.dossier ?? null;
   const alreadyLabeled = detail.verdict !== null;
 
-  const [verdict, setVerdict] = useState<Verdict | null>(detail.verdict);
+  // Pre-seed the verdict from the human's own past label if present, else from the AI suggestion.
+  // The suggested-tag on the button (below) keeps it clear this is a recommendation, not a decision.
+  const [verdict, setVerdict] = useState<Verdict | null>(
+    detail.verdict ?? dossier?.recommended_verdict ?? null,
+  );
   const [corrected, setCorrected] = useState(detail.corrected_answer ?? "");
   const [notes, setNotes] = useState(detail.verdict_notes ?? "");
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
@@ -289,6 +297,14 @@ function CaseBody({
           </div>
         ) : null}
 
+        {dossier ? (
+          <DossierPanel dossier={dossier} />
+        ) : (
+          <p className="dossier-none">
+            No AI research yet — a dossier appears here once a research agent finishes this case.
+          </p>
+        )}
+
         <Panel title="Research" meta="open sources in a new tab" flush>
           <ResearchLinks detail={detail} sats={sats} />
         </Panel>
@@ -297,10 +313,12 @@ function CaseBody({
       <VerdictBar
         verdict={verdict}
         onVerdict={setVerdict}
+        suggestedVerdict={alreadyLabeled ? null : (dossier?.recommended_verdict ?? null)}
         needsCorrection={needsCorrection}
         corrected={corrected}
         onCorrected={setCorrected}
         correctedRef={correctedRef}
+        correctedPlaceholder={dossier?.recommended_answer ?? null}
         notes={notes}
         onNotes={setNotes}
         notesRef={notesRef}
@@ -517,14 +535,75 @@ function SatLinks({ ev, showResolver }: { ev: GoldSatelliteEvidence; showResolve
   );
 }
 
+/* ---- AI research dossier --------------------------------------------------
+   The newcomer explainer: what an agent found for THIS case and the verdict it recommends. The
+   human stays the adjudicator — the recommendation chip is colored by the verdict (i.e. by whether
+   the AI agrees the system answer is right), the summary gets comfortable reading typography, and
+   every claim links out to its source. */
+function DossierPanel({ dossier }: { dossier: Dossier }) {
+  const rec = verdictMeta(dossier.recommended_verdict);
+  return (
+    <section className="dossier" aria-label="AI research dossier">
+      <header className="dossier__head">
+        <span className="dossier__eyebrow">AI Research</span>
+        <div className="dossier__chips">
+          <span
+            className={`dossier__rec ${rec?.className ?? ""}`}
+            title="Verdict the AI recommends — colored by whether it agrees with the system answer"
+          >
+            <span className="dossier__rec-glyph" aria-hidden="true" />
+            <span className="dossier__rec-k">recommends</span>
+            <span className="dossier__rec-v">{rec?.label ?? dossier.recommended_verdict}</span>
+          </span>
+          <span
+            className={`dossier__conf dossier__conf--${dossier.confidence}`}
+            title="How confident the research agent is"
+          >
+            {dossier.confidence} confidence
+          </span>
+        </div>
+      </header>
+
+      <p className="dossier__summary">{dossier.summary}</p>
+
+      {dossier.evidence.length > 0 ? (
+        <ul className="dossier__evidence">
+          {dossier.evidence.map((e, i) => (
+            <li className="dossier__ev" key={i}>
+              <a
+                className="dossier__ev-link"
+                href={e.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="dossier__ev-source">{e.source_name}</span>
+                <span className="dossier__ev-claim">{e.claim}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {dossier.caveats ? <p className="dossier__caveats">{dossier.caveats}</p> : null}
+
+      <div className="dossier__foot">
+        researched {fmtDateTime(dossier.researched_at)}
+        {dossier.agent_model ? ` · ${dossier.agent_model}` : ""}
+      </div>
+    </section>
+  );
+}
+
 /* ---- sticky verdict bar --------------------------------------------------- */
 function VerdictBar(props: {
   verdict: Verdict | null;
   onVerdict: (v: Verdict) => void;
+  suggestedVerdict: Verdict | null;
   needsCorrection: boolean;
   corrected: string;
   onCorrected: (v: string) => void;
   correctedRef: React.RefObject<HTMLInputElement>;
+  correctedPlaceholder: string | null;
   notes: string;
   onNotes: (v: string) => void;
   notesRef: React.RefObject<HTMLInputElement>;
@@ -544,11 +623,18 @@ function VerdictBar(props: {
           {VERDICT_META.map((m) => (
             <button
               key={m.key}
-              className={`verdict-btn ${m.className}${props.verdict === m.key ? " is-active" : ""}`}
+              className={`verdict-btn ${m.className}${props.verdict === m.key ? " is-active" : ""}${
+                props.suggestedVerdict === m.key ? " is-suggested" : ""
+              }`}
               onClick={() => props.onVerdict(m.key)}
             >
               <span className="verdict-btn__key">{m.short}</span>
               <span className="verdict-btn__label">{m.label}</span>
+              {props.suggestedVerdict === m.key ? (
+                <span className="verdict-btn__suggest" title="Pre-selected from AI research — override freely">
+                  suggested
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -560,7 +646,11 @@ function VerdictBar(props: {
               className="vinput"
               value={props.corrected}
               onChange={(e) => props.onCorrected(e.target.value)}
-              placeholder="Corrected answer (what the truth actually is)"
+              placeholder={
+                props.correctedPlaceholder
+                  ? `AI suggests: ${props.correctedPlaceholder}`
+                  : "Corrected answer (what the truth actually is)"
+              }
               aria-label="Corrected answer"
               autoComplete="off"
             />

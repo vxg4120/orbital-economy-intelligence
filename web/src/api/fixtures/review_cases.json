@@ -124,7 +124,33 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "dossier": {
+      "recommended_verdict": "correct",
+      "recommended_answer": "1979-01-02",
+      "confidence": "high",
+      "summary": "The graph's resolved reentry date of 1979-01-02 lines up with the U.S. tracking record for this Delta second-stage fragment. GCAT carries only a month-level estimate ('1980 Jan'), which Jonathan McDowell's catalog explicitly flags as low precision. When one source gives a day-level decay from tracking data and the other rounds an unknown day up to a year boundary, the precise day-level value is the authority. The 364-day gap is an artifact of that rounding, not a genuine disagreement about when the object came down — so the system answer looks correct.",
+      "evidence": [
+        {
+          "claim": "SATCAT lists the decay as 1979-01-02, a precise day-level reentry from U.S. Space Surveillance tracking.",
+          "source_name": "CelesTrak SATCAT — NORAD 11060",
+          "url": "https://celestrak.org/satcat/records.php?CATNR=11060"
+        },
+        {
+          "claim": "GCAT records the reentry only to the month ('1980 Jan'), a low-precision estimate for this fragment.",
+          "source_name": "GCAT object catalog — S11060",
+          "url": "https://www.google.com/search?q=site:planet4589.org+%22S11060%22"
+        },
+        {
+          "claim": "Space-Track's decay dataset agrees with a January 1979 day-level reentry epoch.",
+          "source_name": "Space-Track decay messages",
+          "url": "https://www.space-track.org/"
+        }
+      ],
+      "caveats": "GCAT's month-only value cannot be fully reconciled without the original observation; if the 1980 date instead reflects a separately re-cataloged fragment rather than this object, revisit.",
+      "researched_at": "2026-07-13T09:14:00Z",
+      "agent_model": "claude-opus-4-8"
+    }
   },
   {
     "case_id": 203,
@@ -172,7 +198,8 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "dossier": null
   },
   {
     "case_id": 204,

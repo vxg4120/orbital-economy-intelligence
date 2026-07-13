@@ -2133,6 +2133,203 @@ button {
   padding: 16px;
 }
 
+/* =============================================================================
+   AI research dossier — the machine's contribution: a plain-language explainer +
+   a recommended verdict the human can accept or override. Marked with a signal
+   left-rule; the summary gets a book-like reading measure. Recommendation chip is
+   colored by verdict (i.e. by whether the AI agrees the system answer is right).
+   ============================================================================= */
+.dossier {
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--signal);
+  background: linear-gradient(180deg, var(--signal-wash), transparent 55%), var(--surface);
+  padding: 14px 16px 12px;
+}
+.dossier__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dossier__eyebrow {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--signal);
+  font-weight: 600;
+}
+.dossier__chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dossier__rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px;
+  border: 1px solid var(--rule-2);
+  background: var(--surface-2);
+}
+.dossier__rec-glyph {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.dossier__rec.vd-correct {
+  border-color: color-mix(in srgb, var(--ok) 50%, var(--rule));
+}
+.dossier__rec.vd-correct .dossier__rec-glyph {
+  background: var(--ok);
+}
+.dossier__rec.vd-incorrect {
+  border-color: color-mix(in srgb, var(--err) 50%, var(--rule));
+}
+.dossier__rec.vd-incorrect .dossier__rec-glyph {
+  background: var(--err);
+}
+.dossier__rec.vd-partial {
+  border-color: color-mix(in srgb, var(--conflict) 50%, var(--rule));
+}
+.dossier__rec.vd-partial .dossier__rec-glyph {
+  background: var(--conflict);
+}
+.dossier__rec.vd-unresolvable .dossier__rec-glyph {
+  background: var(--ink-faint);
+}
+.dossier__rec-k {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.dossier__rec-v {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  font-weight: 600;
+}
+.dossier__conf {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--rule-2);
+  color: var(--ink-dim);
+}
+.dossier__conf--high {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--rule));
+}
+.dossier__conf--medium {
+  color: var(--conflict);
+  border-color: color-mix(in srgb, var(--conflict) 40%, var(--rule));
+}
+.dossier__conf--low {
+  color: var(--ink-faint);
+  border-color: var(--rule-2);
+}
+.dossier__summary {
+  margin: 12px 0 0;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  color: var(--ink);
+  max-width: 76ch;
+}
+.dossier__evidence {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--rule);
+  background: var(--rule);
+}
+.dossier__ev-link {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  background: var(--surface);
+}
+.dossier__ev-link:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.dossier__ev-source {
+  font-size: var(--fs-xs);
+  color: var(--signal);
+  letter-spacing: 0.03em;
+}
+.dossier__ev-link:hover .dossier__ev-source {
+  text-decoration: underline;
+}
+.dossier__ev-claim {
+  font-size: var(--fs-sm);
+  color: var(--ink-dim);
+  line-height: 1.55;
+}
+.dossier__caveats {
+  margin: 12px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--ink-faint);
+  max-width: 76ch;
+}
+.dossier__caveats::before {
+  content: "caveats — ";
+  text-transform: uppercase;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--ink-ghost);
+}
+.dossier__foot {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.04em;
+  color: var(--ink-ghost);
+}
+/* subtle line when no dossier has landed yet (absence is normal) */
+.dossier-none {
+  margin: 0;
+  padding: 10px 2px;
+  font-size: var(--fs-xs);
+  color: var(--ink-ghost);
+  letter-spacing: 0.02em;
+}
+/* 'suggested' tag on the AI-pre-selected verdict button */
+.verdict-btn__suggest {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--signal);
+  border: 1px solid var(--signal-dim);
+  padding: 1px 4px;
+  margin-left: 2px;
+  border-radius: 7px;
+}
+.verdict-btn.is-suggested:not(.is-active) {
+  border-color: var(--signal-dim);
+}
+/* dossier-ready dot on a queue row */
+.case-row__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: var(--signal);
+  vertical-align: middle;
+  box-shadow: 0 0 5px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+
 /* Review is a plotting workbench — collapse to one column on phones so couch
    labeling works; the claims table keeps its own horizontal scroll. */
 @media (max-width: 700px) {

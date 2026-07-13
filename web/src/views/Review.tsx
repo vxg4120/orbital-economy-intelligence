@@ -78,7 +78,14 @@ export function Review() {
 
       <Panel
         title="Cases"
-        meta={page.data ? `${fmtInt(page.data.total)} in filter` : ""}
+        meta={
+          <>
+            {page.data ? `${fmtInt(page.data.total)} in filter` : ""}
+            {stats.data && stats.data.overall.dossiers_ready > 0
+              ? `${page.data ? " · " : ""}${fmtInt(stats.data.overall.dossiers_ready)} researched`
+              : ""}
+          </>
+        }
         flush
       >
         <div className="review-filters">
@@ -121,7 +128,16 @@ export function Review() {
                           {stratumLabel(r.case_type)}
                         </span>
                         <span className="case-row__body">
-                          <span className="case-row__subject num">{r.subject_ref}</span>
+                          <span className="case-row__subject num">
+                            {r.subject_ref}
+                            {r.has_dossier ? (
+                              <span
+                                className="case-row__dot"
+                                title="AI research ready"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                          </span>
                           <span className="case-row__q">{r.question}</span>
                         </span>
                         {r.verdict ? (

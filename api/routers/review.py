@@ -66,6 +66,12 @@ def review_stats(db=Depends(get_db)):
             "SELECT case_type, verdict, count(*) AS n FROM gold_case GROUP BY case_type, verdict"
         )
         rows = cur.fetchall()
+        # AI-research coverage per stratum (rows land over time as agents finish; absence is normal).
+        cur.execute(
+            "SELECT c.case_type, count(*) AS n FROM gold_case c "
+            "JOIN gold_dossier d ON d.case_id = c.case_id GROUP BY c.case_type"
+        )
+        dossiers_by_type = {r["case_type"]: r["n"] for r in cur.fetchall()}
 
     tally: dict[str, dict] = {}
     for r in rows:
@@ -76,20 +82,26 @@ def review_stats(db=Depends(get_db)):
 
     agg = {v: 0 for v in VERDICT_VALUES}
     agg_total = 0
+    agg_dossiers = 0
     strata = []
     for case_type in ordered:
         counts = tally[case_type]
         total = sum(counts.values())  # includes the None (unlabeled) bucket
         verdicts = {v: counts.get(v, 0) for v in VERDICT_VALUES}
         labeled = sum(verdicts.values())
-        strata.append({"case_type": case_type, "total": total, "labeled": labeled, **verdicts})
+        dossiers_ready = dossiers_by_type.get(case_type, 0)
+        strata.append({
+            "case_type": case_type, "total": total, "labeled": labeled,
+            "dossiers_ready": dossiers_ready, **verdicts,
+        })
         for v in VERDICT_VALUES:
             agg[v] += verdicts[v]
         agg_total += total
+        agg_dossiers += dossiers_ready
 
     labeled = sum(agg.values())
     gradable = labeled - agg["unresolvable"]
-    overall = {"total": agg_total, "labeled": labeled, **agg}
+    overall = {"total": agg_total, "labeled": labeled, "dossiers_ready": agg_dossiers, **agg}
     return {
         "strata": strata,
         "overall": overall,
@@ -126,9 +138,12 @@ def review_cases(
     with db.cursor() as cur:
         cur.execute(f"SELECT count(*) AS total FROM gold_case{clause}", params)
         total = cur.fetchone()["total"]
+        # LEFT JOIN gold_dossier so each row carries whether AI research has landed for it.
         cur.execute(
-            "SELECT case_id, case_type, subject_ref, question, verdict, labeled_at "
-            f"FROM gold_case{clause} ORDER BY case_type, case_id LIMIT %s OFFSET %s",
+            "SELECT c.case_id, c.case_type, c.subject_ref, c.question, c.verdict, c.labeled_at, "
+            "(d.case_id IS NOT NULL) AS has_dossier "
+            "FROM gold_case c LEFT JOIN gold_dossier d ON d.case_id = c.case_id"
+            f"{clause} ORDER BY c.case_type, c.case_id LIMIT %s OFFSET %s",
             [*params, limit, offset],
         )
         rows = cur.fetchall()
@@ -176,12 +191,25 @@ def review_next(
 
 @router.get("/cases/{case_id}")
 def review_case(case_id: int, db=Depends(get_db)):
-    """One full case: identity + question + system answer + the raw evidence JSONB + any verdict."""
+    """One full case: identity + question + system answer + the raw evidence JSONB + any verdict,
+    plus the AI-research ``dossier`` (or null) LEFT-JOINed from gold_dossier. Dossiers are written by
+    research agents over time, so ``dossier`` is null until one lands — that absence is normal."""
     with db.cursor() as cur:
         cur.execute(
-            "SELECT case_id, case_type, satellite_id, subject_ref, question, system_answer, "
-            "evidence, verdict, corrected_answer, verdict_notes, labeled_at "
-            "FROM gold_case WHERE case_id = %s",
+            "SELECT c.case_id, c.case_type, c.satellite_id, c.subject_ref, c.question, "
+            "c.system_answer, c.evidence, c.verdict, c.corrected_answer, c.verdict_notes, "
+            "c.labeled_at, "
+            "CASE WHEN d.case_id IS NULL THEN NULL ELSE jsonb_build_object("
+            "  'recommended_verdict', d.recommended_verdict, "
+            "  'recommended_answer', d.recommended_answer, "
+            "  'confidence', d.confidence, "
+            "  'summary', d.summary, "
+            "  'evidence', d.evidence, "
+            "  'caveats', d.caveats, "
+            "  'researched_at', d.researched_at, "
+            "  'agent_model', d.agent_model) END AS dossier "
+            "FROM gold_case c LEFT JOIN gold_dossier d ON d.case_id = c.case_id "
+            "WHERE c.case_id = %s",
             (case_id,),
         )
         row = cur.fetchone()
