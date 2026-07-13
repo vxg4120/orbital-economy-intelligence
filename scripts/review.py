@@ -13,7 +13,6 @@ path is factored into record_verdict()/verdict_record() so it is unit-testable w
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import json
 import os
 import pathlib
@@ -22,9 +21,16 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+# The verdict-write + verdicts.jsonl append live in common.gold_verdicts so the CLI and the review
+# API share one writer. Re-exported here so existing importers (tests, tooling) keep working.
+from common.gold_verdicts import (  # noqa: F401  (re-exported)
+    VERDICTS_PATH,
+    append_jsonl,
+    record_verdict,
+    verdict_record,
+)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERDICTS_PATH = REPO_ROOT / "docs" / "gold" / "verdicts.jsonl"       # committed: the gold set
 EXPORT_DEFAULT = REPO_ROOT / "data" / "gold" / "gold_cases.jsonl"    # gitignored: resilience dump
 
 TERMINAL_BASE = "http://localhost:8600"
@@ -90,42 +96,6 @@ def fetch_unlabeled(conn, only_type=None, limit=None):
         cur.execute(sql, params)
         cols = [d.name for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
-
-
-def record_verdict(conn, case_id, verdict, corrected_answer=None, notes=None) -> dict:
-    """Write a verdict + labeled_at to gold_case. Transaction-agnostic: the caller commits (the
-    review loop commits immediately for crash-safety). Returns the verdict record for the jsonl."""
-    if verdict not in VERDICT_KEYS.values():
-        raise ValueError(f"invalid verdict: {verdict!r}")
-    with conn.cursor() as cur:
-        cur.execute(
-            "UPDATE gold_case SET verdict = %s, corrected_answer = %s, verdict_notes = %s, "
-            "labeled_at = now() WHERE case_id = %s "
-            "RETURNING case_type, subject_ref, verdict, corrected_answer, verdict_notes, labeled_at",
-            (verdict, corrected_answer, notes, case_id),
-        )
-        row = cur.fetchone()
-    if row is None:
-        raise LookupError(f"case_id {case_id} not found")
-    return verdict_record(*row)
-
-
-def verdict_record(case_type, subject_ref, verdict, corrected_answer, verdict_notes, labeled_at):
-    """The canonical dict shape written to verdicts.jsonl (the committed gold set)."""
-    return {
-        "case_type": case_type,
-        "subject_ref": subject_ref,
-        "verdict": verdict,
-        "corrected_answer": corrected_answer,
-        "verdict_notes": verdict_notes,
-        "labeled_at": labeled_at.isoformat() if isinstance(labeled_at, dt.datetime) else labeled_at,
-    }
-
-
-def append_jsonl(path: pathlib.Path, obj: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as f:
-        f.write(json.dumps(obj, default=str) + "\n")
 
 
 def export_cases(conn, path: pathlib.Path) -> int:
@@ -288,7 +258,12 @@ def render_links(case) -> str:
         links.append(f"  google:    https://www.google.com/search?q={q}+satellite")
     jcat = ev.get("jcat")
     if jcat:
-        links.append(f"  gcat:      https://planet4589.org/space/gcat/web/cat/  (object {jcat})")
+        # GCAT has no per-object page (planet4589.org/space/gcat/data/cat/S<jcat>.html 404s;
+        # verified live). The catalog is published as whole-catalog HTML/TSV dumps, so the useful
+        # deep-link is a site-scoped search on the object's JCAT id (GCAT's own primary key).
+        links.append(
+            f"  gcat:      https://www.google.com/search?q=site:planet4589.org+%22{jcat}%22"
+        )
     norad = ev.get("norad_id")
     if norad is not None:
         links.append(f"  celestrak: https://celestrak.org/satcat/records.php?CATNR={norad}")

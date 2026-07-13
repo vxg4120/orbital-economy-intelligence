@@ -1,0 +1,420 @@
+[
+  {
+    "case_id": 201,
+    "case_type": "ambiguous_cospar",
+    "satellite_id": null,
+    "subject_ref": "cospar:1966-116B",
+    "question": "COSPAR 1966-116B is currently mapped to 2 distinct satellites: SL-6 PLAT (norad:2628), COSMOS 135 DEB (norad:2629). Is this multi-mapping legitimate (genuinely separate objects that share a designator) or should some of these be merged?",
+    "system_answer": "The graph keeps 2 separate satellites under COSPAR 1966-116B.",
+    "evidence": {
+      "cospar": "1966-116B",
+      "n_satellites": 2,
+      "satellites": [
+        {
+          "satellite_id": 2628,
+          "norad_id": 2628,
+          "cospar_id": "1966-116B",
+          "jcat": "S02628",
+          "canonical_name": "SL-6 PLAT",
+          "object_type": "ROCKET_BODY",
+          "launch_date": "1966-12-21",
+          "decay_date": "1966-12-23",
+          "perigee_km": 189.0,
+          "apogee_km": 201.0,
+          "orbital_regime": "LEO",
+          "identifiers": [
+            { "source": "satcat", "id_type": "norad", "id_value": "2628", "confidence": 1.0 },
+            { "source": "gcat", "id_type": "gcat_id", "id_value": "S02628", "confidence": 1.0 }
+          ],
+          "assertions": [
+            { "attribute": "name", "value": "SL-6 PLAT", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+            { "attribute": "name", "value": "11S510", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+            { "attribute": "object_type", "value": "DEB", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+            { "attribute": "object_type", "value": "R3", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" }
+          ],
+          "resolved": {
+            "status": "DECAYED",
+            "status_source": "gcat",
+            "owner": "RVSN",
+            "owner_history": [
+              { "operator": "RVSN", "role": "owner", "valid_from": "1966-12-21", "valid_to": null, "source": "resolve" }
+            ]
+          }
+        },
+        {
+          "satellite_id": 2629,
+          "norad_id": 2629,
+          "cospar_id": "1966-116B",
+          "jcat": "S02629",
+          "canonical_name": "COSMOS 135 DEB",
+          "object_type": "DEBRIS",
+          "launch_date": "1966-12-21",
+          "decay_date": "1967-01-04",
+          "perigee_km": 190.0,
+          "apogee_km": 210.0,
+          "orbital_regime": "LEO",
+          "identifiers": [
+            { "source": "satcat", "id_type": "norad", "id_value": "2629", "confidence": 1.0 },
+            { "source": "gcat", "id_type": "gcat_id", "id_value": "S02629", "confidence": 1.0 }
+          ],
+          "assertions": [
+            { "attribute": "name", "value": "COSMOS 135 DEB", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+            { "attribute": "name", "value": "Cosmos 135 debris", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" }
+          ],
+          "resolved": {
+            "status": "DECAYED",
+            "status_source": "gcat",
+            "owner": "RVSN",
+            "owner_history": [
+              { "operator": "RVSN", "role": "owner", "valid_from": "1966-12-21", "valid_to": null, "source": "resolve" }
+            ]
+          }
+        }
+      ]
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 202,
+    "case_type": "decay_conflict",
+    "satellite_id": 11060,
+    "subject_ref": "norad:11060",
+    "question": "When did DELTA 1 DEB (NORAD 11060) actually reenter? SATCAT: '1979-01-02' (1979-01-02); GCAT: '1980 Jan' (1980-01-01); the two differ by 364 days.",
+    "system_answer": "Resolved decay date: 1979-01-02.",
+    "evidence": {
+      "satellite_id": 11060,
+      "norad_id": 11060,
+      "cospar_id": "1978-098C",
+      "jcat": "S11060",
+      "canonical_name": "DELTA 1 DEB",
+      "object_type": "DEBRIS",
+      "launch_date": "1978-10-24",
+      "decay_date": "1979-01-02",
+      "perigee_km": 512.0,
+      "apogee_km": 806.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "11060", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S11060", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "decay_date", "value": "1979-01-02", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "decay_date", "value": "1980 Jan", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "name", "value": "DELTA 1 DEB", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" }
+      ],
+      "resolved": {
+        "status": "DECAYED",
+        "status_source": "satcat",
+        "owner": "United States",
+        "owner_history": [
+          { "operator": "United States", "role": "owner", "valid_from": "1978-10-24", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "decay_conflict": {
+        "satcat_raw": "1979-01-02",
+        "satcat_parsed": "1979-01-02",
+        "gcat_raw": "1980 Jan",
+        "gcat_parsed": "1980-01-01",
+        "diff_days": 364
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 203,
+    "case_type": "owner_dispute",
+    "satellite_id": 43013,
+    "subject_ref": "norad:43013",
+    "question": "Who is the current owner of PAZ (NORAD 43013)? SATCAT owner code 'SPN' resolves to Hisdesat; GCAT owner code 'HDS' resolves to Hisdesat Servicios Estrategicos.",
+    "system_answer": "Resolved owner: Hisdesat Servicios Estrategicos.",
+    "evidence": {
+      "satellite_id": 43013,
+      "norad_id": 43013,
+      "cospar_id": "2018-020A",
+      "jcat": "S43013",
+      "canonical_name": "PAZ",
+      "object_type": "PAYLOAD",
+      "launch_date": "2018-02-22",
+      "decay_date": null,
+      "perigee_km": 500.0,
+      "apogee_km": 517.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "43013", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S43013", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "owner", "value": "SPN", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "owner", "value": "HDS", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "name", "value": "PAZ", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" }
+      ],
+      "resolved": {
+        "status": "ACTIVE",
+        "status_source": "satcat",
+        "owner": "Hisdesat Servicios Estrategicos",
+        "owner_history": [
+          { "operator": "Hisdesat Servicios Estrategicos", "role": "owner", "valid_from": "2018-02-22", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "owner_dispute": {
+        "satcat_code": "SPN",
+        "satcat_operator": "Hisdesat",
+        "gcat_code": "HDS",
+        "gcat_operator": "Hisdesat Servicios Estrategicos"
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 204,
+    "case_type": "rideshare_orphan",
+    "satellite_id": 138912,
+    "subject_ref": "jcat:S69863",
+    "question": "ARTHUR (2024-140Q, GCAT S69863) has no NORAD catalog entry yet. Is it a distinct physical object (not a duplicate or a piece of another), and who operates it?",
+    "system_answer": "Treated as a distinct GCAT-only payload; resolved owner: unresolved (GCAT owner code: MUON).",
+    "evidence": {
+      "satellite_id": 138912,
+      "norad_id": null,
+      "cospar_id": "2024-140Q",
+      "jcat": "S69863",
+      "canonical_name": "ARTHUR",
+      "object_type": "PAYLOAD",
+      "launch_date": "2024-07-16",
+      "decay_date": null,
+      "perigee_km": 510.0,
+      "apogee_km": 540.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S69863", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "cospar", "id_value": "2024-140Q", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "name", "value": "ARTHUR", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "owner", "value": "MUON", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" }
+      ],
+      "resolved": {
+        "status": "UNKNOWN",
+        "status_source": "gcat",
+        "owner": null,
+        "owner_history": []
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 205,
+    "case_type": "stale_owner",
+    "satellite_id": 45440,
+    "subject_ref": "norad:45440",
+    "question": "Is the resolver's SCD2 ownership correct for ONEWEB-0012 (NORAD 45440)? It splits ownership at the OneWeb -> Eutelsat Group deal (acquired_by, 2023-09-28): OneWeb until 2023-09-28, then Eutelsat Group after.",
+    "system_answer": "OneWeb [2020-03-21 -> 2023-09-28], then Eutelsat Group [2023-09-28 -> open].",
+    "evidence": {
+      "satellite_id": 45440,
+      "norad_id": 45440,
+      "cospar_id": "2020-019L",
+      "jcat": "S45440",
+      "canonical_name": "ONEWEB-0012",
+      "object_type": "PAYLOAD",
+      "launch_date": "2020-03-21",
+      "decay_date": null,
+      "perigee_km": 1200.0,
+      "apogee_km": 1205.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "45440", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S45440", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "owner", "value": "ONW", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "name", "value": "ONEWEB-0012", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" }
+      ],
+      "resolved": {
+        "status": "ACTIVE",
+        "status_source": "satcat",
+        "owner": "Eutelsat Group",
+        "owner_history": [
+          { "operator": "OneWeb", "role": "owner", "valid_from": "2020-03-21", "valid_to": "2023-09-28", "source": "resolve" },
+          { "operator": "Eutelsat Group", "role": "owner", "valid_from": "2023-09-28", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "stale_owner": {
+        "child": "OneWeb",
+        "parent": "Eutelsat Group",
+        "relationship": "acquired_by",
+        "deal_date": "2023-09-28",
+        "child_valid_from": "2020-03-21",
+        "child_valid_to": "2023-09-28",
+        "parent_valid_from": "2023-09-28"
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 206,
+    "case_type": "status_conflict",
+    "satellite_id": 23728,
+    "subject_ref": "norad:23728",
+    "question": "What is the true operational status of Enhanced CRYSTAL 2105 (NORAD 23728)? SATCAT says '-' (INACTIVE); GCAT says 'D' (DECAYED).",
+    "system_answer": "Resolved status: DECAYED.",
+    "evidence": {
+      "satellite_id": 23728,
+      "norad_id": 23728,
+      "cospar_id": "1995-066A",
+      "jcat": "S23728",
+      "canonical_name": "Enhanced CRYSTAL 2105",
+      "object_type": "PAYLOAD",
+      "launch_date": "1995-12-05",
+      "decay_date": "2008-11-18",
+      "perigee_km": 409.0,
+      "apogee_km": 1012.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "23728", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S23728", "confidence": 1.0 },
+        { "source": "satcat", "id_type": "cospar", "id_value": "1995-066A", "confidence": 1.0 },
+        { "source": "satcat", "id_type": "name_satcat", "id_value": "USA 116", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "name_gcat", "id_value": "Enhanced CRYSTAL 2105", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "status", "value": "-", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "status", "value": "D", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "name", "value": "USA 116", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "name", "value": "Enhanced CRYSTAL 2105", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "owner", "value": "US", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "owner", "value": "NROC/CIA", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "object_type", "value": "PAY", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "object_type", "value": "P ------C", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "decay_date", "value": "2008 Nov 18?", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" }
+      ],
+      "resolved": {
+        "status": "DECAYED",
+        "status_source": "gcat",
+        "owner": "United States",
+        "owner_history": [
+          { "operator": "United States", "role": "owner", "valid_from": "1995-12-05", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "status_conflict": {
+        "satcat_raw": "-",
+        "satcat_canonical": "INACTIVE",
+        "gcat_raw": "D",
+        "gcat_canonical": "DECAYED"
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 207,
+    "case_type": "status_conflict",
+    "satellite_id": 40420,
+    "subject_ref": "norad:40420",
+    "question": "What is the true operational status of TERRA BELLA SKYSAT-2 (NORAD 40420)? SATCAT says '+' (ACTIVE); GCAT says 'O' (UNKNOWN).",
+    "system_answer": "Resolved status: ACTIVE.",
+    "evidence": {
+      "satellite_id": 40420,
+      "norad_id": 40420,
+      "cospar_id": "2014-037D",
+      "jcat": "S40420",
+      "canonical_name": "SKYSAT-2",
+      "object_type": "PAYLOAD",
+      "launch_date": "2014-07-08",
+      "decay_date": null,
+      "perigee_km": 620.0,
+      "apogee_km": 630.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "40420", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S40420", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "status", "value": "+", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "status", "value": "O", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "name", "value": "SKYSAT-2", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" }
+      ],
+      "resolved": {
+        "status": "ACTIVE",
+        "status_source": "satcat",
+        "owner": "Planet Labs",
+        "owner_history": [
+          { "operator": "Planet Labs", "role": "owner", "valid_from": "2017-02-01", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "status_conflict": {
+        "satcat_raw": "+",
+        "satcat_canonical": "ACTIVE",
+        "gcat_raw": "O",
+        "gcat_canonical": "UNKNOWN"
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  },
+  {
+    "case_id": 208,
+    "case_type": "type_conflict",
+    "satellite_id": 39271,
+    "subject_ref": "norad:39271",
+    "question": "Is OBJECT K (NORAD 39271, launched 2013-04-26) a payload or debris? SATCAT classifies it 'DEB' (DEBRIS); GCAT classifies it 'P' (PAYLOAD).",
+    "system_answer": "Resolved object_type: DEBRIS.",
+    "evidence": {
+      "satellite_id": 39271,
+      "norad_id": 39271,
+      "cospar_id": "2013-018K",
+      "jcat": "S39271",
+      "canonical_name": "OBJECT K",
+      "object_type": "DEBRIS",
+      "launch_date": "2013-04-26",
+      "decay_date": null,
+      "perigee_km": 1015.0,
+      "apogee_km": 1210.0,
+      "orbital_regime": "LEO",
+      "identifiers": [
+        { "source": "satcat", "id_type": "norad", "id_value": "39271", "confidence": 1.0 },
+        { "source": "gcat", "id_type": "gcat_id", "id_value": "S39271", "confidence": 1.0 }
+      ],
+      "assertions": [
+        { "attribute": "object_type", "value": "DEB", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "object_type", "value": "P", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" },
+        { "attribute": "name", "value": "OBJECT K", "source": "satcat", "observed_at": "2026-07-08T04:24:06Z" },
+        { "attribute": "name", "value": "Shijian 15 subsat", "source": "gcat", "observed_at": "2026-07-08T04:24:24Z" }
+      ],
+      "resolved": {
+        "status": "UNKNOWN",
+        "status_source": "satcat",
+        "owner": "China",
+        "owner_history": [
+          { "operator": "China", "role": "owner", "valid_from": "2013-04-26", "valid_to": null, "source": "resolve" }
+        ]
+      },
+      "type_conflict": {
+        "satcat_raw": "DEB",
+        "gcat_raw": "P",
+        "launch_decade": 2010
+      }
+    },
+    "verdict": null,
+    "corrected_answer": null,
+    "verdict_notes": null,
+    "labeled_at": null
+  }
+]

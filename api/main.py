@@ -9,7 +9,7 @@ import pathlib
 
 from fastapi import FastAPI
 
-from api.routers import conflicts, congestion, operators, satellites, stats
+from api.routers import conflicts, congestion, operators, review, satellites, stats
 
 app = FastAPI(
     title="Orbital Economy Terminal API",
@@ -22,6 +22,7 @@ app.include_router(satellites.router, prefix="/api")
 app.include_router(conflicts.router, prefix="/api")
 app.include_router(operators.router, prefix="/api")
 app.include_router(congestion.router, prefix="/api")
+app.include_router(review.router, prefix="/api")
 
 
 _WEB_DIST = pathlib.Path(__file__).resolve().parent.parent / "web" / "dist"

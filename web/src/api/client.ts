@@ -15,6 +15,13 @@ import type {
   OperatorSort,
   OperatorsResponse,
   Paginated,
+  ReviewCaseDetail,
+  ReviewCaseRow,
+  ReviewCasesResponse,
+  ReviewNextResponse,
+  ReviewOnly,
+  ReviewStats,
+  ReviewStratum,
   SatelliteDetail,
   SatelliteSummary,
   SearchResponse,
@@ -22,6 +29,9 @@ import type {
   StatusConflictRow,
   DecayConflictRow,
   StaleOwnerRow,
+  Verdict,
+  VerdictResponse,
+  VerdictSubmit,
 } from "./types";
 
 import statsFixture from "./fixtures/stats.json";
@@ -33,6 +43,7 @@ import conflictsStaleFixture from "./fixtures/conflicts_stale.json";
 import operatorsFixture from "./fixtures/operators.json";
 import operatorDetailFixture from "./fixtures/operator_detail.json";
 import congestionFixture from "./fixtures/congestion.json";
+import reviewCasesFixture from "./fixtures/review_cases.json";
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
 
@@ -59,6 +70,31 @@ async function realGet<T>(path: string, params?: Record<string, string | number>
   });
   if (!res.ok) {
     throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
+  }
+  return (await res.json()) as T;
+}
+
+/** POST JSON with optional extra headers (the review-token header). Errors carry the status so the
+    caller can distinguish 401 (bad token) / 409 (already labeled) from a generic failure. */
+async function realPost<T>(
+  path: string,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const j = (await res.json()) as { detail?: string };
+      if (j?.detail) detail = j.detail;
+    } catch {
+      /* non-JSON error body — keep the status line */
+    }
+    throw new ApiError(detail, res.status);
   }
   return (await res.json()) as T;
 }
@@ -154,6 +190,115 @@ function synthOperatorDetail(id: number): OperatorDetail {
   };
 }
 
+/* ---- mock review store ---------------------------------------------------- */
+// A mutable in-memory copy of the fixtures so labeling "sticks" for a mock session: progress
+// meters climb, accuracy updates, and auto-advance walks the queue exactly like the real API.
+const reviewStore: ReviewCaseDetail[] = structuredClone(
+  reviewCasesFixture as unknown as ReviewCaseDetail[],
+);
+
+const VERDICTS: Verdict[] = ["correct", "incorrect", "partial", "unresolvable"];
+const STRATUM_ORDER = [
+  "ambiguous_cospar", "rideshare_orphan", "missed_join_candidate", "owner_dispute",
+  "status_conflict", "decay_conflict", "type_conflict", "stale_owner",
+];
+
+const byStableOrder = (a: ReviewCaseDetail, b: ReviewCaseDetail) =>
+  a.case_type < b.case_type ? -1 : a.case_type > b.case_type ? 1 : a.case_id - b.case_id;
+
+function mockReviewStats(): ReviewStats {
+  const tally = new Map<string, Record<string, number>>();
+  for (const c of reviewStore) {
+    const row = tally.get(c.case_type) ?? { total: 0 };
+    row.total += 1;
+    if (c.verdict) row[c.verdict] = (row[c.verdict] ?? 0) + 1;
+    tally.set(c.case_type, row);
+  }
+  const types = [...tally.keys()].sort((a, b) => {
+    const ia = STRATUM_ORDER.indexOf(a);
+    const ib = STRATUM_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a < b ? -1 : 1);
+  });
+  const agg: Record<string, number> = { correct: 0, incorrect: 0, partial: 0, unresolvable: 0 };
+  let aggTotal = 0;
+  const strata: ReviewStratum[] = types.map((t) => {
+    const row = tally.get(t)!;
+    const counts = Object.fromEntries(VERDICTS.map((v) => [v, row[v] ?? 0])) as Record<Verdict, number>;
+    const labeled = VERDICTS.reduce((n, v) => n + counts[v], 0);
+    for (const v of VERDICTS) agg[v] += counts[v];
+    aggTotal += row.total;
+    return { case_type: t, total: row.total, labeled, ...counts };
+  });
+  const labeled = VERDICTS.reduce((n, v) => n + agg[v], 0);
+  const gradable = labeled - agg.unresolvable;
+  return {
+    strata,
+    overall: { case_type: "overall", total: aggTotal, labeled, ...(agg as Record<Verdict, number>) },
+    accuracy_so_far: gradable > 0 ? (agg.correct + 0.5 * agg.partial) / gradable : null,
+  };
+}
+
+function mockReviewCases(
+  type: string | undefined,
+  only: ReviewOnly,
+  limit: number,
+  offset: number,
+): ReviewCasesResponse {
+  const filtered = reviewStore
+    .filter((c) => (type ? c.case_type === type : true))
+    .filter((c) =>
+      only === "unlabeled" ? c.verdict === null : only === "labeled" ? c.verdict !== null : true,
+    )
+    .sort(byStableOrder);
+  const rows: ReviewCaseRow[] = filtered.slice(offset, offset + limit).map((c) => ({
+    case_id: c.case_id,
+    case_type: c.case_type,
+    subject_ref: c.subject_ref,
+    question: c.question,
+    verdict: c.verdict,
+    labeled_at: c.labeled_at,
+  }));
+  return { rows, total: filtered.length };
+}
+
+function mockReviewNext(type: string | undefined, afterCaseId: number | undefined): ReviewNextResponse {
+  const unlabeled = reviewStore
+    .filter((c) => (type ? c.case_type === type : true))
+    .filter((c) => c.verdict === null)
+    .sort(byStableOrder);
+  if (afterCaseId !== undefined) {
+    const ref = reviewStore.find((c) => c.case_id === afterCaseId);
+    if (ref) {
+      const after = unlabeled.find(
+        (c) => c.case_type > ref.case_type || (c.case_type === ref.case_type && c.case_id > ref.case_id),
+      );
+      if (after) return { next_case_id: after.case_id };
+    }
+  }
+  return { next_case_id: unlabeled.length ? unlabeled[0].case_id : null };
+}
+
+function mockSubmitVerdict(id: number, body: VerdictSubmit): VerdictResponse {
+  const c = reviewStore.find((x) => x.case_id === id);
+  if (!c) throw new ApiError("case not found", 404);
+  if (c.verdict !== null && !body.overwrite) throw new ApiError("case already labeled", 409);
+  c.verdict = body.verdict;
+  c.corrected_answer = body.corrected_answer ?? null;
+  c.verdict_notes = body.notes ?? null;
+  c.labeled_at = new Date().toISOString();
+  return {
+    ok: true,
+    verdict: {
+      case_type: c.case_type,
+      subject_ref: c.subject_ref,
+      verdict: c.verdict,
+      corrected_answer: c.corrected_answer,
+      verdict_notes: c.verdict_notes,
+      labeled_at: c.labeled_at,
+    },
+  };
+}
+
 /* ---- public API ----------------------------------------------------------- */
 export function getStats(): Promise<Stats> {
   if (MOCK) return delay(statsFixture as Stats);
@@ -210,4 +355,59 @@ export function getOperator(id: number): Promise<OperatorDetail> {
 export function getCongestion(): Promise<CongestionResponse> {
   if (MOCK) return delay(congestionFixture as CongestionResponse);
   return realGet<CongestionResponse>("/congestion");
+}
+
+/* ---- review area ---------------------------------------------------------- */
+export function getReviewStats(): Promise<ReviewStats> {
+  if (MOCK) return delay(mockReviewStats());
+  return realGet<ReviewStats>("/review/stats");
+}
+
+export function getReviewCases(
+  type: string | undefined,
+  only: ReviewOnly,
+  limit: number,
+  offset: number,
+): Promise<ReviewCasesResponse> {
+  if (MOCK) return delay(mockReviewCases(type, only, limit, offset));
+  const params: Record<string, string | number> = { only, limit, offset };
+  if (type) params.type = type;
+  return realGet<ReviewCasesResponse>("/review/cases", params);
+}
+
+export function getReviewCase(id: number): Promise<ReviewCaseDetail> {
+  if (MOCK) {
+    const c = reviewStore.find((x) => x.case_id === id);
+    if (!c) return Promise.reject(new ApiError("case not found", 404));
+    return delay(structuredClone(c));
+  }
+  return realGet<ReviewCaseDetail>(`/review/cases/${id}`);
+}
+
+export function getReviewNext(
+  type?: string,
+  afterCaseId?: number,
+): Promise<ReviewNextResponse> {
+  if (MOCK) return delay(mockReviewNext(type, afterCaseId));
+  const params: Record<string, string | number> = {};
+  if (type) params.type = type;
+  if (afterCaseId !== undefined) params.after_case_id = afterCaseId;
+  return realGet<ReviewNextResponse>("/review/next", params);
+}
+
+export function submitVerdict(
+  id: number,
+  body: VerdictSubmit,
+  token: string,
+): Promise<VerdictResponse> {
+  if (MOCK) {
+    try {
+      return delay(mockSubmitVerdict(id, body));
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+  return realPost<VerdictResponse>(`/review/cases/${id}/verdict`, body, {
+    "X-Review-Token": token,
+  });
 }

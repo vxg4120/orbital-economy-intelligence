@@ -23,3 +23,18 @@ def get_db() -> Iterator[psycopg.Connection]:
         yield conn
     finally:
         conn.close()
+
+
+def get_write_db() -> Iterator[psycopg.Connection]:
+    """A SEPARATE writable connection for the single mutating route (the gold-verdict write).
+
+    Kept apart from ``get_db`` on purpose: the read-only contract on every other endpoint must never
+    be weakened to accommodate the one writer. The route owns the commit; on any unhandled error the
+    open transaction is rolled back as the connection closes, so a failed write is never half-applied.
+    """
+    conn = get_conn()
+    try:
+        conn.row_factory = dict_row
+        yield conn
+    finally:
+        conn.close()

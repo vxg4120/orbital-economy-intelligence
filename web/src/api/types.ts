@@ -229,3 +229,153 @@ export interface CongestionBin {
 export interface CongestionResponse {
   bins: CongestionBin[];
 }
+
+/* =============================================================================
+   Review area — the gold_case arbitration workbench (api/routers/review.py).
+   The read DTOs mirror the router's responses; the evidence shape mirrors the
+   packet scripts/build_gold_queue.py writes into gold_case.evidence (JSONB).
+   ============================================================================= */
+
+export type Verdict = "correct" | "incorrect" | "partial" | "unresolvable";
+
+/* ---- GET /api/review/stats ---- */
+export interface ReviewStratum {
+  case_type: string;
+  total: number;
+  labeled: number;
+  correct: number;
+  incorrect: number;
+  partial: number;
+  unresolvable: number;
+}
+
+export interface ReviewStats {
+  strata: ReviewStratum[];
+  overall: ReviewStratum & { total: number; labeled: number };
+  accuracy_so_far: number | null;
+}
+
+/* ---- GET /api/review/cases ---- */
+export type ReviewOnly = "unlabeled" | "labeled" | "all";
+
+export interface ReviewCaseRow {
+  case_id: number;
+  case_type: string;
+  subject_ref: string;
+  question: string;
+  verdict: Verdict | null;
+  labeled_at: string | null;
+}
+
+export interface ReviewCasesResponse {
+  rows: ReviewCaseRow[];
+  total: number;
+}
+
+/* ---- GET /api/review/next ---- */
+export interface ReviewNextResponse {
+  next_case_id: number | null;
+}
+
+/* ---- evidence JSONB (per stratum; see build_gold_queue.satellite_evidence) ---- */
+export interface GoldAssertion {
+  attribute: string;
+  value: string;
+  source: string;
+  observed_at: string | null;
+}
+
+export interface GoldIdentifier {
+  id_type: string;
+  id_value: string;
+  source: string;
+  confidence: number;
+}
+
+export interface GoldOwnerSegment {
+  operator: string | null;
+  role: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  source: string;
+}
+
+export interface GoldResolved {
+  status: string | null;
+  status_source: string | null;
+  owner: string | null;
+  owner_history: GoldOwnerSegment[];
+}
+
+/** One satellite's full evidence packet. The stratum-specific conflict blocks are optional and
+    carry the already-canonicalized values (e.g. status_conflict.satcat_canonical). */
+export interface GoldSatelliteEvidence {
+  satellite_id: number;
+  norad_id: number | null;
+  cospar_id: string | null;
+  jcat: string | null;
+  canonical_name: string | null;
+  object_type: string | null;
+  launch_date: string | null;
+  decay_date: string | null;
+  perigee_km: number | null;
+  apogee_km: number | null;
+  orbital_regime: string | null;
+  identifiers: GoldIdentifier[];
+  assertions: GoldAssertion[];
+  resolved: GoldResolved;
+  owner_dispute?: Record<string, unknown>;
+  status_conflict?: Record<string, unknown>;
+  decay_conflict?: Record<string, unknown>;
+  type_conflict?: Record<string, unknown>;
+  stale_owner?: Record<string, unknown>;
+  missed_join?: Record<string, unknown> & { candidate?: GoldSatelliteEvidence };
+}
+
+/** ambiguous_cospar cases carry no single satellite — they hold the cluster instead. */
+export interface GoldCosparEvidence {
+  cospar: string;
+  n_satellites: number;
+  satellites: GoldSatelliteEvidence[];
+}
+
+export type GoldEvidence = GoldSatelliteEvidence | GoldCosparEvidence;
+
+export function isCosparEvidence(ev: GoldEvidence): ev is GoldCosparEvidence {
+  return Array.isArray((ev as GoldCosparEvidence).satellites);
+}
+
+/* ---- GET /api/review/cases/{id} ---- */
+export interface ReviewCaseDetail {
+  case_id: number;
+  case_type: string;
+  satellite_id: number | null;
+  subject_ref: string;
+  question: string;
+  system_answer: string;
+  evidence: GoldEvidence;
+  verdict: Verdict | null;
+  corrected_answer: string | null;
+  verdict_notes: string | null;
+  labeled_at: string | null;
+}
+
+/* ---- POST /api/review/cases/{id}/verdict ---- */
+export interface VerdictSubmit {
+  verdict: Verdict;
+  corrected_answer?: string;
+  notes?: string;
+  overwrite?: boolean;
+}
+
+export interface VerdictResponse {
+  ok: boolean;
+  verdict: {
+    case_type: string;
+    subject_ref: string;
+    verdict: Verdict;
+    corrected_answer: string | null;
+    verdict_notes: string | null;
+    labeled_at: string | null;
+  };
+}

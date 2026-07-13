@@ -12,12 +12,15 @@ const Overview = lazy(() => import("./views/Overview").then((m) => ({ default: m
 const Resolver = lazy(() => import("./views/Resolver").then((m) => ({ default: m.Resolver })));
 const Conflicts = lazy(() => import("./views/Conflicts").then((m) => ({ default: m.Conflicts })));
 const Operators = lazy(() => import("./views/Operators").then((m) => ({ default: m.Operators })));
+const Review = lazy(() => import("./views/Review").then((m) => ({ default: m.Review })));
+const ReviewCase = lazy(() => import("./views/ReviewCase").then((m) => ({ default: m.ReviewCase })));
 
 const NAV = [
   { to: "/", idx: "00", name: "Overview", end: true },
   { to: "/resolver", idx: "01", name: "Resolver", end: false },
   { to: "/conflicts", idx: "02", name: "Conflicts", end: false },
   { to: "/operators", idx: "03", name: "Operators", end: false },
+  { to: "/review", idx: "04", name: "Review", end: false },
 ];
 
 function Clock() {
@@ -111,6 +114,8 @@ export default function App() {
             <Route path="/conflicts" element={<Conflicts />} />
             <Route path="/operators" element={<Operators />} />
             <Route path="/operators/:operatorId" element={<Operators />} />
+            <Route path="/review" element={<Review />} />
+            <Route path="/review/:caseId" element={<ReviewCase />} />
           </Routes>
         </Suspense>
       </main>
