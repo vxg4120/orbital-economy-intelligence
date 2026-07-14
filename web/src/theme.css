@@ -2399,3 +2399,193 @@ button {
 .fault .btn {
   align-self: flex-start;
 }
+
+/* =============================================================================
+   LifeTrack — daily orbit history (recharts). Thin signal line = semi-major axis
+   (as altitude), faint band = perigee→apogee. Axis ticks inherit the mono
+   recharts styling; the y-grid is horizontal-only and faint (see chart props).
+   ============================================================================= */
+.lifetrack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lifetrack__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lifetrack__tipday {
+  color: var(--ink);
+  margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--rule);
+}
+.lifetrack .recharts-cartesian-axis-tick text {
+  fill: var(--ink-faint);
+}
+
+/* =============================================================================
+   Audit strip (Overview) — three live reads carrying the auditor thesis.
+   ============================================================================= */
+.audit-row {
+  align-items: stretch;
+}
+
+/* -- Kuiper milestone progress -- */
+.kuiper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kuiper__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kuiper__count {
+  font-size: var(--fs-xl);
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1;
+}
+.kuiper__req {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+.countdown-chip {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border: 1px solid var(--rule-2);
+  background: var(--surface-2);
+  padding: 2px 7px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.countdown-chip.is-short {
+  color: var(--conflict);
+  border-color: color-mix(in srgb, var(--conflict) 40%, var(--rule));
+  background: color-mix(in srgb, var(--conflict) 8%, var(--surface-2));
+}
+.kuiper__track {
+  height: 10px;
+}
+.kuiper__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.kuiper__leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.kuiper__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.kuiper__dot--active {
+  background: var(--st-active);
+}
+.kuiper__dot--signal {
+  background: var(--signal);
+}
+.kuiper__dot--decayed {
+  background: var(--st-decayed);
+}
+.audit-warn {
+  color: var(--conflict);
+}
+.audit-ok {
+  color: var(--ok);
+}
+
+/* -- Lingering leaderboard (horizontal bars, INACTIVE hue) -- */
+.lingerbars {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.lingerbar {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.lingerbar__op {
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lingerbar__track {
+  position: relative;
+  height: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  overflow: hidden;
+}
+.lingerbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 2px;
+}
+.lingerbar__val {
+  font-size: var(--fs-xs);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.lingerbar__alt {
+  color: var(--ink-faint);
+}
+
+/* -- Big "active but decaying" stat tile (conflict amber, links to /conflicts) -- */
+.decay-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--conflict) 30%, var(--rule));
+  background: color-mix(in srgb, var(--conflict) 6%, var(--surface));
+  border-top: 2px solid var(--conflict);
+  color: var(--ink);
+  min-height: 100%;
+}
+.decay-tile:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--conflict) 11%, var(--surface));
+}
+.decay-tile__label {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--conflict);
+}
+.decay-tile__value {
+  font-size: var(--fs-hero);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--conflict);
+}
+.decay-tile__sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.decay-tile__arrow {
+  color: var(--ink-faint);
+}
+.decay-tile:hover .decay-tile__arrow {
+  color: var(--conflict);
+}

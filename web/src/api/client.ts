@@ -9,7 +9,9 @@
    ============================================================================= */
 
 import type {
+  AuditSummary,
   CongestionResponse,
+  LifeTrack,
   OperatorDetail,
   OperatorRow,
   OperatorSort,
@@ -44,6 +46,8 @@ import operatorsFixture from "./fixtures/operators.json";
 import operatorDetailFixture from "./fixtures/operator_detail.json";
 import congestionFixture from "./fixtures/congestion.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
+import trackFixture from "./fixtures/track.json";
+import auditFixture from "./fixtures/audit_summary.json";
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
 
@@ -362,6 +366,16 @@ export function getOperator(id: number): Promise<OperatorDetail> {
 export function getCongestion(): Promise<CongestionResponse> {
   if (MOCK) return delay(congestionFixture as CongestionResponse);
   return realGet<CongestionResponse>("/congestion");
+}
+
+export function getSatelliteTrack(id: number): Promise<LifeTrack> {
+  if (MOCK) return delay(trackFixture as LifeTrack);
+  return realGet<LifeTrack>(`/satellites/${id}/track`);
+}
+
+export function getAuditSummary(): Promise<AuditSummary> {
+  if (MOCK) return delay(auditFixture as AuditSummary);
+  return realGet<AuditSummary>("/audit/summary");
 }
 
 /* ---- review area ---------------------------------------------------------- */

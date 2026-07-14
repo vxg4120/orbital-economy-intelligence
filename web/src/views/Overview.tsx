@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { getCongestion, getStats } from "../api/client";
+import { getAuditSummary, getCongestion, getStats } from "../api/client";
 import { useApi } from "../hooks/useApi";
 import { compact, fmtInt } from "../lib/format";
 import { CONFLICT_TABS } from "../lib/conflicts";
@@ -8,10 +8,12 @@ import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
 import { LedgerTable } from "../components/LedgerTable";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
+import { AuditStrip } from "../components/AuditStrip";
 import { Async } from "../components/States";
 
 export function Overview() {
   const stats = useApi(() => getStats(), []);
+  const audit = useApi(() => getAuditSummary(), []);
   const congestion = useApi(() => getCongestion(), []);
 
   return (
@@ -101,6 +103,10 @@ export function Overview() {
                 </div>
               </Panel>
             </div>
+
+            <Async state={audit} loadingLabel="Loading audit">
+              {(a) => <AuditStrip summary={a} />}
+            </Async>
 
             <Panel title="Ingestion ledger" meta="last run per source · endpoint" flush>
               <LedgerTable runs={s.ingest_runs} />

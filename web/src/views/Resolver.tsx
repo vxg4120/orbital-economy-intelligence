@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { getSatellite, searchSatellites } from "../api/client";
+import { getSatellite, getSatelliteTrack, searchSatellites } from "../api/client";
 import type { Assertion, Identifier, SatelliteDetail } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum } from "../lib/format";
@@ -8,7 +8,8 @@ import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
 import { SourceBadge } from "../components/SourceBadge";
 import { OwnershipTimeline } from "../components/OwnershipTimeline";
-import { EmptyState, ErrorState, Loading } from "../components/States";
+import { LifeTrack } from "../components/LifeTrack";
+import { Async, EmptyState, ErrorState, Loading } from "../components/States";
 
 const EXAMPLES = [
   { id: 45440, label: "OneWeb L3-015 · SCD2 transfer" },
@@ -261,6 +262,10 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
         <OwnershipTimeline segments={detail.ownership} />
       </Panel>
 
+      <Panel title="Life track" meta="daily orbit history · sma + perigee/apogee">
+        <LifeTrackSection satelliteId={s.satellite_id} />
+      </Panel>
+
       <div className="grid grid--2">
         <Panel title="Source assertions" meta="raw claims, pre-resolution" flush>
           {assertionGroups.length === 0 ? (
@@ -363,5 +368,16 @@ function OrbitCell({ k, v }: { k: string; v: string }) {
       <div className="orbit__k">{k}</div>
       <div className="orbit__v">{v}</div>
     </div>
+  );
+}
+
+/** Fetches and renders the full LifeTrack for one object. A null-norad or history-less object
+    resolves to an empty series and LifeTrack shows its own "no element-set history" state. */
+function LifeTrackSection({ satelliteId }: { satelliteId: number }) {
+  const track = useApi(() => getSatelliteTrack(satelliteId), [satelliteId]);
+  return (
+    <Async state={track} loadingLabel="Loading track">
+      {(t) => <LifeTrack data={t} variant="full" />}
+    </Async>
   );
 }

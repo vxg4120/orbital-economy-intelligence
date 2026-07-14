@@ -219,6 +219,47 @@ export interface OperatorDetail {
   top_satellites: FleetSatellite[];
 }
 
+/* ---- GET /api/satellites/{id}/track (the LifeTrack series) ----
+   One daily orbit sample. sma_km is the semi-major axis (radius from Earth centre); perigee_km /
+   apogee_km are altitudes — the chart plots sma as an altitude so the perigee..apogee band brackets
+   it. A history-less or null-norad object returns points: []. */
+export interface LifeTrackPoint {
+  day: string; // YYYY-MM-DD
+  sma_km: number | null;
+  perigee_km: number | null;
+  apogee_km: number | null;
+  elsets: number;
+}
+
+export interface LifeTrack {
+  norad_id: number | null;
+  span_days: number;
+  points: LifeTrackPoint[];
+}
+
+/* ---- GET /api/audit/summary (the Overview audit strip) ---- */
+export interface KuiperMilestone {
+  at_shell: number;
+  raising: number;
+  deorbited: number;
+  deployed_total: number;
+  deployed_last_30d: number; // trailing-30-day deployment rate (feeds the FE deadline projection)
+  required: number; // 1,618 — the FCC 50% obligation
+  deadline: string; // YYYY-MM-DD
+}
+
+export interface LingeringRow {
+  operator: string;
+  count: number;
+  avg_alt_km: number;
+}
+
+export interface AuditSummary {
+  kuiper_milestone: KuiperMilestone;
+  lingering_leaderboard: LingeringRow[];
+  active_but_decaying: number; // catalog says ACTIVE, physics says decaying
+}
+
 /* ---- GET /api/congestion ---- */
 export interface CongestionBin {
   alt_bin_km: number;

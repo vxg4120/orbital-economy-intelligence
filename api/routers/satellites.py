@@ -57,6 +57,90 @@ def search(db=Depends(get_db), q: str = Query(..., min_length=1)):
         return {"results": cur.fetchall()}
 
 
+# Downsample a long daily series into at most this many points (averaging consecutive rows into
+# contiguous buckets) so the LifeTrack chart stays light no matter how many years a bird has flown.
+_TRACK_CAP = 400
+
+
+def _avg(values: list) -> float | None:
+    nums = [v for v in values if v is not None]
+    return sum(nums) / len(nums) if nums else None
+
+
+def _track_point(day, sma, perigee, apogee, elsets) -> dict:
+    return {
+        "day": day.isoformat() if day is not None else None,
+        "sma_km": round(sma, 3) if sma is not None else None,
+        "perigee_km": round(perigee, 3) if perigee is not None else None,
+        "apogee_km": round(apogee, 3) if apogee is not None else None,
+        "elsets": int(elsets) if elsets is not None else 0,
+    }
+
+
+def _bucket_track(rows: list[dict]) -> list[dict]:
+    """Ordered daily rows -> LifeTrack points, downsampled to <= _TRACK_CAP by averaging.
+
+    When the series fits the cap it passes through untouched; when it is longer, rows are split into
+    _TRACK_CAP contiguous buckets whose numeric fields are averaged (elsets summed) and whose day is
+    the bucket's midpoint — preserving the curve's shape (plateau then decay) at a bounded cost.
+    """
+    n = len(rows)
+    if n == 0:
+        return []
+    if n <= _TRACK_CAP:
+        return [
+            _track_point(r["day"], r["sma_avg"], r["perigee_min"], r["apogee_max"], r["elset_count"])
+            for r in rows
+        ]
+    points: list[dict] = []
+    for i in range(_TRACK_CAP):
+        chunk = rows[i * n // _TRACK_CAP:(i + 1) * n // _TRACK_CAP]
+        if not chunk:
+            continue
+        mid = chunk[len(chunk) // 2]["day"]
+        points.append(
+            _track_point(
+                mid,
+                _avg([r["sma_avg"] for r in chunk]),
+                _avg([r["perigee_min"] for r in chunk]),
+                _avg([r["apogee_max"] for r in chunk]),
+                sum(r["elset_count"] or 0 for r in chunk),
+            )
+        )
+    return points
+
+
+@router.get("/{satellite_id}/track")
+def track(satellite_id: int, db=Depends(get_db)):
+    """Daily orbit history (semi-major axis + perigee/apogee band) for one object, from ``sat_daily``.
+
+    The series is keyed on the satellite's ``norad_id`` (always filter by NORAD first — sat_daily is
+    multi-million-row) and ordered by day. A missing satellite is a 404; a NULL-norad or history-less
+    object returns an empty series (``norad_id`` echoed, ``span_days`` 0) rather than an error, so the
+    Resolver card and Review case screen render an honest "no element-set history" empty state.
+    ``sma_km`` is the semi-major axis (radius from Earth centre); ``perigee_km``/``apogee_km`` are
+    altitudes — the chart reconciles them by plotting sma as an altitude.
+    """
+    with db.cursor() as cur:
+        cur.execute("SELECT norad_id FROM satellite WHERE satellite_id = %s", (satellite_id,))
+        sat = cur.fetchone()
+        if sat is None:
+            raise HTTPException(status_code=404, detail="satellite not found")
+        norad_id = sat["norad_id"]
+
+        rows: list[dict] = []
+        if norad_id is not None:
+            cur.execute(
+                "SELECT day::date AS day, sma_avg, perigee_min, apogee_max, elset_count "
+                "FROM sat_daily WHERE norad_id = %s ORDER BY day",
+                (norad_id,),
+            )
+            rows = cur.fetchall()
+
+    span_days = (rows[-1]["day"] - rows[0]["day"]).days if len(rows) >= 2 else 0
+    return {"norad_id": norad_id, "span_days": span_days, "points": _bucket_track(rows)}
+
+
 @router.get("/{satellite_id}")
 def detail(satellite_id: int, db=Depends(get_db)):
     with db.cursor() as cur:

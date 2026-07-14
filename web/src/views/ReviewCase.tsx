@@ -4,6 +4,7 @@ import {
   getReviewCase,
   getReviewCases,
   getReviewNext,
+  getSatelliteTrack,
   submitVerdict,
   MOCK,
 } from "../api/client";
@@ -11,6 +12,7 @@ import { ApiError } from "../api/client";
 import type {
   Dossier,
   GoldSatelliteEvidence,
+  LifeTrack as LifeTrackData,
   ReviewCaseDetail,
   Verdict,
 } from "../api/types";
@@ -29,6 +31,7 @@ import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { VerdictBadge } from "../components/VerdictBadge";
+import { LifeTrack } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 
 const TOKEN_KEY = "oei_review_token";
@@ -113,6 +116,17 @@ function CaseBody({
   const guide = guideFor(detail.case_type);
   const dossier = detail.dossier ?? null;
   const alreadyLabeled = detail.verdict !== null;
+
+  // Auto-show a compact LifeTrack when the case is about one satellite that has orbit history — a
+  // status/decay case then becomes visually self-evident (plateau then break into decay).
+  const track = useApi<LifeTrackData | null>(
+    () =>
+      detail.satellite_id !== null
+        ? getSatelliteTrack(detail.satellite_id)
+        : Promise.resolve(null),
+    [detail.satellite_id],
+  );
+  const trackData = track.data && track.data.points.length > 0 ? track.data : null;
 
   // Pre-seed the verdict from the human's own past label if present, else from the AI suggestion.
   // The suggested-tag on the button (below) keeps it clear this is a recommendation, not a decision.
@@ -263,6 +277,12 @@ function CaseBody({
             <ClaimsGrid ev={s} />
           </div>
         ))}
+
+        {trackData ? (
+          <Panel title="Life track" meta="daily orbit — physics vs the catalog">
+            <LifeTrack data={trackData} variant="compact" />
+          </Panel>
+        ) : null}
 
         <div className="grid grid--2 rc-qa">
           <Panel title="The question" flush>

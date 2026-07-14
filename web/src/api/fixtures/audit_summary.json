@@ -1,0 +1,44 @@
+{
+  "kuiper_milestone": {
+    "at_shell": 228,
+    "raising": 157,
+    "deorbited": 4,
+    "deployed_total": 398,
+    "deployed_last_30d": 65,
+    "required": 1618,
+    "deadline": "2026-07-30"
+  },
+  "lingering_leaderboard": [
+    {
+      "operator": "Iridium",
+      "count": 23,
+      "avg_alt_km": 749.7
+    },
+    {
+      "operator": "Eutelsat",
+      "count": 3,
+      "avg_alt_km": 1037.2
+    },
+    {
+      "operator": "Planet Labs",
+      "count": 2,
+      "avg_alt_km": 573.5
+    },
+    {
+      "operator": "SpaceX",
+      "count": 2,
+      "avg_alt_km": 547.7
+    },
+    {
+      "operator": "Amazon",
+      "count": 1,
+      "avg_alt_km": 624.3
+    },
+    {
+      "operator": "Spire",
+      "count": 1,
+      "avg_alt_km": 617.8
+    }
+  ],
+  "active_but_decaying": 1393
+}
