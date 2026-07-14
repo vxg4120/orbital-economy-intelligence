@@ -1,4 +1,4 @@
-.PHONY: venv up down psql migrate metrics report test lint api web-dev web-build fe gold-queue review gold-score
+.PHONY: venv up down psql migrate metrics report audit test lint api web-dev web-build fe gold-queue review gold-score
 
 venv:
 	python3 -m venv .venv
@@ -24,6 +24,12 @@ metrics:
 
 report:
 	.venv/bin/python quality/report.py
+
+# Orbital Behavior Report -> docs/reports/orbital-behavior-<YYYY-MM>.md (deterministic, re-runnable).
+# Period defaults to 12 months ending at the latest gp_elements epoch; override with ARGS.
+# e.g. make audit ARGS='--period-end 2026-07-12 --period-months 12'
+audit:
+	.venv/bin/python quality/audit_report.py $(ARGS)
 
 # --- Gold evaluation set (identity-resolution ground truth) --------------
 # (re)select hard cases into gold_case; idempotent, never overwrites verdicts.
