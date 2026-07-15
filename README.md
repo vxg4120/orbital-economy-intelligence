@@ -239,6 +239,10 @@ The public repo ships **code, schema, and derived aggregates/reports only** — 
 
 ## License
 
-Code is MIT. Data is **not** in this repository and is not relicensed here — each source keeps its own
-terms (see attribution above). The repo ships the engine and the derived reports; you bring your own
-polite pulls.
+Copyright (c) 2026 Vibhav Gupta. The code and derived aggregates in this repository are licensed
+under the **GNU Affero General Public License v3.0** — see [`LICENSE`](LICENSE) for the full text and
+[`LICENSING.md`](LICENSING.md) for the rationale (open-source and auditable, with AGPL §13's
+network-use copyleft to deter free-riders; sole copyright is preserved to allow future commercial
+dual-licensing). Data is **not** in this repository and is not relicensed here — each source keeps
+its own terms (see attribution above). The repo ships the engine and the derived reports; you bring
+your own polite pulls.

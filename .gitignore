@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 data/
+.build/
 .env
 .superpowers/
 .pytest_cache/
