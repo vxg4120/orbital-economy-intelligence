@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/vgupta/Development/repos/space/scripts/daily_ingest.sh</string>
+    <string>__REPO_DIR__/scripts/daily_ingest.sh</string>
   </array>
   <!-- 07:10 and 19:10 local: two cycles/day, well within every source's politeness window. -->
   <key>StartCalendarInterval</key>
@@ -16,8 +16,8 @@
     <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>10</integer></dict>
   </array>
   <key>StandardOutPath</key>
-  <string>/Users/vgupta/Development/repos/space/data/launchd.out.log</string>
+  <string>__REPO_DIR__/data/launchd.out.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/vgupta/Development/repos/space/data/launchd.err.log</string>
+  <string>__REPO_DIR__/data/launchd.err.log</string>
 </dict>
 </plist>

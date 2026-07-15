@@ -10,3 +10,6 @@ pgdata/
 reports/scratch/
 web/node_modules/
 web/dist/
+
+.DS_Store
+**/.DS_Store
