@@ -14,6 +14,7 @@ const Conflicts = lazy(() => import("./views/Conflicts").then((m) => ({ default:
 const Operators = lazy(() => import("./views/Operators").then((m) => ({ default: m.Operators })));
 const Review = lazy(() => import("./views/Review").then((m) => ({ default: m.Review })));
 const ReviewCase = lazy(() => import("./views/ReviewCase").then((m) => ({ default: m.ReviewCase })));
+const TwoSkies = lazy(() => import("./views/TwoSkies").then((m) => ({ default: m.TwoSkies })));
 
 const NAV = [
   { to: "/", idx: "00", name: "Overview", end: true },
@@ -21,6 +22,7 @@ const NAV = [
   { to: "/conflicts", idx: "02", name: "Conflicts", end: false },
   { to: "/operators", idx: "03", name: "Operators", end: false },
   { to: "/review", idx: "04", name: "Review", end: false },
+  { to: "/two-skies", idx: "05", name: "Two Skies", end: false },
 ];
 
 function Clock() {
@@ -116,6 +118,7 @@ export default function App() {
             <Route path="/operators/:operatorId" element={<Operators />} />
             <Route path="/review" element={<Review />} />
             <Route path="/review/:caseId" element={<ReviewCase />} />
+            <Route path="/two-skies" element={<TwoSkies />} />
           </Routes>
         </Suspense>
       </main>
