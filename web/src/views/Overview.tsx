@@ -32,7 +32,7 @@ export function Overview() {
       <Async state={stats} loadingLabel="Loading telemetry">
         {(s) => (
           <>
-            <div className="grid grid--stats">
+            <div className="grid grid--stats" data-tour="stats">
               <StatTile
                 lead
                 hero
@@ -65,7 +65,7 @@ export function Overview() {
               />
             </div>
 
-            <div className="grid grid--2">
+            <div className="grid grid--2" data-tour="conflicts">
               <Panel title="Resolution coverage" meta="on-orbit payloads">
                 <CoverageMeter
                   label="Resolved current owner"
