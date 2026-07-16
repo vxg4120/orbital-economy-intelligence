@@ -3,3 +3,9 @@ psycopg[binary]
 PyYAML
 fastapi
 uvicorn
+# Two Skies bridge (api/routers/twoskies.py): SGP4 propagation of the LEO catalog + vectorised
+# topocentric geometry. sgp4 ships a cp311-abi3 wheel that installs on 3.14; skyfield (pure-python,
+# also imports cleanly on 3.14) is the higher-level alternative but the endpoint uses sgp4 + numpy
+# directly for the vectorised SatrecArray path (few-seconds compute over ~16k objects).
+numpy
+sgp4
