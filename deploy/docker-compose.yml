@@ -1,0 +1,81 @@
+# Orbital deploy — one small box runs everything:
+#   db (TimescaleDB, holds oei + exo)  |  oei-api  |  exo-api  |  caddy (auto-HTTPS)
+#
+# Build contexts assume both repos are cloned as SIBLINGS and this file runs from
+# space/deploy/:
+#   <apps>/space/deploy/docker-compose.yml   (this file)
+#   <apps>/space/            -> context ".."
+#   <apps>/exodossier/       -> context "../../exodossier"
+#
+# Image pinned to match the source DB exactly (TimescaleDB 2.28.2 / pg17) so the
+# seed dump/restore of the hypertable + continuous aggregate is byte-clean.
+
+name: orbital
+
+services:
+  db:
+    image: timescale/timescaledb:2.28.2-pg17
+    container_name: orbital-db
+    environment:
+      POSTGRES_USER: oei
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: oei
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oei -d oei"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  oei-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: orbital/oei-api
+    container_name: orbital-oei-api
+    environment:
+      DATABASE_URL: postgresql://oei:${POSTGRES_PASSWORD:?}@db:5432/oei
+      REVIEW_TOKEN: ${REVIEW_TOKEN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  exo-api:
+    build:
+      context: ../../exodossier
+      dockerfile: Dockerfile
+    image: orbital/exo-api
+    container_name: orbital-exo-api
+    environment:
+      DATABASE_URL: postgresql://oei:${POSTGRES_PASSWORD:?}@db:5432/exo
+      OEI_DATABASE_URL: postgresql://oei:${POSTGRES_PASSWORD:?}@db:5432/oei
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    container_name: orbital-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - oei-api
+      - exo-api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

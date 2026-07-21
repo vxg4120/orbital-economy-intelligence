@@ -1,0 +1,19 @@
+# Caddy reverse proxy with automatic Let's Encrypt TLS.
+# {$BASE_DOMAIN} / {$ACME_EMAIL} are injected from the caddy container environment
+# (set in .env). Certs auto-provision once the A records point here and 80/443 are open.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# Satellite platform — Orbital Economy Intelligence
+orbital.{$BASE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy oei-api:8600
+}
+
+# ExoDossier — exoplanet candidate vetting
+exo.{$BASE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy exo-api:8700
+}

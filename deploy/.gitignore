@@ -1,0 +1,4 @@
+# Secrets + local artifacts — never commit these.
+.env
+seed/*.dump
+*.log
