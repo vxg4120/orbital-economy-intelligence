@@ -525,7 +525,9 @@
         I think through the data model carefully before implementing anything. The goal is a model
         as <b>flexible and adaptable as the world it describes</b>, which is exactly why the
         systems I built years ago slotted straight into the AI era instead of needing a
-        rebuild.</p></div>
+        rebuild. Time-series at scale is home turf: the product_events hypertable at CannMenus
+        alone lands <b>15M+ rows a day across nearly a thousand daily partitions</b>, part of the
+        2.5B+ event rows I keep clean and queryable.</p></div>
     <div class="mi rv"><h3><span class="n">vii</span>Love the domains that fight back</h3>
       <p>I gravitate to domains that demand <b>genuinely customized solutions</b>. Cannabis retail
         needed its own normalization stack. Tennis needed a CNN trained for one specific ball and
