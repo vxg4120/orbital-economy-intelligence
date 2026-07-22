@@ -12,6 +12,17 @@
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="https://vibcreates.com/" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Person","name":"Vibhav Gupta","alternateName":"Vib Gupta",
+"url":"https://vibcreates.com","image":"https://vibcreates.com/img/portrait.jpg",
+"jobTitle":"Data Platform Engineer and Founder","worksFor":{"@type":"Organization","name":"CannMenus","url":"https://cannmenus.com"},
+"alumniOf":{"@type":"CollegeOrUniversity","name":"DePaul University"},
+"address":{"@type":"PostalAddress","addressLocality":"Los Angeles","addressRegion":"CA"},
+"email":"mailto:vibhavgupta2@gmail.com",
+"sameAs":["https://github.com/vxg4120","https://linkedin.com/in/vib"],
+"knowsAbout":["data platforms","entity resolution","TimescaleDB","Kafka","Kubernetes","AI infrastructure","satellite catalogs","exoplanet data"]}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F2EBDB'/%3E%3Ctext x='30' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='44' fill='%231C2742'%3EV%3C/text%3E%3Cpath d='M50 38 l2.2 5.8 L58 46 l-5.8 2.2 L50 54 l-2.2-5.8 L42 46 l5.8-2.2 Z' fill='%23B08A2E'/%3E%3C/svg%3E" />
 <style>
   @font-face{
@@ -60,10 +71,24 @@
   .star{color:var(--gold); font-style:normal}
 
   /* ---------- top bar ---------- */
-  .top{display:flex; justify-content:space-between; align-items:baseline; padding-top:26px; position:relative; z-index:2}
+  .top{display:flex; justify-content:space-between; align-items:center; gap:20px; padding-top:26px; position:relative; z-index:5}
   .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; letter-spacing:-.01em; text-decoration:none}
   .top .brand .star{margin-right:8px}
   .top .where{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--faint); text-transform:uppercase}
+  .nav{display:flex; gap:22px; align-items:center; margin-left:auto}
+  .nav a{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; padding-bottom:2px; border-bottom:1.5px solid transparent}
+  .nav a:hover{color:var(--gold); border-color:var(--gold)}
+  .burger{display:none; background:none; border:1px solid var(--line-2); padding:8px 10px; cursor:pointer; color:var(--ink)}
+  .burger svg{display:block}
+  .mnav{display:none}
+  @media (max-width:900px){
+    .top .where{display:none}
+    .nav{display:none}
+    .burger{display:block; margin-left:auto}
+    .mnav.open{display:block; position:absolute; top:100%; right:28px; left:28px; background:var(--plate); border:1px solid var(--ink); outline:1px solid var(--line); outline-offset:3px; padding:10px 18px; z-index:9}
+    .mnav.open a{display:block; font-family:var(--mono); font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); text-decoration:none; padding:12px 0; border-bottom:1px dotted var(--line-2)}
+    .mnav.open a:last-child{border-bottom:none}
+  }
 
   /* ---------- hero ---------- */
   .hero{padding-top:9vh; position:relative; z-index:2; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:0 72px; align-items:start}
@@ -241,7 +266,22 @@
 
 <div class="wrap top">
   <a class="brand" href="/"><span class="star">✦</span>vibcreates</a>
+  <nav class="nav" aria-label="Site">
+    <a href="#work">the work</a>
+    <a href="#method">method</a>
+    <a href="/fun/">fun file</a>
+    <a href="#contact">contact</a>
+  </nav>
   <span class="where">Los Angeles, CA · 34.05°N</span>
+  <button class="burger" aria-label="Menu" aria-expanded="false" onclick="var m=document.getElementById('mnav');var o=m.classList.toggle('open');this.setAttribute('aria-expanded',o)">
+    <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" stroke-width="1.6"/></svg>
+  </button>
+  <nav class="mnav" id="mnav" aria-label="Site mobile">
+    <a href="#work" onclick="document.getElementById('mnav').classList.remove('open')">the work</a>
+    <a href="#method" onclick="document.getElementById('mnav').classList.remove('open')">method</a>
+    <a href="/fun/" >fun file</a>
+    <a href="#contact" onclick="document.getElementById('mnav').classList.remove('open')">contact</a>
+  </nav>
 </div>
 
 <header class="hero wrap">
@@ -363,7 +403,7 @@
     </div>
     <div class="rail">
       <div class="m"><div class="v num">20M+</div><div class="l">events ingested per day</div></div>
-      <div class="m"><div class="v num">~18,000</div><div class="l">live menu feeds, 9,000+ dispensaries</div></div>
+      <div class="m"><div class="v num">~18,000</div><div class="l">live menu feeds, 10,000+ dispensaries</div></div>
       <div class="m"><div class="v num">~3M</div><div class="l">products AI-scored daily</div></div>
       <div class="m"><div class="v num">17 nodes</div><div class="l">Kubernetes, 230+ pods, 103 deployments</div></div>
       <div class="m"><div class="v num">3×50</div><div class="l">Kafka brokers × partitions on core topics</div></div>
@@ -453,7 +493,7 @@
   </article>
 </section>
 
-<section class="wrap">
+<section class="wrap" id="method">
   <div class="shead"><span class="glyph star">✦</span><span class="k">Method</span><h2>The same move, every time.</h2></div>
   <div class="method">
     <div class="mi rv"><h3><span class="n">i</span>Find the disagreement</h3>
@@ -507,9 +547,21 @@
 </section>
 
 <footer>
-  <div class="wrap">
-    <span>© 2026 Vibhav Gupta</span>
-    <span>made in Los Angeles</span>
+  <div class="wrap" style="display:block; padding-bottom:14px">
+    <div style="display:flex; flex-wrap:wrap; gap:12px 28px; padding:4px 0 18px">
+      <a href="#work" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">the work</a>
+      <a href="#method" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">method</a>
+      <a href="/fun/" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">fun file</a>
+      <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">satellites ↗</a>
+      <a href="https://exo.vibcreates.com" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">exoplanets ↗</a>
+      <a href="https://github.com/vxg4120" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">github ↗</a>
+      <a href="https://linkedin.com/in/vib" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">linkedin ↗</a>
+      <a href="mailto:vibhavgupta2@gmail.com" style="font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none">email</a>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px; border-top:1px dotted var(--line-2); padding-top:14px">
+      <span>© 2026 Vibhav Gupta</span>
+      <span>made in Los Angeles</span>
+    </div>
   </div>
 </footer>
 
