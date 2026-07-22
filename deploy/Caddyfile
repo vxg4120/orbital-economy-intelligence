@@ -10,6 +10,14 @@
 # same-origin so its metrics are real, no CORS needed)
 {$BASE_DOMAIN} {
 	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
 	handle /live/orbital {
 		rewrite * /api/stats
 		reverse_proxy oei-api:8600
@@ -33,11 +41,27 @@ www.{$BASE_DOMAIN} {
 # Satellite platform — Orbital Economy Intelligence
 orbital.{$BASE_DOMAIN} {
 	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
 	reverse_proxy oei-api:8600
 }
 
 # ExoDossier — exoplanet candidate vetting
 exo.{$BASE_DOMAIN} {
 	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
 	reverse_proxy exo-api:8700
 }
