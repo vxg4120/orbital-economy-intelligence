@@ -73,6 +73,7 @@
   .hero .left{min-width:0}
   .fig{background:var(--surface); border:1px solid var(--line-2); padding:11px 11px 9px}
   .fig img{display:block; width:100%; height:auto; border:1px solid var(--line)}
+  .fig img.la{aspect-ratio:4/5; object-fit:cover; object-position:50% 42%}
   .fig figcaption{font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-top:9px}
   .hero .fig{margin-top:96px; transform:rotate(.4deg)}
   .hero h1{
@@ -207,9 +208,9 @@
 
   @media (max-width:900px){
     .hero{grid-template-columns:1fr; gap:0}
-    .hero .fig{max-width:300px; margin-top:34px}
+    .hero .fig{max-width:400px; margin:40px auto 0; transform:none}
     .contact .cgrid{grid-template-columns:1fr}
-    .contact .fig{max-width:300px; margin-top:36px}
+    .contact .fig{max-width:400px; margin:44px auto 0; transform:none}
     .stats{grid-template-columns:1fr 1fr}
     .avail span{font-size:.66rem; letter-spacing:.02em}
     .cta{gap:14px 20px; font-size:.8rem}
@@ -239,15 +240,16 @@
   <div class="left">
   <h1>I'm Vib<span class="dot">.</span></h1>
   <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <p class="intro">An economics grad who became an engineer, a founder who still ships daily,
-    and a tennis player who taught <em>two phones to call the lines.</em></p>
+  <p class="intro">An economics grad who became an engineer, a founder who still builds,
+    and a tennis player teaching <em>two phones to call the game.</em></p>
   <p class="sub">Full name Vibhav Gupta. I spent seven years as <strong>founder &amp; CEO of
     CannMenus</strong>, building the pricing-and-inventory record for North American cannabis
     retail — and I've spent this year pointing the same obsession at satellite catalogs,
-    exoplanet archives, and the baseline. The domain keeps changing. The itch never does:
-    <strong>where's the truth, and who's keeping it?</strong></p>
+    exoplanet archives, and the baseline. The domain keeps changing. The question never does — <strong>where's the truth, and who's
+    keeping it?</strong> I build these because markets work better when everyone can see clearly,
+    not just the biggest player.</p>
   <div class="avail">
-    <span><b>Open to</b> — senior / staff data-platform &amp; product roles</span>
+    <span><b>Open to</b> — senior / staff roles: data platforms &amp; AI infrastructure</span>
     <span><b>Taking on</b> — fractional data engineering &amp; AI consulting</span>
   </div>
   <nav class="cta">
@@ -271,16 +273,18 @@
   <span class="k" style="color:var(--muted)">Off the record</span>
   <div class="qa">
     <div>
-      <div class="qrow rv"><span class="q">degree</span><span class="a">Economics, honors. The engineering came later — <em>the hard way.</em></span></div>
+      <div class="qrow rv"><span class="q">degree</span><span class="a">Economics, honors. The engineering is self-taught.</span></div>
       <div class="qrow rv"><span class="q">home court</span><span class="a">Los Angeles, by way of Chicago.</span></div>
       <div class="qrow rv"><span class="q">mornings</span><span class="a">On court. SplitStep exists because I wanted honest line calls at practice.</span></div>
+      <div class="qrow rv"><span class="q">after dark</span><span class="a">Space, since long before I could code. Now I keep a database of <em>23,000 candidate worlds.</em></span></div>
       <div class="qrow rv"><span class="q">obsession</span><span class="a">The exact places where authoritative sources disagree.</span></div>
     </div>
     <div>
-      <div class="qrow rv"><span class="q">operating style</span><span class="a">Founder speed, engineer's receipts. Ship Tuesday, <em>measure Wednesday.</em></span></div>
-      <div class="qrow rv"><span class="q">proudest habit</span><span class="a">Publishing the accuracy number even when it embarrasses me.</span></div>
+      <div class="qrow rv"><span class="q">why</span><span class="a">Good decisions need honest data. Somebody has to be the one <em>keeping it honest.</em></span></div>
+      <div class="qrow rv"><span class="q">operating style</span><span class="a">Quality first, still fast. Nothing ships without a number attached.</span></div>
+      <div class="qrow rv"><span class="q">proudest habit</span><span class="a">Publishing the accuracy number, whatever it says.</span></div>
       <div class="qrow rv"><span class="q">recognition</span><span class="a">Trade-press 40 Under 40, class of 2025.</span></div>
-      <div class="qrow rv"><span class="q">this website</span><span class="a">Hand-written HTML on a $7 server I run. The numbers below are live.</span></div>
+      <div class="qrow rv"><span class="q">this website</span><span class="a">Designed with my AI agents, deployed on a $7 server I run. The numbers below are live.</span></div>
     </div>
   </div>
 </section>
@@ -306,18 +310,19 @@
     <div>
       <h3>CannMenus</h3>
       <div class="role">Founder &amp; CEO · 2019 — present</div>
-      <p>Cannabis retail had thousands of dispensary menus and no ground truth. CannMenus scrapes,
-        normalizes, and reconciles them into SKU-level pricing and inventory intelligence covering
-        roughly <strong>90% of licensed dispensaries</strong> in the U.S. and Canada, refreshed hourly
-        from 13,000+ sources. Bootstrapped to real revenue, raised angel capital, then
-        <strong>acquired and integrated a competitor's data business in four months</strong>.
-        Led a team of seven; ran the stack end to end — Python, Kafka, TimescaleDB, BigQuery,
-        Kubernetes, Airflow.</p>
+      <p>Cannabis retail had thousands of menus and no ground truth — the biggest operators could
+        buy answers, everyone else guessed. CannMenus reconciles <strong>13,000+ retail menus</strong>
+        into SKU-level pricing, inventory, and sales intelligence covering roughly
+        <strong>90% of licensed dispensaries</strong> in the U.S. and Canada. The work I'm proudest
+        of: sales estimated from inventory movement and <strong>calibrated against official state
+        figures</strong>, and a confidence-gated AI pipeline — <strong>~3M products scored daily</strong>,
+        with the uncertain fifth resolved by a self-hosted LLM. Bootstrapped to real revenue;
+        acquired and integrated a competitor in four months.</p>
       <div class="links"><a href="https://cannmenus.com">cannmenus.com ↗</a></div>
     </div>
     <div class="rail">
       <div class="m"><div class="v num">~90%</div><div class="l">of licensed dispensaries covered</div></div>
-      <div class="m"><div class="v num">13,000+</div><div class="l">sources, hourly refresh</div></div>
+      <div class="m"><div class="v num">~3M</div><div class="l">products AI-scored daily</div></div>
       <div class="m"><div class="v num">78→96%</div><div class="l">data accuracy, measured</div></div>
       <div class="m"><div class="v num">1</div><div class="l">acquisition led &amp; integrated</div></div>
     </div>
@@ -373,7 +378,7 @@
     <div><div class="idx num">04</div><div class="dom">Baseline</div><div class="note">started as a practice argument</div></div>
     <div>
       <h3>SplitStep</h3>
-      <div class="role">Inventing solo · 2026 · in field testing, v0.17</div>
+      <div class="role">Building solo · 2026 · in field testing, v0.17</div>
       <p>Tennis training from phones you already own — no sensors, no subscription, no cloud in the
         sensing path. Two unsynchronized phones agree on a ball impact through NTP-style clock sync
         and <strong>time-difference-of-arrival</strong>; the pairing itself filters the noise. A
@@ -405,9 +410,9 @@
       <p>OEI and ExoDossier ship gold-standard evaluations with published accuracy. For SplitStep I
         re-benchmarked a published 83% prior-art claim and measured <b>31%</b> — then built
         something better and graded it the same hard way.</p></div>
-    <div class="mi rv"><h3><span class="n">iv</span>Ship it live</h3>
-      <p>Working software over decks. Everything above <b>runs in production</b>, refreshes on a
-        schedule, and answers real queries — on infrastructure I operate myself.</p></div>
+    <div class="mi rv"><h3><span class="n">iv</span>Stand behind it</h3>
+      <p>Everything above <b>runs in production</b>, on infrastructure I operate, answering real
+        queries. I put my name next to the numbers — <b>so the numbers have to hold.</b></p></div>
   </div>
 </section>
 
@@ -432,12 +437,13 @@
     <a href="https://github.com/vxg4120">github.com/vxg4120</a>
     <a href="https://linkedin.com/in/vib">linkedin.com/in/vib</a>
   </div>
-  <p class="note">Fastest way in is email — I answer. This site is hand-written static HTML on a
-    $7 server in Helsinki that I administer myself; the live numbers are real queries against my
-    databases, stamped at request time. View source — there's nothing to hide.</p>
+  <p class="note">Fastest way in is email — I answer. This site runs on a $7 server I administer;
+    the live numbers are real queries against my databases, stamped at request time. I built it the
+    way I build everything now: AI agents doing the typing, me doing the deciding, and nothing
+    shipping until it's checked.</p>
   </div>
   <figure class="fig rv">
-    <img src="/img/la.jpg" alt="Vib at Echo Park Lake, downtown Los Angeles behind" width="1000" height="1779" loading="lazy" />
+    <img class="la" src="/img/la.jpg" alt="Vib at Echo Park Lake, downtown Los Angeles behind" width="563" height="1000" loading="lazy" />
     <figcaption>fig. 2 — home court: Echo Park, LA</figcaption>
   </figure>
   </div>
@@ -446,7 +452,7 @@
 <footer>
   <div class="wrap">
     <span>© 2026 Vibhav Gupta</span>
-    <span>Set in Fraunces · no framework, no tracker, no template</span>
+    <span>made in Los Angeles</span>
   </div>
 </footer>
 
