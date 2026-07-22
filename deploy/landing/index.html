@@ -423,9 +423,15 @@
         settle, with no honest way to tell whether your game is even improving. The pro-grade
         answer costs more than most amateurs' rackets. So SplitStep: <strong>tennis training from
         phones you already own</strong>. No sensors, no subscription, no cloud in the sensing path.
-        Two out-of-sync phones agree on a ball impact by comparing when each one heard it, and a
-        <strong>1.16&nbsp;MB ball detector</strong> I trained from scratch ships one set of weights
-        to Android, iOS, and the research bench. Building systems that perform far above their
+        Two ordinary phones on court pair themselves over local Wi-Fi, sync their clocks to under a
+        millisecond, and then make <strong>coordinated measurements with their mics and cameras
+        together</strong>: the microphones establish exactly when a ball was struck, and which side
+        it happened on, from the tiny difference in when each phone heard it, while the cameras
+        track where the ball went. The vision half runs on a <strong>1.16&nbsp;MB ball-detection
+        CNN I trained from scratch in PyTorch</strong>, taught first on synthetic rendered balls,
+        graded only on real photos it had never seen, and improved until its accuracy more than
+        doubled across five versions. A single training run exports the same weights to Android,
+        iOS, and my research bench. Building systems that perform far above their
         cost, <strong>accessible to the everyday player instead of just the tour</strong>, is the
         same lean playbook that let CannMenus outrun better-funded rivals. Provisional patent
         drafted.</p>
