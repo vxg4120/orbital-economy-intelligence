@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Vibhav Gupta — systems of record for messy data</title>
-<meta name="description" content="Founder of CannMenus. Builder of live data platforms for cannabis retail, satellite catalogs, exoplanet archives, and the tennis court. Los Angeles." />
-<meta property="og:title" content="Vibhav Gupta — systems of record for messy data" />
-<meta property="og:description" content="Ten years of data platforms. Four domains. Live numbers, queried from systems I run." />
+<title>Vib Gupta — I'm Vib. I make messy data tell the truth.</title>
+<meta name="description" content="Vibhav Gupta — economics grad turned engineer, founder of CannMenus, builder of live systems of record for cannabis retail, satellite catalogs, exoplanet archives, and the tennis court. Los Angeles." />
+<meta property="og:title" content="I'm Vib. I make messy data tell the truth." />
+<meta property="og:description" content="Founder for seven years. Four domains, one method. The numbers on this page are live queries against systems I run." />
 <meta property="og:url" content="https://vibcreates.com" />
+<meta property="og:image" content="https://vibcreates.com/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F5F4EF'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='44' fill='%231B1C17'%3EV%3C/text%3E%3Ccircle cx='49' cy='45' r='4' fill='%23B75E14'/%3E%3C/svg%3E" />
 <style>
   @font-face{
@@ -46,6 +50,11 @@
     font-family:var(--sans); font-size:17px; line-height:1.62;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
+  /* barely-there paper grain — craft, not decoration */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.028;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
   .wrap{max-width:var(--w); margin:0 auto; padding:0 28px}
   a{color:inherit}
   ::selection{background:var(--orbit); color:var(--paper)}
@@ -54,20 +63,28 @@
   .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
 
   /* ---------- top bar ---------- */
-  .top{display:flex; justify-content:space-between; align-items:baseline; padding:26px 0 0}
+  .top{display:flex; justify-content:space-between; align-items:baseline; padding:26px 0 0; position:relative; z-index:2}
   .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; letter-spacing:-.01em; text-decoration:none}
   .top .where{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--faint); text-transform:uppercase}
 
-  /* ---------- hero ---------- */
-  .hero{padding:9vh 0 0}
-  .hero .who{color:var(--muted); margin:0 0 18px}
+  /* ---------- hero: the person ---------- */
+  .hero{padding:10vh 0 0; position:relative; z-index:2}
   .hero h1{
-    font-family:var(--serif); font-weight:390; font-variation-settings:"opsz" 144;
-    font-size:clamp(2.6rem,7.2vw,5.9rem); line-height:1.02; letter-spacing:-.015em;
-    margin:0; max-width:19ch; text-wrap:balance;
+    font-family:var(--serif); font-weight:380; font-variation-settings:"opsz" 144;
+    font-size:clamp(4.2rem,13vw,10.5rem); line-height:.95; letter-spacing:-.02em; margin:0;
   }
-  .hero h1 em{font-style:italic; font-weight:430}
-  .hero .sub{max-width:62ch; color:var(--muted); font-size:clamp(1rem,1.6vw,1.16rem); margin:30px 0 0}
+  .hero h1 .dot{color:var(--orbit)}
+  .ticks{display:flex; gap:10px; margin:26px 0 0}
+  .ticks i{width:26px; height:4px; display:block}
+  .ticks i:nth-child(1){background:var(--retail)} .ticks i:nth-child(2){background:var(--orbit)}
+  .ticks i:nth-child(3){background:var(--deep)} .ticks i:nth-child(4){background:var(--base)}
+  .hero .intro{
+    font-family:var(--serif); font-weight:400; font-variation-settings:"opsz" 40;
+    font-size:clamp(1.35rem,3vw,2.05rem); line-height:1.3; letter-spacing:-.01em;
+    max-width:30ch; margin:34px 0 0; text-wrap:balance;
+  }
+  .hero .intro em{font-style:italic}
+  .hero .sub{max-width:60ch; color:var(--muted); font-size:clamp(1rem,1.6vw,1.13rem); margin:26px 0 0}
   .hero .sub strong{color:var(--ink); font-weight:600}
   .avail{display:flex; flex-wrap:wrap; gap:10px 14px; margin:34px 0 0}
   .avail span{
@@ -79,11 +96,21 @@
   .cta a{text-decoration:none; border-bottom:1.5px solid var(--ink); padding-bottom:3px}
   .cta a:hover{border-color:var(--orbit); color:var(--orbit)}
 
-  /* ---------- signal ornament ---------- */
-  .signal{display:block; width:100%; height:130px; margin:52px 0 0}
+  /* ---------- the life signal ---------- */
+  .sigwrap{position:relative; margin:64px 0 0}
+  .sigwrap .k{position:absolute; top:-4px; left:28px; color:var(--faint)}
+  .signal{display:block; width:100%; height:190px}
+
+  /* ---------- off the record: personal ledger ---------- */
+  .otr{border-top:1px solid var(--ink); padding:26px 0 64px; position:relative; z-index:2}
+  .qa{display:grid; grid-template-columns:1fr 1fr; gap:0 64px; margin-top:26px}
+  .qrow{display:grid; grid-template-columns:130px 1fr; gap:0 22px; padding:15px 0; border-bottom:1px solid var(--line); align-items:baseline}
+  .qrow .q{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+  .qrow .a{font-family:var(--serif); font-weight:420; font-variation-settings:"opsz" 30; font-size:1.06rem; line-height:1.45}
+  .qrow .a em{font-style:italic}
 
   /* ---------- live strip ---------- */
-  .live{border-top:1px solid var(--ink); padding:26px 0 60px}
+  .live{border-top:1px solid var(--ink); padding:26px 0 60px; position:relative; z-index:2}
   .live .lede{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px; margin-bottom:30px}
   .live .lede .k{color:var(--muted)}
   .live .stamp{font-family:var(--mono); font-size:.72rem; color:var(--faint)}
@@ -95,7 +122,7 @@
   .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
 
   /* ---------- section head ---------- */
-  section{padding:0 0 24px}
+  section{padding:0 0 24px; position:relative; z-index:2}
   .shead{display:flex; align-items:baseline; gap:16px; border-top:1px solid var(--ink); padding:22px 0 44px}
   .shead .k{color:var(--muted)}
   .shead h2{font-family:var(--serif); font-weight:420; font-size:1.35rem; margin:0; letter-spacing:-.01em}
@@ -103,13 +130,17 @@
   /* ---------- ledger entries ---------- */
   .entry{
     display:grid; grid-template-columns:96px 1fr 300px; gap:0 44px;
-    padding:0 0 64px; margin-bottom:64px; border-bottom:1px solid var(--line);
+    padding:0 0 64px; margin-bottom:64px; border-bottom:1px solid var(--line); position:relative;
   }
   .entry:last-of-type{border-bottom:none; margin-bottom:0}
   .entry .idx{font-family:var(--serif); font-weight:330; font-variation-settings:"opsz" 144; font-size:2.6rem; line-height:1; color:var(--line-2)}
   .entry .dom{font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; margin-top:10px}
   .entry.e-retail .dom{color:var(--retail)} .entry.e-orbit .dom{color:var(--orbit)}
   .entry.e-deep .dom{color:var(--deep)} .entry.e-base .dom{color:var(--base)}
+  .entry .note{
+    font-family:var(--mono); font-size:.68rem; color:var(--faint); letter-spacing:.04em;
+    margin-top:22px; max-width:90px; line-height:1.6; transform:rotate(-1.6deg);
+  }
   .entry h3{
     font-family:var(--serif); font-weight:480; font-variation-settings:"opsz" 80;
     font-size:clamp(1.7rem,3vw,2.3rem); line-height:1.05; letter-spacing:-.015em; margin:0;
@@ -156,25 +187,27 @@
   .contact .ways a:hover{border-color:var(--orbit); color:var(--orbit)}
   .contact .note{margin:44px 0 0; max-width:52ch; color:var(--faint); font-size:.84rem; line-height:1.6}
 
-  footer{border-top:1px solid var(--line); padding:22px 0 34px}
+  footer{border-top:1px solid var(--line); padding:22px 0 34px; position:relative; z-index:2}
   footer .wrap{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px}
   footer span{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; color:var(--faint)}
 
   a:focus-visible{outline:2px solid var(--deep); outline-offset:3px}
 
-  /* ---------- reveal ---------- */
   .rv{opacity:0; transform:translateY(12px)}
   .rv.in{opacity:1; transform:none; transition:opacity .55s ease, transform .55s ease}
   @media (prefers-reduced-motion:reduce){.rv{opacity:1; transform:none}}
 
   @media (max-width:900px){
     .stats{grid-template-columns:1fr 1fr}
+    .qa{grid-template-columns:1fr; gap:0}
     .entry{grid-template-columns:1fr; gap:0}
     .entry .idx{font-size:2rem; margin-bottom:2px}
     .entry .dom{margin:2px 0 14px}
+    .entry .note{display:none}
     .rail{border-left:none; border-top:1px solid var(--line); padding:22px 0 0; margin-top:28px; grid-template-columns:1fr 1fr; gap:18px 24px}
     .method{grid-template-columns:1fr}
     .crow{grid-template-columns:1fr; gap:2px}
+    .signal{height:150px}
   }
 </style>
 </head>
@@ -186,12 +219,15 @@
 </div>
 
 <header class="hero wrap">
-  <p class="who k" style="color:var(--muted)">Vibhav Gupta — founder &amp; data engineer</p>
-  <h1>I build systems of record for data that <em>disagrees with itself.</em></h1>
-  <p class="sub">Ten years across data platforms and reliability engineering — seven of them as
-    <strong>founder &amp; CEO of CannMenus</strong>, the pricing-and-inventory record for North American
-    cannabis retail. This year I pointed the same method at three stranger domains:
-    satellite catalogs, exoplanet archives, and the tennis court.</p>
+  <h1>I'm Vib<span class="dot">.</span></h1>
+  <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="intro">An economics grad who became an engineer, a founder who still ships daily,
+    and a tennis player who taught <em>two phones to call the lines.</em></p>
+  <p class="sub">Full name Vibhav Gupta. I spent seven years as <strong>founder &amp; CEO of
+    CannMenus</strong>, building the pricing-and-inventory record for North American cannabis
+    retail — and I've spent this year pointing the same obsession at satellite catalogs,
+    exoplanet archives, and the baseline. The domain keeps changing. The itch never does:
+    <strong>where's the truth, and who's keeping it?</strong></p>
   <div class="avail">
     <span><b>Open to</b> — senior / staff data-platform &amp; product roles</span>
     <span><b>Taking on</b> — fractional data engineering &amp; AI consulting</span>
@@ -203,7 +239,28 @@
   </nav>
 </header>
 
-<canvas class="signal" id="signal" aria-hidden="true"></canvas>
+<div class="sigwrap" aria-hidden="true">
+  <span class="k">fig. 1 — twelve years, rendered as the signals I work with</span>
+  <canvas class="signal" id="signal"></canvas>
+</div>
+
+<section class="otr wrap" aria-label="Personal ledger">
+  <span class="k" style="color:var(--muted)">Off the record</span>
+  <div class="qa">
+    <div>
+      <div class="qrow rv"><span class="q">degree</span><span class="a">Economics, honors. The engineering came later — <em>the hard way.</em></span></div>
+      <div class="qrow rv"><span class="q">home court</span><span class="a">Los Angeles, by way of Chicago.</span></div>
+      <div class="qrow rv"><span class="q">mornings</span><span class="a">On court. SplitStep exists because I wanted honest line calls at practice.</span></div>
+      <div class="qrow rv"><span class="q">obsession</span><span class="a">The exact places where authoritative sources disagree.</span></div>
+    </div>
+    <div>
+      <div class="qrow rv"><span class="q">operating style</span><span class="a">Founder speed, engineer's receipts. Ship Tuesday, <em>measure Wednesday.</em></span></div>
+      <div class="qrow rv"><span class="q">proudest habit</span><span class="a">Publishing the accuracy number even when it embarrasses me.</span></div>
+      <div class="qrow rv"><span class="q">recognition</span><span class="a">Trade-press 40 Under 40, class of 2025.</span></div>
+      <div class="qrow rv"><span class="q">this website</span><span class="a">Hand-written HTML on a $7 server I run. The numbers below are live.</span></div>
+    </div>
+  </div>
+</section>
 
 <section class="live wrap" aria-label="Live metrics">
   <div class="lede">
@@ -222,28 +279,29 @@
   <div class="shead"><span class="k">The work</span><h2>Four domains, one method, all real.</h2></div>
 
   <article class="entry e-retail rv">
-    <div><div class="idx num">01</div><div class="dom">Retail</div></div>
+    <div><div class="idx num">01</div><div class="dom">Retail</div><div class="note">seven years of my life ↓</div></div>
     <div>
       <h3>CannMenus</h3>
       <div class="role">Founder &amp; CEO · 2019 — present</div>
       <p>Cannabis retail had thousands of dispensary menus and no ground truth. CannMenus scrapes,
         normalizes, and reconciles them into SKU-level pricing and inventory intelligence covering
-        roughly <strong>90% of licensed dispensaries</strong> in the U.S. and Canada, refreshed hourly.
-        Bootstrapped to real revenue, raised angel capital, then <strong>acquired and integrated a
-        Canadian competitor's data business</strong>. Led a team of four; ran the stack end to end —
-        Python, Kafka, TimescaleDB, BigQuery, Kubernetes, Airflow.</p>
+        roughly <strong>90% of licensed dispensaries</strong> in the U.S. and Canada, refreshed hourly
+        from 13,000+ sources. Bootstrapped to real revenue, raised angel capital, then
+        <strong>acquired and integrated a competitor's data business in four months</strong>.
+        Led a team of seven; ran the stack end to end — Python, Kafka, TimescaleDB, BigQuery,
+        Kubernetes, Airflow.</p>
       <div class="links"><a href="https://cannmenus.com">cannmenus.com ↗</a></div>
     </div>
     <div class="rail">
       <div class="m"><div class="v num">~90%</div><div class="l">of licensed dispensaries covered</div></div>
-      <div class="m"><div class="v num">hourly</div><div class="l">inventory + price refresh</div></div>
+      <div class="m"><div class="v num">13,000+</div><div class="l">sources, hourly refresh</div></div>
+      <div class="m"><div class="v num">78→96%</div><div class="l">data accuracy, measured</div></div>
       <div class="m"><div class="v num">1</div><div class="l">acquisition led &amp; integrated</div></div>
-      <div class="m"><div class="v num">7 yrs</div><div class="l">operating, founder-led</div></div>
     </div>
   </article>
 
   <article class="entry e-orbit rv">
-    <div><div class="idx num">02</div><div class="dom">Orbit</div></div>
+    <div><div class="idx num">02</div><div class="dom">Orbit</div><div class="note">the catalogs really don't agree</div></div>
     <div>
       <h3>Orbital Economy Intelligence</h3>
       <div class="role">Built solo · 2026 · live &amp; refreshed nightly</div>
@@ -289,7 +347,7 @@
   </article>
 
   <article class="entry e-base rv">
-    <div><div class="idx num">04</div><div class="dom">Baseline</div></div>
+    <div><div class="idx num">04</div><div class="dom">Baseline</div><div class="note">started as a practice argument</div></div>
     <div>
       <h3>SplitStep</h3>
       <div class="role">Inventing solo · 2026 · in field testing, v0.17</div>
@@ -349,9 +407,9 @@
     <a href="https://github.com/vxg4120">github.com/vxg4120</a>
     <a href="https://linkedin.com/in/vib">linkedin.com/in/vib</a>
   </div>
-  <p class="note">This site is hand-written static HTML on a $7 server in Helsinki that I administer
-    myself. The live numbers above are real queries against my databases, stamped at request time.
-    View source — there's nothing to hide.</p>
+  <p class="note">Fastest way in is email — I answer. This site is hand-written static HTML on a
+    $7 server in Helsinki that I administer myself; the live numbers are real queries against my
+    databases, stamped at request time. View source — there's nothing to hide.</p>
 </section>
 
 <footer>
@@ -365,40 +423,60 @@
 (function(){
   var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
 
-  /* ---- signal ornament: noise resolving into a record ---- */
+  /* ---- fig. 1: twelve years as a signal, with detected impacts ---- */
   var c = document.getElementById('signal');
   function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  var EVENTS = [
+    {t:.045, y:'2014', l:'first QA job',        h:'--retail'},
+    {t:.16,  y:'2015', l:'Networked Insights',  h:'--deep'},
+    {t:.30,  y:'2017', l:'streaming platforms', h:'--orbit'},
+    {t:.42,  y:'2019', l:'founded CannMenus',   h:'--retail', big:1},
+    {t:.60,  y:'2022', l:'led an acquisition',  h:'--retail'},
+    {t:.72,  y:'2023', l:'all-in, full time',   h:'--retail'},
+    {t:.84,  y:'2025', l:'40 under 40',         h:'--base'},
+    {t:.945, y:'2026', l:'orbit · deep sky · baseline', h:'--orbit', big:1}
+  ];
   function draw(progress){
-    var dpr = Math.min(devicePixelRatio||1,2), W = c.clientWidth, H = c.clientHeight;
-    c.width = W*dpr; c.height = H*dpr;
-    var x = c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,W,H);
-    var mid = H*0.56, ink = css('--ink'), hues=[css('--retail'),css('--orbit'),css('--deep'),css('--base')];
-    // deterministic pseudo-noise so redraws are stable
-    function n(i){ var s = Math.sin(i*127.1)*43758.5453; return s - Math.floor(s); }
-    var pts=[], N=Math.max(180, Math.floor(W/6));
+    var dpr=Math.min(devicePixelRatio||1,2), W=c.clientWidth, H=c.clientHeight;
+    c.width=W*dpr; c.height=H*dpr;
+    var x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,W,H);
+    var mid=H*0.44, ink=css('--ink'), small=W<640;
+    function n(i){ var s=Math.sin(i*127.1)*43758.5453; return s-Math.floor(s); }
+    var pts=[], N=Math.max(200, Math.floor(W/5));
     for(var i=0;i<=N;i++){
-      var t=i/N, px=t*W, calm=Math.min(1,Math.max(0,(t-0.42)/0.3));
-      var rough=(n(i)-0.5)*2, spike=(n(i*3+7)>0.965 && t<0.5)?(n(i*5)-0.5)*3.2:0;
-      var amp=(1-calm)*(H*0.30);
-      var py=mid + rough*amp*0.55 + spike*amp + (calm===1 ? Math.sin(t*21)*1.2 : 0);
-      pts.push([px,py, spike!==0]);
+      var t=i/N, px=t*W, calm=Math.min(1,Math.max(0,(t-0.40)/0.34));
+      var rough=(n(i)-0.5)*2, amp=(1-calm)*(H*0.20);
+      var ev=null; for(var e=0;e<EVENTS.length;e++){ if(Math.abs(t-EVENTS[e].t)<0.006){ ev=EVENTS[e]; break; } }
+      var spike=ev?(ev.big?-H*0.17:-H*0.10):0;
+      var py=mid + rough*amp*0.6 + spike + (calm===1?Math.sin(t*19)*1.4:0);
+      pts.push([px,py]);
     }
     var upto=Math.floor(pts.length*progress);
     x.strokeStyle=ink; x.globalAlpha=0.5; x.lineWidth=1.4; x.lineJoin='round'; x.beginPath();
     for(var j=0;j<upto;j++){ j?x.lineTo(pts[j][0],pts[j][1]):x.moveTo(pts[j][0],pts[j][1]); }
-    x.stroke();
-    // tick marks where "impacts" were detected, in domain hues
-    x.globalAlpha=0.9; var h=0;
-    for(var k=0;k<upto;k++){ if(pts[k][2]){
-      x.strokeStyle=hues[h++%4]; x.lineWidth=1.6;
-      x.beginPath(); x.moveTo(pts[k][0], H-14); x.lineTo(pts[k][0], H-6); x.stroke();
-    }}
-    x.globalAlpha=1;
+    x.stroke(); x.globalAlpha=1;
+    // event ticks + labels
+    x.textBaseline='top';
+    for(var k=0;k<EVENTS.length;k++){
+      var E=EVENTS[k]; if(E.t>progress) continue;
+      var ex=E.t*W, hue=css(E.h);
+      x.strokeStyle=hue; x.lineWidth=1.6;
+      x.beginPath(); x.moveTo(ex, H-46); x.lineTo(ex, H-38); x.stroke();
+      if(!small){
+        x.fillStyle=css('--faint'); x.font='10px ui-monospace,Menlo,monospace';
+        x.fillText(E.y, ex-10, H-32);
+        x.fillStyle=hue; x.font='10px ui-monospace,Menlo,monospace';
+        x.fillText(E.l, ex-10, H-19);
+      } else if(E.big){
+        x.fillStyle=css('--faint'); x.font='9px ui-monospace,Menlo,monospace';
+        x.fillText(E.y, ex-8, H-32);
+      }
+    }
   }
   function animate(){
     if(reduce){ draw(1); return; }
     var t0=null;
-    function f(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/1700); draw(p); if(p<1) requestAnimationFrame(f); }
+    function f(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/2100); draw(p); if(p<1) requestAnimationFrame(f); }
     requestAnimationFrame(f);
   }
   animate();
