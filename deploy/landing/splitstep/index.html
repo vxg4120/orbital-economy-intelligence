@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SplitStep — turning the phones you own into a tennis instrument</title>
+<meta name="description" content="SplitStep turns the smartphones players already own into a tennis coach, counter, and line judge. No hardware to buy, no cloud bill, nothing installed on the court. A product case study by Vibhav Gupta." />
+<link rel="canonical" href="https://vibcreates.com/splitstep/" />
+<meta property="og:title" content="SplitStep — turning the phones you own into a tennis instrument" />
+<meta property="og:description" content="Two phones, coordinated, become a small officiating system. The market gap, the inventions, and the economics. By Vibhav Gupta." />
+<meta property="og:url" content="https://vibcreates.com/splitstep/" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230B1220'/%3E%3Ccircle cx='32' cy='32' r='14' fill='%23D9F24E'/%3E%3Cpath d='M22 32 a14 14 0 0 1 20 0' stroke='%230B1220' stroke-width='2.5' fill='none'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --ground: #0B1220;
+    --surface: #141D31;
+    --surface-2: #1B2740;
+    --line: #26324E;
+    --ink: #E8EDF7;
+    --muted: #9DA9C4;
+    --lime: #D9F24E;
+    --lime-text: #C6E23A;
+    --blue: #8FB6FF;
+    --chip-ink: #161F07;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #F3F6FB; --surface: #FFFFFF; --surface-2: #E9EEF7; --line: #D4DCEA;
+      --ink: #111A2B; --muted: #5A6577; --lime: #D9F24E; --lime-text: #5C7300;
+      --blue: #3560B8; --chip-ink: #1A2405;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { overflow-x: clip; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 17px/1.7 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    margin: 0; padding: 0 20px;
+  }
+  main { max-width: 700px; margin: 0 auto; }
+
+  .topbar {
+    max-width: 700px; margin: 0 auto; padding: 22px 0 0;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .topbar a { color: var(--muted); text-decoration: none; border-bottom: 1.5px solid var(--lime); padding-bottom: 2px; }
+  .topbar a:hover { color: var(--lime-text); }
+
+  header { padding: 64px 0 40px; }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--lime-text); margin: 0 0 20px;
+  }
+  .call {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: clamp(26px, 6vw, 42px); font-weight: 700; line-height: 1.25;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  .call .spoken { color: var(--lime-text); }
+  .lede { color: var(--muted); font-size: 19px; max-width: 58ch; margin: 22px 0 0; }
+  .lede b { color: var(--ink); }
+
+  .board {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; margin: 40px 0 0;
+  }
+  .board div { background: var(--surface); padding: 14px 16px; }
+  .board b {
+    display: block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 24px; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .board span { font-size: 12.5px; color: var(--muted); letter-spacing: .4px; }
+
+  h2 {
+    font-size: 25px; font-weight: 800; letter-spacing: -.3px;
+    margin: 64px 0 6px; text-wrap: balance;
+  }
+  h2::before {
+    content: ""; display: block; width: 44px; height: 3px;
+    background: var(--lime); margin: 0 0 18px;
+  }
+  p { margin: 13px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--blue); }
+
+  .tablewrap { overflow-x: auto; margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr.us td { font-weight: 700; }
+  tr.us td:first-child { color: var(--lime-text); }
+
+  .insight { margin: 22px 0; padding: 18px 20px; background: var(--surface); border-radius: 10px; }
+  .insight .tag {
+    display: inline-block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px; letter-spacing: 2px; text-transform: uppercase;
+    background: var(--lime); color: var(--chip-ink); border-radius: 999px;
+    padding: 3px 12px; margin-bottom: 10px; font-weight: 700;
+  }
+  .insight b.title { display: block; font-size: 18px; margin-bottom: 4px; }
+  .insight p { margin: 8px 0 0; color: var(--muted); font-size: 15.5px; }
+  .insight p b { color: var(--ink); }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 20px 0; }
+  .cap { background: var(--surface); border-radius: 10px; padding: 16px 18px; }
+  .cap b { display: block; margin-bottom: 4px; }
+  .cap span { color: var(--muted); font-size: 14.5px; }
+
+  .moat { border-left: 3px solid var(--lime); background: var(--surface); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0; }
+  .moat b { display: block; margin-bottom: 3px; }
+  .moat p { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+
+  footer { margin: 72px 0 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  a:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+  @media (prefers-reduced-motion: no-preference) {
+    header .call { animation: rise .6s ease both; }
+    header .lede { animation: rise .6s .15s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/">✦ vibcreates · back to the atlas</a>
+  <span style="color:var(--muted)">splitstep</span>
+</div>
+
+<main>
+<header>
+  <p class="eyebrow">SplitStep · a product case study by Vibhav Gupta</p>
+  <h1 class="call">A phone at the fence clears its throat and says:<br>
+  <span class="spoken">"Long by two feet. 78 miles per hour."</span></h1>
+  <p class="lede"><b>SplitStep</b> turns the smartphones players already own into a
+  tennis coach, counter, and line judge — no hardware to buy, no cloud bill to pay,
+  nothing to install on the court. This is the case for the idea: the market gap it
+  attacks, the inventions that make it possible, and why the economics are
+  structurally different from everything else in the category.</p>
+
+  <div class="board">
+    <div><b>$0</b><span>hardware cost to the player</span></div>
+    <div><b>$0</b><span>cloud inference cost, forever</span></div>
+    <div><b>2</b><span>phones = a sensing network</span></div>
+    <div><b>1</b><span>patent application drafted</span></div>
+    <div><b>27→65%</b><span>real-world ball detection, own models</span></div>
+    <div><b>11</b><span>days, idea → court-tested</span></div>
+  </div>
+</header>
+
+<h2>The gap in the market</h2>
+<p>Tennis sensing today makes players choose between price tiers, not product
+tiers:</p>
+<div class="tablewrap">
+<table>
+  <tr><th>tier</th><th>examples</th><th>the catch</th></tr>
+  <tr><td>Stadium systems</td><td>Hawk-Eye, installed smart courts</td>
+      <td>$10k+ per court, someone else's court</td></tr>
+  <tr><td>Court hardware</td><td>net-post cameras, sensor arrays</td>
+      <td>another gadget to buy, charge, mount, and lose</td></tr>
+  <tr><td>Single-camera apps</td><td>vision-only phone apps</td>
+      <td>one camera guessing at physics it can't see; fails exactly when light,
+      angle, or a net-clipped ball defeats it</td></tr>
+  <tr class="us"><td>SplitStep</td><td>the phones already in your bag</td>
+      <td>—</td></tr>
+</table>
+</div>
+<p>Every incumbent treats sensing as a hardware problem. The founding observation:
+<b>players already carry the hardware.</b> A modern phone has a
+millisecond-accurate microphone, a fast camera, and a radio. Two of them,
+coordinated, are a small officiating system. The missing product was never a
+device — it was the orchestration layer.</p>
+
+<h2>The inventions</h2>
+
+<div class="insight"><span class="tag">Insight 01</span>
+<b class="title">Two phones that only believe what they both heard</b>
+<p>Any single microphone can be fooled — wind, pocket rustle, the next court
+over. The creative leap: make <b>agreement between devices</b> the filter.
+A sound only counts when two phones, placed apart, both witness it in a
+physically consistent way. Noise doesn't get filtered out; it never gets in.
+This idea — phones as corroborating witnesses — is the core of the drafted
+patent application, where the prior-art search found open white space.</p></div>
+
+<div class="insight"><span class="tag">Insight 02</span>
+<b class="title">Sound knows when. Vision knows where. The court knows how big.</b>
+<p>Cameras sample time too coarsely to catch a bounce; microphones catch it to
+the millisecond but can't see. Fusing them on one clock measures what neither
+sensor can alone — and the court's own painted lines, with their regulation
+dimensions, turn four taps on a screen into full metric geometry. <b>No
+tripods, no measuring, no calibration hardware: the court calibrates
+itself.</b></p></div>
+
+<div class="insight"><span class="tag">Insight 03</span>
+<b class="title">The second phone is the product, three times over</b>
+<p>The same "spare" phone serves as: the <b>strike microphone</b> that unlocks
+serve speed and net-fault detection; the <b>announcer in your pocket</b> so
+calls are spoken where you stand, not across the court; and the <b>remote
+viewfinder</b> — a live view of the mounted phone in your hand, so you aim,
+zoom, and calibrate a camera whose screen you can't see. Competitors ship a
+companion app for score display. SplitStep makes the second device a sensor,
+a speaker, and a control surface.</p></div>
+
+<div class="insight"><span class="tag">Insight 04</span>
+<b class="title">Follow the courts, not the roadmap</b>
+<p>The original wedge was wall practice — until real-world testing surfaced a
+market fact: practice walls are disappearing from Los Angeles parks. The
+product pivoted within a day to <b>serve practice</b>: solo-testable (no
+partner needed), playable on any court, immediately useful — and every serve
+recorded is training data that improves the vision models. A feature that
+funds its own R&amp;D.</p></div>
+
+<div class="insight"><span class="tag">Insight 05</span>
+<b class="title">Accessories yes, gadgets no</b>
+<p>A disciplined line on hardware: SplitStep will recommend a $15 fence clamp
+or the Bluetooth earbuds you already own (voice control from the baseline) —
+but never manufactures electronics. That keeps margins software-shaped,
+avoids inventory and support, and — as the freedom-to-operate research
+showed — steers around active patents that cover exactly the net-post camera
+gadgets others build.</p></div>
+
+<h2>The product today</h2>
+<div class="grid2">
+  <div class="cap"><b>Serve Practice</b><span>prop a phone behind the box, serve
+  from the far end: spoken calls with distances, serve speed, net faults, and a
+  placement map — hands-free with voice control</span></div>
+  <div class="cap"><b>Wall &amp; Rally Modes</b><span>hit counting, streaks, personal
+  bests, spoken milestones — solo or with two phones cross-checking</span></div>
+  <div class="cap"><b>Own vision models</b><span>a 1.16&nbsp;MB ball detector
+  trained from scratch on licensed + synthetic data; one training run ships to
+  Android and iPhone identically</span></div>
+  <div class="cap"><b>Works anywhere</b><span>phones pair directly even with zero
+  connectivity — a court in a dead zone works exactly like one at a club</span></div>
+</div>
+
+<h2>Strategic judgment</h2>
+<div class="moat"><b>Patent position, built before launch</b>
+<p>An adversarial prior-art campaign (commercial, academic, patent databases)
+mapped the landscape before a single public disclosure: the multi-device
+acoustic mechanism sits in identified white space, a provisional application
+is drafted, and two competitors' patent families were claim-charted to
+confirm freedom to operate.</p></div>
+<div class="moat"><b>A cost structure incumbents can't follow down</b>
+<p>Everything runs on the player's own devices: no cloud inference, no
+per-user compute cost, full privacy by construction. Marginal cost of an
+additional user is effectively zero — and the product works offline, which
+cloud-dependent competitors structurally cannot match.</p></div>
+<div class="moat"><b>A data flywheel that respects the user</b>
+<p>The models launch on licensed and synthetic data — no user footage
+required. But every practice session can (opt-in) contribute exactly the
+real-world imagery and acoustics the models lack. Usage compounds into
+accuracy; accuracy compounds into usage.</p></div>
+<div class="moat"><b>Execution leverage, managed like a team</b>
+<p>I ran an AI engineering pair the way I'd run a high-output team: clear
+constraints, ruthless priorities, review gates before every release, and a
+standing rule that nothing ships without a number or a field test. Result:
+29 shipped builds, 5 model generations, a patent draft, and a competitive
+teardown in 11 days — from one person's direction.</p></div>
+
+<h2>How I operate — mapped to the work I want to do</h2>
+<div class="grid2">
+  <div class="cap"><b>Product management</b><span>Found the wedge by testing on
+  real courts, not in a deck. Killed my own favorite feature on market evidence
+  ("practice walls are disappearing") and repointed the product in a day. Set
+  one measurable gate for "it works" and refused vanity metrics — including
+  re-measuring a competitor baseline from a claimed 83% down to its true 31–37%
+  before trusting it.</span></div>
+  <div class="cap"><b>Engineering management</b><span>Priorities ranked by user
+  pain; adversarial review gates that caught release-killing bugs before the
+  field did; same-day turnaround from field report to root cause to shipped
+  fix; scope discipline — deferred features named explicitly with the evidence
+  needed to unlock them. Managed IP risk like an engineering constraint:
+  patent search and freedom-to-operate before public disclosure.</span></div>
+  <div class="cap"><b>Data &amp; ML engineering</b><span>Built the data supply
+  chain end-to-end: licensed + synthetic training data (zero user-data
+  dependency at launch), leakage-safe held-out evaluation, one attributable
+  change per model generation (27%→65% real-world detection), operating-point
+  tuning that halved false alarms without retraining, and a deployment
+  pipeline that ships one set of weights to two platforms with verified
+  numerical parity.</span></div>
+</div>
+
+<h2>The vision</h2>
+<p>Serve practice is the wedge. The arc: two phones at opposite fences as a
+synchronized officiating pair — line calls with honest confidence bands, serve
+speed, match analytics, and a coaching layer on top — <b>consumer Hawk-Eye,
+built from hardware the players already own.</b> Feasibility work puts the
+core capabilities within a 12–18 month horizon, and the mechanism that makes
+it possible is the one already drafted for patent.</p>
+
+<h2>Where I fit</h2>
+<p>I'm looking for roles where this way of working compounds: <b>product
+management</b>, <b>engineering management</b>, or <b>data engineering</b> —
+especially where a product needs someone who can hold the market story, the
+technical reality, and the execution cadence in one head. SplitStep is what
+that looks like when I'm pointed at a problem I love.</p>
+
+<footer>
+  SplitStep is created by <a href="/">Vibhav Gupta</a> — product direction, inventions, field
+  validation, and execution management — built with Claude as the AI
+  engineering pair. Codebase private; mechanism details withheld pending
+  patent filing. <a href="mailto:vibhavgupta2@gmail.com">Reach me</a> for the deep-dive: the full build journal and ML
+  notebook exist for exactly that conversation.
+</footer>
+</main>
+
+</body>
+</html>
