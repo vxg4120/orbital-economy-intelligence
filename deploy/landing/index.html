@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vibcreates — one engine, two skies</title>
+<style>
+  :root{
+    --paper:#0B0F17; --surface:#121826; --ink:#E8ECF4; --muted:#98A2B6; --faint:#6D778C;
+    --line:#222c3d; --near:#E9954B; --deep:#3FC0D2;
+    --fdisp:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --fbody:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --fmono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1100px 520px at 12% -8%, rgba(233,149,75,.10), transparent 60%),
+      radial-gradient(1100px 520px at 88% -8%, rgba(63,192,210,.11), transparent 60%),
+      var(--paper);
+    color:var(--ink); font-family:var(--fbody); line-height:1.6; min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column;
+  }
+  .wrap{width:100%; max-width:960px; margin:0 auto; padding:0 24px}
+  main{flex:1; display:flex; flex-direction:column; justify-content:center; padding:72px 0}
+  .eyebrow{font-family:var(--fmono); font-size:.72rem; letter-spacing:.2em; text-transform:uppercase; color:var(--faint)}
+  h1{font-family:var(--fdisp); font-weight:600; font-size:clamp(2.6rem,7vw,4.6rem); line-height:1; letter-spacing:-.02em; margin:.35em 0 0}
+  h1 .n{color:var(--near)} h1 .d{color:var(--deep)}
+  .lede{max-width:34rem; color:var(--muted); font-size:clamp(1.02rem,1.7vw,1.2rem); margin:22px 0 44px}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+  @media (max-width:680px){ .cards{grid-template-columns:1fr} main{padding:52px 0} }
+  .card{
+    display:block; text-decoration:none; color:inherit; background:var(--surface);
+    border:1px solid var(--line); border-radius:16px; padding:28px 26px; position:relative;
+    overflow:hidden; transition:transform .16s ease, border-color .16s ease;
+  }
+  .card:hover{transform:translateY(-3px)}
+  .card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px}
+  .card.near::before{background:var(--near)} .card.deep::before{background:var(--deep)}
+  .card.near:hover{border-color:var(--near)} .card.deep:hover{border-color:var(--deep)}
+  .card .kick{font-family:var(--fmono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase}
+  .card.near .kick{color:var(--near)} .card.deep .kick{color:var(--deep)}
+  .card h2{font-family:var(--fdisp); font-weight:600; font-size:1.5rem; margin:12px 0 8px; letter-spacing:-.01em}
+  .card p{margin:0 0 20px; color:var(--muted); font-size:.95rem}
+  .card .go{font-family:var(--fmono); font-size:.82rem; color:var(--ink); display:inline-flex; align-items:center; gap:8px}
+  .card.near .go{color:var(--near)} .card.deep .go{color:var(--deep)}
+  footer{border-top:1px solid var(--line)}
+  footer .wrap{padding:22px 24px; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; justify-content:space-between}
+  .flinks{display:flex; flex-wrap:wrap; gap:6px 20px; font-family:var(--fmono); font-size:.8rem}
+  footer a{color:var(--muted); text-decoration:none} footer a:hover{color:var(--ink)}
+  .sig{font-family:var(--fmono); font-size:.78rem; color:var(--faint)}
+  a:focus-visible,.card:focus-visible{outline:2px solid var(--deep); outline-offset:3px; border-radius:6px}
+  @media (prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+  <main>
+    <div class="wrap">
+      <div class="eyebrow">vibcreates · provenance data infrastructure</div>
+      <h1>One engine,<br><span class="n">two</span> <span class="d">skies</span>.</h1>
+      <p class="lede">A single conflict-aware identity-graph engine that reconciles the catalogs
+        nobody agrees on — pointed at the satellites overhead, and the planets around other stars.</p>
+      <div class="cards">
+        <a class="card near" href="https://orbital.vibcreates.com">
+          <div class="kick">Near sky · orbital economy</div>
+          <h2>Orbital Economy Intelligence</h2>
+          <p>A clean, running system-of-record for everything in orbit — 70k+ objects reconciled across Space-Track, CelesTrak, GCAT &amp; UCS.</p>
+          <span class="go">Open the platform →</span>
+        </a>
+        <a class="card deep" href="https://exo.vibcreates.com">
+          <div class="kick">Deep sky · exoplanet discovery</div>
+          <h2>ExoDossier</h2>
+          <p>Cited, provenance-tracked vetting dossiers for transit candidates — and the first exoplanet MCP server.</p>
+          <span class="go">Open the platform →</span>
+        </a>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <div class="flinks">
+        <a href="https://github.com/vxg4120/orbital-economy-intelligence">Orbital — source ↗</a>
+        <a href="https://github.com/vxg4120/exodossier">ExoDossier — source ↗</a>
+      </div>
+      <div class="sig">Vibhav Gupta</div>
+    </div>
+  </footer>
+</body>
+</html>
