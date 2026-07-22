@@ -69,7 +69,12 @@
   .top .where{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--faint); text-transform:uppercase}
 
   /* ---------- hero: the person ---------- */
-  .hero{padding-top:10vh; position:relative; z-index:2}
+  .hero{padding-top:10vh; position:relative; z-index:2; display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:0 64px; align-items:start}
+  .hero .left{min-width:0}
+  .fig{background:var(--surface); border:1px solid var(--line-2); padding:11px 11px 9px}
+  .fig img{display:block; width:100%; border:1px solid var(--line)}
+  .fig figcaption{font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-top:9px}
+  .hero .fig{margin-top:14px; transform:rotate(.4deg)}
   .hero h1{
     font-family:var(--serif); font-weight:380; font-variation-settings:"opsz" 144;
     font-size:clamp(4.2rem,13vw,10.5rem); line-height:.95; letter-spacing:-.02em; margin:0;
@@ -178,6 +183,8 @@
 
   /* ---------- contact ---------- */
   .contact{padding-block:30px 90px}
+  .contact .cgrid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:0 64px; align-items:start}
+  .contact .fig{transform:rotate(-.4deg)}
   .contact h2{
     font-family:var(--serif); font-weight:390; font-variation-settings:"opsz" 144;
     font-size:clamp(2rem,5vw,3.6rem); line-height:1.08; letter-spacing:-.015em; margin:0; max-width:22ch; text-wrap:balance;
@@ -199,6 +206,10 @@
   @media (prefers-reduced-motion:reduce){.rv{opacity:1; transform:none}}
 
   @media (max-width:900px){
+    .hero{grid-template-columns:1fr; gap:0}
+    .hero .fig{max-width:300px; margin-top:34px}
+    .contact .cgrid{grid-template-columns:1fr}
+    .contact .fig{max-width:300px; margin-top:36px}
     .stats{grid-template-columns:1fr 1fr}
     .avail span{font-size:.66rem; letter-spacing:.02em}
     .cta{gap:14px 20px; font-size:.8rem}
@@ -225,6 +236,7 @@
 </div>
 
 <header class="hero wrap">
+  <div class="left">
   <h1>I'm Vib<span class="dot">.</span></h1>
   <div class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <p class="intro">An economics grad who became an engineer, a founder who still ships daily,
@@ -243,6 +255,11 @@
     <a href="https://github.com/vxg4120">github/vxg4120</a>
     <a href="https://linkedin.com/in/vib">linkedin/in/vib</a>
   </nav>
+  </div>
+  <figure class="fig rv">
+    <img src="/img/portrait.jpg" alt="Vibhav Gupta" width="900" height="1200" />
+    <figcaption>fig. 0 — the operator</figcaption>
+  </figure>
 </header>
 
 <div class="sigwrap" aria-hidden="true">
@@ -407,6 +424,8 @@
 
 <section class="wrap contact" id="contact">
   <div class="shead"><span class="k">Contact</span><h2>Two ways to work with me.</h2></div>
+  <div class="cgrid">
+  <div>
   <h2>Need a system of record —<br>or the person who <em>builds them?</em></h2>
   <div class="ways">
     <a href="mailto:vibhavgupta2@gmail.com">vibhavgupta2@gmail.com</a>
@@ -416,6 +435,12 @@
   <p class="note">Fastest way in is email — I answer. This site is hand-written static HTML on a
     $7 server in Helsinki that I administer myself; the live numbers are real queries against my
     databases, stamped at request time. View source — there's nothing to hide.</p>
+  </div>
+  <figure class="fig rv">
+    <img src="/img/la.jpg" alt="Vib at Echo Park Lake, downtown Los Angeles behind" width="1000" height="1779" loading="lazy" />
+    <figcaption>fig. 2 — home court: Echo Park, LA</figcaption>
+  </figure>
+  </div>
 </section>
 
 <footer>
