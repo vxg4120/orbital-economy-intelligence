@@ -350,7 +350,12 @@
         <strong>20M+ events a day</strong>. The work I'm proudest of: sales estimated from
         inventory movement and <strong>calibrated against official state figures</strong>, plus a
         confidence-gated AI pipeline that scores <strong>about 3M products daily</strong> and sends
-        the uncertain fifth to a self-hosted LLM. We were mostly bootstrapped against competitors
+        the uncertain fifth to a self-hosted LLM. Underneath it all sits infrastructure my team
+        designed and still runs: a <strong>17-node Kubernetes cluster</strong> with 230+ pods across
+        103 deployments, a <strong>3-broker Kafka backbone</strong> whose core topics run 50
+        partitions and feed autoscaled stream processors (25 replicas for the busiest provider
+        alone), and a TimescaleDB holding <strong>329M product rows and over 2.5B events</strong>.
+        We were mostly bootstrapped against competitors
         who raised millions more, won the business anyway (I closed most of it myself), and watched
         those incumbents <strong>start emulating our strategies and following our releases</strong>.
         Along the way we acquired one of our rivals and integrated it in four months.</p>
@@ -360,6 +365,8 @@
       <div class="m"><div class="v num">20M+</div><div class="l">events ingested per day</div></div>
       <div class="m"><div class="v num">40,000+</div><div class="l">menu feeds, ~20k dispensaries</div></div>
       <div class="m"><div class="v num">~3M</div><div class="l">products AI-scored daily</div></div>
+      <div class="m"><div class="v num">17 nodes</div><div class="l">Kubernetes, 230+ pods, 103 deployments</div></div>
+      <div class="m"><div class="v num">3×50</div><div class="l">Kafka brokers × partitions on core topics</div></div>
       <div class="m"><div class="v num">78→96%</div><div class="l">data accuracy, measured</div></div>
     </div>
   </article>
