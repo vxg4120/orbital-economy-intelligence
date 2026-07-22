@@ -64,12 +64,12 @@
   .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
 
   /* ---------- top bar ---------- */
-  .top{display:flex; justify-content:space-between; align-items:baseline; padding:26px 0 0; position:relative; z-index:2}
+  .top{display:flex; justify-content:space-between; align-items:baseline; padding-top:26px; position:relative; z-index:2}
   .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; letter-spacing:-.01em; text-decoration:none}
   .top .where{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--faint); text-transform:uppercase}
 
   /* ---------- hero: the person ---------- */
-  .hero{padding:10vh 0 0; position:relative; z-index:2}
+  .hero{padding-top:10vh; position:relative; z-index:2}
   .hero h1{
     font-family:var(--serif); font-weight:380; font-variation-settings:"opsz" 144;
     font-size:clamp(4.2rem,13vw,10.5rem); line-height:.95; letter-spacing:-.02em; margin:0;
@@ -103,7 +103,7 @@
   .signal{display:block; width:100%; height:190px}
 
   /* ---------- off the record: personal ledger ---------- */
-  .otr{border-top:1px solid var(--ink); padding:26px 0 64px; position:relative; z-index:2}
+  .otr{border-top:1px solid var(--ink); padding-block:26px 64px; position:relative; z-index:2}
   .qa{display:grid; grid-template-columns:1fr 1fr; gap:0 64px; margin-top:26px}
   .qrow{display:grid; grid-template-columns:130px minmax(0,1fr); gap:0 22px; padding:15px 0; border-bottom:1px solid var(--line); align-items:baseline}
   .qrow .q{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
@@ -111,7 +111,7 @@
   .qrow .a em{font-style:italic}
 
   /* ---------- live strip ---------- */
-  .live{border-top:1px solid var(--ink); padding:26px 0 60px; position:relative; z-index:2}
+  .live{border-top:1px solid var(--ink); padding-block:26px 60px; position:relative; z-index:2}
   .live .lede{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px; margin-bottom:30px}
   .live .lede .k{color:var(--muted)}
   .live .stamp{font-family:var(--mono); font-size:.72rem; color:var(--faint)}
@@ -123,7 +123,7 @@
   .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
 
   /* ---------- section head ---------- */
-  section{padding:0 0 24px; position:relative; z-index:2}
+  section{padding-bottom:24px; position:relative; z-index:2}
   .shead{display:flex; align-items:baseline; gap:16px; border-top:1px solid var(--ink); padding:22px 0 44px}
   .shead .k{color:var(--muted)}
   .shead h2{font-family:var(--serif); font-weight:420; font-size:1.35rem; margin:0; letter-spacing:-.01em}
@@ -177,7 +177,7 @@
   .crow .what b{color:var(--ink); font-weight:600}
 
   /* ---------- contact ---------- */
-  .contact{padding:30px 0 90px}
+  .contact{padding-block:30px 90px}
   .contact h2{
     font-family:var(--serif); font-weight:390; font-variation-settings:"opsz" 144;
     font-size:clamp(2rem,5vw,3.6rem); line-height:1.08; letter-spacing:-.015em; margin:0; max-width:22ch; text-wrap:balance;
