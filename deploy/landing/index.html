@@ -3,89 +3,462 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>vibcreates — one engine, two skies</title>
+<title>Vibhav Gupta — systems of record for messy data</title>
+<meta name="description" content="Founder of CannMenus. Builder of live data platforms for cannabis retail, satellite catalogs, exoplanet archives, and the tennis court. Chicago, IL." />
+<meta property="og:title" content="Vibhav Gupta — systems of record for messy data" />
+<meta property="og:description" content="Ten years of data platforms. Four domains. Live numbers, queried from systems I run." />
+<meta property="og:url" content="https://vibcreates.com" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F5F4EF'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='44' fill='%231B1C17'%3EV%3C/text%3E%3Ccircle cx='49' cy='45' r='4' fill='%23B75E14'/%3E%3C/svg%3E" />
 <style>
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-var.woff2') format('woff2');
+    font-weight:300 700; font-stretch:normal; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-italic-var.woff2') format('woff2');
+    font-weight:300 700; font-style:italic; font-display:swap;
+  }
+
   :root{
-    --paper:#0B0F17; --surface:#121826; --ink:#E8ECF4; --muted:#98A2B6; --faint:#6D778C;
-    --line:#222c3d; --near:#E9954B; --deep:#3FC0D2;
-    --fdisp:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
-    --fbody:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --fmono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    --paper:#F5F4EF; --surface:#FCFBF7; --ink:#1B1C17; --muted:#5C5F53; --faint:#8A8D7F;
+    --line:#DDDCD2; --line-2:#C9C8BB;
+    --retail:#8C3A63; --orbit:#B75E14; --deep:#0F7482; --base:#68780F;
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --w:1140px;
   }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#131510; --surface:#191B15; --ink:#ECEDE3; --muted:#A2A592; --faint:#71745F;
+      --line:#282B20; --line-2:#383C2D;
+      --retail:#D678A8; --orbit:#E8954A; --deep:#3EC3D4; --base:#C4E03A;
+    }
+  }
+
   *{box-sizing:border-box}
-  html,body{margin:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{
-    background:
-      radial-gradient(1100px 520px at 12% -8%, rgba(233,149,75,.10), transparent 60%),
-      radial-gradient(1100px 520px at 88% -8%, rgba(63,192,210,.11), transparent 60%),
-      var(--paper);
-    color:var(--ink); font-family:var(--fbody); line-height:1.6; min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column;
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  .wrap{width:100%; max-width:960px; margin:0 auto; padding:0 24px}
-  main{flex:1; display:flex; flex-direction:column; justify-content:center; padding:72px 0}
-  .eyebrow{font-family:var(--fmono); font-size:.72rem; letter-spacing:.2em; text-transform:uppercase; color:var(--faint)}
-  h1{font-family:var(--fdisp); font-weight:600; font-size:clamp(2.6rem,7vw,4.6rem); line-height:1; letter-spacing:-.02em; margin:.35em 0 0}
-  h1 .n{color:var(--near)} h1 .d{color:var(--deep)}
-  .lede{max-width:34rem; color:var(--muted); font-size:clamp(1.02rem,1.7vw,1.2rem); margin:22px 0 44px}
-  .cards{display:grid; grid-template-columns:1fr 1fr; gap:20px}
-  @media (max-width:680px){ .cards{grid-template-columns:1fr} main{padding:52px 0} }
-  .card{
-    display:block; text-decoration:none; color:inherit; background:var(--surface);
-    border:1px solid var(--line); border-radius:16px; padding:28px 26px; position:relative;
-    overflow:hidden; transition:transform .16s ease, border-color .16s ease;
+  .wrap{max-width:var(--w); margin:0 auto; padding:0 28px}
+  a{color:inherit}
+  ::selection{background:var(--orbit); color:var(--paper)}
+
+  .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.16em; text-transform:uppercase}
+  .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+  /* ---------- top bar ---------- */
+  .top{display:flex; justify-content:space-between; align-items:baseline; padding:26px 0 0}
+  .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; letter-spacing:-.01em; text-decoration:none}
+  .top .where{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--faint); text-transform:uppercase}
+
+  /* ---------- hero ---------- */
+  .hero{padding:9vh 0 0}
+  .hero .who{color:var(--muted); margin:0 0 18px}
+  .hero h1{
+    font-family:var(--serif); font-weight:390; font-variation-settings:"opsz" 144;
+    font-size:clamp(2.6rem,7.2vw,5.9rem); line-height:1.02; letter-spacing:-.015em;
+    margin:0; max-width:19ch; text-wrap:balance;
   }
-  .card:hover{transform:translateY(-3px)}
-  .card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px}
-  .card.near::before{background:var(--near)} .card.deep::before{background:var(--deep)}
-  .card.near:hover{border-color:var(--near)} .card.deep:hover{border-color:var(--deep)}
-  .card .kick{font-family:var(--fmono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase}
-  .card.near .kick{color:var(--near)} .card.deep .kick{color:var(--deep)}
-  .card h2{font-family:var(--fdisp); font-weight:600; font-size:1.5rem; margin:12px 0 8px; letter-spacing:-.01em}
-  .card p{margin:0 0 20px; color:var(--muted); font-size:.95rem}
-  .card .go{font-family:var(--fmono); font-size:.82rem; color:var(--ink); display:inline-flex; align-items:center; gap:8px}
-  .card.near .go{color:var(--near)} .card.deep .go{color:var(--deep)}
-  footer{border-top:1px solid var(--line)}
-  footer .wrap{padding:22px 24px; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; justify-content:space-between}
-  .flinks{display:flex; flex-wrap:wrap; gap:6px 20px; font-family:var(--fmono); font-size:.8rem}
-  footer a{color:var(--muted); text-decoration:none} footer a:hover{color:var(--ink)}
-  .sig{font-family:var(--fmono); font-size:.78rem; color:var(--faint)}
-  a:focus-visible,.card:focus-visible{outline:2px solid var(--deep); outline-offset:3px; border-radius:6px}
-  @media (prefers-reduced-motion:reduce){.card{transition:none}}
+  .hero h1 em{font-style:italic; font-weight:430}
+  .hero .sub{max-width:62ch; color:var(--muted); font-size:clamp(1rem,1.6vw,1.16rem); margin:30px 0 0}
+  .hero .sub strong{color:var(--ink); font-weight:600}
+  .avail{display:flex; flex-wrap:wrap; gap:10px 14px; margin:34px 0 0}
+  .avail span{
+    font-family:var(--mono); font-size:.74rem; letter-spacing:.06em;
+    border:1px solid var(--line-2); border-radius:2px; padding:7px 12px; color:var(--muted);
+  }
+  .avail span b{color:var(--ink); font-weight:600}
+  .cta{display:flex; flex-wrap:wrap; gap:22px; margin:30px 0 0; font-family:var(--mono); font-size:.86rem}
+  .cta a{text-decoration:none; border-bottom:1.5px solid var(--ink); padding-bottom:3px}
+  .cta a:hover{border-color:var(--orbit); color:var(--orbit)}
+
+  /* ---------- signal ornament ---------- */
+  .signal{display:block; width:100%; height:130px; margin:52px 0 0}
+
+  /* ---------- live strip ---------- */
+  .live{border-top:1px solid var(--ink); padding:26px 0 60px}
+  .live .lede{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px; margin-bottom:30px}
+  .live .lede .k{color:var(--muted)}
+  .live .stamp{font-family:var(--mono); font-size:.72rem; color:var(--faint)}
+  .live .stamp .dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--base); margin-right:7px; vertical-align:1px}
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px 32px}
+  .stat .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:clamp(1.5rem,2.8vw,2.15rem); font-weight:600; letter-spacing:-.03em; line-height:1}
+  .stat .l{font-size:.82rem; color:var(--muted); margin-top:8px; line-height:1.35}
+  .stat .l i{font-style:normal; font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase}
+  .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
+
+  /* ---------- section head ---------- */
+  section{padding:0 0 24px}
+  .shead{display:flex; align-items:baseline; gap:16px; border-top:1px solid var(--ink); padding:22px 0 44px}
+  .shead .k{color:var(--muted)}
+  .shead h2{font-family:var(--serif); font-weight:420; font-size:1.35rem; margin:0; letter-spacing:-.01em}
+
+  /* ---------- ledger entries ---------- */
+  .entry{
+    display:grid; grid-template-columns:96px 1fr 300px; gap:0 44px;
+    padding:0 0 64px; margin-bottom:64px; border-bottom:1px solid var(--line);
+  }
+  .entry:last-of-type{border-bottom:none; margin-bottom:0}
+  .entry .idx{font-family:var(--serif); font-weight:330; font-variation-settings:"opsz" 144; font-size:2.6rem; line-height:1; color:var(--line-2)}
+  .entry .dom{font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; margin-top:10px}
+  .entry.e-retail .dom{color:var(--retail)} .entry.e-orbit .dom{color:var(--orbit)}
+  .entry.e-deep .dom{color:var(--deep)} .entry.e-base .dom{color:var(--base)}
+  .entry h3{
+    font-family:var(--serif); font-weight:480; font-variation-settings:"opsz" 80;
+    font-size:clamp(1.7rem,3vw,2.3rem); line-height:1.05; letter-spacing:-.015em; margin:0;
+  }
+  .entry .role{font-family:var(--mono); font-size:.76rem; color:var(--muted); margin:12px 0 0; letter-spacing:.04em}
+  .entry p{max-width:58ch; color:var(--muted); margin:20px 0 0; font-size:1.01rem}
+  .entry p strong{color:var(--ink); font-weight:600}
+  .entry .links{display:flex; flex-wrap:wrap; gap:20px; margin-top:26px; font-family:var(--mono); font-size:.82rem}
+  .entry .links a{text-decoration:none; border-bottom:1.5px solid currentColor; padding-bottom:2px}
+  .entry.e-retail .links a{color:var(--retail)} .entry.e-orbit .links a{color:var(--orbit)}
+  .entry.e-deep .links a{color:var(--deep)} .entry.e-base .links a{color:var(--base)}
+  .entry .links .quiet{color:var(--faint); border-bottom:none; cursor:default}
+  .rail{border-left:1px solid var(--line); padding-left:28px; align-self:start; display:grid; gap:20px}
+  .rail .m .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:1.28rem; font-weight:600; letter-spacing:-.02em; line-height:1.1}
+  .rail .m .l{font-size:.78rem; color:var(--faint); margin-top:4px; line-height:1.35}
+
+  /* ---------- method ---------- */
+  .method{display:grid; grid-template-columns:repeat(2,1fr); gap:44px 56px; padding-bottom:56px}
+  .method .mi h3{font-family:var(--serif); font-weight:480; font-size:1.22rem; margin:0 0 10px; letter-spacing:-.01em}
+  .method .mi h3 .n{font-family:var(--mono); font-size:.72rem; font-weight:400; color:var(--faint); letter-spacing:.1em; margin-right:10px; vertical-align:3px}
+  .method .mi p{margin:0; color:var(--muted); font-size:.96rem; max-width:48ch}
+  .method .mi p b{color:var(--ink); font-weight:600}
+
+  /* ---------- career ledger ---------- */
+  .career{padding-bottom:64px}
+  .crow{
+    display:grid; grid-template-columns:150px 1fr; gap:0 40px; align-items:baseline;
+    padding:13px 0; border-bottom:1px solid var(--line); font-size:.94rem;
+  }
+  .crow:first-of-type{border-top:1px solid var(--line)}
+  .crow .yr{font-family:var(--mono); font-size:.76rem; color:var(--faint); letter-spacing:.04em}
+  .crow .what{color:var(--muted)}
+  .crow .what b{color:var(--ink); font-weight:600}
+
+  /* ---------- contact ---------- */
+  .contact{padding:30px 0 90px}
+  .contact h2{
+    font-family:var(--serif); font-weight:390; font-variation-settings:"opsz" 144;
+    font-size:clamp(2rem,5vw,3.6rem); line-height:1.08; letter-spacing:-.015em; margin:0; max-width:22ch; text-wrap:balance;
+  }
+  .contact h2 em{font-style:italic}
+  .contact .ways{display:flex; flex-wrap:wrap; gap:14px 34px; margin:38px 0 0; font-family:var(--mono); font-size:.92rem}
+  .contact .ways a{text-decoration:none; border-bottom:1.5px solid var(--ink); padding-bottom:3px}
+  .contact .ways a:hover{border-color:var(--orbit); color:var(--orbit)}
+  .contact .note{margin:44px 0 0; max-width:52ch; color:var(--faint); font-size:.84rem; line-height:1.6}
+
+  footer{border-top:1px solid var(--line); padding:22px 0 34px}
+  footer .wrap{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px}
+  footer span{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; color:var(--faint)}
+
+  a:focus-visible{outline:2px solid var(--deep); outline-offset:3px}
+
+  /* ---------- reveal ---------- */
+  .rv{opacity:0; transform:translateY(12px)}
+  .rv.in{opacity:1; transform:none; transition:opacity .55s ease, transform .55s ease}
+  @media (prefers-reduced-motion:reduce){.rv{opacity:1; transform:none}}
+
+  @media (max-width:900px){
+    .stats{grid-template-columns:1fr 1fr}
+    .entry{grid-template-columns:1fr; gap:0}
+    .entry .idx{font-size:2rem; margin-bottom:2px}
+    .entry .dom{margin:2px 0 14px}
+    .rail{border-left:none; border-top:1px solid var(--line); padding:22px 0 0; margin-top:28px; grid-template-columns:1fr 1fr; gap:18px 24px}
+    .method{grid-template-columns:1fr}
+    .crow{grid-template-columns:1fr; gap:2px}
+  }
 </style>
 </head>
 <body>
-  <main>
-    <div class="wrap">
-      <div class="eyebrow">vibcreates · provenance data infrastructure</div>
-      <h1>One engine,<br><span class="n">two</span> <span class="d">skies</span>.</h1>
-      <p class="lede">A single conflict-aware identity-graph engine that reconciles the catalogs
-        nobody agrees on — pointed at the satellites overhead, and the planets around other stars.</p>
-      <div class="cards">
-        <a class="card near" href="https://orbital.vibcreates.com">
-          <div class="kick">Near sky · orbital economy</div>
-          <h2>Orbital Economy Intelligence</h2>
-          <p>A clean, running system-of-record for everything in orbit — 70k+ objects reconciled across Space-Track, CelesTrak, GCAT &amp; UCS.</p>
-          <span class="go">Open the platform →</span>
-        </a>
-        <a class="card deep" href="https://exo.vibcreates.com">
-          <div class="kick">Deep sky · exoplanet discovery</div>
-          <h2>ExoDossier</h2>
-          <p>Cited, provenance-tracked vetting dossiers for transit candidates — and the first exoplanet MCP server.</p>
-          <span class="go">Open the platform →</span>
-        </a>
+
+<div class="wrap top">
+  <a class="brand" href="/">vibcreates</a>
+  <span class="where">Chicago, IL · 41.88°N</span>
+</div>
+
+<header class="hero wrap">
+  <p class="who k" style="color:var(--muted)">Vibhav Gupta — founder &amp; data engineer</p>
+  <h1>I build systems of record for data that <em>disagrees with itself.</em></h1>
+  <p class="sub">Ten years across data platforms and reliability engineering — seven of them as
+    <strong>founder &amp; CEO of CannMenus</strong>, the pricing-and-inventory record for North American
+    cannabis retail. This year I pointed the same method at three stranger domains:
+    satellite catalogs, exoplanet archives, and the tennis court.</p>
+  <div class="avail">
+    <span><b>Open to</b> — senior / staff data-platform &amp; product roles</span>
+    <span><b>Taking on</b> — fractional data engineering &amp; AI consulting</span>
+  </div>
+  <nav class="cta">
+    <a href="mailto:vibhavgupta2@gmail.com">vibhavgupta2@gmail.com</a>
+    <a href="https://github.com/vxg4120">github/vxg4120</a>
+    <a href="https://linkedin.com/in/vib">linkedin/in/vib</a>
+  </nav>
+</header>
+
+<canvas class="signal" id="signal" aria-hidden="true"></canvas>
+
+<section class="live wrap" aria-label="Live metrics">
+  <div class="lede">
+    <span class="k">Proof, not promises</span>
+    <span class="stamp" id="stamp"><span class="dot"></span>querying live systems…</span>
+  </div>
+  <div class="stats">
+    <div class="stat orbit rv"><div class="v num" id="s-sat">—</div><div class="l">tracked objects resolved · <i>orbital</i></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-gp">—</div><div class="l">orbital element sets · <i>orbital</i></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-cand">—</div><div class="l">exoplanet candidates · <i>exodossier</i></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-assert">—</div><div class="l">source assertions kept · <i>exodossier</i></div></div>
+  </div>
+</section>
+
+<section class="wrap" id="work">
+  <div class="shead"><span class="k">The work</span><h2>Four domains, one method, all real.</h2></div>
+
+  <article class="entry e-retail rv">
+    <div><div class="idx num">01</div><div class="dom">Retail</div></div>
+    <div>
+      <h3>CannMenus</h3>
+      <div class="role">Founder &amp; CEO · 2019 — present</div>
+      <p>Cannabis retail had thousands of dispensary menus and no ground truth. CannMenus scrapes,
+        normalizes, and reconciles them into SKU-level pricing and inventory intelligence covering
+        roughly <strong>90% of licensed dispensaries</strong> in the U.S. and Canada, refreshed hourly.
+        Bootstrapped to real revenue, raised angel capital, then <strong>acquired and integrated a
+        Canadian competitor's data business</strong>. Led a team of four; ran the stack end to end —
+        Python, Kafka, TimescaleDB, BigQuery, Kubernetes, Airflow.</p>
+      <div class="links"><a href="https://cannmenus.com">cannmenus.com ↗</a></div>
+    </div>
+    <div class="rail">
+      <div class="m"><div class="v num">~90%</div><div class="l">of licensed dispensaries covered</div></div>
+      <div class="m"><div class="v num">hourly</div><div class="l">inventory + price refresh</div></div>
+      <div class="m"><div class="v num">1</div><div class="l">acquisition led &amp; integrated</div></div>
+      <div class="m"><div class="v num">7 yrs</div><div class="l">operating, founder-led</div></div>
+    </div>
+  </article>
+
+  <article class="entry e-orbit rv">
+    <div><div class="idx num">02</div><div class="dom">Orbit</div></div>
+    <div>
+      <h3>Orbital Economy Intelligence</h3>
+      <div class="role">Built solo · 2026 · live &amp; refreshed nightly</div>
+      <p>Space-Track, CelesTrak, GCAT, and the UCS registry openly disagree about who owns what in
+        orbit — and nearly everyone resolves it by quietly picking one source. OEI keeps all four:
+        an identity graph with <strong>per-attribute provenance</strong>, a replayable merge log, and
+        the disagreements surfaced as the product. <strong>99.3% of tracked objects</strong> carry at
+        least one cross-source conflict; here, that's a feature with receipts.</p>
+      <div class="links">
+        <a href="https://orbital.vibcreates.com">orbital.vibcreates.com ↗</a>
+        <a href="https://github.com/vxg4120/orbital-economy-intelligence">source ↗</a>
       </div>
     </div>
-  </main>
-  <footer>
-    <div class="wrap">
-      <div class="flinks">
-        <a href="https://github.com/vxg4120/orbital-economy-intelligence">Orbital — source ↗</a>
-        <a href="https://github.com/vxg4120/exodossier">ExoDossier — source ↗</a>
-      </div>
-      <div class="sig">Vibhav Gupta</div>
+    <div class="rail">
+      <div class="m"><div class="v num" id="r-sat">70,080</div><div class="l">satellites, one resolved identity each</div></div>
+      <div class="m"><div class="v num" id="r-gp">9.7M</div><div class="l">orbital element sets, hypertabled</div></div>
+      <div class="m"><div class="v num" id="r-op">99.9%</div><div class="l">operator attribution coverage</div></div>
+      <div class="m"><div class="v num" id="r-conf">4,400+</div><div class="l">live conflicts surfaced, not averaged</div></div>
     </div>
-  </footer>
+  </article>
+
+  <article class="entry e-deep rv">
+    <div><div class="idx num">03</div><div class="dom">Deep sky</div></div>
+    <div>
+      <h3>ExoDossier</h3>
+      <div class="role">Built solo · 2026 · live &amp; refreshed nightly</div>
+      <p>The exoplanet archives disagree on radius, temperature, even whether a candidate is a planet
+        at all — flips that change a world's habitability. ExoDossier reconciles the NASA Exoplanet
+        Archive, ExoFOP, KOI, and Gaia into one provenance graph and generates
+        <strong>cited vetting dossiers</strong> per candidate. It also ships the
+        <strong>first MCP server for exoplanet data</strong>, so AI agents can query the sky directly.</p>
+      <div class="links">
+        <a href="https://exo.vibcreates.com">exo.vibcreates.com ↗</a>
+        <a href="https://github.com/vxg4120/exodossier">source ↗</a>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="m"><div class="v num" id="r-star">20,341</div><div class="l">host stars cross-matched</div></div>
+      <div class="m"><div class="v num" id="r-cand">23,033</div><div class="l">candidates tracked</div></div>
+      <div class="m"><div class="v num" id="r-assert">684k</div><div class="l">per-attribute source assertions</div></div>
+      <div class="m"><div class="v num" id="r-dconf">7,900+</div><div class="l">radius / disposition / T<sub>eff</sub> conflicts</div></div>
+    </div>
+  </article>
+
+  <article class="entry e-base rv">
+    <div><div class="idx num">04</div><div class="dom">Baseline</div></div>
+    <div>
+      <h3>SplitStep</h3>
+      <div class="role">Inventing solo · 2026 · in field testing, v0.17</div>
+      <p>Tennis training from phones you already own — no sensors, no subscription, no cloud in the
+        sensing path. Two unsynchronized phones agree on a ball impact through NTP-style clock sync
+        and <strong>time-difference-of-arrival</strong>; the pairing itself filters the noise. A
+        <strong>1.16&nbsp;MB ball detector</strong> I trained from scratch exports one set of weights to
+        Android, iOS, and the research bench. Sound knows <em>when</em>, vision knows <em>where</em>.
+        Provisional patent drafted.</p>
+      <div class="links"><span class="quiet">on real courts now — build-in-public soon</span></div>
+    </div>
+    <div class="rail">
+      <div class="m"><div class="v num">2</div><div class="l">phones, zero extra hardware</div></div>
+      <div class="m"><div class="v num">1.16 MB</div><div class="l">ball-tracking CNN, trained from scratch</div></div>
+      <div class="m"><div class="v num">sub-ms</div><div class="l">cross-device clock agreement</div></div>
+      <div class="m"><div class="v num">1</div><div class="l">provisional patent drafted</div></div>
+    </div>
+  </article>
+</section>
+
+<section class="wrap">
+  <div class="shead"><span class="k">Method</span><h2>The same move, every time.</h2></div>
+  <div class="method">
+    <div class="mi rv"><h3><span class="n">i</span>Find the disagreement</h3>
+      <p>Where authoritative sources contradict each other is exactly where a system of record is
+        worth building. Most pipelines average the conflict away; <b>I catalogue it</b> — it's the
+        most honest signal in the data.</p></div>
+    <div class="mi rv"><h3><span class="n">ii</span>Keep the receipts</h3>
+      <p>Every value carries its source, its timestamp, and the precedence rule that made it win.
+        Merges are logged and replayable. <b>Trust is an audit trail</b>, not a vibe.</p></div>
+    <div class="mi rv"><h3><span class="n">iii</span>Grade against ground truth</h3>
+      <p>OEI and ExoDossier ship gold-standard evaluations with published accuracy. For SplitStep I
+        re-benchmarked a published 83% prior-art claim and measured <b>31%</b> — then built
+        something better and graded it the same hard way.</p></div>
+    <div class="mi rv"><h3><span class="n">iv</span>Ship it live</h3>
+      <p>Working software over decks. Everything above <b>runs in production</b>, refreshes on a
+        schedule, and answers real queries — on infrastructure I operate myself.</p></div>
+  </div>
+</section>
+
+<section class="wrap career">
+  <div class="shead"><span class="k">Before this</span><h2>A decade of data platforms and reliability.</h2></div>
+  <div class="crow rv"><span class="yr num">2023</span><span class="what"><b>University of Chicago — Genomic Data Commons</b> · Senior SWE — test automation and cloud orchestration for national cancer-research data</span></div>
+  <div class="crow rv"><span class="yr num">2020 – 22</span><span class="what"><b>SpotHero</b> · SWE — E2E frameworks, Pact contract testing, load &amp; capacity work with SRE</span></div>
+  <div class="crow rv"><span class="yr num">2019 – 20</span><span class="what"><b>DAIS Technology</b> (acq. Origami Risk) · Senior SWE — CI/CD test frameworks across concurrent products</span></div>
+  <div class="crow rv"><span class="yr num">2018 – 19</span><span class="what"><b>Rewards Network</b> · SDET — QA architecture for a streaming-data re-platform</span></div>
+  <div class="crow rv"><span class="yr num">2017 – 18</span><span class="what"><b>Uptake</b> · SWE — CI/CD and automation for a streaming big-data platform</span></div>
+  <div class="crow rv"><span class="yr num">2015 – 17</span><span class="what"><b>Networked Insights</b> (acq. AmFam) · QA Automation — re-architected regression, 5× faster</span></div>
+  <div class="crow rv"><span class="yr num">edu</span><span class="what"><b>DePaul University</b> · B.A. Economics, Honors Program</span></div>
+</section>
+
+<section class="wrap contact" id="contact">
+  <div class="shead"><span class="k">Contact</span><h2>Two ways to work with me.</h2></div>
+  <h2>Need a system of record —<br>or the person who <em>builds them?</em></h2>
+  <div class="ways">
+    <a href="mailto:vibhavgupta2@gmail.com">vibhavgupta2@gmail.com</a>
+    <a href="https://github.com/vxg4120">github.com/vxg4120</a>
+    <a href="https://linkedin.com/in/vib">linkedin.com/in/vib</a>
+  </div>
+  <p class="note">This site is hand-written static HTML on a $7 server in Helsinki that I administer
+    myself. The live numbers above are real queries against my databases, stamped at request time.
+    View source — there's nothing to hide.</p>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Vibhav Gupta</span>
+    <span>Set in Fraunces · no framework, no tracker, no template</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  /* ---- signal ornament: noise resolving into a record ---- */
+  var c = document.getElementById('signal');
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function draw(progress){
+    var dpr = Math.min(devicePixelRatio||1,2), W = c.clientWidth, H = c.clientHeight;
+    c.width = W*dpr; c.height = H*dpr;
+    var x = c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,W,H);
+    var mid = H*0.56, ink = css('--ink'), hues=[css('--retail'),css('--orbit'),css('--deep'),css('--base')];
+    // deterministic pseudo-noise so redraws are stable
+    function n(i){ var s = Math.sin(i*127.1)*43758.5453; return s - Math.floor(s); }
+    var pts=[], N=Math.max(180, Math.floor(W/6));
+    for(var i=0;i<=N;i++){
+      var t=i/N, px=t*W, calm=Math.min(1,Math.max(0,(t-0.42)/0.3));
+      var rough=(n(i)-0.5)*2, spike=(n(i*3+7)>0.965 && t<0.5)?(n(i*5)-0.5)*3.2:0;
+      var amp=(1-calm)*(H*0.30);
+      var py=mid + rough*amp*0.55 + spike*amp + (calm===1 ? Math.sin(t*21)*1.2 : 0);
+      pts.push([px,py, spike!==0]);
+    }
+    var upto=Math.floor(pts.length*progress);
+    x.strokeStyle=ink; x.globalAlpha=0.5; x.lineWidth=1.4; x.lineJoin='round'; x.beginPath();
+    for(var j=0;j<upto;j++){ j?x.lineTo(pts[j][0],pts[j][1]):x.moveTo(pts[j][0],pts[j][1]); }
+    x.stroke();
+    // tick marks where "impacts" were detected, in domain hues
+    x.globalAlpha=0.9; var h=0;
+    for(var k=0;k<upto;k++){ if(pts[k][2]){
+      x.strokeStyle=hues[h++%4]; x.lineWidth=1.6;
+      x.beginPath(); x.moveTo(pts[k][0], H-14); x.lineTo(pts[k][0], H-6); x.stroke();
+    }}
+    x.globalAlpha=1;
+  }
+  function animate(){
+    if(reduce){ draw(1); return; }
+    var t0=null;
+    function f(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/1700); draw(p); if(p<1) requestAnimationFrame(f); }
+    requestAnimationFrame(f);
+  }
+  animate();
+  var rt; addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){draw(1);},150); });
+  if(matchMedia){ matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){draw(1);}); }
+
+  /* ---- live metrics with provenance stamp ---- */
+  function fmt(v){ return v>=1e6 ? (v/1e6).toFixed(1)+'M' : v.toLocaleString('en-US'); }
+  function count(el,target,text){
+    if(!el) return;
+    if(reduce || typeof target!=='number'){ el.textContent = text || fmt(target); return; }
+    var t0=null, dur=900;
+    function f(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/dur); p=1-Math.pow(1-p,3);
+      el.textContent = fmt(Math.round(target*p)); if(p<1) requestAnimationFrame(f); else if(text) el.textContent=text; }
+    requestAnimationFrame(f);
+  }
+  var stamp=document.getElementById('stamp');
+  Promise.allSettled([
+    fetch('/live/orbital').then(function(r){return r.json();}),
+    fetch('/live/exo').then(function(r){return r.json();})
+  ]).then(function(res){
+    var o=res[0].status==='fulfilled'?res[0].value:null;
+    var e=res[1].status==='fulfilled'?res[1].value:null;
+    if(o){
+      count(document.getElementById('s-sat'), o.satellites);
+      count(document.getElementById('s-gp'), o.gp_elements, fmt(o.gp_elements));
+      count(document.getElementById('r-sat'), o.satellites);
+      var gpEl=document.getElementById('r-gp'); if(gpEl) gpEl.textContent=(o.gp_elements/1e6).toFixed(1)+'M';
+      var opEl=document.getElementById('r-op'); if(opEl&&o.coverage) opEl.textContent=o.coverage.operator_pct+'%';
+      var oc=o.conflicts?(o.conflicts.status+o.conflicts.decay+o.conflicts.stale_owners):null;
+      if(oc){ count(document.getElementById('r-conf'), oc); }
+    }
+    if(e){
+      count(document.getElementById('s-cand'), e.candidates);
+      count(document.getElementById('s-assert'), e.source_assertions, fmt(e.source_assertions));
+      count(document.getElementById('r-star'), e.stars);
+      count(document.getElementById('r-cand'), e.candidates);
+      var aEl=document.getElementById('r-assert'); if(aEl) aEl.textContent=Math.round(e.source_assertions/1e3)+'k';
+      var ec=e.conflicts?(e.conflicts.radius+e.conflicts.disposition+e.conflicts.teff):null;
+      if(ec){ count(document.getElementById('r-dconf'), ec); }
+    }
+    if(o||e){
+      var d=new Date();
+      stamp.innerHTML='<span class="dot"></span>live · queried '+
+        String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+':'+
+        String(d.getUTCSeconds()).padStart(2,'0')+' UTC';
+    } else {
+      stamp.innerHTML='<span class="dot" style="background:var(--faint)"></span>cached · July 2026';
+      count(document.getElementById('s-sat'),70080); count(document.getElementById('s-gp'),0,'9.7M');
+      count(document.getElementById('s-cand'),23033); count(document.getElementById('s-assert'),0,'684k');
+    }
+  });
+
+  /* ---- scroll reveal ---- */
+  if(!reduce && 'IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(en){
+      if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }});},{threshold:0.12});
+    document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+  } else { document.querySelectorAll('.rv').forEach(function(el){ el.classList.add('in'); }); }
+})();
+</script>
 </body>
 </html>
