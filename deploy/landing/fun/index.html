@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vib Gupta · the fun file</title>
+<meta name="description" content="Assorted personal data on Vibhav Gupta, lovingly catalogued: what he's watching, reading, and playing, plus Chicago sports loyalty that survived the move to LA." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F2EBDB'/%3E%3Ctext x='30' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='44' fill='%231C2742'%3EV%3C/text%3E%3Cpath d='M50 38 l2.2 5.8 L58 46 l-5.8 2.2 L50 54 l-2.2-5.8 L42 46 l5.8-2.2 Z' fill='%23B08A2E'/%3E%3C/svg%3E" />
+<style>
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-var.woff2') format('woff2');
+    font-weight:300 700; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-italic-var.woff2') format('woff2');
+    font-weight:300 700; font-style:italic; font-display:swap;
+  }
+  :root{
+    --paper:#FBF7EC; --plate:#FFFDF6; --ink:#1E2A48; --muted:#475678; --faint:#8A91A6;
+    --line:#DFD8C2; --line-2:#BFB79D;
+    --gold:#B8860B;
+    --retail:#B03A74; --orbit:#D2691E; --deep:#0E8DA0; --base:#7A9410;
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --w:900px;
+  }
+  *{box-sizing:border-box}
+  html{overflow-x:clip} body{overflow-x:clip}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.66;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:var(--w); margin:0 auto; padding:0 28px; position:relative; z-index:2}
+  a{color:inherit}
+  ::selection{background:var(--gold); color:var(--paper)}
+  .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.16em; text-transform:uppercase}
+  .star{color:var(--gold); font-style:normal}
+
+  .top{display:flex; justify-content:space-between; align-items:baseline; padding-top:26px}
+  .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; text-decoration:none}
+  .top .brand .star{margin-right:8px}
+  .top a.back{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; border-bottom:1.5px solid var(--gold); padding-bottom:2px}
+  .top a.back:hover{color:var(--gold)}
+
+  header.head{padding-top:8vh}
+  h1{font-family:var(--serif); font-weight:380; font-variation-settings:"opsz" 144;
+     font-size:clamp(3rem,9vw,6.2rem); line-height:.97; letter-spacing:-.02em; margin:0}
+  h1 .dot{color:var(--gold)}
+  .lede{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-top:18px}
+  .intro{max-width:56ch; color:var(--muted); margin:26px 0 0; font-size:1.04rem}
+
+  .file{margin-top:54px; border-top:2px solid var(--ink); position:relative; padding-bottom:90px}
+  .file::after{content:""; position:absolute; top:4px; left:0; right:0; height:1px; background:var(--line-2)}
+  .qrow{display:grid; grid-template-columns:168px minmax(0,1fr); gap:0 26px; padding:20px 0; border-bottom:1px dotted var(--line-2); align-items:baseline}
+  .qrow .q{font-family:var(--mono); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); line-height:1.6}
+  .qrow .a{font-family:var(--serif); font-weight:420; font-variation-settings:"opsz" 30; font-size:1.08rem; line-height:1.55}
+  .qrow .a em{font-style:italic}
+  .qrow .a a{text-decoration:none; border-bottom:1px dotted var(--line-2)}
+  .qrow .a a:hover{color:var(--gold); border-color:var(--gold)}
+  .pending{margin-top:44px; font-family:var(--mono); font-size:.78rem; color:var(--faint); line-height:1.8; max-width:60ch}
+  .pending .star{margin-right:6px}
+
+  footer{border-top:2px solid var(--ink); position:relative}
+  footer::after{content:""; position:absolute; top:4px; left:0; right:0; height:1px; background:var(--line-2)}
+  footer .wrap{padding:22px 28px 34px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px}
+  footer span{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; color:var(--faint)}
+  a:focus-visible{outline:2px solid var(--deep); outline-offset:3px}
+
+  @media (max-width:700px){
+    .qrow{grid-template-columns:1fr; gap:6px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap top">
+  <a class="brand" href="/"><span class="star">✦</span>vibcreates</a>
+  <a class="back" href="/">back to the atlas</a>
+</div>
+
+<header class="head wrap">
+  <h1>The fun file<span class="dot">.</span></h1>
+  <div class="lede">fig. 3 · assorted personal data, lovingly catalogued</div>
+  <p class="intro">The main page covers what I build. This one covers what I'm watching, reading,
+    and playing while I build it. Updated whenever something earns a spot.</p>
+</header>
+
+<main class="wrap">
+  <div class="file">
+    <div class="qrow"><span class="q">watching right now</span>
+      <span class="a">Season three of <a href="https://en.wikipedia.org/wiki/House_of_the_Dragon" target="_blank" rel="noopener">House of the Dragon</a>,
+      finally almost caught up after a full rewatch of seasons one and two. And on the space side,
+      <a href="https://en.wikipedia.org/wiki/How_the_Universe_Works" target="_blank" rel="noopener">How the Universe Works</a>,
+      which I rewatch on purpose. It is honestly shocking how fast the astronomy episodes go out of
+      date, because the discoveries will not slow down. <em>That is how exciting a time this is.</em></span></div>
+
+    <div class="qrow"><span class="q">reading</span>
+      <span class="a"><a href="https://en.wikipedia.org/wiki/Jeffrey_Kluger" target="_blank" rel="noopener">Jeffrey Kluger's</a>
+      <em>Gemini</em>, from the same author behind the book that became Apollo 13. Absolutely
+      fascinating, the kind of book I could not put down, and I'm almost through it. His other
+      books are already in the queue.</span></div>
+
+    <div class="qrow"><span class="q">every fall &amp; winter</span>
+      <span class="a">A full rewatch of Harry Potter and The Lord of the Rings.
+      <em>Comfort cinema, non-negotiable.</em></span></div>
+
+    <div class="qrow"><span class="q">the comedies</span>
+      <span class="a">Curb and Seinfeld, rewatched a million times each. Still laughing.</span></div>
+
+    <div class="qrow"><span class="q">the dramas shelf</span>
+      <span class="a">The Sopranos and Mad Men at the top, with Succession, Breaking Bad, and
+      Better Call Saul right behind. Recently finished Your Friends and Neighbors, and it was
+      great fun watching Jon Hamm be someone who is not Don Draper. Waiting on the next
+      season.</span></div>
+
+    <div class="qrow"><span class="q">the racket</span>
+      <span class="a">A <a href="https://www.wilson.com/en-us/tennis/rackets/blade" target="_blank" rel="noopener">Wilson Blade 98</a>,
+      found on Facebook Marketplace. I got back into tennis a couple of months ago after barely
+      playing since I was a kid, which is exactly how SplitStep ended up existing.</span></div>
+
+    <div class="qrow"><span class="q">hoops</span>
+      <span class="a">I shoot around for fun, I am not very good, and that is fine. I got to
+      Chicago in the early nineties, right before the second Jordan three-peat, so basketball had
+      me early.</span></div>
+
+    <div class="qrow"><span class="q">the teams</span>
+      <span class="a">Bears, Cubs, Bulls, Blackhawks. <em>Chicago forever, even from
+      Los Angeles.</em></span></div>
+
+    <div class="pending"><span class="star">✦</span>still to be filed: music in rotation, favorite
+      exoplanets and moons, the spot in our solar system where I'd bet on finding life, and the
+      space facts I bring up at parties. Ask me about any of them.</div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Vibhav Gupta</span>
+    <span>made in Los Angeles</span>
+  </div>
+</footer>
+
+</body>
+</html>
