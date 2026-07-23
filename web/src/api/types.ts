@@ -445,3 +445,185 @@ export interface VerdictResponse {
     labeled_at: string | null;
   };
 }
+
+/* ---- GET /api/buses (Bus Benchmarks) ----
+   One leaderboard row per manufacturer group or bus model. Numeric metric fields are null when
+   the underlying cohort is empty (behavior-unobserved fleets); every metric ships with its n. */
+export type BusGroup = "manufacturer" | "bus";
+export type BusSort =
+  | "fleet"
+  | "on_orbit"
+  | "active"
+  | "tto"
+  | "station_keeping"
+  | "sk_share"
+  | "decayed_share"
+  | "lifetime"
+  | "compliance"
+  | "coverage"
+  | "name";
+
+export interface BusRow {
+  slug: string;
+  name: string;
+  manufacturer_country?: string | null; // manufacturer rows
+  org_count?: number;
+  bus_model_count?: number;
+  primary_manufacturer?: string | null; // bus rows
+  primary_manufacturer_slug?: string | null;
+  manufacturer_count?: number;
+  fleet_total: number;
+  fleet_on_orbit: number;
+  fleet_active: number;
+  decayed_count: number;
+  decayed_share_pct: number | null;
+  lifetime_n: number;
+  median_lifetime_years: number | null;
+  tto_n: number;
+  median_days_to_operational: number | null;
+  sk_n: number;
+  station_keeping_share_pct: number | null;
+  p50_station_keeping_km: number | null;
+  disposal_n: number;
+  disposal_compliance_pct: number | null;
+  gp_n: number;
+  gp_coverage_pct: number | null;
+}
+
+export interface BusesResponse extends Paginated<BusRow> {
+  group: BusGroup;
+  sort: string;
+  min_n: number;
+}
+
+/* ---- GET /api/buses/{slug} ---- */
+export interface BusConstituent {
+  slug: string | null;
+  name: string | null;
+  fleet_total: number;
+  fleet_on_orbit: number;
+}
+
+export interface BusOrgRef {
+  code: string;
+  org_name: string | null;
+  rollup_source: string | null;
+  fleet_total: number;
+}
+
+export interface BusSatellite {
+  satellite_id: number;
+  norad_id: number | null;
+  cospar_id: string | null;
+  canonical_name: string;
+  canonical_status: string;
+  launch_date: string | null;
+  bus_model: string | null;
+  manufacturer_name: string | null;
+  gp_days: number;
+  sk_median_stddev_km: number | null;
+  days_to_operational: number | null;
+  lifetime_days: number | null;
+  source: string;
+  source_key: string;
+  ingest_run_id: number;
+  rollup_source: string | null;
+  bus_uncertain: boolean;
+  manufacturer_uncertain: boolean;
+}
+
+export interface BusMetricCoverage {
+  n: number;
+  of: number;
+}
+
+export interface BusProvenanceSummary {
+  source: string;
+  ingest_run_id: number | null;
+  built_at: string | null;
+  uncertain_attributions: number;
+  methodology_version: string;
+  metric_coverage: Record<string, BusMetricCoverage>;
+  receipts: string;
+}
+
+export interface BusDetail {
+  kind: BusGroup;
+  benchmark: BusRow & Record<string, unknown>;
+  constituents: BusConstituent[];
+  orgs: BusOrgRef[];
+  satellites_sample: BusSatellite[];
+  provenance: BusProvenanceSummary;
+  correction_channel: string;
+}
+
+/* ---- GET /api/buses/{slug}/provenance ---- */
+export interface BusReceiptRow {
+  satellite_id: number;
+  norad_id: number | null;
+  cospar_id: string | null;
+  canonical_name: string;
+  canonical_status: string;
+  value: string | number | boolean | null;
+  bus_model: string | null;
+  manufacturer_name: string | null;
+  source: string;
+  source_key: string;
+  ingest_run_id: number;
+  rollup_source: string | null;
+  bus_raw: string | null;
+  manufacturer_raw: string | null;
+  bus_uncertain: boolean;
+  manufacturer_uncertain: boolean;
+}
+
+export interface BusProvenanceResponse {
+  kind: BusGroup;
+  slug: string;
+  name: string;
+  metric: string;
+  cohort: string;
+  rows: BusReceiptRow[];
+  total: number;
+  methodology_version: string;
+}
+
+/* ---- GET /api/buses/history/{slug} ---- */
+export interface BusSnapshot {
+  snapshot_month: string;
+  display_name: string;
+  metrics: Record<string, number | string | null>;
+  methodology_version: string;
+  created_at: string;
+}
+
+export interface BusHistory {
+  kind: BusGroup;
+  slug: string;
+  snapshots: BusSnapshot[];
+}
+
+/* ---- GET /api/buses/methodology ---- */
+export interface BusMethodologyMetric {
+  key: string;
+  label: string;
+  definition: string;
+  source: string;
+}
+
+export interface BusMethodology {
+  version: string;
+  updated_at: string;
+  title: string;
+  doc_url: string;
+  purpose: string;
+  data_sources: { name: string; role: string; url: string }[];
+  inclusion: string;
+  cohort_minimum: number;
+  attribution: string[];
+  metrics: BusMethodologyMetric[];
+  limitations: string[];
+  provenance_guarantee: string;
+  correction_channel: string;
+  refresh: string;
+}

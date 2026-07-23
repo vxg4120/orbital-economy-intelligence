@@ -1,0 +1,87 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-07-23",
+  "title": "Bus Benchmarks methodology",
+  "doc_url": "https://github.com/vxg4120/orbital-economy-intelligence/blob/main/docs/BUS_BENCHMARKS_METHODOLOGY.md",
+  "purpose": "An independent, provenance-tracked performance scoreboard for satellite buses (spacecraft platforms) by manufacturer and bus model, computed from public catalog and orbital element data.",
+  "data_sources": [
+    {
+      "name": "GCAT satcat (Jonathan McDowell)",
+      "role": "bus model and manufacturer attribution per object",
+      "url": "https://planet4589.org/space/gcat/"
+    },
+    {
+      "name": "GCAT orgs",
+      "role": "manufacturer org codes resolved to organizations, with parent hierarchy",
+      "url": "https://planet4589.org/space/gcat/data/tables/orgs.html"
+    },
+    {
+      "name": "GP element history (Space-Track / CelesTrak)",
+      "role": "orbital behavior: station-keeping, orbit raising, decay",
+      "url": "https://celestrak.org/NORAD/elements/"
+    }
+  ],
+  "inclusion": "Payload objects only (GCAT object type P*), attributed via the identity graph crosswalk. Rocket stages and debris are excluded even where GCAT records a platform.",
+  "cohort_minimum": 5,
+  "attribution": [
+    "Manufacturer codes resolve against the latest GCAT orgs snapshot.",
+    "Co-manufactured objects (A/B) attribute to the first-listed (prime) org; the full code list is preserved.",
+    "Parent rollup follows the GCAT org Parent chain upward only through business-class (Class B) orgs, so plant-level subsidiaries roll up to their corporate group while state design bureaus do not collapse into ministries or space agencies.",
+    "One curated override: SPXS (SpaceX Seattle) rolls up to SPX (SpaceX); rows using it carry rollup_source 'gcat_orgs+override'.",
+    "Bus strings are normalized: whitespace collapsed, GCAT's trailing '?' uncertainty marker stripped and recorded, placeholder values dropped, casing variants collapsed to the most common spelling. Distinct variants (Starlink V2M vs V2MO) stay distinct."
+  ],
+  "metrics": [
+    {
+      "key": "fleet",
+      "label": "Fleet size",
+      "definition": "Cataloged payloads attributed to the group; on-orbit means latest canonical status is not DECAYED; active means status ACTIVE.",
+      "source": "v_bus_benchmarks_* (fleet_total, fleet_on_orbit, fleet_active)"
+    },
+    {
+      "key": "tto",
+      "label": "Median time to operational",
+      "definition": "Days from launch to the first 7-consecutive-day streak within 15 km of the constellation shell median sma, per v_time_to_operational; cohort restricted to shells with at least 3 members.",
+      "source": "v_time_to_operational (SPEC 7.2), rolled up per group"
+    },
+    {
+      "key": "sk_share",
+      "label": "Station-keeping share",
+      "definition": "Share of behavior-observed ACTIVE payloads whose median 30-day rolling sma stddev is at most 0.100 km, i.e. the orbit is actively held rather than drifting.",
+      "source": "v_station_keeping_30d (SPEC 7.1), per-satellite medians"
+    },
+    {
+      "key": "station_keeping",
+      "label": "Station-keeping tightness (p50)",
+      "definition": "Cohort median of per-satellite median 30-day rolling sma stddev, in km. Lower is tighter.",
+      "source": "v_station_keeping_30d (SPEC 7.1)"
+    },
+    {
+      "key": "decayed_share",
+      "label": "Decayed share and median lifetime",
+      "definition": "Share of the attributed fleet whose latest status is DECAYED, and the median launch-to-decay lifetime (years) over decayed payloads with both dates. Survivors are censored, not counted as zero.",
+      "source": "satellite + satellite_status_history via v_bus_sat"
+    },
+    {
+      "key": "compliance",
+      "label": "Post-mission disposal (5-year rule)",
+      "definition": "Share of retired payloads with a decidable verdict that re-entered within 5 years of last observed ACTIVE status (the FCC-style rule in v_deorbit_compliance). Sparse until decay-history backfill deepens; n is always reported.",
+      "source": "v_deorbit_compliance (SPEC 7.3)"
+    },
+    {
+      "key": "coverage",
+      "label": "Behavior coverage",
+      "definition": "Share of the attributed fleet with at least one day of GP behavior data in sat_daily. All behavior metrics are computed only over this observed slice, which is LEO-biased.",
+      "source": "sat_daily continuous aggregate"
+    }
+  ],
+  "limitations": [
+    "GP behavior observability is LEO-biased: the element history backfill covers LEO far better than GEO/MEO, so behavior metrics under-represent GEO manufacturers.",
+    "GCAT bus and manufacturer attribution is itself incomplete and sometimes uncertain ('?' markers); uncertainty flags are preserved per satellite.",
+    "Survivorship effects: lifetime medians are computed over decayed objects only.",
+    "Ambiguous bus variants exist; normalization collapses casing but never merges genuinely distinct variants.",
+    "Generic form-factor entries (Cubesat 3U and similar) aggregate many unrelated vehicles and are labeled by their most common manufacturer."
+  ],
+  "provenance_guarantee": "Every number is traceable to source rows: each attribution carries (source, source_key = GCAT jcat, ingest_run_id) plus source_assertion records, and the per-metric provenance endpoint returns the exact constituent satellites behind any headline value.",
+  "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+  "refresh": "Nightly, with the daily ingest cycle. Monthly leaderboard snapshots are frozen on the first refresh of each month and never rewritten."
+}

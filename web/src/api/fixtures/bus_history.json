@@ -1,0 +1,36 @@
+{
+  "kind": "manufacturer",
+  "slug": "spx",
+  "snapshots": [
+    {
+      "snapshot_month": "2026-07-01",
+      "display_name": "SpaceX",
+      "metrics": {
+        "gp_n": 11320,
+        "sk_n": 10339,
+        "tto_n": 6422,
+        "org_count": 3,
+        "disposal_n": 0,
+        "lifetime_n": 1805,
+        "fleet_total": 12835,
+        "fleet_active": 10631,
+        "decayed_count": 1805,
+        "fleet_on_orbit": 11030,
+        "bus_model_count": 10,
+        "gp_coverage_pct": 88.2,
+        "decayed_share_pct": 14.1,
+        "manufacturer_name": "SpaceX",
+        "manufacturer_slug": "spx",
+        "manufacturer_country": "US",
+        "median_lifetime_years": 3.17,
+        "p50_station_keeping_km": 0.042,
+        "disposal_compliance_pct": null,
+        "manufacturer_group_code": "SPX",
+        "station_keeping_share_pct": 77.3,
+        "median_days_to_operational": 78
+      },
+      "methodology_version": "1.0",
+      "created_at": "2026-07-23T20:51:39.741300+00:00"
+    }
+  ]
+}

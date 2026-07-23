@@ -10,6 +10,14 @@
 
 import type {
   AuditSummary,
+  BusDetail,
+  BusesResponse,
+  BusGroup,
+  BusHistory,
+  BusMethodology,
+  BusProvenanceResponse,
+  BusRow,
+  BusSort,
   CongestionResponse,
   LifeTrack,
   OperatorDetail,
@@ -48,6 +56,11 @@ import congestionFixture from "./fixtures/congestion.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
 import trackFixture from "./fixtures/track.json";
 import auditFixture from "./fixtures/audit_summary.json";
+import busesFixture from "./fixtures/buses.json";
+import busDetailFixture from "./fixtures/bus_detail.json";
+import busMethodologyFixture from "./fixtures/bus_methodology.json";
+import busProvenanceFixture from "./fixtures/bus_provenance.json";
+import busHistoryFixture from "./fixtures/bus_history.json";
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
 
@@ -191,6 +204,98 @@ function synthOperatorDetail(id: number): OperatorDetail {
     fleet_by_regime: {},
     acquisitions: [],
     top_satellites: [],
+  };
+}
+
+/* ---- mock bus benchmarks -------------------------------------------------- */
+const busLeaderboards = busesFixture as unknown as Record<BusGroup, BusesResponse>;
+const busDetailMap = busDetailFixture as unknown as Record<string, BusDetail>;
+
+// Nulls sort to the tail in both directions, mirroring the API's NULLS LAST.
+function busCmp(a: number | null, b: number | null, dir: 1 | -1): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return dir * (a - b);
+}
+
+function sortBusRows(rows: BusRow[], sort: BusSort): BusRow[] {
+  const copy = [...rows];
+  const by: Partial<Record<BusSort, (a: BusRow, b: BusRow) => number>> = {
+    fleet: (a, b) => b.fleet_total - a.fleet_total,
+    on_orbit: (a, b) => b.fleet_on_orbit - a.fleet_on_orbit,
+    active: (a, b) => b.fleet_active - a.fleet_active,
+    tto: (a, b) => busCmp(a.median_days_to_operational, b.median_days_to_operational, 1),
+    station_keeping: (a, b) => busCmp(a.p50_station_keeping_km, b.p50_station_keeping_km, 1),
+    sk_share: (a, b) => busCmp(a.station_keeping_share_pct, b.station_keeping_share_pct, -1),
+    decayed_share: (a, b) => busCmp(a.decayed_share_pct, b.decayed_share_pct, -1),
+    lifetime: (a, b) => busCmp(a.median_lifetime_years, b.median_lifetime_years, -1),
+    compliance: (a, b) => busCmp(a.disposal_compliance_pct, b.disposal_compliance_pct, -1),
+    coverage: (a, b) => busCmp(a.gp_coverage_pct, b.gp_coverage_pct, -1),
+    name: (a, b) => a.name.localeCompare(b.name),
+  };
+  copy.sort(by[sort] ?? by.fleet!);
+  return copy;
+}
+
+function mockBuses(
+  group: BusGroup,
+  sort: BusSort,
+  minN: number,
+  limit: number,
+  offset: number,
+): BusesResponse {
+  const base = busLeaderboards[group] ?? busLeaderboards.manufacturer;
+  const filtered = sortBusRows(base.rows.filter((r) => r.fleet_total >= minN), sort);
+  return {
+    rows: filtered.slice(offset, offset + limit),
+    total: filtered.length,
+    group,
+    sort,
+    min_n: minN,
+  };
+}
+
+function mockBusProvenance(
+  slug: string,
+  metric: string,
+  limit: number,
+  offset: number,
+): BusProvenanceResponse {
+  const fixture = busProvenanceFixture as unknown as BusProvenanceResponse;
+  if (fixture.slug === slug && metric === fixture.metric) {
+    return { ...fixture, rows: fixture.rows.slice(offset, offset + limit) };
+  }
+  // Synthesize receipts from the detail sample so every fixture group has some.
+  const detail = busDetailMap[slug];
+  if (!detail) throw new ApiError("no manufacturer or bus with that slug", 404);
+  const rows = detail.satellites_sample.map((s) => ({
+    satellite_id: s.satellite_id,
+    norad_id: s.norad_id,
+    cospar_id: s.cospar_id,
+    canonical_name: s.canonical_name,
+    canonical_status: s.canonical_status,
+    value: s.canonical_status,
+    bus_model: s.bus_model,
+    manufacturer_name: s.manufacturer_name,
+    source: s.source,
+    source_key: s.source_key,
+    ingest_run_id: s.ingest_run_id,
+    rollup_source: s.rollup_source,
+    bus_raw: s.bus_model,
+    manufacturer_raw: s.manufacturer_name,
+    bus_uncertain: s.bus_uncertain,
+    manufacturer_uncertain: s.manufacturer_uncertain,
+  }));
+  return {
+    kind: detail.kind,
+    slug,
+    name: detail.benchmark.name,
+    metric,
+    cohort: "fixture sample",
+    rows: rows.slice(offset, offset + limit),
+    total: detail.benchmark.fleet_total,
+    methodology_version: (busMethodologyFixture as BusMethodology).version,
   };
 }
 
@@ -376,6 +481,66 @@ export function getSatelliteTrack(id: number): Promise<LifeTrack> {
 export function getAuditSummary(): Promise<AuditSummary> {
   if (MOCK) return delay(auditFixture as AuditSummary);
   return realGet<AuditSummary>("/audit/summary");
+}
+
+/* ---- bus benchmarks ------------------------------------------------------- */
+export function getBuses(
+  group: BusGroup,
+  sort: BusSort,
+  minN: number,
+  limit: number,
+  offset: number,
+): Promise<BusesResponse> {
+  if (MOCK) return delay(mockBuses(group, sort, minN, limit, offset));
+  return realGet<BusesResponse>("/buses", { group, sort, min_n: minN, limit, offset });
+}
+
+export function getBus(slug: string, kind?: BusGroup): Promise<BusDetail> {
+  if (MOCK) {
+    const d = busDetailMap[slug];
+    if (!d) return Promise.reject(new ApiError("no manufacturer or bus with that slug", 404));
+    return delay(d);
+  }
+  const params: Record<string, string | number> = {};
+  if (kind) params.kind = kind;
+  return realGet<BusDetail>(`/buses/${slug}`, params);
+}
+
+export function getBusProvenance(
+  slug: string,
+  metric: string,
+  kind: BusGroup | undefined,
+  limit: number,
+  offset: number,
+): Promise<BusProvenanceResponse> {
+  if (MOCK) {
+    try {
+      return delay(mockBusProvenance(slug, metric, limit, offset));
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+  const params: Record<string, string | number> = { metric, limit, offset };
+  if (kind) params.kind = kind;
+  return realGet<BusProvenanceResponse>(`/buses/${slug}/provenance`, params);
+}
+
+export function getBusHistory(slug: string, kind?: BusGroup): Promise<BusHistory> {
+  if (MOCK) {
+    const fixture = busHistoryFixture as unknown as BusHistory;
+    if (fixture.slug === slug) return delay(fixture);
+    const d = busDetailMap[slug];
+    if (!d) return Promise.reject(new ApiError("no snapshots for that slug", 404));
+    return delay({ kind: d.kind, slug, snapshots: [] });
+  }
+  const params: Record<string, string | number> = {};
+  if (kind) params.kind = kind;
+  return realGet<BusHistory>(`/buses/history/${slug}`, params);
+}
+
+export function getBusMethodology(): Promise<BusMethodology> {
+  if (MOCK) return delay(busMethodologyFixture as BusMethodology);
+  return realGet<BusMethodology>("/buses/methodology");
 }
 
 /* ---- review area ---------------------------------------------------------- */
