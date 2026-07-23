@@ -160,6 +160,8 @@
   .stat .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:clamp(1.5rem,2.8vw,2.1rem); font-weight:600; letter-spacing:-.03em; line-height:1}
   .stat .l{font-size:.82rem; color:var(--muted); margin-top:8px; line-height:1.35}
   .stat .l i{font-style:normal; font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase}
+  .stat .l a{color:inherit; text-decoration:none; border-bottom:1px dotted var(--line-2)}
+  .stat .l a:hover{color:var(--gold); border-color:var(--gold)}
   .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
 
   /* ---------- entries ---------- */
@@ -367,10 +369,10 @@
     <span class="stamp" id="stamp"><span class="dot"></span>querying live systems…</span>
   </div>
   <div class="stats">
-    <div class="stat orbit rv"><div class="v num" id="s-sat">…</div><div class="l">satellites resolved to one identity · <i>my satellite platform</i></div></div>
-    <div class="stat orbit rv"><div class="v num" id="s-gp">…</div><div class="l">orbital position records kept · <i>my satellite platform</i></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-cand">…</div><div class="l">exoplanet candidates tracked · <i>my exoplanet platform</i></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-assert">…</div><div class="l">sourced facts, receipts kept · <i>my exoplanet platform</i></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-sat">…</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-gp">…</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-cand">…</div><div class="l">exoplanet candidates tracked · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-assert">…</div><div class="l">sourced facts, receipts kept · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
   </div>
 </section>
 
