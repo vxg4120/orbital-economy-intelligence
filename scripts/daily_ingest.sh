@@ -13,6 +13,9 @@ LOG=data/daily_ingest.log
   echo "=== daily ingest $(date -u +%FT%TZ) ==="
   .venv/bin/python scripts/ingest_all.py
   .venv/bin/python scripts/build_graph.py
+  # Bus Benchmarks: attribution rebuild + behavior matview refresh + idempotent monthly
+  # leaderboard snapshot (the first run of each month freezes it; later runs insert nothing).
+  .venv/bin/python scripts/build_bus.py
   .venv/bin/python quality/report.py
   # Rollover watch: celebrate the first 6-digit catalog number when it lands.
   .venv/bin/python - <<'EOF'

@@ -22,6 +22,11 @@ _GCAT_ATTRS = [
     ("decay_date", "decay_date"),
     ("object_type", "object_type"),
     ("name", "coalesce(pl_name, name)"),
+    # Bus Benchmarks provenance: the raw platform / manufacturer claims behind satellite_bus.
+    # '-' is GCAT's explicit "no value" and would be noise as an assertion, so it maps to NULL
+    # (and the NOT NULL filter in _extract drops it).
+    ("bus", "nullif(nullif(bus, '-'), '')"),
+    ("manufacturer", "nullif(nullif(manufacturer, '-'), '')"),
 ]
 # UCS carries no status column; every listed satellite is "operational as of the freeze".
 _UCS_ATTRS = [
