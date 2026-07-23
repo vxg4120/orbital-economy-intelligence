@@ -78,3 +78,30 @@ then a pg17 service-container db job); README rewrite; this file.
   teaser), Resolver (crosswalk + SCD2 ownership timeline + assertions), Conflicts (3 tabs),
   Operators (league table + detail). Screenshots in docs/img/, wired into README.
 - `make fe` → http://localhost:8600. Suite: 169 passed -W error; pnpm build clean.
+
+# Bus Benchmarks (2026-07)
+
+Provenance-tracked performance scoreboard for spacecraft buses by manufacturer and bus model.
+
+- [x] Migration 0009: satellite_bus attribution table + bus_benchmark_snapshots (monthly, immutable)
+- [x] Build step: identity/bus.py + scripts/build_bus.py (normalize bus strings, resolve orgs, parent rollup, source_assertion rows, matview refresh, monthly snapshot; wired into daily_ingest.sh)
+- [x] Metrics: metrics/bus_benchmarks.sql (mv_bus_behavior_sat + v_bus_sat + per-manufacturer / per-bus benchmark views reusing existing station-keeping / TTO / disposal definitions)
+- [x] API: api/routers/buses.py (leaderboard, methodology v1.0, slug detail, per-metric provenance receipts, history)
+- [x] Web: 05 BUSES view (leaderboard, detail, receipts, monthly record, methodology panel), mock fixtures
+- [x] MCP: mcp_server/ stdio server with bus_benchmarks + bus_detail tools (dependency-free; official SDK does not install on py3.14 toolchain)
+- [x] Docs: docs/BUS_BENCHMARKS_METHODOLOGY.md (v1.0, changelog, provenance guarantee, correction channel)
+- [x] Tests: router + view cohort tests, build normalization tests, MCP protocol/tool tests (272 total pass with -W error)
+- [x] Gates: pytest -W error PASS, ruff clean on changed files, pnpm -C web build PASS; live-db verified (27,849 payloads attributed; 277 manufacturers and 426 bus models at n >= 5)
+
+## Review (Bus Benchmarks)
+
+- Attribution: 27,849 of ~27,933 GCAT payloads got a manufacturer (99.7%), 27,512 a bus model;
+  3 org codes unresolved. 12,691 rows rolled up via the curated SPXS -> SPX override, 3,036 via
+  GCAT parent chains (business-class parents only, so design bureaus never collapse into
+  ministries/agencies).
+- Headline (fleet-sorted): SpaceX 12,835 (TTO p50 78 d, SK share 77.3%, SK p50 0.042 km),
+  OneWeb 650 (SK share 100%, SK p50 0.005 km), Planet 551 (SK share 0%: passive doves),
+  Amazon/Kuiper 398. Disposal-compliance n is ~0 everywhere (v_deorbit_compliance still sparse);
+  published as n=0 with no rate rather than a fake 100%.
+- Slug fix mid-build: '+' is load-bearing in bus names (BSS-702MP+ vs BSS-702MP), preserved as
+  '-plus' in slugs; leading-apostrophe GCAT markers stripped from display names.
