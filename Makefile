@@ -1,4 +1,4 @@
-.PHONY: venv up down psql migrate metrics report audit test lint api web-dev web-build fe gold-queue review gold-score
+.PHONY: venv up down psql migrate metrics bus-build mcp report audit test lint api web-dev web-build fe gold-queue review gold-score
 
 venv:
 	python3 -m venv .venv
@@ -21,6 +21,15 @@ migrate:
 
 metrics:
 	.venv/bin/python scripts/apply_metrics.py
+
+# Bus Benchmarks: rebuild satellite_bus attribution, refresh the behavior matview, freeze the
+# monthly leaderboard snapshot (idempotent; also part of scripts/daily_ingest.sh).
+bus-build:
+	.venv/bin/python scripts/build_bus.py
+
+# Read-only MCP server (stdio) exposing the bus_benchmarks / bus_detail tools.
+mcp:
+	.venv/bin/python -m mcp_server
 
 report:
 	.venv/bin/python quality/report.py
