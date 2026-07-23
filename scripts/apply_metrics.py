@@ -27,7 +27,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from common.db import get_autocommit_conn
 
 METRICS_DIR = pathlib.Path(__file__).resolve().parent.parent / "metrics"
-METRICS_FILES = ["caggs.sql", "benchmark_views.sql"]
+METRICS_FILES = ["caggs.sql", "benchmark_views.sql", "bus_benchmarks.sql"]
 
 
 def _statements(sql: str) -> list[str]:
