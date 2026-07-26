@@ -337,30 +337,29 @@
       <h3>CannMenus</h3>
       <div class="role">Founder &amp; CEO · 2019 to present</div>
       <p>Cannabis retail had thousands of menus and no ground truth. The biggest operators could
-        buy answers, and everyone else guessed. CannMenus reconciles <strong>nearly 18,000 actively
-        scraped menu feeds</strong> (many dispensaries run several platforms at once) into SKU-level
-        pricing, inventory, and sales intelligence covering roughly <strong>90% of licensed
-        dispensaries</strong> in the U.S. and Canada, all in a 6&nbsp;TB TimescaleDB that ingests
-        <strong>20M+ events a day</strong>. The work I'm proudest of: sales estimated from
-        inventory movement and <strong>calibrated against official state figures</strong>, plus a
-        confidence-gated AI pipeline that scores <strong>about 3M products daily</strong> and sends
-        the uncertain fifth to a self-hosted LLM. Underneath it all sits infrastructure my team
-        designed and still runs: a <strong>17-node Kubernetes cluster</strong> with 230+ pods across
-        103 deployments, a <strong>3-broker Kafka backbone</strong> whose core topics run 50
-        partitions and feed autoscaled stream processors (25 replicas for the busiest provider
-        alone), and a TimescaleDB holding <strong>329M product rows and over 2.5B events</strong>.
-        We were mostly bootstrapped against competitors
-        who raised millions more, won the business anyway (I closed most of it myself), and watched
-        those incumbents <strong>start emulating our strategies and following our releases</strong>.
-        Along the way we acquired one of our rivals and integrated it in four months.</p>
+        buy answers, and everyone else guessed. CannMenus watched <strong>nearly 18,000 live
+        menus</strong> covering roughly <strong>90% of licensed dispensaries</strong> in the U.S.
+        and Canada, read every product with classification models we trained for the job, and
+        turned the mess into clean, categorized pricing, inventory, and sales intelligence
+        (sales estimated from stock movement, <strong>calibrated against official state
+        figures</strong>). The part the market cared about most was speed: <strong>our answers
+        refreshed in minutes</strong>, while the competition's took a day and sometimes a week.
+        Demand found us too: at peak, <strong>Semrush-estimated traffic reached 150,000 people a
+        month</strong> arriving through organic search, an SEO and SEM engine our rivals never
+        matched. We were mostly bootstrapped against competitors who raised millions more, won
+        paying contracts across <strong>brands, distributors, retailers, and data teams</strong>
+        anyway (I closed most of them myself), watched incumbents <strong>start emulating our
+        strategies and following our releases</strong>, and acquired one of our rivals along the
+        way, integrated in four months. The number I'm proudest of: measured data accuracy up
+        from <strong>78% to 96%</strong>, published whatever it said.</p>
       <div class="links"><a href="https://cannmenus.com" target="_blank" rel="noopener">cannmenus.com ↗</a></div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num">20M+</div><div class="l">events ingested per day</div></div>
-      <div class="m"><div class="v num">~18,000</div><div class="l">live menu feeds, 10,000+ dispensaries</div></div>
-      <div class="m"><div class="v num">~3M</div><div class="l">products AI-scored daily</div></div>
-      <div class="m"><div class="v num">17 nodes</div><div class="l">Kubernetes, 230+ pods, 103 deployments</div></div>
-      <div class="m"><div class="v num">3×50</div><div class="l">Kafka brokers × partitions on core topics</div></div>
+      <div class="m"><div class="v num">150k</div><div class="l">monthly visitors at peak, organic search (Semrush est.)</div></div>
+      <div class="m"><div class="v num">~18,000</div><div class="l">live menus watched, 10,000+ dispensaries</div></div>
+      <div class="m"><div class="v num">minutes</div><div class="l">to fresh data, vs a day to a week for rivals</div></div>
+      <div class="m"><div class="v num">4</div><div class="l">customer types: brands, distributors, retailers, data teams</div></div>
+      <div class="m"><div class="v num">1</div><div class="l">rival acquired, integrated in four months</div></div>
       <div class="m"><div class="v num">78→96%</div><div class="l">data accuracy, measured</div></div>
     </div>
   </article>
@@ -374,8 +373,10 @@
         orbit, and nearly everyone resolves it by quietly picking one source. OEI keeps all four:
         an identity graph where <strong>every value remembers which catalog said it</strong>, a
         replayable merge log, and the disagreements surfaced as the product.
-        <strong>99.3% of tracked objects</strong> carry at least one cross-source conflict. Here,
-        that's a feature with receipts.</p>
+        Nearly every shared object (<strong>99.3%</strong>) disagrees somewhere across catalogs,
+        though most of that is naming and granularity; <strong>4,400+ conflicts are
+        substantive</strong>: decay dates, operational status, stale ownership. Each one is
+        surfaced with receipts instead of averaged away.</p>
       <div class="links">
         <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener">orbital.vibcreates.com ↗</a>
         <a href="https://orbital.vibcreates.com/buses" target="_blank" rel="noopener">bus benchmarks ↗</a>
