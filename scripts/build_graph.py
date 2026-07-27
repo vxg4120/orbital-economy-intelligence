@@ -18,11 +18,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, enrich_operators, match, resolve  # noqa: E402
+from identity import assertions, enrich_operators, match, reconcile, resolve  # noqa: E402
 
 _OPERATOR_SEED = REPO_ROOT / "identity" / "operator_seed.yml"
 _STATUS_MAP = REPO_ROOT / "identity" / "status_map.yml"
 _REVIEW_CSV = REPO_ROOT / "data" / "review" / "match_review.csv"
+_PROMOTION_REVIEW_CSV = REPO_ROOT / "data" / "review" / "promotion_review.csv"
 
 
 # --- seeding ------------------------------------------------------------------
@@ -102,6 +103,12 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # every code). This is what lifts operator coverage from ~4% to the large majority.
     enrich_stats = enrich_operators.enrich(conn)
     prob_stats = match.run_matchers(conn, review_csv=review_csv)
+    # Fold provisional GCAT-only records into their NORAD-anchored Space-Track twins. Runs after
+    # the matchers (which cannot link them: the NORAD pass has no NORAD id on the GCAT side, and
+    # the name matcher scores 'MISR-D-1' against 'TRANSPORTER-17 OBJECT AJ' near zero) and before
+    # assertion extraction, so the surviving record inherits both sides' claims and resolve() then
+    # picks the GCAT name over Space-Track's placeholder per precedence.yml.
+    promote_stats = reconcile.promote(conn, review_csv=_PROMOTION_REVIEW_CSV)
     assertions.extract(conn)
     # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
     # psycopg pipeline mode batches those thousands of statements into far fewer round-trips,
@@ -109,7 +116,9 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # is identical — this is purely a transport optimization.
     with conn.pipeline():
         resolve_stats = resolve.resolve(conn)
-    return summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats)
+    summary = summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats)
+    summary["promotion"] = promote_stats
+    return summary
 
 
 def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) -> dict:

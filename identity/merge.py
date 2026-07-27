@@ -58,11 +58,16 @@ def link(conn, satellite_id, raw_ref, rule, score, details=None) -> bool:
 def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
     """Fold merged_id into surviving_id: repoint every child row, log, drop the shell.
 
-    Repoints satellite_identifier, source_assertion, satellite_status_history and
-    satellite_operator, deleting any merged-side row that would collide with an
-    existing surviving-side row on its natural key first (so no FK/PK violation and
-    no orphans are left behind). Writes merge_log, then deletes the merged shell
-    satellite. Does not commit.
+    Repoints every table that references satellite: satellite_identifier, source_assertion,
+    satellite_status_history, satellite_operator, satellite_bus and gold_case. Any merged-side
+    row that would collide with an existing surviving-side row on its natural key is deleted
+    first, so no FK/PK violation and no orphans are left behind. Writes merge_log, then deletes
+    the merged shell satellite. Does not commit.
+
+    The child list must stay exhaustive. A table that references satellite and is not repointed
+    here turns the final DELETE into a foreign key violation, and because the graph build runs in
+    one transaction that would roll back an entire night's work. tests/test_identity_merge.py
+    asserts this list against information_schema so a future migration cannot reintroduce the gap.
     """
     if surviving_id == merged_id:
         raise ValueError("cannot merge a satellite into itself")
@@ -122,6 +127,26 @@ def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
         )
         cur.execute(
             "UPDATE satellite_operator SET satellite_id = %s WHERE satellite_id = %s",
+            (surviving_id, merged_id),
+        )
+        # satellite_bus: PK (satellite_id), so at most one row per side. The surviving side's
+        # attribution wins; scripts/build_bus.py fully rebuilds this table anyway.
+        cur.execute(
+            """
+            DELETE FROM satellite_bus m
+            WHERE m.satellite_id = %(merged)s
+              AND EXISTS (SELECT 1 FROM satellite_bus s WHERE s.satellite_id = %(surv)s)
+            """,
+            {"merged": merged_id, "surv": surviving_id},
+        )
+        cur.execute(
+            "UPDATE satellite_bus SET satellite_id = %s WHERE satellite_id = %s",
+            (surviving_id, merged_id),
+        )
+        # gold_case: UNIQUE (case_type, subject_ref) does not include satellite_id, so repointing
+        # cannot collide. Labeled evaluation cases follow the surviving satellite.
+        cur.execute(
+            "UPDATE gold_case SET satellite_id = %s WHERE satellite_id = %s",
             (surviving_id, merged_id),
         )
         cur.execute(
