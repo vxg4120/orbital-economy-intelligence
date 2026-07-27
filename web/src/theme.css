@@ -832,6 +832,13 @@ button {
 .tab:hover {
   color: var(--ink-dim);
 }
+.tab:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tab:disabled:hover {
+  color: var(--ink-faint);
+}
 .tab.is-active {
   color: var(--ink);
   border-bottom-color: var(--signal);
@@ -895,6 +902,18 @@ button {
 }
 .searchbar input::placeholder {
   color: var(--ink-faint);
+}
+
+/* Compact variant for filter rows (Bus Benchmarks leaderboard). */
+.searchbar--inline {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 360px;
+  margin: 6px 0;
+}
+.searchbar--inline input {
+  padding: 7px 0;
+  font-size: var(--fs-sm);
 }
 
 /* resolver layout */

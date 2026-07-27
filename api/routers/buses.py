@@ -226,7 +226,9 @@ def _group_spec(group: str) -> dict:
     return spec
 
 
-def leaderboard_rows(db, group: str, sort: str, min_n: int, limit: int, offset: int) -> dict:
+def leaderboard_rows(
+    db, group: str, sort: str, min_n: int, limit: int, offset: int, q: str | None = None
+) -> dict:
     """Shared by the router and the MCP server. Returns {rows, total, group, sort, min_n}."""
     spec = _group_spec(group)
     order = _SORTS.get(sort)
@@ -236,12 +238,16 @@ def leaderboard_rows(db, group: str, sort: str, min_n: int, limit: int, offset: 
         f"SELECT v.*, v.{spec['slug_col']} AS slug, v.{spec['name_col']} AS name "
         f"FROM {spec['view']} v WHERE v.fleet_total >= %(min_n)s"
     )
+    params: dict = {"min_n": min_n}
+    if q and q.strip():
+        base += f" AND (v.{spec['name_col']} ILIKE %(q)s OR v.{spec['slug_col']} ILIKE %(q)s)"
+        params["q"] = "%" + q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     with db.cursor() as cur:
-        cur.execute(f"SELECT count(*) AS total FROM ({base}) t", {"min_n": min_n})
+        cur.execute(f"SELECT count(*) AS total FROM ({base}) t", params)
         total = cur.fetchone()["total"]
         cur.execute(
             f"{base} ORDER BY {order}, slug LIMIT %(limit)s OFFSET %(offset)s",
-            {"min_n": min_n, "limit": limit, "offset": offset},
+            {**params, "limit": limit, "offset": offset},
         )
         rows = cur.fetchall()
     return {"rows": rows, "total": total, "group": group, "sort": sort, "min_n": min_n}
@@ -417,8 +423,9 @@ def leaderboard(
     min_n: int = Query(5, ge=1, le=100000),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    q: str | None = Query(None, max_length=80),
 ):
-    return leaderboard_rows(db, group, sort, min_n, limit, offset)
+    return leaderboard_rows(db, group, sort, min_n, limit, offset, q)
 
 
 # Static path routes must be declared before /{slug} so they win the route match.

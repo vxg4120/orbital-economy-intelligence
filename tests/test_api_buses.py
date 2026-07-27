@@ -161,3 +161,38 @@ def test_view_has_manufacturer_cohorts_of_5_plus(db_conn):
         n, max_fleet = cur.fetchone()
     assert n > 0, "expected manufacturers with cohort >= 5"
     assert max_fleet >= 5
+
+
+@pytest.mark.db
+def test_leaderboard_search_finds_small_fleets(client):
+    """q matches name or slug case-insensitively and pairs with min_n=1 to surface small fleets."""
+    r = client.get("/api/buses?q=Apex&min_n=1")
+    assert r.status_code == 200
+    body = r.json()
+    slugs = [row["slug"] for row in body["rows"]]
+    assert "apex" in slugs, "Apex Space (fleet 4) must be findable by search"
+    for row in body["rows"]:
+        assert "apex" in (row["name"] + row["slug"]).lower()
+    # The cohort floor still applies to search results when set.
+    r5 = client.get("/api/buses?q=apex&min_n=5")
+    assert r5.status_code == 200
+    assert all(row["fleet_total"] >= 5 for row in r5.json()["rows"])
+
+
+@pytest.mark.db
+def test_leaderboard_search_bus_group(client):
+    r = client.get("/api/buses?group=bus&q=aries&min_n=1")
+    assert r.status_code == 200
+    assert "aries" in [row["slug"] for row in r.json()["rows"]]
+
+
+@pytest.mark.db
+def test_leaderboard_search_escapes_like_wildcards(client):
+    """A literal % or _ in q must not act as a SQL wildcard."""
+    r = client.get("/api/buses?q=%25&min_n=1")
+    assert r.status_code == 200
+    assert r.json()["total"] == 0
+    r = client.get("/api/buses?q=____&min_n=1")
+    assert r.status_code == 200
+    for row in r.json()["rows"]:
+        assert "____" in (row["name"] + row["slug"]).lower()

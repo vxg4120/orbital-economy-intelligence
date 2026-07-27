@@ -244,9 +244,18 @@ function mockBuses(
   minN: number,
   limit: number,
   offset: number,
+  q?: string,
 ): BusesResponse {
   const base = busLeaderboards[group] ?? busLeaderboards.manufacturer;
-  const filtered = sortBusRows(base.rows.filter((r) => r.fleet_total >= minN), sort);
+  const needle = q?.trim().toLowerCase();
+  const filtered = sortBusRows(
+    base.rows.filter(
+      (r) =>
+        r.fleet_total >= minN &&
+        (!needle || r.name.toLowerCase().includes(needle) || r.slug.toLowerCase().includes(needle)),
+    ),
+    sort,
+  );
   return {
     rows: filtered.slice(offset, offset + limit),
     total: filtered.length,
@@ -490,9 +499,12 @@ export function getBuses(
   minN: number,
   limit: number,
   offset: number,
+  q?: string,
 ): Promise<BusesResponse> {
-  if (MOCK) return delay(mockBuses(group, sort, minN, limit, offset));
-  return realGet<BusesResponse>("/buses", { group, sort, min_n: minN, limit, offset });
+  if (MOCK) return delay(mockBuses(group, sort, minN, limit, offset, q));
+  const params: Record<string, string | number> = { group, sort, min_n: minN, limit, offset };
+  if (q?.trim()) params.q = q.trim();
+  return realGet<BusesResponse>("/buses", params);
 }
 
 export function getBus(slug: string, kind?: BusGroup): Promise<BusDetail> {

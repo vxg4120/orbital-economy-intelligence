@@ -38,12 +38,13 @@ def bus_benchmarks(
     min_n: int = 5,
     limit: int = 25,
     offset: int = 0,
+    q: str | None = None,
 ) -> dict:
     """Leaderboard of bus manufacturers or bus models with performance benchmarks."""
     limit = max(1, min(int(limit), 200))
     offset = max(0, int(offset))
     min_n = max(1, int(min_n))
-    result = _run(lambda conn: leaderboard_rows(conn, group, sort, min_n, limit, offset))
+    result = _run(lambda conn: leaderboard_rows(conn, group, sort, min_n, limit, offset, q))
     result["methodology_version"] = METHODOLOGY["version"]
     result["methodology"] = METHODOLOGY["doc_url"]
     return result
@@ -88,6 +89,13 @@ TOOLS = [
                 },
                 "limit": {"type": "integer", "description": "Max rows (default 25, cap 200)."},
                 "offset": {"type": "integer", "description": "Pagination offset."},
+                "q": {
+                    "type": "string",
+                    "description": (
+                        "Case-insensitive name or slug search, e.g. 'apex' or 'airbus'. "
+                        "Pair with min_n 1 so small fleets are not filtered out."
+                    ),
+                },
             },
         },
         "handler": bus_benchmarks,

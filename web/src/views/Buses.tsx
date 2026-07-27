@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   getBus,
@@ -46,9 +46,23 @@ export function Buses() {
   const [minN, setMinN] = useState(5);
   const [offset, setOffset] = useState(0);
 
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebounced(query);
+      setOffset(0);
+    }, 180);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // While searching, drop the cohort floor to 1 so small or young fleets are findable.
+  const searching = debounced.trim() !== "";
+  const effMinN = searching ? 1 : minN;
+
   const board = useApi(
-    () => getBuses(group, sort, minN, LIMIT, offset),
-    [group, sort, minN, offset],
+    () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined),
+    [group, sort, effMinN, offset, debounced],
   );
   const methodology = useApi(() => getBusMethodology(), []);
 
@@ -156,7 +170,7 @@ export function Buses() {
         meta={
           <>
             {methodology.data ? `methodology v${methodology.data.version} · ` : ""}
-            cohort n ≥ {minN}
+            {searching ? "search matches all cohort sizes" : `cohort n ≥ ${minN}`}
           </>
         }
         flush
@@ -176,11 +190,27 @@ export function Buses() {
               Bus models
             </button>
           </div>
+          <div className="searchbar searchbar--inline">
+            <span className="searchbar__prompt" aria-hidden="true">
+              ⌕
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={group === "manufacturer" ? "Search manufacturers (e.g. Apex, Airbus)" : "Search bus models (e.g. Aries, LEOStar)"}
+              aria-label={group === "manufacturer" ? "Search manufacturers" : "Search bus models"}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
           <div className="tabs tabs--sub" aria-label="Minimum cohort size">
             {MIN_N_OPTIONS.map((n) => (
               <button
                 key={n}
                 className={`tab${minN === n ? " is-active" : ""}`}
+                disabled={searching}
+                title={searching ? "Search matches all cohort sizes" : undefined}
                 onClick={() => {
                   setMinN(n);
                   setOffset(0);

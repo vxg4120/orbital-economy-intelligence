@@ -82,3 +82,9 @@ def test_tool_error_maps_to_mcp_tool_error(db_conn):
 
     r = server.handle_message(_req(6, "tools/call", {"name": "no_such_tool"}))
     assert r["result"]["isError"] is True
+
+
+@pytest.mark.db
+def test_bus_benchmarks_tool_search(db_conn):
+    result = tools.bus_benchmarks(q="apex", min_n=1)
+    assert "apex" in [row["slug"] for row in result["rows"]]
