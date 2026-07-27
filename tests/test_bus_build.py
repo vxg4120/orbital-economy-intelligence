@@ -106,3 +106,47 @@ def test_snapshot_capture_is_idempotent_within_month(db_conn):
         assert second["manufacturer"] == 0 and second["bus"] == 0
     finally:
         db_conn.rollback()
+
+
+@pytest.mark.db
+def test_attribution_agrees_with_piece_crosswalk(db_conn):
+    """Every attributed row must sit on the satellite its COSPAR piece points to.
+
+    GCAT reshuffles provisional jcat slots between releases on fresh multi-payload launches
+    (observed on the 2026-07-07 Transporter-17 rideshare, where jcat-only matching dropped one
+    Apex satellite and mis-joined three others), so attribution matches piece-first. This is
+    the invariant that reshuffle violated.
+    """
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH latest AS (SELECT max(r.ingest_run_id) run FROM raw_gcat_satcat r
+                            JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id
+                            WHERE i.status = 'ok')
+            SELECT count(*)
+            FROM satellite_bus sb
+            JOIN raw_gcat_satcat rc ON rc.jcat = sb.source_key
+            JOIN latest ON rc.ingest_run_id = latest.run
+            WHERE EXISTS (SELECT 1 FROM satellite_identifier si
+                          WHERE si.id_type = 'cospar' AND si.source = 'gcat'
+                            AND si.id_value = btrim(rc.piece))
+              AND NOT EXISTS (SELECT 1 FROM satellite_identifier si
+                              WHERE si.id_type = 'cospar' AND si.source = 'gcat'
+                                AND si.id_value = btrim(rc.piece)
+                                AND si.satellite_id = sb.satellite_id)
+            """
+        )
+        disagreements = cur.fetchone()[0]
+    assert disagreements == 0
+
+
+@pytest.mark.db
+def test_apex_fleet_fully_attributed(db_conn):
+    """Known-data regression for the jcat-reshuffle bug: GCAT credits Apex Space with five
+    spacecraft (Aries 1 plus four Transporter-17 payloads); jcat-only matching surfaced four."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT fleet_total FROM v_bus_benchmarks_manufacturer WHERE manufacturer_slug='apex'"
+        )
+        row = cur.fetchone()
+    assert row is not None and row[0] >= 5

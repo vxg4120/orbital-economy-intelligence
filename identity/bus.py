@@ -16,6 +16,10 @@ attribution with explicit provenance, in one set-based rebuild:
   parent links GCAT leaves blank (SPXS -> SPX: SpaceX's Seattle satellite works is SpaceX).
   The traversed code path and whether an override fired are stored per row.
 
+Rows attach to canonical satellites by COSPAR piece designation first, falling back to the
+jcat crosswalk only when the piece has no cospar identifier: GCAT reshuffles provisional jcat
+slots between releases on fresh multi-payload launches, so jcat alone mis-joins those rows.
+
 Provenance: every satellite_bus row carries (source='gcat', source_key=jcat, ingest_run_id),
 and identity/assertions.py also extracts per-row 'bus' and 'manufacturer' source_assertion
 records, so each resolved value is traceable to the raw catalog row that asserted it.
@@ -29,8 +33,8 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.0"
-METHODOLOGY_UPDATED = "2026-07-23"
+METHODOLOGY_VERSION = "1.1"
+METHODOLOGY_UPDATED = "2026-07-27"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
@@ -106,6 +110,7 @@ rollup AS (
 cleaned AS (
     -- GCAT payload rows from the latest OK snapshot; '-' and '' mean "no value".
     SELECT r.jcat, r.ingest_run_id,
+           NULLIF(btrim(COALESCE(r.piece, '')), '') AS piece,
            NULLIF(NULLIF(btrim(regexp_replace(COALESCE(r.bus, ''), '\\s+', ' ', 'g')),
                          ''), '-') AS bus_raw,
            NULLIF(NULLIF(btrim(regexp_replace(COALESCE(r.manufacturer, ''), '\\s+', ' ', 'g')),
@@ -147,7 +152,7 @@ bus_display AS (
     GROUP BY 1
 ),
 resolved AS (
-    SELECT p.jcat, p.ingest_run_id,
+    SELECT p.jcat, p.ingest_run_id, p.piece,
            p.bus_raw, p.bus_slug, bd.bus_model, p.bus_uncertain,
            p.manufacturer_raw, p.primary_code, p.all_codes, p.manufacturer_uncertain,
            leaf_org.display_name AS manufacturer_org_name,
@@ -170,15 +175,36 @@ resolved AS (
     LEFT JOIN orgs grp_org ON grp_org.code = ru.group_code
     WHERE bd.bus_model IS NOT NULL OR p.primary_code IS NOT NULL
 ),
-linked AS (
-    -- Attach through the identifier crosswalk. A satellite occasionally carries two GCAT rows
-    -- (merge artifacts): prefer the row with a bus model, then the certain one, then lowest jcat.
-    SELECT DISTINCT ON (si.satellite_id) si.satellite_id, r.*
+cospar_matched AS (
+    -- Primary match: COSPAR piece. GCAT reshuffles provisional jcat slots between releases on
+    -- fresh multi-payload launches, so the piece designation is the stable key. When two
+    -- satellites share a piece (rare merge artifacts), prefer the one whose jcat crosswalk
+    -- agrees with this row, then the lowest satellite_id.
+    SELECT DISTINCT ON (r.jcat) si.satellite_id, r.*
+    FROM resolved r
+    JOIN satellite_identifier si
+      ON si.id_type = 'cospar' AND si.source = 'gcat' AND si.id_value = r.piece
+    LEFT JOIN satellite_identifier sj
+      ON sj.id_type = 'gcat_id' AND sj.source = 'gcat' AND sj.id_value = r.jcat
+     AND sj.satellite_id = si.satellite_id
+    ORDER BY r.jcat, (sj.satellite_id IS NULL), si.satellite_id
+),
+jcat_matched AS (
+    -- Fallback for rows whose piece has no gcat cospar identifier in the crosswalk.
+    SELECT DISTINCT ON (r.jcat) si.satellite_id, r.*
     FROM resolved r
     JOIN satellite_identifier si
       ON si.id_type = 'gcat_id' AND si.source = 'gcat' AND si.id_value = r.jcat
-    ORDER BY si.satellite_id, (r.bus_model IS NULL), r.manufacturer_uncertain,
-             r.bus_uncertain, r.jcat
+    WHERE NOT EXISTS (SELECT 1 FROM cospar_matched cm WHERE cm.jcat = r.jcat)
+    ORDER BY r.jcat, si.satellite_id
+),
+linked AS (
+    -- A satellite occasionally carries two GCAT rows (merge artifacts): prefer the row with a
+    -- bus model, then the certain one, then lowest jcat.
+    SELECT DISTINCT ON (satellite_id) *
+    FROM (SELECT * FROM cospar_matched UNION ALL SELECT * FROM jcat_matched) m
+    ORDER BY satellite_id, (bus_model IS NULL), manufacturer_uncertain,
+             bus_uncertain, jcat
 )
 INSERT INTO satellite_bus (
     satellite_id, bus_raw, bus_model, bus_slug, bus_uncertain,

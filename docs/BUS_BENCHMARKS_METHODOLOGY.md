@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.0, published 2026-07-23.**
+**Version 1.1, updated 2026-07-27.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -42,7 +42,12 @@ series (`metrics/caggs.sql`).
   spacecraft platforms.
 * An object enters the benchmark when the latest OK GCAT snapshot attributes a bus model
   and/or a manufacturer to it, and the object resolves through the identity-graph crosswalk
-  (`satellite_identifier`, id type `gcat_id`).
+  (`satellite_identifier`). Resolution matches on the COSPAR piece designation first (id type
+  `cospar`) and falls back to the GCAT catalog id (id type `gcat_id`) only when the piece has
+  no cospar identifier. The piece is the stable key: on fresh multi-payload launches GCAT
+  reshuffles its provisional catalog ids between releases while piece designations hold, so
+  catalog-id matching alone can join a row to the wrong satellite or drop it entirely until
+  permanent ids are assigned.
 * Cohort floor: leaderboards default to cohorts of at least 5 satellites (`min_n=5`). The floor
   is a presentation-layer filter, configurable per request down to 1; the views themselves
   aggregate every cohort so the floor never changes stored numbers.
@@ -214,6 +219,11 @@ history.
 
 ## Changelog
 
+* **v1.1 (2026-07-27).** Attribution rule change: satellites now resolve by COSPAR piece
+  designation first, with the GCAT catalog id as fallback. Found via the Apex Space fleet:
+  GCAT reshuffled provisional catalog ids for the 2026-07-07 Transporter-17 payloads between
+  releases, which dropped one Apex satellite from the fleet count and joined three others to
+  the wrong canonical records under catalog-id matching. No metric definitions changed.
 * **v1.0 (2026-07-23).** Initial published methodology: GCAT-based attribution with
   business-class parent rollup and the single SPXS to SPX override; behavior metrics reusing
   SPEC 7.1/7.2/7.3 definitions with the 0.100 km station-keeping threshold; cohort floor
