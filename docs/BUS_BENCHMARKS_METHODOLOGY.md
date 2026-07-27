@@ -44,10 +44,20 @@ series (`metrics/caggs.sql`).
   and/or a manufacturer to it, and the object resolves through the identity-graph crosswalk
   (`satellite_identifier`). Resolution matches on the COSPAR piece designation first (id type
   `cospar`) and falls back to the GCAT catalog id (id type `gcat_id`) only when the piece has
-  no cospar identifier. The piece is the stable key: on fresh multi-payload launches GCAT
-  reshuffles its provisional catalog ids between releases while piece designations hold, so
-  catalog-id matching alone can join a row to the wrong satellite or drop it entirely until
-  permanent ids are assigned.
+  no cospar identifier. The piece is the more stable of the two keys, not a stable key. On the
+  2026-07-07 Transporter-17 launch, GCAT renumbered 67 of 73 catalog ids against their pieces
+  between the releases of 2026-07-08 and 2026-07-10 while every piece held, which is what
+  catalog-id matching alone gets wrong.
+* Counting convention: this scoreboard counts spacecraft that have launched and been
+  catalogued. It does not count buses that a manufacturer has built or delivered but that have
+  not flown, and it does not count hosted payloads riding on someone else's bus as separate
+  spacecraft. A manufacturer's own published total may therefore exceed the fleet shown here.
+* Provisional identifications: a spacecraft that has not yet been assigned a permanent NORAD
+  id is identified by the catalog provisionally, and that identification can change. Between
+  the releases of 2026-07-21 and 2026-07-27, GCAT re-identified which satellite occupies 41 of
+  the 73 Transporter-17 slots without moving any key. Fleet counts that include such objects
+  are snapshot statements rather than settled ones. Exposing the confirmed and provisional
+  split per cohort is tracked work, not a shipped capability.
 * Cohort floor: leaderboards default to cohorts of at least 5 satellites (`min_n=5`). The floor
   is a presentation-layer filter, configurable per request down to 1; the views themselves
   aggregate every cohort so the floor never changes stored numbers.
@@ -220,10 +230,14 @@ history.
 ## Changelog
 
 * **v1.1 (2026-07-27).** Attribution rule change: satellites now resolve by COSPAR piece
-  designation first, with the GCAT catalog id as fallback. Found via the Apex Space fleet:
-  GCAT reshuffled provisional catalog ids for the 2026-07-07 Transporter-17 payloads between
-  releases, which dropped one Apex satellite from the fleet count and joined three others to
-  the wrong canonical records under catalog-id matching. No metric definitions changed.
+  designation first, with the GCAT catalog id as fallback. Found via the Apex Space fleet,
+  where catalog-id matching dropped one Apex satellite from the fleet count and joined three
+  others to the wrong canonical records. The justifying event is GCAT's 2026-07-10 release,
+  which renumbered 67 of the 73 Transporter-17 catalog ids against pieces that held. A later
+  release, 2026-07-27, moved no keys at all and instead re-identified the occupants of 41 of
+  those 73 slots, which piece-first matching does not protect against and which no key-based
+  rule can. The counting convention and the provisional-identification caveat in section 3
+  were added in the same revision. No metric definitions changed.
 * **v1.0 (2026-07-23).** Initial published methodology: GCAT-based attribution with
   business-class parent rollup and the single SPXS to SPX override; behavior metrics reusing
   SPEC 7.1/7.2/7.3 definitions with the 0.100 km station-keeping threshold; cohort floor
