@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.1, updated 2026-07-27.**
+**Version 1.2, updated 2026-07-28.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -71,11 +71,19 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
 
 * GCAT's `Manufacturer` column carries an org code (for example `SPXS`, `CALT`). Codes resolve
   against the latest GCAT orgs snapshot (`raw_gcat_orgs`).
-* Co-manufactured objects (`NPOL/KOMET`) attribute to the first-listed org, which GCAT lists as
-  the prime; the full code list is preserved per satellite (`manufacturer_codes`).
-* A trailing `?` marks the attribution uncertain in GCAT. The marker is stripped for grouping
-  and stored as a boolean flag (`manufacturer_uncertain`), so uncertain rows are counted but
-  visibly flagged, never silently promoted to certain.
+* Co-manufactured objects (`NPOL/KOMET`) attribute to the first-listed org. This is our
+  convention and not a GCAT semantic, and earlier versions of this document wrongly presented it
+  as one. GCAT does not document what the slash means or whether order is significant, and in the
+  2026-07-27 snapshot 8 org pairs appear in both orders (`AEROAC/BALL` alongside `BALL/AEROAC`),
+  which is not consistent with position encoding primacy. The full code list is preserved per
+  satellite in `manufacturer_codes`, so a co-builder is recorded even when it is not credited,
+  and the leaderboard consequently understates organizations that are frequently listed second.
+  For the Terran Orbital group of codes the difference is 56 satellites credited against 79
+  recorded, so the shortfall is real and measurable rather than hypothetical.
+* A `?` marks the attribution uncertain in GCAT. On a compound value the marker attaches to the
+  individual code (`RAYM?/GSFC`) rather than to the end of the string, so it is stripped per code.
+  The marker is stripped for grouping and stored as a boolean flag (`manufacturer_uncertain`), so
+  uncertain rows are counted but visibly flagged, never silently promoted to certain.
 
 ### 4.2 Parent rollup (manufacturer grouping)
 
@@ -229,6 +237,17 @@ history.
 
 ## Changelog
 
+* **v1.2 (2026-07-28).** Two corrections, no metric definitions changed. First, GCAT's `?`
+  uncertainty marker is now stripped per code rather than from the end of the whole string,
+  because on a compound value GCAT marks the individual org. The previous rule left `RAYM?` as a
+  resolved code, which matched no organization and then slugified onto the real `RAYM`, so one
+  published URL served two different manufacturers and the frozen monthly archive could capture
+  only one of them. Raymond EL moves from 3 to 4 satellites and the spurious cohort disappears.
+  Second, this document previously stated that GCAT lists the prime contractor first on a
+  co-manufactured object. That was our assumption presented as a catalog semantic, and it is not
+  supported: GCAT does not document the slash, and 8 org pairs appear in both orders in the same
+  snapshot. The first-listed convention still governs attribution, but it is now labeled as ours
+  and its cost is quantified.
 * **v1.1 (2026-07-27).** Attribution rule change: satellites now resolve by COSPAR piece
   designation first, with the GCAT catalog id as fallback. Found via the Apex Space fleet,
   where catalog-id matching dropped one Apex satellite from the fleet count and joined three

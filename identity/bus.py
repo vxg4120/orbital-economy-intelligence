@@ -7,7 +7,9 @@ attribution with explicit provenance, in one set-based rebuild:
   stripped (and recorded in bus_uncertain), placeholder values (UNK, Unknown, ...) dropped,
   and casing variants of the same model collapsed to the most common spelling.
 * Manufacturer codes are resolved against the latest raw_gcat_orgs snapshot. Co-manufactured
-  objects ("NPOL/KOMET") attribute to the first-listed org (GCAT lists the prime first); the
+  objects ("NPOL/KOMET") attribute to the first-listed org (a convention of ours, NOT a GCAT
+  semantic: GCAT never documents the slash, and 8 org pairs appear in both orders in the same
+  snapshot, so position does not encode primacy); the
   full code list is preserved in manufacturer_codes.
 * Parent rollup: the org's Parent chain is followed upward while the parent is a business-class
   org (GCAT Class 'B'), so plant-level subsidiaries roll up to their corporate group
@@ -33,8 +35,8 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.1"
-METHODOLOGY_UPDATED = "2026-07-27"
+METHODOLOGY_VERSION = "1.2"
+METHODOLOGY_UPDATED = "2026-07-28"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
