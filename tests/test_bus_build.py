@@ -150,3 +150,52 @@ def test_apex_fleet_fully_attributed(db_conn):
         )
         row = cur.fetchone()
     assert row is not None and row[0] >= 5
+
+
+@pytest.mark.db
+def test_manufacturer_slug_is_unique(db_conn):
+    """A slug is a public URL (/buses/{slug}) and the primary key of bus_benchmark_snapshots.
+
+    Two cohorts sharing one slug means an ambiguous page and a frozen monthly series that can
+    only ever capture one of them, silently dropping the other's history.
+    """
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT manufacturer_slug, count(*) FROM v_bus_benchmarks_manufacturer "
+            "WHERE manufacturer_slug IS NOT NULL GROUP BY 1 HAVING count(*) > 1"
+        )
+        collisions = cur.fetchall()
+        cur.execute(
+            "SELECT bus_slug, count(*) FROM v_bus_benchmarks_bus "
+            "WHERE bus_slug IS NOT NULL GROUP BY 1 HAVING count(*) > 1"
+        )
+        collisions += cur.fetchall()
+    assert not collisions, f"slugs must be unique, found collisions: {collisions}"
+
+
+@pytest.mark.db
+def test_uncertainty_marker_never_survives_into_a_resolved_code(db_conn):
+    """GCAT marks an uncertain org with '?', and on a joint build it marks the individual code
+    ('RAYM?/GSFC') rather than the end of the string. A marker left inside a resolved code
+    matches no org and then slugifies onto the certain org it was meant to qualify."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM satellite_bus "
+            "WHERE manufacturer_code LIKE '%?%' OR manufacturer_group_code LIKE '%?%' "
+            "   OR array_to_string(manufacturer_codes, ',') LIKE '%?%'"
+        )
+        leaked = cur.fetchone()[0]
+    assert leaked == 0, f"{leaked} rows carry an uncertainty marker inside a resolved org code"
+
+
+@pytest.mark.db
+def test_uncertainty_flag_covers_markers_anywhere_in_the_string(db_conn):
+    """manufacturer_uncertain must be true whenever GCAT expressed any doubt, including on a
+    non-final code of a compound build."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM satellite_bus "
+            "WHERE manufacturer_raw LIKE '%?%' AND NOT manufacturer_uncertain"
+        )
+        missed = cur.fetchone()[0]
+    assert missed == 0, f"{missed} rows carry '?' in the raw value but are not flagged uncertain"

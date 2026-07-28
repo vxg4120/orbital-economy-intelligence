@@ -129,9 +129,17 @@ parsed AS (
                 THEN NULL
                 ELSE NULLIF(ltrim(btrim(rtrim(bus_raw, '?')), ''''), '')
            END AS bus_clean,
-           COALESCE(manufacturer_raw LIKE '%%?', FALSE) AS manufacturer_uncertain,
-           NULLIF(split_part(btrim(rtrim(manufacturer_raw, '?')), '/', 1), '') AS primary_code,
-           string_to_array(btrim(rtrim(manufacturer_raw, '?')), '/') AS all_codes
+           -- GCAT marks an uncertain org with a trailing '?', and on a joint build it marks the
+           -- individual code rather than the whole string ('RAYM?/GSFC'). Stripping only a
+           -- trailing marker therefore leaves 'RAYM?' as a code, which resolves against nothing
+           -- and then slugifies to 'raym', colliding with the real RAYM. Strip per code.
+           COALESCE(manufacturer_raw LIKE '%%?%%', FALSE) AS manufacturer_uncertain,
+           NULLIF(btrim(rtrim(btrim(split_part(manufacturer_raw, '/', 1)), '?')), '')
+               AS primary_code,
+           ARRAY(
+               SELECT NULLIF(btrim(rtrim(btrim(c), '?')), '')
+               FROM unnest(string_to_array(manufacturer_raw, '/')) AS c
+           ) AS all_codes
     FROM cleaned
 ),
 sluged AS (
