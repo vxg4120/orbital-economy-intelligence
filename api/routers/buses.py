@@ -354,7 +354,38 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
         "orgs": orgs,
         "satellites_sample": satellites_sample,
         "provenance": provenance,
+        "also_exists_as": _other_kind(db, slug, k),
         "correction_channel": CORRECTION_CHANNEL,
+    }
+
+
+def _other_kind(db, slug: str, resolved_kind: str) -> dict | None:
+    """The cohort of the OTHER kind that shares this slug, if one exists.
+
+    Manufacturer and bus models share a single /buses/{slug} namespace and 29 slugs already
+    collide, with manufacturers winning by default. Without this the losing cohort is addressable
+    only by a reader who already knows to append ?kind=bus, so the ARROW bus model and its 666
+    satellites had no reachable page while a 3-satellite manufacturer of the same name did. The
+    resolution order is deliberately unchanged, because changing it would relocate published
+    URLs; what changes is that the shadowed cohort is now discoverable from the page shadowing it.
+    """
+    other = "bus" if resolved_kind == "manufacturer" else "manufacturer"
+    spec = _GROUPS[other]
+    with db.cursor() as cur:
+        cur.execute(
+            f"SELECT v.{spec['name_col']} AS name, v.fleet_total "
+            f"FROM {spec['view']} v WHERE v.{spec['slug_col']} = %(slug)s",
+            {"slug": slug},
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    return {
+        "kind": other,
+        "slug": slug,
+        "name": row["name"],
+        "fleet_total": row["fleet_total"],
+        "url": f"/api/buses/{slug}?kind={other}",
     }
 
 

@@ -196,3 +196,48 @@ def test_leaderboard_search_escapes_like_wildcards(client):
     assert r.status_code == 200
     for row in r.json()["rows"]:
         assert "____" in (row["name"] + row["slug"]).lower()
+
+
+@pytest.mark.db
+def test_shadowed_cohort_is_discoverable_from_the_page_that_shadows_it(client):
+    """Manufacturers and bus models share one /buses/{slug} namespace and manufacturers win.
+
+    29 slugs collide today. The worst is 'arrow', where a 3-satellite manufacturer occupies the
+    URL and a 666-satellite bus model has no reachable page of its own. Resolution order stays as
+    it is, because changing it would relocate published URLs, so the requirement is that the
+    shadowed cohort is reachable from the one shadowing it.
+    """
+    r = client.get("/api/buses/arrow")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["kind"] == "manufacturer"
+    other = body["also_exists_as"]
+    assert other is not None, "the shadowed bus model must be advertised"
+    assert other["kind"] == "bus" and other["slug"] == "arrow"
+    assert other["fleet_total"] > body["benchmark"]["fleet_total"]
+    # And the advertised URL must actually resolve to that cohort.
+    r2 = client.get(other["url"].replace("/api/buses", "/api/buses"))
+    assert r2.status_code == 200
+    assert r2.json()["kind"] == "bus"
+    assert r2.json()["benchmark"]["fleet_total"] == other["fleet_total"]
+
+
+@pytest.mark.db
+def test_every_colliding_slug_advertises_its_twin(client, db_conn):
+    """No cohort may be unreachable. Checked across the whole collision set, not one example."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT manufacturer_slug FROM v_bus_benchmarks_manufacturer "
+            "WHERE manufacturer_slug IS NOT NULL "
+            "INTERSECT SELECT bus_slug FROM v_bus_benchmarks_bus WHERE bus_slug IS NOT NULL"
+        )
+        colliding = [r[0] for r in cur.fetchall()]
+    assert colliding, "expected the shared-namespace collisions this test exists to cover"
+    for slug in colliding:
+        body = client.get(f"/api/buses/{slug}").json()
+        assert body["also_exists_as"] is not None, f"{slug} shadows a cohort without advertising it"
+
+
+@pytest.mark.db
+def test_non_colliding_slug_advertises_nothing(client):
+    assert client.get("/api/buses/apex").json()["also_exists_as"] is None

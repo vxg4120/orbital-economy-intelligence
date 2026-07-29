@@ -1,5 +1,5 @@
 {
- "captured_at": "2026-07-28T23:17:52.457522+00:00",
+ "captured_at": "2026-07-28T23:59:14.514457+00:00",
  "groups": {
   "bus": {
    "12-sphere": {
@@ -597,7 +597,7 @@
     "median_days_to_operational": 28.0,
     "median_lifetime_years": null,
     "name": "Acadia",
-    "p50_station_keeping_km": 0.2278,
+    "p50_station_keeping_km": 0.2379,
     "station_keeping_share_pct": 44.4
    },
    "adeo-n": {
@@ -2924,7 +2924,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": 24.67,
     "name": "Cluster",
-    "p50_station_keeping_km": 11.4156,
+    "p50_station_keeping_km": 11.8302,
     "station_keeping_share_pct": 0.0
    },
    "cluster-dummy": {
@@ -3340,7 +3340,7 @@
     "median_days_to_operational": 577.0,
     "median_lifetime_years": 1.65,
     "name": "Cubesat 0.5U",
-    "p50_station_keeping_km": 1.4026,
+    "p50_station_keeping_km": 1.4077,
     "station_keeping_share_pct": 0.0
    },
    "cubesat-1-5u": {
@@ -3363,7 +3363,7 @@
     "fleet_on_orbit": 53,
     "fleet_total": 77,
     "gp_coverage_pct": 64.9,
-    "median_days_to_operational": 378.0,
+    "median_days_to_operational": 393.0,
     "median_lifetime_years": 2.15,
     "name": "Cubesat 12U",
     "p50_station_keeping_km": 0.1573,
@@ -10516,7 +10516,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "MicroGEO",
-    "p50_station_keeping_km": 0.3493,
+    "p50_station_keeping_km": 0.3499,
     "station_keeping_share_pct": 0.0
    },
    "microsat": {
@@ -10633,7 +10633,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "Milstar",
-    "p50_station_keeping_km": 0.5646,
+    "p50_station_keeping_km": 0.5643,
     "station_keeping_share_pct": 0.0
    },
    "mimir": {
@@ -16483,7 +16483,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "Spacebus 4000C1",
-    "p50_station_keeping_km": 0.2223,
+    "p50_station_keeping_km": 0.2224,
     "station_keeping_share_pct": 0.0
    },
    "spacebus-4000c2": {
@@ -21529,7 +21529,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "Alcatel Alenia I",
-    "p50_station_keeping_km": 0.2635,
+    "p50_station_keeping_km": 0.2638,
     "station_keeping_share_pct": 0.0
    },
    "ale": {
@@ -22101,7 +22101,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": 24.67,
     "name": "Astrium-Frh.",
-    "p50_station_keeping_km": 11.4156,
+    "p50_station_keeping_km": 11.8302,
     "station_keeping_share_pct": 0.0
    },
    "astfn": {
@@ -22127,7 +22127,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": 6.45,
     "name": "Astranis",
-    "p50_station_keeping_km": 0.3493,
+    "p50_station_keeping_km": 0.3499,
     "station_keeping_share_pct": 0.0
    },
    "astrix": {
@@ -22907,7 +22907,7 @@
     "median_days_to_operational": 28.0,
     "median_lifetime_years": 2.11,
     "name": "Capella Space",
-    "p50_station_keeping_km": 0.2278,
+    "p50_station_keeping_km": 0.2379,
     "station_keeping_share_pct": 44.4
    },
    "captu": {
@@ -24376,7 +24376,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "ETRI",
-    "p50_station_keeping_km": 0.0598,
+    "p50_station_keeping_km": 0.06,
     "station_keeping_share_pct": 100.0
    },
    "exa": {
@@ -29326,10 +29326,10 @@
     "fleet_on_orbit": 1,
     "fleet_total": 1,
     "gp_coverage_pct": 100.0,
-    "median_days_to_operational": null,
+    "median_days_to_operational": 869.0,
     "median_lifetime_years": null,
     "name": "Orion Space Sol.",
-    "p50_station_keeping_km": 0.0466,
+    "p50_station_keeping_km": 0.047,
     "station_keeping_share_pct": 100.0
    },
    "orkk": {
@@ -29944,15 +29944,15 @@
     "station_keeping_share_pct": 0.0
    },
    "raym": {
-    "decayed_count": 1,
+    "decayed_count": 4,
     "disposal_compliance_pct": null,
     "fleet_active": 0,
     "fleet_on_orbit": 0,
-    "fleet_total": 1,
+    "fleet_total": 4,
     "gp_coverage_pct": 0.0,
     "median_days_to_operational": null,
-    "median_lifetime_years": 56.68,
-    "name": "RAYM?",
+    "median_lifetime_years": 20.44,
+    "name": "Raymond EL",
     "p50_station_keeping_km": null,
     "station_keeping_share_pct": null
    },
@@ -31383,7 +31383,7 @@
     "median_days_to_operational": null,
     "median_lifetime_years": null,
     "name": "SRI",
-    "p50_station_keeping_km": 0.3048,
+    "p50_station_keeping_km": 0.3076,
     "station_keeping_share_pct": 0.0
    },
    "srmu": {
@@ -34495,5 +34495,6 @@
    }
   }
  },
- "methodology_version": "1.1"
+ "methodology_version": "1.2",
+ "note": "Captured from the live site AFTER the v1.2 per-code marker fix. A slug-keyed map is only valid because slugs are unique within a kind; see scripts/diff_published_buses.py which refuses to run on a collision."
 }

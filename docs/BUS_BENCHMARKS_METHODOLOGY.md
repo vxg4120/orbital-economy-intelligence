@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.2, updated 2026-07-28.**
+**Version 1.3, updated 2026-07-28.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -183,6 +183,17 @@ yet.
 
 ## 6. Known limitations and biases
 
+**Manufacturers and bus models share one URL namespace.** `/buses/{slug}` resolves manufacturers
+before bus models, and 29 slugs currently exist in both groupings. Where they collide the
+manufacturer page is served, so `/buses/arrow` shows the Arrow Sci Tech manufacturer rather than
+the ARROW bus model, which is the larger cohort of the two. The resolution order is fixed rather
+than chosen per request, because changing it would relocate already published URLs. To keep the
+shadowed cohort reachable, every detail response carries an `also_exists_as` field naming the
+other cohort with the same slug and the URL that resolves it, and `?kind=manufacturer` or
+`?kind=bus` pins the grouping explicitly. A slug is therefore a URL key, not an entity
+identifier, and it should not be treated as one.
+
+
 * **LEO observation bias.** GP element history coverage is far deeper for LEO than GEO/MEO.
   Time-to-operational is LEO-only by construction. Compare GEO manufacturers on behavior
   metrics with care and always read `gp_coverage_pct` first.
@@ -206,9 +217,19 @@ yet.
 The attribution and behavior layers rebuild nightly with the daily ingest cycle
 (`scripts/daily_ingest.sh` runs `scripts/build_bus.py` after the identity graph rebuild). On
 the first refresh of each calendar month the full leaderboards are frozen into
-`bus_benchmark_snapshots` keyed by (month, kind, slug) with insert-only semantics: later
-refreshes in the same month insert nothing and never rewrite a captured month. The series is
+`bus_benchmark_snapshots` keyed by (month, kind, slug) with insert-only semantics. The series is
 served by `GET /api/buses/history/{slug}` with the methodology version that produced each row.
+
+The precise guarantee is worth stating exactly, because an earlier version of this document
+overstated it. Insert-only is enforced per key, not per month, so **a captured value is never
+rewritten, but a cohort that did not exist at the first refresh of a month is still inserted into
+that month when it first appears**, carrying the values of the day it appeared rather than the
+values of the first of the month. This is observable in the July 2026 capture: 2,650 rows were
+written on 2026-07-23 and a further 3 on 2026-07-27. So a month is immutable with respect to
+every number it already holds, and open with respect to cohorts it has never seen. Readers
+comparing two months should treat a cohort that appears mid-month as having a partial first
+period. Removing this asymmetry would require capturing on a month boundary rather than on first
+refresh, which is tracked work and not current behavior.
 
 ## 8. Provenance statement
 
@@ -237,6 +258,12 @@ history.
 
 ## Changelog
 
+* **v1.3 (2026-07-28).** Two disclosure corrections found by auditing this document against the
+  running system, no metric definitions changed. Section 7 previously said a captured month is
+  never added to, which is not what the code does: insert-only is enforced per key, so a cohort
+  first seen mid-month is still inserted into that month. Section 6 now records that manufacturer
+  and bus-model slugs share one URL namespace, that manufacturers win a collision, and that the
+  shadowed cohort is advertised in the API response so no cohort is unreachable.
 * **v1.2 (2026-07-28).** Two corrections, no metric definitions changed. First, GCAT's `?`
   uncertainty marker is now stripped per code rather than from the end of the whole string,
   because on a compound value GCAT marks the individual org. The previous rule left `RAYM?` as a
