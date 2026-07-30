@@ -14,6 +14,9 @@ const Resolver = lazy(() => import("./views/Resolver").then((m) => ({ default: m
 const Conflicts = lazy(() => import("./views/Conflicts").then((m) => ({ default: m.Conflicts })));
 const Operators = lazy(() => import("./views/Operators").then((m) => ({ default: m.Operators })));
 const Buses = lazy(() => import("./views/Buses").then((m) => ({ default: m.Buses })));
+const Reachability = lazy(() =>
+  import("./views/Reachability").then((m) => ({ default: m.Reachability })),
+);
 const Review = lazy(() => import("./views/Review").then((m) => ({ default: m.Review })));
 const ReviewCase = lazy(() => import("./views/ReviewCase").then((m) => ({ default: m.ReviewCase })));
 
@@ -24,6 +27,7 @@ const NAV = [
   { to: "/operators", idx: "03", name: "Operators", end: false },
   { to: "/review", idx: "04", name: "Review", end: false },
   { to: "/buses", idx: "05", name: "Buses", end: false },
+  { to: "/reachability", idx: "06", name: "Reachability", end: false },
 ];
 
 function Clock() {
@@ -135,6 +139,7 @@ export default function App() {
             <Route path="/review/:caseId" element={<ReviewCase />} />
             <Route path="/buses" element={<Buses />} />
             <Route path="/buses/:slug" element={<Buses />} />
+            <Route path="/reachability" element={<Reachability />} />
           </Routes>
         </Suspense>
       </main>

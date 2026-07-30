@@ -25,6 +25,9 @@ import type {
   OperatorSort,
   OperatorsResponse,
   Paginated,
+  ReachabilityPassesResponse,
+  ReachabilityResponse,
+  ReachabilityRf,
   ReviewCaseDetail,
   ReviewCaseRow,
   ReviewCasesResponse,
@@ -61,6 +64,8 @@ import busDetailFixture from "./fixtures/bus_detail.json";
 import busMethodologyFixture from "./fixtures/bus_methodology.json";
 import busProvenanceFixture from "./fixtures/bus_provenance.json";
 import busHistoryFixture from "./fixtures/bus_history.json";
+import reachabilityFixture from "./fixtures/reachability.json";
+import reachabilityPassesFixture from "./fixtures/reachability_passes.json";
 
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
 
@@ -608,4 +613,108 @@ export function submitVerdict(
   return realPost<VerdictResponse>(`/review/cases/${id}/verdict`, body, {
     "X-Review-Token": token,
   });
+}
+
+/* ---- reachability ---------------------------------------------------------- */
+const reachabilityMock = reachabilityFixture as unknown as ReachabilityResponse;
+const reachabilityPassesMock = reachabilityPassesFixture as unknown as Record<
+  string,
+  ReachabilityPassesResponse
+>;
+
+export interface ReachabilityOpts {
+  minElev?: number;
+  rf?: ReachabilityRf;
+  limit?: number;
+}
+
+export interface ReachabilityPassesOpts {
+  hours?: number;
+  minElev?: number;
+}
+
+/** Mirrors the endpoint's query semantics (min_elev floor, rf filter, limit) and
+    echoes the requested observer, so the view exercises real code paths offline. */
+function mockReachability(lat: number, lon: number, opts: ReachabilityOpts): ReachabilityResponse {
+  const minElev = opts.minElev ?? 10;
+  const rf = opts.rf ?? "only";
+  const limit = opts.limit ?? 50;
+  const visible = reachabilityMock.visible
+    .filter((v) => v.elevation_deg >= minElev)
+    .filter((v) => rf === "all" || v.satnogs.length > 0 || v.fcc.length > 0)
+    .slice(0, limit);
+  return {
+    ...reachabilityMock,
+    observer: { ...reachabilityMock.observer, lat, lon, min_elev: minElev },
+    computed_at: new Date().toISOString(),
+    visible,
+  };
+}
+
+/** Shifts the fixture's pass times so the first rise lands ~20 minutes out; the
+    schedule then reads like a live prediction instead of a stale timestamp. */
+function mockReachabilityPasses(
+  lat: number,
+  lon: number,
+  norad: number,
+  opts: ReachabilityPassesOpts,
+): ReachabilityPassesResponse {
+  const minElev = opts.minElev ?? 10;
+  const fixture = reachabilityPassesMock[String(norad)];
+  if (!fixture) {
+    const row = reachabilityMock.visible.find((v) => v.norad_id === norad);
+    if (!row) throw new ApiError("no elements on record for that object", 404);
+    return {
+      norad_id: norad,
+      name: row.name,
+      observer: { ...reachabilityMock.observer, lat, lon, min_elev: minElev },
+      window_hours: opts.hours ?? 24,
+      element_epoch: row.element_epoch,
+      passes: [],
+      satnogs: row.satnogs,
+      fcc: row.fcc,
+      attribution: reachabilityMock.attribution,
+    };
+  }
+  const base = fixture.passes.length > 0 ? Date.parse(fixture.passes[0].rise) : 0;
+  const shift = fixture.passes.length > 0 ? Date.now() + 20 * 60_000 - base : 0;
+  const move = (iso: string) => new Date(Date.parse(iso) + shift).toISOString();
+  return {
+    ...fixture,
+    observer: { ...fixture.observer, lat, lon, min_elev: minElev },
+    window_hours: opts.hours ?? fixture.window_hours,
+    passes: fixture.passes.map((p) => ({ ...p, rise: move(p.rise), peak: move(p.peak), set: move(p.set) })),
+  };
+}
+
+export function getReachability(
+  lat: number,
+  lon: number,
+  opts: ReachabilityOpts = {},
+): Promise<ReachabilityResponse> {
+  if (MOCK) return delay(mockReachability(lat, lon, opts));
+  const params: Record<string, string | number> = { lat, lon };
+  if (opts.minElev !== undefined) params.min_elev = opts.minElev;
+  if (opts.rf) params.rf = opts.rf;
+  if (opts.limit !== undefined) params.limit = opts.limit;
+  return realGet<ReachabilityResponse>("/reachability", params);
+}
+
+export function getReachabilityPasses(
+  lat: number,
+  lon: number,
+  norad: number,
+  opts: ReachabilityPassesOpts = {},
+): Promise<ReachabilityPassesResponse> {
+  if (MOCK) {
+    try {
+      return delay(mockReachabilityPasses(lat, lon, norad, opts));
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+  const params: Record<string, string | number> = { lat, lon, norad };
+  if (opts.hours !== undefined) params.hours = opts.hours;
+  if (opts.minElev !== undefined) params.min_elev = opts.minElev;
+  return realGet<ReachabilityPassesResponse>("/reachability/passes", params);
 }

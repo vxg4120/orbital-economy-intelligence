@@ -2778,3 +2778,105 @@ button {
 .driver-popover.oei-tour .driver-popover-arrow-side-bottom {
   border-bottom-color: var(--surface-2);
 }
+
+/* =============================================================================
+   Reachability - observer controls, sky-sweep table, inline satellite detail
+   ============================================================================= */
+.reach-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.reach-coord {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reach-coord .vinput {
+  flex: none;
+  width: 118px;
+  min-width: 0;
+}
+/* the selected sweep row stays marked while its detail row is open below it */
+.dtable tbody tr.reach-row.is-open,
+.dtable tbody tr.reach-row.is-open:hover {
+  background: var(--surface-3);
+}
+.dtable tbody tr.reach-row.is-open td:first-child {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+/* the expansion row opts out of row chrome: no hover tint, wrapping allowed */
+.dtable tbody tr.reach-expand,
+.dtable tbody tr.reach-expand:hover {
+  background: transparent;
+}
+.dtable tbody tr.reach-expand > td {
+  padding: 0;
+  white-space: normal;
+}
+.reach-detail {
+  border-left: 2px solid var(--signal-dim);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface) 70%);
+  padding: 14px;
+}
+.reach-detail__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--pad);
+}
+.reach-detail__cols > * {
+  min-width: 0;
+}
+.reach-detail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.tx-list {
+  display: flex;
+  flex-direction: column;
+}
+.tx {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tx:last-child {
+  border-bottom: none;
+}
+.tx__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tx__desc {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+.tx__freq {
+  font-size: var(--fs-sm);
+  color: var(--signal);
+  font-variant-numeric: tabular-nums;
+}
+.fcc-bands {
+  margin: 2px 0;
+  white-space: pre-line;
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.reach-attrib {
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+}
+@media (max-width: 900px) {
+  .reach-detail__cols {
+    grid-template-columns: 1fr;
+  }
+}

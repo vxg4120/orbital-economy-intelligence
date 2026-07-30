@@ -1,0 +1,117 @@
+{
+  "observer": { "lat": 34.0522, "lon": -118.2437, "alt_m": 0.0, "min_elev": 10.0 },
+  "computed_at": "2026-07-30T18:38:08+00:00",
+  "candidates_screened": 13177,
+  "visible": [
+    {
+      "norad_id": 25544,
+      "name": "ISS (ZARYA)",
+      "elevation_deg": 47.6,
+      "azimuth_deg": 312.4,
+      "range_km": 542.8,
+      "element_epoch": "2026-07-29T21:27:36+00:00",
+      "satnogs": [
+        {
+          "description": "Mode V/U FM voice repeater",
+          "type": "Transceiver",
+          "downlink_low": 437800000,
+          "downlink_high": null,
+          "uplink_low": 145990000,
+          "mode": "FM",
+          "baud": null,
+          "service": "Amateur",
+          "citation": "https://www.ariss.org/current-status-of-iss-stations.html",
+          "unconfirmed": false
+        },
+        {
+          "description": "Mode V APRS digipeater",
+          "type": "Transceiver",
+          "downlink_low": 145825000,
+          "downlink_high": null,
+          "uplink_low": 145825000,
+          "mode": "AFSK",
+          "baud": 1200.0,
+          "service": "Amateur",
+          "citation": "https://spaceflight.nasa.gov/station/reference/radio/",
+          "unconfirmed": false
+        },
+        {
+          "description": "Mode V Imaging (SSTV events)",
+          "type": "Transmitter",
+          "downlink_low": 145800000,
+          "downlink_high": null,
+          "uplink_low": null,
+          "mode": "SSTV",
+          "baud": null,
+          "service": "Amateur",
+          "citation": "https://community.libre.space/t/iss-sstv-event/13828",
+          "unconfirmed": false
+        }
+      ],
+      "fcc": []
+    },
+    {
+      "norad_id": 62483,
+      "name": "Starlink Group 11-2-07",
+      "elevation_deg": 63.8,
+      "azimuth_deg": 197.2,
+      "range_km": 618.4,
+      "element_epoch": "2026-07-30T02:41:10+00:00",
+      "satnogs": [],
+      "fcc": [
+        {
+          "call_sign": "S2983 / S3018",
+          "licensee": "Space Exploration Holdings, LLC",
+          "service": "FSS",
+          "frequency_range": "10.7-12.7 GHz (s-E)\n13.85-14.5 GHz (E-s)\n17.8-18.6 GHz (s-E)\n18.8-19.3 GHz (s-E)\n27.5-29.1 GHz (E-s)\n29.5-30 GHz (E-s)",
+          "grant_type": "Grant",
+          "match_tier": "constellation"
+        },
+        {
+          "call_sign": "S2992",
+          "licensee": "Space Exploration Holdings, LLC",
+          "service": "FSS",
+          "frequency_range": "37.5-42 GHz (s-E)\n47.2-50.2 GHz (E-s)\n50.4-51.4 GHz (E-s)",
+          "grant_type": "Grant",
+          "match_tier": "constellation"
+        }
+      ]
+    },
+    {
+      "norad_id": 33591,
+      "name": "NOAA 19",
+      "elevation_deg": 12.9,
+      "azimuth_deg": 78.5,
+      "range_km": 2210.6,
+      "element_epoch": "2026-07-29T18:02:44+00:00",
+      "satnogs": [
+        {
+          "description": "APT imagery",
+          "type": "Transmitter",
+          "downlink_low": 137100000,
+          "downlink_high": null,
+          "uplink_low": null,
+          "mode": "APT",
+          "baud": null,
+          "service": "Earth Exploration",
+          "citation": "https://www.ospo.noaa.gov/Operations/POES/status.html",
+          "unconfirmed": false
+        },
+        {
+          "description": "DSB telemetry",
+          "type": "Transmitter",
+          "downlink_low": 137770000,
+          "downlink_high": null,
+          "uplink_low": null,
+          "mode": "DSB",
+          "baud": 8320.0,
+          "service": "Earth Exploration",
+          "citation": "NOAA POES status reports",
+          "unconfirmed": true
+        }
+      ],
+      "fcc": []
+    }
+  ],
+  "attribution": "Transmitter data from SatNOGS DB (https://db.satnogs.org), CC BY-SA 4.0."
+}

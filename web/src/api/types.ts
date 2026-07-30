@@ -627,3 +627,88 @@ export interface BusMethodology {
   correction_channel: string;
   refresh: string;
 }
+
+/* =============================================================================
+   Reachability: "stand here, what can I receive". Two endpoints: a live sweep
+   of everything above an observer's horizon, and the pass schedule for one
+   object. Frequencies arrive in Hz (render as MHz, 3 decimals); timestamps are
+   ISO UTC; fcc.frequency_range is a multi-line band list (render preserving
+   line breaks); satnogs.citation is free text and only sometimes a URL.
+   ============================================================================= */
+
+export type ReachabilityRf = "only" | "all";
+
+export interface ReachabilityObserver {
+  lat: number;
+  lon: number;
+  alt_m: number;
+  min_elev: number;
+}
+
+/** One SatNOGS DB transmitter entry (CC BY-SA 4.0; keep the attribution line). */
+export interface SatnogsTransmitter {
+  description: string;
+  type: string;
+  downlink_low: number | null;
+  downlink_high: number | null;
+  uplink_low: number | null;
+  mode: string | null;
+  baud: number | null;
+  service: string | null;
+  citation: string;
+  unconfirmed: boolean;
+}
+
+/** One FCC license match; match_tier says how it matched (e.g. constellation). */
+export interface FccLicense {
+  call_sign: string;
+  licensee: string | null;
+  service: string | null;
+  frequency_range: string | null;
+  grant_type: string | null;
+  match_tier: string;
+}
+
+/* ---- GET /api/reachability ---- */
+export interface VisibleSatellite {
+  norad_id: number;
+  name: string;
+  elevation_deg: number;
+  azimuth_deg: number;
+  range_km: number;
+  element_epoch: string;
+  satnogs: SatnogsTransmitter[];
+  fcc: FccLicense[];
+}
+
+export interface ReachabilityResponse {
+  observer: ReachabilityObserver;
+  computed_at: string;
+  candidates_screened: number;
+  visible: VisibleSatellite[];
+  attribution: string;
+}
+
+/* ---- GET /api/reachability/passes ---- */
+export interface SatellitePass {
+  rise: string;
+  rise_azimuth_deg: number;
+  peak: string;
+  peak_elevation_deg: number;
+  peak_azimuth_deg: number;
+  set: string;
+  set_azimuth_deg: number;
+  duration_s: number;
+}
+
+export interface ReachabilityPassesResponse {
+  norad_id: number;
+  name: string;
+  observer: ReachabilityObserver;
+  window_hours: number;
+  element_epoch: string;
+  passes: SatellitePass[];
+  satnogs: SatnogsTransmitter[];
+  fcc: FccLicense[];
+  attribution: string;
+}
