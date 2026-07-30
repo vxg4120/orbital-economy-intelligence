@@ -26,6 +26,8 @@ import csv
 import re
 from pathlib import Path
 
+from psycopg.types.json import Jsonb
+
 from identity import merge as merge_mod
 from identity.normalize import norm_name
 
@@ -92,23 +94,42 @@ def promote(conn, review_csv: Path | None = None) -> dict:
         candidates = [dict(zip(columns, row)) for row in cur.fetchall()]
 
     merged, declined = 0, []
-    for c in candidates:
-        if not name_gate(c["provisional_name"], c["anchored_name"]):
-            declined.append(c)
-            continue
-        merge_mod.merge(
-            conn,
-            surviving_id=c["anchored_id"],
-            merged_id=c["provisional_id"],
-            rule=RULE,
-            score=1.0,
-            details={
-                "cospar": c["cospar"],
-                "provisional_name": c["provisional_name"],
-                "anchored_name": c["anchored_name"],
-            },
-        )
-        merged += 1
+    with conn.cursor() as cur:
+        for c in candidates:
+            if not name_gate(c["provisional_name"], c["anchored_name"]):
+                declined.append(c)
+                cur.execute(
+                    "INSERT INTO identity_event (satellite_id, event, rule_fired, details) "
+                    "VALUES (%s, 'promotion_declined', %s, %s)",
+                    (c["provisional_id"], RULE, Jsonb({
+                        "cospar": c["cospar"],
+                        "provisional_name": c["provisional_name"],
+                        "anchored_name": c["anchored_name"],
+                    })),
+                )
+                continue
+            merge_mod.merge(
+                conn,
+                surviving_id=c["anchored_id"],
+                merged_id=c["provisional_id"],
+                rule=RULE,
+                score=1.0,
+                details={
+                    "cospar": c["cospar"],
+                    "provisional_name": c["provisional_name"],
+                    "anchored_name": c["anchored_name"],
+                },
+            )
+            cur.execute(
+                "INSERT INTO identity_event (satellite_id, event, rule_fired, details) "
+                "VALUES (%s, 'provisional_promoted', %s, %s)",
+                (c["anchored_id"], RULE, Jsonb({
+                    "cospar": c["cospar"],
+                    "merged_provisional_id": c["provisional_id"],
+                    "provisional_name": c["provisional_name"],
+                })),
+            )
+            merged += 1
 
     if declined:
         _write_review(review_csv, declined)

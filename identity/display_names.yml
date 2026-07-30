@@ -1,0 +1,38 @@
+# Curated display names for objects whose resolved catalog name is technically correct and
+# humanly useless. The name precedence (identity/precedence.yml) prefers GCAT, and GCAT names
+# some famous spacecraft by article number or pre-launch designation: the ISS is "77KM
+# No. 175-01" (the Zarya module's article number) and NOAA-19 is "NOAA N'" (its pre-launch
+# designation). Those are the names a catalog historian wants and nobody else does.
+#
+# This is curation, not correction: the catalog assertions stay untouched and queryable, and the
+# override is applied last in identity/resolve.py, keyed by NORAD id, with each entry recording
+# the resolved name it replaces so the choice is auditable. Keep the list small: an entry earns
+# its place only when the resolved name would actively mislead a user of the public surfaces
+# (search, reachability, dossiers). The NOAA birds matter most: they are the most-received
+# amateur satellites on Earth, and the reachability endpoint serves them by this name.
+
+display_names:
+  - norad_id: 25544
+    name: "ISS (Zarya)"
+    replaces: "77KM  No. 175-01"
+  - norad_id: 48274
+    name: "Tiangong (Tianhe)"
+    replaces: "Tianhe hao hexin cang"
+  - norad_id: 25994
+    name: "Terra (EOS AM-1)"
+    replaces: "EOS AM-1"
+  - norad_id: 27424
+    name: "Aqua (EOS PM-1)"
+    replaces: "EOS PM-1"
+  - norad_id: 28376
+    name: "Aura (EOS Chem-1)"
+    replaces: "EOS Chem-1"
+  - norad_id: 25338
+    name: "NOAA-15"
+    replaces: "NOAA K/S07"
+  - norad_id: 28654
+    name: "NOAA-18"
+    replaces: "NOAA N/S10"
+  - norad_id: 33591
+    name: "NOAA-19"
+    replaces: "NOAA N'"

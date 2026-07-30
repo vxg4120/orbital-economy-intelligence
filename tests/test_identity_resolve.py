@@ -219,3 +219,45 @@ def test_scd2_launch_one_day_before_split_is_two_rows(db_conn):
         (eutelsat, dt.date(2023, 9, 28), None),
     ]
     db_conn.rollback()
+
+
+def test_display_names_yml_is_well_formed():
+    """Every override names its target by NORAD id, provides a non-empty name, and records the
+    resolved name it replaces so the curation stays auditable."""
+    import pathlib
+
+    import yaml
+
+    spec = yaml.safe_load(
+        (pathlib.Path(__file__).parent.parent / "identity" / "display_names.yml").read_text()
+    )
+    entries = spec["display_names"]
+    assert entries, "the override list exists to be used"
+    ids = [e["norad_id"] for e in entries]
+    assert len(ids) == len(set(ids)), "one override per object"
+    for e in entries:
+        assert isinstance(e["norad_id"], int)
+        assert e["name"].strip()
+        assert e["replaces"].strip()
+        assert "—" not in e["name"]
+
+
+@pytest.mark.db
+def test_famous_objects_carry_curated_display_names(db_conn):
+    """After a resolve run, the reachability and search surfaces must say 'ISS (Zarya)' and
+    'NOAA-19', not '77KM No. 175-01' and \"NOAA N'\"."""
+    from identity.resolve import _apply_display_name_overrides
+
+    _apply_display_name_overrides(db_conn)
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT norad_id, canonical_name FROM satellite "
+            "WHERE norad_id IN (25544, 33591, 28654)"
+        )
+        names = dict(cur.fetchall())
+    db_conn.rollback()
+    if not names:
+        pytest.skip("famous objects not present in this database")
+    assert names.get(25544) == "ISS (Zarya)"
+    assert names.get(33591) == "NOAA-19"
+    assert names.get(28654) == "NOAA-18"

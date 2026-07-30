@@ -17,6 +17,7 @@ import yaml
 from identity.normalize import canonical_object_type, parse_date_loose
 
 _PRECEDENCE_DEFAULT = Path(__file__).with_name("precedence.yml")
+_DISPLAY_NAMES_DEFAULT = Path(__file__).with_name("display_names.yml")
 
 
 def load_precedence(path=None) -> dict:
@@ -67,6 +68,29 @@ def _resolve_name(conn, order) -> None:
                     "WHERE satellite_id = %s",
                     (picked[1], sat_id),
                 )
+
+
+def _apply_display_name_overrides(conn, path=None) -> int:
+    """Curated display names, applied last so they win over any precedence outcome.
+
+    GCAT names some famous spacecraft by article number or pre-launch designation (the ISS is
+    '77KM No. 175-01', NOAA-19 is "NOAA N'"), which the name precedence then faithfully serves
+    to users. The overrides in display_names.yml are keyed by NORAD id and each records the
+    name it replaces, so the curation is auditable; the underlying assertions stay untouched.
+    Returns the number of rows updated this run.
+    """
+    with open(path or _DISPLAY_NAMES_DEFAULT) as fh:
+        spec = yaml.safe_load(fh) or {}
+    applied = 0
+    with conn.cursor() as cur:
+        for entry in spec.get("display_names", []):
+            cur.execute(
+                "UPDATE satellite SET canonical_name = %(name)s, updated_at = now() "
+                "WHERE norad_id = %(norad)s AND canonical_name IS DISTINCT FROM %(name)s",
+                {"name": entry["name"], "norad": entry["norad_id"]},
+            )
+            applied += cur.rowcount
+    return applied
 
 
 def _resolve_object_type(conn, order) -> None:
@@ -248,4 +272,5 @@ def resolve(conn, precedence_path=None) -> dict:
     _resolve_decay_date(conn, prec["decay_date"])
     _resolve_status(conn, prec["status"], stats)
     _resolve_owner(conn, prec["owner"], stats)
+    stats["display_name_overrides"] = _apply_display_name_overrides(conn)
     return stats

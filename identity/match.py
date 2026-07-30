@@ -93,9 +93,13 @@ def _find_by_cospar(cur, cospar: str) -> tuple[int | None, bool]:
     the live catalog); pick the lowest satellite_id deterministically so a NORAD-less piece is
     never linked to an arbitrary (run-dependent) physical object, and flag the ambiguity so the
     build can count it as a DQ signal."""
+    # valid_to IS NULL: an identifier the churn pass expired must stop resolving here in the
+    # same commit it stops resolving everywhere else, or the matcher would quietly re-link
+    # through a key the ledger already declared contaminated.
     cur.execute(
         "SELECT satellite_id FROM satellite_identifier "
-        "WHERE id_type = 'cospar' AND id_value = %s ORDER BY satellite_id LIMIT 2",
+        "WHERE id_type = 'cospar' AND id_value = %s AND valid_to IS NULL "
+        "ORDER BY satellite_id LIMIT 2",
         (cospar,),
     )
     rows = cur.fetchall()

@@ -40,6 +40,19 @@ def link(conn, satellite_id, raw_ref, rule, score, details=None) -> bool:
             ),
         )
         if not cur.rowcount:
+            # Resurrection path: the churn pass expires contested identifiers (valid_to set),
+            # but when a live snapshot re-asserts the SAME identifier for the SAME satellite,
+            # the assertion outranks the suspicion and the identifier comes back to life.
+            # Without this, one churn event would retire a key permanently even after the
+            # catalog settles.
+            cur.execute(
+                """
+                UPDATE satellite_identifier SET valid_to = NULL
+                WHERE satellite_id = %s AND id_type = %s AND id_value = %s AND source = %s
+                  AND valid_to IS NOT NULL
+                """,
+                (satellite_id, raw_ref["id_type"], raw_ref["id_value"], raw_ref["source"]),
+            )
             return False
         payload = dict(details or {})
         payload.setdefault("id_type", raw_ref["id_type"])

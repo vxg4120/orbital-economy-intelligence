@@ -370,6 +370,39 @@ def _section_phase2_metrics(cur):
     return per_op_cols, per_op_rows, killer
 
 
+def _section_key_churn(cur):
+    """Catalog key stability and the churn ledger (tenancy Phase 2): is the ground moving."""
+    stab_cols, stab_rows = _rows(cur, """
+        SELECT source, id_type, observations, referent_changes, changes_anchored,
+               prev_run_id, curr_run_id
+        FROM key_stability ORDER BY measured_at DESC, id_type LIMIT 10
+    """)
+    churn_cols, churn_rows = _rows(cur, """
+        SELECT launch_key, count(*) AS churned_keys,
+               count(*) FILTER (WHERE prev_anchored) AS on_anchored_rows,
+               max(detected_at)::date AS latest
+        FROM catalog_key_churn GROUP BY launch_key ORDER BY count(*) DESC LIMIT 10
+    """)
+    event_cols, event_rows = _rows(cur, """
+        SELECT event, count(*) AS n, max(at)::date AS latest
+        FROM identity_event GROUP BY event ORDER BY count(*) DESC
+    """)
+    cur.execute(
+        "SELECT count(*) FROM satellite_identifier WHERE valid_to IS NOT NULL "
+        "AND id_type IN ('gcat_id', 'cospar')"
+    )
+    expired = cur.fetchone()[0]
+    cur.execute("SELECT count(*) FROM satellite WHERE anchor_state = 'provisional'")
+    provisional = cur.fetchone()[0]
+    return {
+        "stability": (stab_cols, stab_rows),
+        "churn_by_launch": (churn_cols, churn_rows),
+        "events": (event_cols, event_rows),
+        "expired_identifiers": expired,
+        "provisional_satellites": provisional,
+    }
+
+
 def _pct(numerator: int, denominator: int) -> str:
     if denominator == 0:
         return "0.0%"
@@ -399,6 +432,7 @@ def generate_report(conn) -> str:
         match_merge = _section_match_merge_stats(cur)
         coverage = _section_coverage(cur)
         p2_cols, p2_rows, p2_killer = _section_phase2_metrics(cur)
+        key_churn = _section_key_churn(cur)
 
     out.append("# Data Quality and Conflict Report\n")
     out.append(f"Generated at: {now}\n")
@@ -443,7 +477,24 @@ def generate_report(conn) -> str:
     out.append("\n### Unmatched objects by source (source_assertion.satellite_id IS NULL)\n")
     out.append(_md_table(*match_merge["unmatched"]))
 
-    out.append("\n## 6. Coverage\n")
+    out.append("\n## 6. Catalog key stability and churn\n")
+    out.append(
+        "\nProvisional catalog keys move on fresh launches; these are measurements, not "
+        "assumptions. A referent change means the same key named a different object in the "
+        "next snapshot (compared by normalized name).\n"
+    )
+    out.append("\n### Key stability, latest comparisons\n")
+    out.append(_md_table(*key_churn["stability"]))
+    out.append("\n### Churn by launch\n")
+    out.append(_md_table(*key_churn["churn_by_launch"]))
+    out.append("\n### Identity events\n")
+    out.append(_md_table(*key_churn["events"]))
+    out.append(
+        f"\nExpired volatile identifiers: **{key_churn['expired_identifiers']}** -- "
+        f"satellites still provisional: **{key_churn['provisional_satellites']}**\n"
+    )
+
+    out.append("\n## 7. Coverage\n")
     total = coverage["total_on_orbit"]
     out.append(f"\nOn-orbit payloads (PAYLOAD, latest status != DECAYED): **{total}**\n\n")
     out.append(

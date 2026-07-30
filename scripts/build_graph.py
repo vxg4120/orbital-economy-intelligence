@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, enrich_operators, match, reconcile, resolve  # noqa: E402
+from identity import assertions, churn, enrich_operators, match, reconcile, resolve  # noqa: E402
 
 _OPERATOR_SEED = REPO_ROOT / "identity" / "operator_seed.yml"
 _STATUS_MAP = REPO_ROOT / "identity" / "status_map.yml"
@@ -109,6 +109,11 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # assertion extraction, so the surviving record inherits both sides' claims and resolve() then
     # picks the GCAT name over Space-Track's placeholder per precedence.yml.
     promote_stats = reconcile.promote(conn, review_csv=_PROMOTION_REVIEW_CSV)
+    # Churn ledger: observe catalog key reassignment between the last two snapshots, measure
+    # per-key-type stability with denominators, refresh anchor states, and expire identifiers
+    # that are volatile AND observed-churned AND pointing at unanchored satellites. Runs after
+    # promotion so freshly promoted satellites are anchored before expiry considers them.
+    churn_stats = churn.run_all(conn)
     assertions.extract(conn)
     # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
     # psycopg pipeline mode batches those thousands of statements into far fewer round-trips,
@@ -118,6 +123,7 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
         resolve_stats = resolve.resolve(conn)
     summary = summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats)
     summary["promotion"] = promote_stats
+    summary["churn"] = churn_stats
     return summary
 
 
