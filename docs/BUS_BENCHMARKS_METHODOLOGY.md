@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.3, updated 2026-07-28.**
+**Version 1.4, updated 2026-07-29.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -84,6 +84,22 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
   individual code (`RAYM?/GSFC`) rather than to the end of the string, so it is stripped per code.
   The marker is stripped for grouping and stored as a boolean flag (`manufacturer_uncertain`), so
   uncertain rows are counted but visibly flagged, never silently promoted to certain.
+* After the GCAT rollup, an operator-identity layer merges cohorts whose rolled-up group codes
+  resolve to the same organization in the platform's curated operator graph. The layer is
+  strictly merge-only: it can join cohorts that are the same real-world company under different
+  GCAT codes, and it structurally cannot split one, because it keys on the rolled-up group code
+  rather than the leaf. When cohorts merge, the surviving slug and display name belong to the
+  incumbent group code with the largest fleet, with ties broken by code order; that rule is a
+  published-URL commitment, pinned by tests. Every slug the merge retires gets a permanent
+  redirect recorded in `benchmark_slug_alias`, so `/buses/{old}` keeps serving the surviving
+  cohort with an explicit `aliased_from` field, and the retired slug's frozen monthly series
+  names its continuation. Group codes the operator graph does not recognize keep their incumbent
+  cohort untouched.
+* Manufacturer rollup is undated, current-state attribution. A satellite is credited to the
+  corporate group that owns the factory today, not the one that owned it on build day, because
+  no build date exists in any source catalog and launch dates postdate builds by months to
+  years. The build never reads the operator graph's dated relationship edges, whose dates are
+  founding dates rather than acquisition dates.
 
 ### 4.2 Parent rollup (manufacturer grouping)
 
@@ -220,16 +236,13 @@ the first refresh of each calendar month the full leaderboards are frozen into
 `bus_benchmark_snapshots` keyed by (month, kind, slug) with insert-only semantics. The series is
 served by `GET /api/buses/history/{slug}` with the methodology version that produced each row.
 
-The precise guarantee is worth stating exactly, because an earlier version of this document
-overstated it. Insert-only is enforced per key, not per month, so **a captured value is never
-rewritten, but a cohort that did not exist at the first refresh of a month is still inserted into
-that month when it first appears**, carrying the values of the day it appeared rather than the
-values of the first of the month. This is observable in the July 2026 capture: 2,650 rows were
-written on 2026-07-23 and a further 3 on 2026-07-27. So a month is immutable with respect to
-every number it already holds, and open with respect to cohorts it has never seen. Readers
-comparing two months should treat a cohort that appears mid-month as having a partial first
-period. Removing this asymmetry would require capturing on a month boundary rather than on first
-refresh, which is tracked work and not current behavior.
+The precise guarantee, as of v1.4: **a month is captured in full by the first refresh of that
+calendar month and never written again**, including for cohorts that first appear mid-month,
+which simply wait for the next month's capture. Earlier behavior was weaker (insert-only per
+key, so a cohort first seen mid-month appended itself into an already-frozen month with that
+day's values, observable in the July 2026 capture: 2,650 rows on the 23rd and 3 more on the
+27th). The July 2026 month retains those three appended rows as a documented artifact of the
+old rule; from August 2026 onward each month is written exactly once.
 
 ## 8. Provenance statement
 
@@ -258,6 +271,18 @@ history.
 
 ## Changelog
 
+* **v1.4 (2026-07-29).** Attribution rule addition: an operator-identity merge layer now joins
+  manufacturer cohorts whose rolled-up GCAT group codes resolve to the same organization in the
+  curated operator graph. The layer is merge-only and keyed on group codes, so it cannot split a
+  cohort. Its one effect on current data is the Planet family: `plabs` (Planet Labs, 106),
+  `cosmog` (2) and `skybox` (2) merge into `plan`, whose fleet moves from 551 to 661; the three
+  retired slugs redirect permanently via `benchmark_slug_alias` and their frozen series name
+  `plan` as their continuation. No other cohort changed on any metric, verified by a controlled
+  before-and-after diff on identical data. Also in this version: both leaderboard views now group
+  by slug alone so one URL can never serve two cohorts (the defect behind the July `raym`
+  archive row, which records the phantom `RAYM?` cohort from before the v1.2 fix rather than the
+  real Raymond EL); and monthly snapshots are now written exactly once per month rather than
+  insert-only per key. Metric definitions are unchanged.
 * **v1.3 (2026-07-28).** Two disclosure corrections found by auditing this document against the
   running system, no metric definitions changed. Section 7 previously said a captured month is
   never added to, which is not what the code does: insert-only is enforced per key, so a cohort

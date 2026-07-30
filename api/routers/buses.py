@@ -253,8 +253,14 @@ def leaderboard_rows(
     return {"rows": rows, "total": total, "group": group, "sort": sort, "min_n": min_n}
 
 
-def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict] | None:
-    """Resolve a slug to (kind, benchmark row); manufacturers win ties unless kind pins it."""
+def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict, str | None] | None:
+    """Resolve a slug to (kind, benchmark row, aliased_from); manufacturers win ties.
+
+    When an attribution rule merges a cohort into another, its slug retires but stays a
+    published URL, so a direct miss falls back to benchmark_slug_alias and serves the surviving
+    cohort with aliased_from naming the slug the caller actually asked for. Direct hits always
+    win, so a stale alias row can never shadow a live cohort.
+    """
     kinds = [kind] if kind in _GROUPS else ["manufacturer", "bus"]
     with db.cursor() as cur:
         for k in kinds:
@@ -266,7 +272,19 @@ def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict] | None:
             )
             row = cur.fetchone()
             if row is not None:
-                return k, row
+                return k, row, None
+        for k in kinds:
+            spec = _GROUPS[k]
+            cur.execute(
+                f"SELECT v.*, v.{spec['slug_col']} AS slug, v.{spec['name_col']} AS name "
+                f"FROM benchmark_slug_alias a "
+                f"JOIN {spec['view']} v ON v.{spec['slug_col']} = a.new_slug "
+                f"WHERE a.kind = %(kind)s AND a.old_slug = %(slug)s",
+                {"kind": k, "slug": slug},
+            )
+            row = cur.fetchone()
+            if row is not None:
+                return k, row, slug
     return None
 
 
@@ -274,7 +292,9 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
     found = _find_group(db, slug, kind)
     if found is None:
         raise HTTPException(status_code=404, detail="no manufacturer or bus with that slug")
-    k, benchmark = found
+    k, benchmark, aliased_from = found
+    if aliased_from is not None:
+        slug = benchmark["slug"]  # constituents/receipts read the surviving cohort
     slug_col = _GROUPS[k]["slug_col"]
 
     with db.cursor() as cur:
@@ -355,6 +375,9 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
         "satellites_sample": satellites_sample,
         "provenance": provenance,
         "also_exists_as": _other_kind(db, slug, k),
+        # Set when the requested slug was retired by a cohort merge: the payload served is the
+        # surviving cohort, and this names the slug the caller actually asked for.
+        "aliased_from": aliased_from,
         "correction_channel": CORRECTION_CHANNEL,
     }
 
@@ -394,7 +417,9 @@ def provenance_rows(db, slug: str, metric: str, kind: str | None,
     found = _find_group(db, slug, kind)
     if found is None:
         raise HTTPException(status_code=404, detail="no manufacturer or bus with that slug")
-    k, benchmark = found
+    k, benchmark, aliased_from = found
+    if aliased_from is not None:
+        slug = benchmark["slug"]  # receipts must reconcile against the surviving cohort
     spec = _PROVENANCE_METRICS.get(metric)
     if spec is None:
         raise HTTPException(
@@ -442,7 +467,20 @@ def history_rows(db, slug: str, kind: str | None = None) -> dict:
             )
             rows = cur.fetchall()
             if rows:
-                return {"kind": k, "slug": slug, "snapshots": rows}
+                # A retired slug's frozen series ends at the merge; continued_as names the
+                # surviving slug whose series carries on, so the level break is explainable.
+                cur.execute(
+                    "SELECT new_slug FROM benchmark_slug_alias "
+                    "WHERE kind = %(kind)s AND old_slug = %(slug)s",
+                    {"kind": k, "slug": slug},
+                )
+                alias = cur.fetchone()
+                return {
+                    "kind": k,
+                    "slug": slug,
+                    "snapshots": rows,
+                    "continued_as": alias["new_slug"] if alias else None,
+                }
     raise HTTPException(status_code=404, detail="no snapshots for that slug")
 
 

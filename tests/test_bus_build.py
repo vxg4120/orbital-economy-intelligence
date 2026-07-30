@@ -56,13 +56,22 @@ def test_bus_normalization_rules_hold(db_conn):
 @pytest.mark.db
 def test_manufacturer_rollup_rules_hold(db_conn):
     with db_conn.cursor() as cur:
-        # The curated SPXS -> SPX override is visible and flagged as an override.
+        # Outcome pins rather than provenance strings: the earlier assertion pinned
+        # rows == [("SPX", "gcat_orgs+override")], a string that legitimately changes under
+        # refactors, which would get edited away and leave 12,685 satellites unguarded. What must
+        # never change silently is the OUTCOME: SPXS lands on group SPX, and /buses/spx keeps its
+        # full fleet.
         cur.execute(
-            "SELECT DISTINCT manufacturer_group_code, rollup_source FROM satellite_bus "
+            "SELECT DISTINCT manufacturer_group_code FROM satellite_bus "
             "WHERE manufacturer_code = 'SPXS'"
         )
-        rows = cur.fetchall()
-    assert rows == [("SPX", "gcat_orgs+override")]
+        assert cur.fetchall() == [("SPX",)]
+        cur.execute("SELECT count(*) FROM satellite_bus WHERE manufacturer_slug = 'spx'")
+        assert cur.fetchone()[0] == 12829, "the site's largest page must keep its fleet"
+        cur.execute(
+            "SELECT count(*) FROM satellite_bus WHERE rollup_source = 'gcat_orgs+override'"
+        )
+        assert cur.fetchone()[0] == 12685, "the SPXS override must still fire on every row"
 
     with db_conn.cursor() as cur:
         # Business-class rollup only: no satellite rolls up into the Soviet ministry MOM or the
@@ -72,7 +81,14 @@ def test_manufacturer_rollup_rules_hold(db_conn):
             "AND manufacturer_code NOT IN ('MOM', 'FKA')"
         )
         assert cur.fetchone()[0] == 0
-        # Rollup provenance: every rolled-up row records its traversal path from leaf to group.
+        # Rollup provenance: every GCAT-walked row records its traversal path from leaf to group.
+        # Rows the operator merge rewrote carry rollup_source='operator_merge' and keep the path
+        # of their original walk, so they are excluded here; the anti-vacuity floor guarantees
+        # this filter still covers the walked majority rather than passing on zero rows.
+        cur.execute(
+            "SELECT count(*) FROM satellite_bus WHERE rollup_source LIKE 'gcat_orgs%'"
+        )
+        assert cur.fetchone()[0] > 10000, "walked-rollup filter must not go vacuous"
         cur.execute(
             "SELECT count(*) FROM satellite_bus WHERE rollup_source LIKE 'gcat_orgs%' AND ("
             "rollup_path IS NULL OR rollup_path[1] <> manufacturer_code "

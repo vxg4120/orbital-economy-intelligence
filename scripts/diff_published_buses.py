@@ -58,6 +58,14 @@ METRICS = [
     "median_lifetime_years",
 ]
 
+# Per-group extras. The bus view names a primary manufacturer, and a manufacturer-side merge can
+# relabel bus pages without any bus slug or metric moving, which the gate would otherwise call
+# "no change". Tracking these makes that relabel a visible, gateable diff.
+GROUP_METRICS = {
+    "manufacturer": METRICS,
+    "bus": [*METRICS, "primary_manufacturer", "primary_manufacturer_slug"],
+}
+
 _GROUPS = {
     "manufacturer": ("v_bus_benchmarks_manufacturer", "manufacturer_slug", "manufacturer_name"),
     "bus": ("v_bus_benchmarks_bus", "bus_slug", "bus_model"),
@@ -69,9 +77,10 @@ def current(conn) -> dict:
     out = {}
     with conn.cursor() as cur:
         for group, (view, slug_col, name_col) in _GROUPS.items():
+            gmetrics = GROUP_METRICS[group]
             cur.execute(
                 f"SELECT {slug_col} AS slug, {name_col} AS name, "
-                f"{', '.join(METRICS)} FROM {view} WHERE {slug_col} IS NOT NULL"
+                f"{', '.join(gmetrics)} FROM {view} WHERE {slug_col} IS NOT NULL"
             )
             cols = [d.name for d in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -90,8 +99,19 @@ def current(conn) -> dict:
                     f"and the snapshot archive: {dict(list(collisions.items())[:5])}"
                 )
             out[group] = {
-                r["slug"]: {k: _num(r[k]) for k in ["name", *METRICS]} for r in rows
+                r["slug"]: {k: _num(r[k]) for k in ["name", *gmetrics]} for r in rows
             }
+        # The URL contract: retired slugs and where they now point. The gate treats a vanished
+        # slug as acceptable only when a valid alias row redirects it to a live cohort.
+        cur.execute("SELECT to_regclass('benchmark_slug_alias') IS NOT NULL")
+        if cur.fetchone()[0]:
+            cur.execute("SELECT kind, old_slug, new_slug FROM benchmark_slug_alias")
+            aliases = {}
+            for kind, old, new in cur.fetchall():
+                aliases.setdefault(kind, {})[old] = new
+            out["_aliases"] = aliases
+        else:
+            out["_aliases"] = {}
     return out
 
 
@@ -116,10 +136,11 @@ def compare(baseline: dict, now: dict) -> dict:
         vanished = sorted(set(was) - set(is_))
         appeared = sorted(set(is_) - set(was))
         changed = {}
+        gmetrics = GROUP_METRICS[group]
         for slug in sorted(set(was) & set(is_)):
             deltas = {
                 k: (was[slug].get(k), is_[slug].get(k))
-                for k in ["name", *METRICS]
+                for k in ["name", *gmetrics]
                 if _num(was[slug].get(k)) != _num(is_[slug].get(k))
             }
             if deltas:
@@ -161,7 +182,7 @@ def render(report: dict) -> str:
                 tally[k] = tally.get(k, 0) + 1
         if tally:
             lines.append("  changes by metric:")
-            for k in ["name", *METRICS]:
+            for k in ["name", *GROUP_METRICS[group]]:
                 if k in tally:
                     lines.append(f"      {k:32} {tally[k]}")
     return "\n".join(lines)
@@ -173,6 +194,12 @@ def main() -> int:
     ap.add_argument("--capture", help="write current state to this path instead of diffing")
     ap.add_argument("--gate", action="store_true", help="exit 1 if anything outside --allow moved")
     ap.add_argument("--allow", default="", help="comma-separated slugs permitted to change")
+    ap.add_argument(
+        "--structural", action="store_true",
+        help="gate only structural violations (vanished slugs without a valid alias, and slug "
+             "collisions); metric drift passes. This is the nightly mode, where data legitimately "
+             "moves every run and only a broken URL contract should stop the pipeline.",
+    )
     args = ap.parse_args()
 
     conn = get_conn()
@@ -197,10 +224,19 @@ def main() -> int:
         return 0
 
     allowed = {s.strip() for s in args.allow.split(",") if s.strip()}
+    aliases = now.get("_aliases", {})
     violations = []
     for group, r in report.items():
+        live = set(now.get(group, {}))
         for s in r["vanished"]:
-            violations.append(f"{group}/{s} vanished, which breaks a published URL")
+            target = aliases.get(group, {}).get(s)
+            if target and target in live:
+                continue  # retired with a valid redirect: the URL contract holds
+            violations.append(
+                f"{group}/{s} vanished with no alias to a live cohort, which breaks a published URL"
+            )
+        if args.structural:
+            continue
         for s in r["fleet_changed"]:
             if s not in allowed:
                 was, is_ = r["changed"][s]["fleet_total"]

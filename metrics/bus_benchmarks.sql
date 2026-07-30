@@ -102,9 +102,19 @@ LEFT JOIN mv_bus_behavior_sat b ON b.satellite_id = sb.satellite_id;
 --     column says how big that slice is (LEO-biased).
 -- No cohort floor is baked in: cohort filtering (default n >= 5) happens in the API/MCP layer
 -- so the floor stays configurable without redefining views.
+-- Grouped by slug ALONE, display columns aggregated. The slug is the public URL and the archive
+-- key, so it must map to exactly one view row. Grouping by (slug, name, group_code, country)
+-- lets a single divergent display value silently split one URL into several rows; production
+-- served two different manufacturers at /buses/raym this way, and the frozen July archive kept
+-- whichever row the planner emitted first. min() is the deterministic pick; the attribution
+-- build keeps display columns functionally dependent on the slug, so min() is normally the only
+-- value present and the aggregation is purely defensive.
 CREATE OR REPLACE VIEW v_bus_benchmarks_manufacturer AS
 SELECT
-    manufacturer_slug, manufacturer_name, manufacturer_group_code, manufacturer_country,
+    manufacturer_slug,
+    min(manufacturer_name) AS manufacturer_name,
+    min(manufacturer_group_code) AS manufacturer_group_code,
+    min(manufacturer_country) AS manufacturer_country,
     count(DISTINCT manufacturer_code) AS org_count,
     count(DISTINCT bus_slug) AS bus_model_count,
     count(*) AS fleet_total,
@@ -132,11 +142,12 @@ SELECT
     round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct
 FROM v_bus_sat
 WHERE manufacturer_slug IS NOT NULL
-GROUP BY manufacturer_slug, manufacturer_name, manufacturer_group_code, manufacturer_country;
+GROUP BY manufacturer_slug;
 
 CREATE OR REPLACE VIEW v_bus_benchmarks_bus AS
 SELECT
-    bus_slug, bus_model,
+    bus_slug,
+    min(bus_model) AS bus_model,
     mode() WITHIN GROUP (ORDER BY manufacturer_name) AS primary_manufacturer,
     mode() WITHIN GROUP (ORDER BY manufacturer_slug) AS primary_manufacturer_slug,
     count(DISTINCT manufacturer_slug) AS manufacturer_count,
@@ -165,4 +176,4 @@ SELECT
     round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct
 FROM v_bus_sat
 WHERE bus_slug IS NOT NULL
-GROUP BY bus_slug, bus_model;
+GROUP BY bus_slug;

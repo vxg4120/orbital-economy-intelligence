@@ -35,8 +35,8 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.3"
-METHODOLOGY_UPDATED = "2026-07-28"
+METHODOLOGY_VERSION = "1.4"
+METHODOLOGY_UPDATED = "2026-07-29"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
@@ -234,6 +234,100 @@ SELECT
 FROM linked
 """
 
+# The one deterministic alias-resolution rule, shared by both annotation statements below.
+# Sources are restricted to gcat_orgs/gcat/seed because GCAT org codes and SATCAT country codes
+# share one namespace: without the restriction POL (Polyot, 95 satellites) resolves to Poland,
+# COL to Colombia and LTU to Lithuania, unambiguously and wrongly. The ORDER BY makes ambiguous
+# aliases deterministic (seed wins, then gcat_orgs, then lowest operator_id) instead of
+# heap-ordered; today zero ambiguous aliases are used as group codes, so the tail terms are
+# insurance that tests pin in place.
+_ALIAS1_CTE = """
+WITH alias1 AS (
+    SELECT DISTINCT ON (a.alias) a.alias, a.operator_id
+    FROM operator_alias a
+    WHERE a.source IN ('gcat_orgs', 'gcat', 'seed')
+    ORDER BY a.alias,
+             (a.source <> 'seed'),
+             (a.source <> 'gcat_orgs'),
+             a.operator_id
+)
+"""
+
+_ANNOTATE_LEAF_SQL = _ALIAS1_CTE + """
+UPDATE satellite_bus sb
+SET manufacturer_operator_id = alias1.operator_id
+FROM alias1
+WHERE alias1.alias = sb.manufacturer_code
+"""
+
+_ANNOTATE_GROUP_SQL = _ALIAS1_CTE + """
+UPDATE satellite_bus sb
+SET manufacturer_group_operator_id = alias1.operator_id
+FROM alias1
+WHERE alias1.alias = sb.manufacturer_group_code
+"""
+
+# Cohorts per (group operator, group code), with the display values that are functionally
+# dependent on the group code. Used twice below on the SAME pre-merge state: first to record the
+# URL contract for every slug the merge retires, then to perform the merge itself.
+_COHORTS_CTE = """
+cohorts AS (
+    SELECT manufacturer_group_operator_id AS op,
+           manufacturer_group_code AS gcode,
+           count(*) AS fleet,
+           min(manufacturer_name) AS gname,
+           min(manufacturer_country) AS gcountry,
+           min(manufacturer_slug) AS gslug
+    FROM satellite_bus
+    WHERE manufacturer_group_operator_id IS NOT NULL
+      AND manufacturer_group_code IS NOT NULL
+    GROUP BY 1, 2
+),
+multi AS (
+    SELECT op FROM cohorts GROUP BY op HAVING count(*) >= 2
+),
+rep AS (
+    -- The representative is the incumbent group code with the largest fleet, ties broken by
+    -- code ascending. This is a published-URL decision, not an implementation detail: fleet-max
+    -- keeps /buses/plan for the merged Planet family, where alphabetical would hand a
+    -- 661-satellite cohort to /buses/cosmog, a two-satellite slug.
+    SELECT DISTINCT ON (c.op) c.op, c.gcode, c.gname, c.gcountry, c.gslug
+    FROM cohorts c
+    JOIN multi m USING (op)
+    ORDER BY c.op, c.fleet DESC, c.gcode ASC
+)
+"""
+
+# Record the retired slug -> surviving slug mapping BEFORE rewriting anything. Aliases accumulate
+# (ON CONFLICT DO NOTHING): once a slug has been published and retired, the redirect is a
+# permanent contract even if a later catalog change would no longer produce it.
+_ALIAS_UPSERT_SQL = "WITH " + _COHORTS_CTE + """
+INSERT INTO benchmark_slug_alias (kind, old_slug, new_slug, reason)
+SELECT 'manufacturer', c.gslug, r.gslug,
+       'cohort merged into ' || r.gcode || ' via shared operator identity'
+FROM cohorts c
+JOIN rep r ON r.op = c.op AND c.gcode <> r.gcode
+WHERE c.gslug IS NOT NULL AND r.gslug IS NOT NULL AND c.gslug <> r.gslug
+ON CONFLICT (kind, old_slug) DO NOTHING
+"""
+
+# The merge itself: strictly merge-only, keyed on the GROUP code (never the leaf), so it can
+# join cohorts but structurally cannot split one. Unresolved group codes (no operator match)
+# keep their incumbent cohort untouched, which is the fallback for the ~317 codes the operator
+# graph does not know. Merged rows record rollup_source='operator_merge' so the provenance of
+# the rewrite is visible per satellite.
+_OPERATOR_MERGE_SQL = "WITH " + _COHORTS_CTE + """
+UPDATE satellite_bus sb
+SET manufacturer_group_code = r.gcode,
+    manufacturer_name = r.gname,
+    manufacturer_country = r.gcountry,
+    manufacturer_slug = r.gslug,
+    rollup_source = 'operator_merge'
+FROM rep r
+WHERE sb.manufacturer_group_operator_id = r.op
+  AND sb.manufacturer_group_code <> r.gcode
+"""
+
 _STATS_SQL = """
 SELECT
     count(*) AS attributed,
@@ -249,7 +343,15 @@ FROM satellite_bus
 
 
 def build(conn) -> dict:
-    """Rebuild satellite_bus from the latest OK GCAT snapshot. Returns summary stats."""
+    """Rebuild satellite_bus from the latest OK GCAT snapshot. Returns summary stats.
+
+    After the GCAT rollup, the operator graph is applied as a strictly merge-only identity
+    layer: group codes that resolve to the same operator collapse into one cohort under the
+    fleet-max incumbent's slug, and every slug that retires gets a permanent redirect row in
+    benchmark_slug_alias. The GCAT parent walk and ROLLUP_OVERRIDES stay authoritative for the
+    rollup itself; the operator graph only decides which already-rolled-up cohorts are the same
+    real-world company. See docs/design/0002-phase4-brief.md for why this shape and no other.
+    """
     override_codes = list(ROLLUP_OVERRIDES)
     override_parents = [ROLLUP_OVERRIDES[c] for c in override_codes]
     with conn.cursor() as cur:
@@ -262,9 +364,17 @@ def build(conn) -> dict:
                 "bus_placeholders": list(_BUS_PLACEHOLDERS),
             },
         )
+        cur.execute(_ANNOTATE_LEAF_SQL)
+        cur.execute(_ANNOTATE_GROUP_SQL)
+        cur.execute(_ALIAS_UPSERT_SQL)
+        aliases_recorded = cur.rowcount
+        cur.execute(_OPERATOR_MERGE_SQL)
+        merged_rows = cur.rowcount
         cur.execute(_STATS_SQL)
         columns = [d.name for d in cur.description]
         stats = dict(zip(columns, cur.fetchone()))
+    stats["operator_merged_rows"] = merged_rows
+    stats["slug_aliases_recorded"] = aliases_recorded
     return stats
 
 
@@ -290,11 +400,14 @@ ON CONFLICT (snapshot_month, kind, slug) DO NOTHING
 
 
 def snapshot_benchmarks(conn) -> dict:
-    """Freeze the current month's leaderboards into bus_benchmark_snapshots, idempotently.
+    """Freeze the current month's leaderboards into bus_benchmark_snapshots, once per month.
 
-    Keyed on (snapshot_month, kind, slug) with DO NOTHING: the first run in a calendar month
-    captures that month's numbers, every later run inserts zero rows. All cohorts are captured
-    (no minimum n) so history stays complete; readers apply their own cohort floor.
+    A month is captured in full by the FIRST run of that calendar month and never touched again:
+    if the month already holds any rows for a kind, the run inserts nothing at all. The earlier
+    per-slug ON CONFLICT DO NOTHING allowed a cohort first seen mid-month to append itself into
+    an already-frozen month with that day's values (observed in July 2026: 2,650 rows on the
+    23rd, 3 more on the 27th), which made "immutable monthly" quietly false. All cohorts are
+    captured (no minimum n) so history stays complete; readers apply their own cohort floor.
     """
     inserted = {}
     specs = [
@@ -306,6 +419,14 @@ def snapshot_benchmarks(conn) -> dict:
             cur.execute("SELECT to_regclass(%s) IS NOT NULL", (view,))
             if not cur.fetchone()[0]:
                 inserted[kind] = None  # metrics views not applied yet
+                continue
+            cur.execute(
+                "SELECT count(*) FROM bus_benchmark_snapshots "
+                "WHERE snapshot_month = date_trunc('month', current_date)::date AND kind = %s",
+                (kind,),
+            )
+            if cur.fetchone()[0] > 0:
+                inserted[kind] = 0  # month already frozen for this kind
                 continue
             cur.execute(
                 _SNAPSHOT_SQL.format(view=view, slug_col=slug_col, name_col=name_col),

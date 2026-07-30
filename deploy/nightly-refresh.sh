@@ -14,6 +14,8 @@ DC="docker compose"
   $DC exec -T oei-api python scripts/build_graph.py || echo "!! oei build_graph failed"
   $DC exec -T oei-api python quality/report.py      || echo "!! oei report failed"
   $DC exec -T oei-api python scripts/build_bus.py   || echo "!! oei build_bus failed"
+  $DC exec -T oei-api python scripts/diff_published_buses.py --gate --structural \
+                                                    || echo "!! oei SLUG GATE FAILED: a published URL broke"
   echo "--- exodossier (exo) ---"
   $DC exec -T exo-api python scripts/ingest_all.py  || echo "!! exo ingest_all failed"
   $DC exec -T exo-api python scripts/build_graph.py || echo "!! exo build_graph failed"
