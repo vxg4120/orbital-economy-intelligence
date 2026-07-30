@@ -188,6 +188,42 @@ def render(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _structural_violations(conn, now: dict) -> list[str]:
+    """Archived slugs that no longer resolve, checked against the live views and alias table."""
+    violations = []
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('bus_benchmark_snapshots') IS NOT NULL")
+        if not cur.fetchone()[0]:
+            return violations  # nothing published yet, nothing to protect
+        for kind, live_slugs in (("manufacturer", set(now.get("manufacturer", {}))),
+                                 ("bus", set(now.get("bus", {})))):
+            cur.execute(
+                "SELECT DISTINCT slug FROM bus_benchmark_snapshots WHERE kind = %s", (kind,)
+            )
+            archived = {r[0] for r in cur.fetchall()}
+            aliases = now.get("_aliases", {}).get(kind, {})
+            for slug in sorted(archived - live_slugs):
+                target = aliases.get(slug)
+                if not (target and target in live_slugs):
+                    violations.append(
+                        f"{kind}/{slug} is archived but resolves to no live cohort and no alias"
+                    )
+        # The second frozen surface: manufacturer slugs embedded in bus-kind snapshot rows.
+        cur.execute(
+            "SELECT DISTINCT metrics->>'primary_manufacturer_slug' "
+            "FROM bus_benchmark_snapshots WHERE kind = 'bus' "
+            "AND metrics->>'primary_manufacturer_slug' IS NOT NULL"
+        )
+        live_m = set(now.get("manufacturer", {}))
+        aliases_m = now.get("_aliases", {}).get("manufacturer", {})
+        for (ps,) in cur.fetchall():
+            if ps not in live_m and aliases_m.get(ps) not in live_m:
+                violations.append(
+                    f"bus snapshot embeds manufacturer slug {ps} which resolves nowhere"
+                )
+    return violations
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--baseline", default=str(DEFAULT_BASELINE))
@@ -205,6 +241,22 @@ def main() -> int:
     conn = get_conn()
     try:
         now = current(conn)
+        if args.structural and args.gate:
+            # Structural mode needs no baseline file: the frozen archive IS the record of every
+            # slug ever published, so the invariant is checked database-against-itself. current()
+            # above already refused to run on a slug collision. This is what the nightly runs,
+            # including inside containers that do not ship the repo's tests/ directory.
+            violations = _structural_violations(conn, now)
+            if violations:
+                print(f"STRUCTURAL GATE FAILED, {len(violations)} violations:")
+                for v in violations[:40]:
+                    print(f"  {v}")
+                return 1
+            print(
+                "STRUCTURAL GATE PASSED: no slug collisions, and every archived slug resolves "
+                "to a live cohort directly or through an alias."
+            )
+            return 0
     finally:
         conn.close()
 
