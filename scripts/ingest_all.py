@@ -15,10 +15,11 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from ingest import celestrak_gp, celestrak_satcat, gcat_loader, supgp_crosstags, ucs_seed
+from ingest import (celestrak_gp, celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db,
+                    supgp_crosstags, ucs_seed)
 
 # Execution order (politeness-safe: cheapest/most-stable sources first).
-_ORDER = ["satcat", "gcat", "gp", "supgp", "ucs"]
+_ORDER = ["satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal"]
 
 _RUNNERS = {
     "satcat": celestrak_satcat.run,
@@ -26,6 +27,8 @@ _RUNNERS = {
     "gp": celestrak_gp.run,
     "supgp": supgp_crosstags.run,
     "ucs": ucs_seed.run,
+    "satnogs": satnogs_db.run,
+    "fcc_ssal": fcc_ssal.run,
 }
 
 
@@ -33,7 +36,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run OEI ingestion loaders.")
     parser.add_argument(
         "--source",
-        choices=["satcat", "gp", "gcat", "ucs", "supgp", "all"],
+        choices=["satcat", "gp", "gcat", "ucs", "supgp", "satnogs", "fcc_ssal", "all"],
         default="all",
         help="Which loader to run (default: all, in politeness-safe order).",
     )

@@ -21,6 +21,8 @@ LOG=data/daily_ingest.log
   # not. Without this, the first unattended nightly after a bad attribution change would freeze
   # the damage into the monthly archive before any human sees a diff.
   .venv/bin/python scripts/diff_published_buses.py --gate --structural
+  # RF layer: resolve FCC grants onto canonical satellites (SatNOGS needs no build step).
+  .venv/bin/python scripts/build_rf.py
   .venv/bin/python quality/report.py
   # Rollover watch: celebrate the first 6-digit catalog number when it lands.
   .venv/bin/python - <<'EOF'

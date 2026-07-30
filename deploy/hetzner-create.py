@@ -13,7 +13,11 @@ Cost is bounded to the tiers you already approved (<= ~$9.59/mo): it tries the
 cheapest 4 GB boxes first and only falls back to the 8 GB CX33 if all 4 GB are
 out. It will NOT create anything pricier than that.
 """
-import json, os, sys, urllib.request, urllib.error
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
 
 TOKEN = os.environ.get("HCLOUD_TOKEN")
 if not TOKEN:
@@ -57,20 +61,20 @@ LOCS  = ["hel1", "fsn1", "nbg1", "ash", "hil"]
 
 print(f"\nCreating '{NAME}' (image {IMAGE}) — trying combos until one has stock:\n")
 for t in TYPES:
-    for l in LOCS:
+    for loc in LOCS:
         st, j = api("POST", "/servers", {
-            "name": NAME, "server_type": t, "image": IMAGE, "location": l,
+            "name": NAME, "server_type": t, "image": IMAGE, "location": loc,
             "ssh_keys": [KEY_NAME],
             "public_net": {"enable_ipv4": True, "enable_ipv6": True}})
         srv = j.get("server")
         if st < 300 and srv:
             ip = srv["public_net"]["ipv4"]["ip"]
-            print(f"\n  SUCCESS  type={t}  location={l}")
+            print(f"\n  SUCCESS  type={t}  location={loc}")
             print(f"  PUBLIC IP: {ip}\n")
             print(f"  Next: give this IP to Claude, then:  ssh root@{ip}")
             sys.exit(0)
         msg = (j.get("error") or {}).get("message", json.dumps(j))
-        print(f"  {t:6} {l:5} -> {msg[:90]}")
+        print(f"  {t:6} {loc:5} -> {msg[:90]}")
 
 print("\nNo stock in any combo right now. Re-run this in a few minutes — "
       "Hetzner's cheap tiers restock intermittently.")

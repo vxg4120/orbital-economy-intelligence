@@ -22,6 +22,7 @@ _REPOINTED = {
     "satellite_operator",
     "satellite_bus",
     "gold_case",
+    "satellite_fcc_authorization",
 }
 
 

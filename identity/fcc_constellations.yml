@@ -1,0 +1,28 @@
+# Curated constellation mappings for FCC blanket licenses (tier 1 of the RF authorization join).
+#
+# An NGSO blanket license covers every satellite in a system under one grant, so the FCC's
+# Approved Space Station List has no per-satellite rows to join on. Each entry below says: rows
+# in raw_fcc_ssal whose satellite_name matches ssal_like authorize every canonical satellite
+# whose name matches catalog_prefix. Roughly a dozen mappings cover three quarters of all active
+# satellites, which is why this file is curation rather than code.
+#
+# Honesty rules: prefixes must be specific enough that no unrelated satellite matches, and a
+# system absent from this file simply gets no FCC rows (absence over guesses). The build records
+# match_tier='constellation' and the matched ssal_like per row, so every authorization is
+# traceable to the mapping that produced it.
+
+constellations:
+  - ssal_like: "SPACEX%"          # Starlink Gen1/Gen2/V-band system rows
+    catalog_prefix: "STARLINK%"
+  - ssal_like: "KUIPER%"
+    catalog_prefix: "KUIPER%"
+  - ssal_like: "ONEWEB%"
+    catalog_prefix: "ONEWEB%"
+  - ssal_like: "IRIDIUM%"
+    catalog_prefix: "IRIDIUM%"
+  - ssal_like: "GLOBALSTAR%"
+    catalog_prefix: "GLOBALSTAR%"
+  - ssal_like: "ORBCOMM%"
+    catalog_prefix: "ORBCOMM%"
+  - ssal_like: "O3B%"
+    catalog_prefix: "O3B%"

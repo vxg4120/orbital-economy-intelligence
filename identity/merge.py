@@ -59,7 +59,8 @@ def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
     """Fold merged_id into surviving_id: repoint every child row, log, drop the shell.
 
     Repoints every table that references satellite: satellite_identifier, source_assertion,
-    satellite_status_history, satellite_operator, satellite_bus and gold_case. Any merged-side
+    satellite_status_history, satellite_operator, satellite_bus, gold_case and
+    satellite_fcc_authorization. Any merged-side
     row that would collide with an existing surviving-side row on its natural key is deleted
     first, so no FK/PK violation and no orphans are left behind. Writes merge_log, then deletes
     the merged shell satellite. Does not commit.
@@ -147,6 +148,25 @@ def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
         # cannot collide. Labeled evaluation cases follow the surviving satellite.
         cur.execute(
             "UPDATE gold_case SET satellite_id = %s WHERE satellite_id = %s",
+            (surviving_id, merged_id),
+        )
+        # satellite_fcc_authorization: PK (satellite_id, call_sign, frequency_range). Rebuilt
+        # nightly by scripts/build_rf.py, but repointed here anyway so authorizations follow the
+        # surviving satellite immediately rather than vanishing until the next build.
+        cur.execute(
+            """
+            DELETE FROM satellite_fcc_authorization m
+            WHERE m.satellite_id = %(merged)s
+              AND EXISTS (
+                  SELECT 1 FROM satellite_fcc_authorization s
+                  WHERE s.satellite_id = %(surv)s
+                    AND s.call_sign = m.call_sign AND s.frequency_range = m.frequency_range
+              )
+            """,
+            {"merged": merged_id, "surv": surviving_id},
+        )
+        cur.execute(
+            "UPDATE satellite_fcc_authorization SET satellite_id = %s WHERE satellite_id = %s",
             (surviving_id, merged_id),
         )
         cur.execute(

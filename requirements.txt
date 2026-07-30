@@ -3,4 +3,7 @@ psycopg[binary]
 PyYAML
 fastapi
 uvicorn
-numpy  # used by analysis/case_studies.py
+numpy  # used by analysis/case_studies.py and the reachability endpoint
+sgp4  # reachability: propagate GP elements to az/el for an observer
+openpyxl  # ingest/fcc_ssal.py parses the FCC Approved Space Station List xlsx
+curl_cffi  # fcc.gov Akamai rejects python-requests/curl TLS fingerprints; Chrome impersonation
