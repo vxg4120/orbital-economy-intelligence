@@ -267,7 +267,7 @@ def test_report_match_merge_stats_and_coverage_percentages_parse_as_numbers(seed
     assert "gcat_id" in match_section or "norad" in match_section  # crosswalk id_type rows
     assert "ucs" in match_section  # unmatched-by-source row
 
-    coverage_section = content.split("## 6. Coverage")[1]
+    coverage_section = content.split("## 7. Coverage")[1]
     percentages = re.findall(r"\((\d+\.\d)%\)", coverage_section)
     assert len(percentages) == 3, f"expected 3 coverage percentages, got: {percentages}"
     for pct in percentages:

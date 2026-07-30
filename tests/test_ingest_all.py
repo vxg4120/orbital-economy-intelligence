@@ -20,7 +20,7 @@ class _FakeConn:
 
 def test_order_is_politeness_safe_and_covers_every_source():
     assert ingest_all._ORDER == [
-        "satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal",
+        "satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal", "ibfs",
     ]
     assert set(ingest_all._RUNNERS) == set(ingest_all._ORDER)
 
@@ -45,7 +45,9 @@ def test_main_runs_all_sources_in_order_and_survives_one_failure(monkeypatch, ca
 
     assert rc == 1  # a partially-failed ingest exits non-zero so cron/CI can detect it
     # gp failing didn't stop the rest
-    assert calls == ["satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal"]
+    assert calls == [
+        "satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal", "ibfs",
+    ]
     err = capsys.readouterr().err
     assert "gp failed" in err
     assert "FAILED sources (1): gp" in err  # aggregate failure summary line
