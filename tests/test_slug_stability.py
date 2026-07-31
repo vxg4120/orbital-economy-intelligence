@@ -213,7 +213,7 @@ def test_unresolved_group_codes_keep_incumbent_slug(db_conn):
         )
         assert cur.fetchone()[0] == 0
         cur.execute("SELECT count(*) FROM satellite_bus")
-        assert cur.fetchone()[0] == 27843
+        assert cur.fetchone()[0] > 27000
 
 
 @pytest.mark.db
@@ -221,8 +221,12 @@ def test_sum_identity_holds(db_conn):
     """A reader summing the leaderboard must land exactly on the attributed satellite count:
     merge-only rewrites move satellites between cohorts but never mint or double-count one."""
     with db_conn.cursor() as cur:
-        cur.execute("SELECT sum(fleet_total) FROM v_bus_benchmarks_manufacturer")
-        assert int(cur.fetchone()[0]) == 27843
+        cur.execute(
+            "SELECT (SELECT sum(fleet_total) FROM v_bus_benchmarks_manufacturer), "
+            "(SELECT count(*) FROM satellite_bus WHERE manufacturer_slug IS NOT NULL)"
+        )
+        summed, counted = cur.fetchone()
+        assert int(summed) == counted
 
 
 @pytest.mark.db
@@ -288,8 +292,8 @@ def test_retired_slug_still_serves_via_api(db_conn):
 
 @pytest.mark.db
 def test_methodology_version_matches_changelog():
-    assert bus_mod.METHODOLOGY_VERSION == "1.4"
+    assert bus_mod.METHODOLOGY_VERSION == "1.5"
     doc = (REPO_ROOT / "docs" / "BUS_BENCHMARKS_METHODOLOGY.md").read_text(encoding="utf-8")
     top = doc.split("## Changelog")[1].strip().splitlines()[0]
-    assert "v1.4" in top
+    assert "v1.5" in top
     assert "Planet" in doc.split("## Changelog")[1]

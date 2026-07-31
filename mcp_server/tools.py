@@ -39,12 +39,15 @@ def bus_benchmarks(
     limit: int = 25,
     offset: int = 0,
     q: str | None = None,
+    state: str = "all",
 ) -> dict:
     """Leaderboard of bus manufacturers or bus models with performance benchmarks."""
     limit = max(1, min(int(limit), 200))
     offset = max(0, int(offset))
     min_n = max(1, int(min_n))
-    result = _run(lambda conn: leaderboard_rows(conn, group, sort, min_n, limit, offset, q))
+    result = _run(
+        lambda conn: leaderboard_rows(conn, group, sort, min_n, limit, offset, q, state)
+    )
     result["methodology_version"] = METHODOLOGY["version"]
     result["methodology"] = METHODOLOGY["doc_url"]
     return result
@@ -94,6 +97,15 @@ TOOLS = [
                     "description": (
                         "Case-insensitive name or slug search, e.g. 'apex' or 'airbus'. "
                         "Pair with min_n 1 so small fleets are not filtered out."
+                    ),
+                },
+                "state": {
+                    "type": "string",
+                    "enum": ["all", "anchored"],
+                    "description": (
+                        "'anchored' excludes satellites whose catalog identification is still "
+                        "provisional (no permanent NORAD id yet). Default 'all' includes them, "
+                        "counted per cohort in provisional_n."
                     ),
                 },
             },

@@ -66,12 +66,20 @@ def test_manufacturer_rollup_rules_hold(db_conn):
             "WHERE manufacturer_code = 'SPXS'"
         )
         assert cur.fetchall() == [("SPX",)]
-        cur.execute("SELECT count(*) FROM satellite_bus WHERE manufacturer_slug = 'spx'")
-        assert cur.fetchone()[0] == 12829, "the site's largest page must keep its fleet"
+        # Invariant form rather than literal fleet pins (the fleet legitimately grows with
+        # every Starlink launch): every SPXS-coded row lands on spx, none leak elsewhere, and
+        # the override provenance fires on all of them.
         cur.execute(
-            "SELECT count(*) FROM satellite_bus WHERE rollup_source = 'gcat_orgs+override'"
+            "SELECT count(*) FROM satellite_bus "
+            "WHERE manufacturer_code = 'SPXS' AND manufacturer_slug <> 'spx'"
         )
-        assert cur.fetchone()[0] == 12685, "the SPXS override must still fire on every row"
+        assert cur.fetchone()[0] == 0, "SPXS rows must all land on /buses/spx"
+        cur.execute(
+            "SELECT count(*), count(*) FILTER (WHERE rollup_source = 'gcat_orgs+override') "
+            "FROM satellite_bus WHERE manufacturer_code = 'SPXS'"
+        )
+        total, overridden = cur.fetchone()
+        assert total > 12000 and overridden == total
 
     with db_conn.cursor() as cur:
         # Business-class rollup only: no satellite rolls up into the Soviet ministry MOM or the

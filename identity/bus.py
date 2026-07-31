@@ -35,8 +35,8 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.4"
-METHODOLOGY_UPDATED = "2026-07-29"
+METHODOLOGY_VERSION = "1.5"
+METHODOLOGY_UPDATED = "2026-07-31"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
@@ -111,7 +111,7 @@ rollup AS (
 ),
 cleaned AS (
     -- GCAT payload rows from the latest OK snapshot; '-' and '' mean "no value".
-    SELECT r.jcat, r.ingest_run_id,
+    SELECT r.jcat, r.ingest_run_id, r.norad_id,
            NULLIF(btrim(COALESCE(r.piece, '')), '') AS piece,
            NULLIF(NULLIF(btrim(regexp_replace(COALESCE(r.bus, ''), '\\s+', ' ', 'g')),
                          ''), '-') AS bus_raw,
@@ -162,7 +162,7 @@ bus_display AS (
     GROUP BY 1
 ),
 resolved AS (
-    SELECT p.jcat, p.ingest_run_id, p.piece,
+    SELECT p.jcat, p.ingest_run_id, p.norad_id, p.piece,
            p.bus_raw, p.bus_slug, bd.bus_model, p.bus_uncertain,
            p.manufacturer_raw, p.primary_code, p.all_codes, p.manufacturer_uncertain,
            leaf_org.display_name AS manufacturer_org_name,
@@ -185,34 +185,69 @@ resolved AS (
     LEFT JOIN orgs grp_org ON grp_org.code = ru.group_code
     WHERE bd.bus_model IS NOT NULL OR p.primary_code IS NOT NULL
 ),
-cospar_matched AS (
-    -- Primary match: COSPAR piece. GCAT reshuffles provisional jcat slots between releases on
-    -- fresh multi-payload launches, so the piece designation is the stable key. When two
-    -- satellites share a piece (rare merge artifacts), prefer the one whose jcat crosswalk
-    -- agrees with this row, then the lowest satellite_id.
-    SELECT DISTINCT ON (r.jcat) si.satellite_id, r.*
+rule1 AS (
+    -- anchored_norad: the raw catalog row itself carries the permanent anchor. The key that
+    -- produces this join has never been observed to move (key_stability measures it nightly),
+    -- so churn on the row's piece or jcat is irrelevant to the join's integrity.
+    SELECT DISTINCT ON (r.jcat) s.satellite_id, r.*,
+           'anchored_norad'::text AS join_rule
     FROM resolved r
-    JOIN satellite_identifier si
-      ON si.id_type = 'cospar' AND si.source = 'gcat' AND si.id_value = r.piece
-    LEFT JOIN satellite_identifier sj
-      ON sj.id_type = 'gcat_id' AND sj.source = 'gcat' AND sj.id_value = r.jcat
-     AND sj.satellite_id = si.satellite_id
-    ORDER BY r.jcat, (sj.satellite_id IS NULL), si.satellite_id
+    JOIN satellite s ON s.norad_id = r.norad_id
+    WHERE r.norad_id IS NOT NULL
+    ORDER BY r.jcat, s.satellite_id
 ),
-jcat_matched AS (
-    -- Fallback for rows whose piece has no gcat cospar identifier in the crosswalk.
-    SELECT DISTINCT ON (r.jcat) si.satellite_id, r.*
+rule2 AS (
+    -- anchored_cospar: no anchor on the row yet, but the piece resolves through the live
+    -- crosswalk (expired identifiers excluded) to a satellite that IS anchored, typically
+    -- because promotion folded the provisional record into its Space-Track twin.
+    SELECT DISTINCT ON (r.jcat) si.satellite_id, r.*,
+           'anchored_cospar'::text AS join_rule
     FROM resolved r
     JOIN satellite_identifier si
-      ON si.id_type = 'gcat_id' AND si.source = 'gcat' AND si.id_value = r.jcat
-    WHERE NOT EXISTS (SELECT 1 FROM cospar_matched cm WHERE cm.jcat = r.jcat)
+      ON si.id_type = 'cospar' AND si.source = 'gcat'
+     AND si.id_value = r.piece AND si.valid_to IS NULL
+    JOIN satellite s ON s.satellite_id = si.satellite_id AND s.anchor_state = 'anchored'
+    WHERE r.norad_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM rule1 WHERE rule1.jcat = r.jcat)
     ORDER BY r.jcat, si.satellite_id
+),
+rule3 AS (
+    -- Whatever remains: piece first, then jcat, to whatever satellite the crosswalk still
+    -- reaches. When that satellite is provisional the row is a dated occupancy observation
+    -- (provisional_slot); in the rare jcat-only path to an anchored satellite the honest
+    -- label is still anchored_cospar, decided per row from the satellite's anchor state.
+    SELECT DISTINCT ON (r.jcat) m.satellite_id, r.*,
+           CASE WHEN m.anchor_state = 'anchored'
+                THEN 'anchored_cospar' ELSE 'provisional_slot' END::text AS join_rule
+    FROM resolved r
+    JOIN LATERAL (
+        SELECT s.satellite_id, s.anchor_state, 0 AS tier
+        FROM satellite_identifier si
+        JOIN satellite s ON s.satellite_id = si.satellite_id
+        WHERE si.id_type = 'cospar' AND si.source = 'gcat'
+          AND si.id_value = r.piece AND si.valid_to IS NULL
+        UNION ALL
+        SELECT s.satellite_id, s.anchor_state, 1 AS tier
+        FROM satellite_identifier si
+        JOIN satellite s ON s.satellite_id = si.satellite_id
+        WHERE si.id_type = 'gcat_id' AND si.source = 'gcat'
+          AND si.id_value = r.jcat AND si.valid_to IS NULL
+        ORDER BY tier, satellite_id
+        LIMIT 1
+    ) m ON TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM rule1 WHERE rule1.jcat = r.jcat)
+      AND NOT EXISTS (SELECT 1 FROM rule2 WHERE rule2.jcat = r.jcat)
+    ORDER BY r.jcat, m.satellite_id
+),
+matched AS (
+    SELECT * FROM rule1 UNION ALL SELECT * FROM rule2 UNION ALL SELECT * FROM rule3
 ),
 linked AS (
     -- A satellite occasionally carries two GCAT rows (merge artifacts): prefer the row with a
-    -- bus model, then the certain one, then lowest jcat.
+    -- bus model, then the certain one, then lowest jcat. Kept verbatim from the previous
+    -- resolver because satellite_id is the primary key and any many-to-one join can violate it.
     SELECT DISTINCT ON (satellite_id) *
-    FROM (SELECT * FROM cospar_matched UNION ALL SELECT * FROM jcat_matched) m
+    FROM matched
     ORDER BY satellite_id, (bus_model IS NULL), manufacturer_uncertain,
              bus_uncertain, jcat
 )
@@ -221,7 +256,7 @@ INSERT INTO satellite_bus (
     manufacturer_raw, manufacturer_code, manufacturer_codes, manufacturer_uncertain,
     manufacturer_org_name, manufacturer_group_code, manufacturer_name, manufacturer_slug,
     manufacturer_country, rollup_path, rollup_source,
-    source, source_key, ingest_run_id
+    source, source_key, ingest_run_id, join_rule, key_churn_observed
 )
 SELECT
     satellite_id, bus_raw, bus_model, bus_slug, bus_uncertain,
@@ -230,7 +265,15 @@ SELECT
     NULLIF(btrim(regexp_replace(lower(COALESCE(manufacturer_group_code, '')),
                                 '[^a-z0-9]+', '-', 'g'), '-'), '') AS manufacturer_slug,
     manufacturer_country, rollup_path, rollup_source,
-    'gcat', jcat, ingest_run_id
+    'gcat', jcat, ingest_run_id, join_rule,
+    -- Churn is only meaningful for joins that rode a volatile key: an anchored_norad join's
+    -- producing key has never been observed to move, so the flag stays false there even when
+    -- the row's piece churned before the anchor arrived.
+    CASE WHEN join_rule = 'anchored_norad' THEN FALSE
+         ELSE EXISTS (SELECT 1 FROM catalog_key_churn c
+                      WHERE (c.id_type = 'cospar' AND c.id_value = linked.piece)
+                         OR (c.id_type = 'gcat_id' AND c.id_value = linked.jcat))
+    END AS key_churn_observed
 FROM linked
 """
 

@@ -77,7 +77,9 @@ SELECT
              AND s.decay_date IS NOT NULL AND s.launch_date IS NOT NULL
              AND s.decay_date >= s.launch_date
         THEN (s.decay_date - s.launch_date)
-    END AS lifetime_days
+    END AS lifetime_days,
+    -- Appended last: CREATE OR REPLACE VIEW only permits adding columns at the end.
+    sb.join_rule, sb.key_churn_observed
 FROM satellite_bus sb
 JOIN satellite s ON s.satellite_id = sb.satellite_id
 LEFT JOIN latest_status ls ON ls.satellite_id = sb.satellite_id
@@ -139,7 +141,10 @@ SELECT
     round(100.0 * count(*) FILTER (WHERE disposal_compliant)
         / NULLIF(count(disposal_compliant), 0), 1) AS disposal_compliance_pct,
     count(*) FILTER (WHERE gp_days > 0) AS gp_n,
-    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct
+    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct,
+    -- Appended last: CREATE OR REPLACE VIEW only permits adding columns at the end.
+    count(*) FILTER (WHERE join_rule = 'provisional_slot') AS provisional_n,
+    count(*) FILTER (WHERE key_churn_observed) AS key_churn_n
 FROM v_bus_sat
 WHERE manufacturer_slug IS NOT NULL
 GROUP BY manufacturer_slug;
@@ -173,7 +178,89 @@ SELECT
     round(100.0 * count(*) FILTER (WHERE disposal_compliant)
         / NULLIF(count(disposal_compliant), 0), 1) AS disposal_compliance_pct,
     count(*) FILTER (WHERE gp_days > 0) AS gp_n,
-    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct
+    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct,
+    -- Appended last: CREATE OR REPLACE VIEW only permits adding columns at the end.
+    count(*) FILTER (WHERE join_rule = 'provisional_slot') AS provisional_n,
+    count(*) FILTER (WHERE key_churn_observed) AS key_churn_n
 FROM v_bus_sat
 WHERE bus_slug IS NOT NULL
+GROUP BY bus_slug;
+
+
+-- Anchored-only variants for the opt-in ?state=anchored filter. Bodies must stay
+-- byte-identical to the base views apart from the name and the provisional filter;
+-- tests pin column parity so the pairs cannot drift.
+CREATE OR REPLACE VIEW v_bus_benchmarks_manufacturer_anchored AS
+SELECT
+    manufacturer_slug,
+    min(manufacturer_name) AS manufacturer_name,
+    min(manufacturer_group_code) AS manufacturer_group_code,
+    min(manufacturer_country) AS manufacturer_country,
+    count(DISTINCT manufacturer_code) AS org_count,
+    count(DISTINCT bus_slug) AS bus_model_count,
+    count(*) AS fleet_total,
+    count(*) FILTER (WHERE canonical_status <> 'DECAYED') AS fleet_on_orbit,
+    count(*) FILTER (WHERE canonical_status = 'ACTIVE') AS fleet_active,
+    count(*) FILTER (WHERE canonical_status = 'DECAYED') AS decayed_count,
+    round(100.0 * count(*) FILTER (WHERE canonical_status = 'DECAYED') / count(*), 1)
+        AS decayed_share_pct,
+    count(lifetime_days) AS lifetime_n,
+    round((percentile_cont(0.5) WITHIN GROUP (ORDER BY lifetime_days / 365.25)
+        FILTER (WHERE lifetime_days IS NOT NULL))::numeric, 2) AS median_lifetime_years,
+    count(*) FILTER (WHERE days_to_operational IS NOT NULL AND tto_shell_n >= 3) AS tto_n,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY days_to_operational)
+        FILTER (WHERE days_to_operational IS NOT NULL AND tto_shell_n >= 3)
+        AS median_days_to_operational,
+    count(sk_median_stddev_km) AS sk_n,
+    round(100.0 * count(*) FILTER (WHERE sk_median_stddev_km <= 0.100)
+        / NULLIF(count(sk_median_stddev_km), 0), 1) AS station_keeping_share_pct,
+    round((percentile_cont(0.5) WITHIN GROUP (ORDER BY sk_median_stddev_km)
+        FILTER (WHERE sk_median_stddev_km IS NOT NULL))::numeric, 4) AS p50_station_keeping_km,
+    count(disposal_compliant) AS disposal_n,
+    round(100.0 * count(*) FILTER (WHERE disposal_compliant)
+        / NULLIF(count(disposal_compliant), 0), 1) AS disposal_compliance_pct,
+    count(*) FILTER (WHERE gp_days > 0) AS gp_n,
+    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct,
+    -- Appended last: CREATE OR REPLACE VIEW only permits adding columns at the end.
+    count(*) FILTER (WHERE join_rule = 'provisional_slot') AS provisional_n,
+    count(*) FILTER (WHERE key_churn_observed) AS key_churn_n
+FROM v_bus_sat
+WHERE manufacturer_slug IS NOT NULL AND join_rule <> 'provisional_slot'
+GROUP BY manufacturer_slug;
+
+CREATE OR REPLACE VIEW v_bus_benchmarks_bus_anchored AS
+SELECT
+    bus_slug,
+    min(bus_model) AS bus_model,
+    mode() WITHIN GROUP (ORDER BY manufacturer_name) AS primary_manufacturer,
+    mode() WITHIN GROUP (ORDER BY manufacturer_slug) AS primary_manufacturer_slug,
+    count(DISTINCT manufacturer_slug) AS manufacturer_count,
+    count(*) AS fleet_total,
+    count(*) FILTER (WHERE canonical_status <> 'DECAYED') AS fleet_on_orbit,
+    count(*) FILTER (WHERE canonical_status = 'ACTIVE') AS fleet_active,
+    count(*) FILTER (WHERE canonical_status = 'DECAYED') AS decayed_count,
+    round(100.0 * count(*) FILTER (WHERE canonical_status = 'DECAYED') / count(*), 1)
+        AS decayed_share_pct,
+    count(lifetime_days) AS lifetime_n,
+    round((percentile_cont(0.5) WITHIN GROUP (ORDER BY lifetime_days / 365.25)
+        FILTER (WHERE lifetime_days IS NOT NULL))::numeric, 2) AS median_lifetime_years,
+    count(*) FILTER (WHERE days_to_operational IS NOT NULL AND tto_shell_n >= 3) AS tto_n,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY days_to_operational)
+        FILTER (WHERE days_to_operational IS NOT NULL AND tto_shell_n >= 3)
+        AS median_days_to_operational,
+    count(sk_median_stddev_km) AS sk_n,
+    round(100.0 * count(*) FILTER (WHERE sk_median_stddev_km <= 0.100)
+        / NULLIF(count(sk_median_stddev_km), 0), 1) AS station_keeping_share_pct,
+    round((percentile_cont(0.5) WITHIN GROUP (ORDER BY sk_median_stddev_km)
+        FILTER (WHERE sk_median_stddev_km IS NOT NULL))::numeric, 4) AS p50_station_keeping_km,
+    count(disposal_compliant) AS disposal_n,
+    round(100.0 * count(*) FILTER (WHERE disposal_compliant)
+        / NULLIF(count(disposal_compliant), 0), 1) AS disposal_compliance_pct,
+    count(*) FILTER (WHERE gp_days > 0) AS gp_n,
+    round(100.0 * count(*) FILTER (WHERE gp_days > 0) / count(*), 1) AS gp_coverage_pct,
+    -- Appended last: CREATE OR REPLACE VIEW only permits adding columns at the end.
+    count(*) FILTER (WHERE join_rule = 'provisional_slot') AS provisional_n,
+    count(*) FILTER (WHERE key_churn_observed) AS key_churn_n
+FROM v_bus_sat
+WHERE bus_slug IS NOT NULL AND join_rule <> 'provisional_slot'
 GROUP BY bus_slug;

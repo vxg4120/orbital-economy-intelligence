@@ -227,16 +227,25 @@ def _group_spec(group: str) -> dict:
 
 
 def leaderboard_rows(
-    db, group: str, sort: str, min_n: int, limit: int, offset: int, q: str | None = None
+    db, group: str, sort: str, min_n: int, limit: int, offset: int, q: str | None = None,
+    state: str = "all",
 ) -> dict:
-    """Shared by the router and the MCP server. Returns {rows, total, group, sort, min_n}."""
+    """Shared by the router and the MCP server. Returns {rows, total, group, sort, min_n}.
+
+    state='anchored' aggregates over anchored joins only, excluding provisional_slot rows.
+    The default includes everything: provisional fleets are the newest and most interesting
+    cohort, so they stay visible with their provisional_n flag rather than being withheld.
+    """
     spec = _group_spec(group)
     order = _SORTS.get(sort)
     if order is None:
         raise HTTPException(status_code=422, detail=f"sort must be one of {sorted(_SORTS)}")
+    if state not in ("all", "anchored"):
+        raise HTTPException(status_code=422, detail="state must be 'all' or 'anchored'")
+    view = spec["view"] + ("_anchored" if state == "anchored" else "")
     base = (
         f"SELECT v.*, v.{spec['slug_col']} AS slug, v.{spec['name_col']} AS name "
-        f"FROM {spec['view']} v WHERE v.fleet_total >= %(min_n)s"
+        f"FROM {view} v WHERE v.fleet_total >= %(min_n)s"
     )
     params: dict = {"min_n": min_n}
     if q and q.strip():
@@ -250,7 +259,8 @@ def leaderboard_rows(
             {**params, "limit": limit, "offset": offset},
         )
         rows = cur.fetchall()
-    return {"rows": rows, "total": total, "group": group, "sort": sort, "min_n": min_n}
+    return {"rows": rows, "total": total, "group": group, "sort": sort, "min_n": min_n,
+            "state": state}
 
 
 def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict, str | None] | None:
@@ -493,8 +503,9 @@ def leaderboard(
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
     q: str | None = Query(None, max_length=80),
+    state: str = Query("all", pattern="^(all|anchored)$"),
 ):
-    return leaderboard_rows(db, group, sort, min_n, limit, offset, q)
+    return leaderboard_rows(db, group, sort, min_n, limit, offset, q, state)
 
 
 # Static path routes must be declared before /{slug} so they win the route match.

@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.4, updated 2026-07-29.**
+**Version 1.5, updated 2026-07-31.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -41,13 +41,13 @@ series (`metrics/caggs.sql`).
   excluded even where GCAT records a platform for them, because bus benchmarking is about
   spacecraft platforms.
 * An object enters the benchmark when the latest OK GCAT snapshot attributes a bus model
-  and/or a manufacturer to it, and the object resolves through the identity-graph crosswalk
-  (`satellite_identifier`). Resolution matches on the COSPAR piece designation first (id type
-  `cospar`) and falls back to the GCAT catalog id (id type `gcat_id`) only when the piece has
-  no cospar identifier. The piece is the more stable of the two keys, not a stable key. On the
-  2026-07-07 Transporter-17 launch, GCAT renumbered 67 of 73 catalog ids against their pieces
-  between the releases of 2026-07-08 and 2026-07-10 while every piece held, which is what
-  catalog-id matching alone gets wrong.
+  and/or a manufacturer to it, and the object resolves to a canonical satellite under the
+  three-rule join described in section 4.1: by its permanent NORAD id when the row carries
+  one, else through the COSPAR crosswalk to an anchored satellite, else as provisional slot
+  occupancy. Neither of the catalogs' provisional keys is stable on fresh launches (GCAT
+  renumbered 67 of 73 Transporter-17 catalog ids against their pieces in one release, then
+  re-identified 41 of 73 slot occupants in another without moving any key), which is why the
+  permanent id outranks every crosswalk and the join rule is published per row.
 * Counting convention: this scoreboard counts spacecraft that have launched and been
   catalogued. It does not count buses that a manufacturer has built or delivered but that have
   not flown, and it does not count hosted payloads riding on someone else's bus as separate
@@ -56,8 +56,9 @@ series (`metrics/caggs.sql`).
   id is identified by the catalog provisionally, and that identification can change. Between
   the releases of 2026-07-21 and 2026-07-27, GCAT re-identified which satellite occupies 41 of
   the 73 Transporter-17 slots without moving any key. Fleet counts that include such objects
-  are snapshot statements rather than settled ones. Exposing the confirmed and provisional
-  split per cohort is tracked work, not a shipped capability.
+  are snapshot statements rather than settled ones. As of v1.5 the split is published:
+  `provisional_n` counts such rows per cohort, each row carries its `join_rule`, and
+  `state=anchored` serves anchored-only aggregations on request.
 * Cohort floor: leaderboards default to cohorts of at least 5 satellites (`min_n=5`). The floor
   is a presentation-layer filter, configurable per request down to 1; the views themselves
   aggregate every cohort so the floor never changes stored numbers.
@@ -95,6 +96,19 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
   cohort with an explicit `aliased_from` field, and the retired slug's frozen monthly series
   names its continuation. Group codes the operator graph does not recognize keep their incumbent
   cohort untouched.
+* Every attributed satellite records how its catalog row was joined to its canonical
+  identity, published per row as `join_rule` with three values. `anchored_norad` means the
+  catalog row itself carries the permanent NORAD id, a key that has never been observed to
+  move (the platform measures this nightly and publishes the measurement in its data quality
+  report). `anchored_cospar` means the row reached an anchored satellite through the COSPAR
+  crosswalk. `provisional_slot` means the satellite has no permanent id yet, so the
+  attribution is a dated observation of slot occupancy rather than a settled identity.
+  Provisional fleets stay on the leaderboard, counted per cohort in `provisional_n`, because
+  they are the newest and most commercially interesting cohort and the catalogs' name-level
+  attribution is stable even while slot assignments move; readers who want settled
+  identifications only can pass `state=anchored`, which excludes provisional rows from the
+  aggregation. A companion flag, `key_churn_observed`, marks joins that rode a key the
+  platform's churn ledger has seen reassigned.
 * Manufacturer rollup is undated, current-state attribution. A satellite is credited to the
   corporate group that owns the factory today, not the one that owned it on build day, because
   no build date exists in any source catalog and launch dates postdate builds by months to
@@ -270,6 +284,17 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.5 (2026-07-31).** Join provenance published per satellite: the resolver now joins by
+  permanent NORAD id first, then by COSPAR crosswalk to anchored satellites, then records
+  remaining rows as provisional slot occupancy, with the rule and a churn flag exposed on
+  every row and `provisional_n` on every cohort. An opt-in `state=anchored` filter serves
+  anchored-only aggregations; the default keeps provisional fleets visible and flagged. The
+  NORAD-first rule also corrected seven attributions the crosswalk had been losing to
+  duplicate COSPAR designations: six Starshield satellites (SpaceX moves from 12,829 to
+  12,835) and one HawkEye-family satellite (Argotec moves from 14 to 15). This delivers the
+  confirmed-versus-provisional split recorded as tracked work in v1.3. No metric definitions
+  changed.
 
 * **v1.4 (2026-07-29).** Attribution rule addition: an operator-identity merge layer now joins
   manufacturer cohorts whose rolled-up GCAT group codes resolve to the same organization in the
