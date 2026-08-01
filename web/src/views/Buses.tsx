@@ -288,6 +288,15 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
             <>
               on-orbit <span className="num">{fmtInt(b.fleet_on_orbit)}</span> · active{" "}
               <span className="num">{fmtInt(b.fleet_active)}</span>
+              {detail.participation &&
+              detail.participation.participated_total > b.fleet_total ? (
+                <>
+                  {" "}· participated{" "}
+                  <span className="num" title={detail.participation.note}>
+                    {fmtInt(detail.participation.participated_total)}
+                  </span>
+                </>
+              ) : null}
             </>
           }
         />

@@ -913,8 +913,10 @@ confirmations are the natural source of a labelled set and this design creates t
 are enough of them we can revisit with something calibrated.
 
 **We do not date manufacturer M&A rollup.** Two independent reasons, either sufficient. First,
-**there is no build date in the data.** `launch_date` is all we have, and slicing Terran Orbital's
-37 attributed payloads on the October 2024 close reassigns roughly 25 to Lockheed, most of which
+**there is no build date in the data.** `launch_date` is all we have, and slicing the Terran
+Orbital family's attributed payloads (19 under the Terran code, 37 under its Tyvak subsidiary;
+an earlier draft of this paragraph wrongly gave 37 as Terran's own count) on the October 2024
+close reassigns roughly 25 to Lockheed, most of which
 were built before the deal. Dating the edge does not make the attribution true, it makes a guess
 look like a fact and gives it a `valid_from` to cite. Second, **the existing SCD2 resolver is the
 wrong shape for it.** `resolve.py::_write_owner` emits two intervals, child then parent, which is

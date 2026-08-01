@@ -541,7 +541,13 @@
       },
       "receipts": "/api/buses/spx/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence."
+    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "participation": {
+      "participated_total": 12835,
+      "co_builder_credits": 0,
+      "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
+      "receipts": "/api/buses/spx/provenance?metric=fleet&role=participated"
+    }
   },
   "onewus": {
     "kind": "manufacturer",
@@ -1019,7 +1025,13 @@
       },
       "receipts": "/api/buses/onewus/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence."
+    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "participation": {
+      "participated_total": 650,
+      "co_builder_credits": 0,
+      "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
+      "receipts": "/api/buses/onewus/provenance?metric=fleet&role=participated"
+    }
   },
   "plan": {
     "kind": "manufacturer",
@@ -1509,7 +1521,13 @@
       },
       "receipts": "/api/buses/plan/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence."
+    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "participation": {
+      "participated_total": 551,
+      "co_builder_credits": 0,
+      "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
+      "receipts": "/api/buses/plan/provenance?metric=fleet&role=participated"
+    }
   },
   "starlink-v2m": {
     "kind": "bus",
@@ -1979,7 +1997,8 @@
       },
       "receipts": "/api/buses/starlink-v2m/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence."
+    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "participation": null
   },
   "arrow": {
     "kind": "bus",
@@ -2455,6 +2474,7 @@
       },
       "receipts": "/api/buses/arrow/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence."
+    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "participation": null
   }
 }

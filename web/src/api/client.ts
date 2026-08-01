@@ -306,6 +306,7 @@ function mockBusProvenance(
     slug,
     name: detail.benchmark.name,
     metric,
+    role: "prime",
     cohort: "fixture sample",
     rows: rows.slice(offset, offset + limit),
     total: detail.benchmark.fleet_total,

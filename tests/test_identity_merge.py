@@ -73,6 +73,14 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
             "source) VALUES (%s, 'DECAYED', %s, 'satcat')",
             (merged, obs),
         )
+        # participation credits: one colliding slug on both sides (merged copy must be
+        # dropped, PK (satellite_id, manufacturer_slug)) and one merged-only slug (repointed)
+        cur.execute(
+            "INSERT INTO satellite_manufacturer_credit "
+            "(satellite_id, manufacturer_slug, position, arity) VALUES "
+            "(%s, 'testco', 1, 2), (%s, 'testco', 1, 2), (%s, 'partnerco', 2, 2)",
+            (surviving, merged, merged),
+        )
 
     merge.merge(db_conn, surviving, merged, "norad_dup_test", 0.99, details={"why": "test"})
 
@@ -87,6 +95,7 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
             "source_assertion",
             "satellite_status_history",
             "satellite_operator",
+            "satellite_manufacturer_credit",
         ):
             cur.execute(f"SELECT count(*) FROM {table} WHERE satellite_id = %s", (merged,))
             assert cur.fetchone()[0] == 0, f"orphan rows left in {table}"
@@ -108,6 +117,13 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
             (surviving, obs),
         )
         assert cur.fetchone()[0] == "INACTIVE"
+        # credits: the colliding 'testco' row deduplicated, the merged-only one repointed
+        cur.execute(
+            "SELECT manufacturer_slug, count(*) FROM satellite_manufacturer_credit "
+            "WHERE satellite_id=%s GROUP BY 1 ORDER BY 1",
+            (surviving,),
+        )
+        assert cur.fetchall() == [("partnerco", 1), ("testco", 1)]
 
         # the merge is audited
         cur.execute(

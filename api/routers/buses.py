@@ -361,6 +361,30 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
         )
         prov = cur.fetchone()
 
+        participation = None
+        if k == "manufacturer":
+            # Additive-only participation metric (methodology v1.6): fleet_total stays
+            # prime-position-only; this counts every satellite where the cohort holds ANY
+            # position in GCAT's joint-build string. Detail payload only, by design: never on
+            # the leaderboard, never in frozen snapshots, never a sort key.
+            cur.execute(
+                "SELECT count(*) AS participated, "
+                "       count(*) FILTER (WHERE position > 1) AS co_builder "
+                "FROM satellite_manufacturer_credit WHERE manufacturer_slug = %(slug)s",
+                {"slug": slug},
+            )
+            part = cur.fetchone()
+            participation = {
+                "participated_total": part["participated"],
+                "co_builder_credits": part["co_builder"],
+                "note": (
+                    "fleet_total credits the prime (first-listed) builder only; "
+                    "participated_total additionally counts joint builds where this "
+                    "manufacturer holds a non-first position"
+                ),
+                "receipts": f"/api/buses/{slug}/provenance?metric=fleet&role=participated",
+            }
+
     total = benchmark["fleet_total"]
     provenance = {
         "source": "gcat",
@@ -383,6 +407,7 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
         "constituents": constituents,
         "orgs": orgs,
         "satellites_sample": satellites_sample,
+        "participation": participation,
         "provenance": provenance,
         "also_exists_as": _other_kind(db, slug, k),
         # Set when the requested slug was retired by a cohort merge: the payload served is the
@@ -423,7 +448,7 @@ def _other_kind(db, slug: str, resolved_kind: str) -> dict | None:
 
 
 def provenance_rows(db, slug: str, metric: str, kind: str | None,
-                    limit: int, offset: int) -> dict:
+                    limit: int, offset: int, role: str = "prime") -> dict:
     found = _find_group(db, slug, kind)
     if found is None:
         raise HTTPException(status_code=404, detail="no manufacturer or bus with that slug")
@@ -437,13 +462,37 @@ def provenance_rows(db, slug: str, metric: str, kind: str | None,
     value_col, row_filter, cohort_note = spec
     slug_col = _GROUPS[k]["slug_col"]
 
-    base = (
-        f"SELECT satellite_id, norad_id, cospar_id, canonical_name, canonical_status, "
-        f"       {value_col} AS value, bus_model, manufacturer_name, "
-        f"       source, source_key, ingest_run_id, rollup_source, "
-        f"       bus_raw, manufacturer_raw, bus_uncertain, manufacturer_uncertain "
-        f"FROM v_bus_sat WHERE {slug_col} = %(slug)s AND ({row_filter})"
-    )
+    if role == "participated":
+        # Participation receipts reconcile against participated_total the same way prime
+        # receipts reconcile against fleet_total: count(rows) == the headline, exactly. The
+        # role only widens the cohort (any credited position, via the bridge table); it is a
+        # fleet-membership claim, so behavior metrics stay prime-only.
+        if k != "manufacturer":
+            raise HTTPException(
+                status_code=422, detail="role=participated applies to manufacturer cohorts")
+        if metric != "fleet":
+            raise HTTPException(
+                status_code=422, detail="role=participated supports metric=fleet only")
+        cohort_note = "all payloads where this manufacturer holds any credited build position"
+        base = (
+            f"SELECT v.satellite_id, v.norad_id, v.cospar_id, v.canonical_name, "
+            f"       v.canonical_status, v.{value_col} AS value, v.bus_model, "
+            f"       v.manufacturer_name, v.source, v.source_key, v.ingest_run_id, "
+            f"       v.rollup_source, v.bus_raw, v.manufacturer_raw, v.bus_uncertain, "
+            f"       v.manufacturer_uncertain, "
+            f"       c.position AS credit_position, c.arity AS credit_arity "
+            f"FROM v_bus_sat v "
+            f"JOIN satellite_manufacturer_credit c ON c.satellite_id = v.satellite_id "
+            f"WHERE c.manufacturer_slug = %(slug)s AND ({row_filter})"
+        )
+    else:
+        base = (
+            f"SELECT satellite_id, norad_id, cospar_id, canonical_name, canonical_status, "
+            f"       {value_col} AS value, bus_model, manufacturer_name, "
+            f"       source, source_key, ingest_run_id, rollup_source, "
+            f"       bus_raw, manufacturer_raw, bus_uncertain, manufacturer_uncertain "
+            f"FROM v_bus_sat WHERE {slug_col} = %(slug)s AND ({row_filter})"
+        )
     with db.cursor() as cur:
         cur.execute(f"SELECT count(*) AS total FROM ({base}) t", {"slug": slug})
         total = cur.fetchone()["total"]
@@ -458,6 +507,7 @@ def provenance_rows(db, slug: str, metric: str, kind: str | None,
         "slug": slug,
         "name": benchmark["name"],
         "metric": metric,
+        "role": role,
         "cohort": cohort_note,
         "rows": rows,
         "total": total,
@@ -532,5 +582,6 @@ def provenance(
     kind: str | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    role: str = Query("prime", pattern="^(prime|participated)$"),
 ):
-    return provenance_rows(db, slug, metric, kind, limit, offset)
+    return provenance_rows(db, slug, metric, kind, limit, offset, role)

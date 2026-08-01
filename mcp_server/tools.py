@@ -118,7 +118,9 @@ TOOLS = [
             "Detail for one bus manufacturer or bus model by slug (as returned by "
             "bus_benchmarks): headline benchmarks, constituent bus models / orgs, a sample of "
             "member satellites with per-satellite metrics, and per-metric provenance and "
-            "coverage."
+            "coverage. Manufacturer cohorts also carry participation (participated_total): "
+            "fleet_total credits the prime builder only, participated_total additionally "
+            "counts joint builds where the cohort holds a non-first position."
         ),
         "inputSchema": {
             "type": "object",

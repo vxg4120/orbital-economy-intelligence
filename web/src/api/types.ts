@@ -547,12 +547,23 @@ export interface BusProvenanceSummary {
   receipts: string;
 }
 
+/** Additive participation metric (methodology v1.6): manufacturer cohorts only, null for
+ *  bus models. fleet_total stays prime-position-only; participated_total also counts joint
+ *  builds where the cohort holds a non-first position. Detail payload only, by design. */
+export interface BusParticipation {
+  participated_total: number;
+  co_builder_credits: number;
+  note: string;
+  receipts: string;
+}
+
 export interface BusDetail {
   kind: BusGroup;
   benchmark: BusRow & Record<string, unknown>;
   constituents: BusConstituent[];
   orgs: BusOrgRef[];
   satellites_sample: BusSatellite[];
+  participation: BusParticipation | null;
   provenance: BusProvenanceSummary;
   correction_channel: string;
 }
@@ -575,6 +586,10 @@ export interface BusReceiptRow {
   manufacturer_raw: string | null;
   bus_uncertain: boolean;
   manufacturer_uncertain: boolean;
+  /** Present on role=participated receipts only: where in the joint-build string the
+   *  credit sits (1 = prime) and how many builders the string named. */
+  credit_position?: number;
+  credit_arity?: number;
 }
 
 export interface BusProvenanceResponse {
@@ -582,6 +597,7 @@ export interface BusProvenanceResponse {
   slug: string;
   name: string;
   metric: string;
+  role: "prime" | "participated";
   cohort: string;
   rows: BusReceiptRow[];
   total: number;

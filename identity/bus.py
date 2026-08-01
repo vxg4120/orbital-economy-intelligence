@@ -35,7 +35,7 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.5"
+METHODOLOGY_VERSION = "1.6"
 METHODOLOGY_UPDATED = "2026-07-31"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
@@ -49,15 +49,11 @@ ROLLUP_OVERRIDES: dict[str, str] = {
 # Bus strings that mean "no bus recorded", dropped rather than benchmarked as a model.
 _BUS_PLACEHOLDERS = ("unk", "unknown", "tba", "none")
 
-_BUILD_SQL = """
-WITH RECURSIVE
-gcat_run AS (
-    SELECT max(r.ingest_run_id) AS run
-    FROM raw_gcat_satcat r
-    JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id
-    WHERE i.status = 'ok'
-),
-orgs_run AS (
+# The org rollup walk, shared verbatim by the headline attribution build and the
+# participation-credit build further down. Factored so the two can never drift: a co-builder
+# credit must resolve through the exact same parent walk (and ROLLUP_OVERRIDES) as the
+# headline, or the same code would credit different cohorts depending on its position.
+_WALK_CTES = """orgs_run AS (
     SELECT max(r.ingest_run_id) AS run
     FROM raw_gcat_orgs r
     JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id
@@ -108,7 +104,17 @@ rollup AS (
     SELECT DISTINCT ON (leaf) leaf, cur AS group_code, path, used_override
     FROM chain
     ORDER BY leaf, depth DESC
+)"""
+
+_BUILD_SQL = """
+WITH RECURSIVE
+gcat_run AS (
+    SELECT max(r.ingest_run_id) AS run
+    FROM raw_gcat_satcat r
+    JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id
+    WHERE i.status = 'ok'
 ),
+""" + _WALK_CTES + """,
 cleaned AS (
     -- GCAT payload rows from the latest OK snapshot; '-' and '' mean "no value".
     SELECT r.jcat, r.ingest_run_id, r.norad_id,
@@ -284,8 +290,7 @@ FROM linked
 # aliases deterministic (seed wins, then gcat_orgs, then lowest operator_id) instead of
 # heap-ordered; today zero ambiguous aliases are used as group codes, so the tail terms are
 # insurance that tests pin in place.
-_ALIAS1_CTE = """
-WITH alias1 AS (
+_ALIAS1_BODY = """alias1 AS (
     SELECT DISTINCT ON (a.alias) a.alias, a.operator_id
     FROM operator_alias a
     WHERE a.source IN ('gcat_orgs', 'gcat', 'seed')
@@ -295,6 +300,8 @@ WITH alias1 AS (
              a.operator_id
 )
 """
+
+_ALIAS1_CTE = "\nWITH " + _ALIAS1_BODY
 
 _ANNOTATE_LEAF_SQL = _ALIAS1_CTE + """
 UPDATE satellite_bus sb
@@ -371,6 +378,80 @@ WHERE sb.manufacturer_group_operator_id = r.op
   AND sb.manufacturer_group_code <> r.gcode
 """
 
+# Participation credits (docs/design/0002-phase4-brief.md section 6): expand every attributed
+# satellite's manufacturer string into per-position tokens and resolve EACH position through
+# the same rollup walk and operator merge as the headline. The headline (fleet_total,
+# position 1) does not move; non-first positions become additive credits surfaced only on
+# detail payloads, never on the leaderboard, never in frozen snapshots, never as a sort key.
+_CREDIT_SQL = "WITH RECURSIVE\n" + _WALK_CTES + ",\n" + _ALIAS1_BODY + """,
+positions AS (
+    -- One row per '/'-separated token, expanded from satellite_bus itself (the already-chosen
+    -- GCAT row per satellite), so position 1 is by construction the same primary code the
+    -- headline attribution resolved.
+    SELECT sb.satellite_id,
+           t.ord::smallint AS position,
+           cardinality(string_to_array(sb.manufacturer_raw, '/'))::smallint AS arity,
+           NULLIF(btrim(rtrim(btrim(t.token), '?')), '') AS code,
+           COALESCE(btrim(t.token) LIKE '%%?%%', FALSE) AS uncertain
+    FROM satellite_bus sb
+    CROSS JOIN LATERAL unnest(string_to_array(sb.manufacturer_raw, '/'))
+        WITH ORDINALITY AS t(token, ord)
+    WHERE sb.manufacturer_raw IS NOT NULL
+),
+kept AS (
+    -- A '?' on a non-first token is a GCAT guess about who else was involved; it is not
+    -- promoted into a published credit. Position 1 stays even when marked, because it IS the
+    -- headline attribution, which publishes manufacturer_uncertain rather than dropping the
+    -- row. Evaluated per position because GCAT marks individual codes ('RAYM?/GSFC' carries
+    -- the marker on the FIRST token), not just tails.
+    SELECT * FROM positions
+    WHERE code IS NOT NULL AND (position = 1 OR NOT uncertain)
+),
+walked AS (
+    SELECT k.code, COALESCE(ru.group_code, k.code) AS group_code
+    FROM (SELECT DISTINCT code FROM kept) k
+    LEFT JOIN rollup ru ON ru.leaf = k.code
+),
+rep AS (
+    -- Post-merge satellite_bus is the authority for which slug an operator's cohort publishes
+    -- under (build() runs this statement after _OPERATOR_MERGE_SQL), so the credit layer
+    -- inherits the operator merge by lookup instead of re-running it. Post-merge each
+    -- operator maps to exactly one slug; min() only pins determinism.
+    SELECT manufacturer_group_operator_id AS op, min(manufacturer_slug) AS slug
+    FROM satellite_bus
+    WHERE manufacturer_group_operator_id IS NOT NULL AND manufacturer_slug IS NOT NULL
+    GROUP BY 1
+),
+mapped AS (
+    -- Group code -> published slug: through the operator cohort when one exists, else the
+    -- same slugify fallback the headline build uses for codes the operator graph does not
+    -- know. Orgs that never hold position 1 anywhere thus get a slug value with no cohort
+    -- page behind it: an accepted limitation (the alternative is minting new public URLs).
+    SELECT w.code,
+           COALESCE(rep.slug,
+                    NULLIF(btrim(regexp_replace(lower(COALESCE(w.group_code, '')),
+                                                '[^a-z0-9]+', '-', 'g'), '-'), '')) AS slug
+    FROM walked w
+    LEFT JOIN alias1 a ON a.alias = w.group_code
+    LEFT JOIN rep ON rep.op = a.operator_id
+)
+INSERT INTO satellite_manufacturer_credit
+    (satellite_id, manufacturer_slug, position, arity, uncertain)
+SELECT DISTINCT ON (k.satellite_id, m.slug)
+       k.satellite_id, m.slug, k.position, k.arity, k.uncertain
+FROM kept k
+JOIN mapped m ON m.code = k.code
+WHERE m.slug IS NOT NULL
+ORDER BY k.satellite_id, m.slug, k.position
+"""
+
+_CREDIT_STATS_SQL = """
+SELECT count(*) AS credit_rows,
+       count(*) FILTER (WHERE position > 1) AS co_builder_credits,
+       count(DISTINCT satellite_id) FILTER (WHERE arity > 1) AS joint_build_satellites
+FROM satellite_manufacturer_credit
+"""
+
 _STATS_SQL = """
 SELECT
     count(*) AS attributed,
@@ -413,9 +494,19 @@ def build(conn) -> dict:
         aliases_recorded = cur.rowcount
         cur.execute(_OPERATOR_MERGE_SQL)
         merged_rows = cur.rowcount
+        # Participation credits rebuild AFTER the merge: the credit resolver inherits the
+        # operator merge by reading post-merge satellite_bus (see _CREDIT_SQL's rep CTE).
+        cur.execute("DELETE FROM satellite_manufacturer_credit")
+        cur.execute(
+            _CREDIT_SQL,
+            {"override_codes": override_codes, "override_parents": override_parents},
+        )
         cur.execute(_STATS_SQL)
         columns = [d.name for d in cur.description]
         stats = dict(zip(columns, cur.fetchone()))
+        cur.execute(_CREDIT_STATS_SQL)
+        columns = [d.name for d in cur.description]
+        stats.update(dict(zip(columns, cur.fetchone())))
     stats["operator_merged_rows"] = merged_rows
     stats["slug_aliases_recorded"] = aliases_recorded
     return stats

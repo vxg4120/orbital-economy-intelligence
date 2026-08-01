@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.5, updated 2026-07-31.**
+**Version 1.6, updated 2026-07-31.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -81,6 +81,23 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
   and the leaderboard consequently understates organizations that are frequently listed second.
   For the Terran Orbital group of codes the difference is 56 satellites credited against 79
   recorded, so the shortfall is real and measurable rather than hypothetical.
+* Since v1.6 that shortfall is published rather than only acknowledged, as an **additive
+  participation metric**. Every position in the joint-build string is expanded into a credit
+  (`satellite_manufacturer_credit`, one row per satellite and credited cohort, recording the
+  position and the number of builders named) and resolved through the exact same parent
+  rollup and operator merge as the headline attribution, never through the operator name
+  graph. The headline does not move: `fleet_total` remains a count of prime (first-listed)
+  positions only, and `participated_total` appears on the detail payload only, never on the
+  leaderboard, never in frozen snapshots, and never as a sort key. Each number reconciles
+  against its own receipt set: the provenance endpoint's default `role=prime` returns exactly
+  `fleet_total` rows, and `role=participated` returns exactly `participated_total` rows, each
+  carrying the credited position. A `?` on a non-first token is a GCAT guess about who else
+  was involved and is not promoted into a credit (19 such positions are currently dropped);
+  the prime position keeps its row regardless, because the headline publishes
+  `manufacturer_uncertain` rather than dropping uncertain attributions. Crediting every
+  position raises Terran Orbital from 19 to 40 satellites, or from 56 to 79 counting its
+  Tyvak subsidiary, and those are the defensible sentences: any percentage quoted from this
+  feature must state which of those denominators it uses.
 * A `?` marks the attribution uncertain in GCAT. On a compound value the marker attaches to the
   individual code (`RAYM?/GSFC`) rather than to the end of the string, so it is stripped per code.
   The marker is stripped for grouping and stored as a boolean flag (`manufacturer_uncertain`), so
@@ -238,6 +255,13 @@ identifier, and it should not be treated as one.
 * **Generic form factors.** Entries like `Cubesat 3U` aggregate many unrelated vehicles from
   many builders. They are kept (fleet counts are meaningful) and labeled with their most common
   manufacturer, but behavior metrics for them describe the population, not a product.
+* **Never-prime co-builders have no page.** 79 organizations appear in joint-build strings
+  but never in first position anywhere in the catalog, so they earn participation credits
+  without earning a slug, a page, or a leaderboard row. This is a deliberate limitation:
+  a slug is a published URL, and minting URLs for cohorts whose headline fleet is zero is the
+  kind of change the URL-stability regime exists to prevent. Their credits exist in
+  `satellite_manufacturer_credit` and are honestly recorded there, but no published surface
+  currently displays them.
 * **Status is resolved, not gospel.** On-orbit/decayed classification comes from the identity
   graph's canonical status resolution across catalogs; conflicts between sources exist and are
   surfaced in the platform's Conflicts view rather than hidden.
@@ -284,6 +308,20 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.6 (2026-07-31).** Additive participation metric for joint builds. Every position in a
+  co-manufactured satellite's builder string now earns a credit, resolved through the same
+  rollup and operator merge as the headline attribution and stored in a per-satellite bridge
+  table with its position. Manufacturer detail payloads gain `participated_total` (with
+  `co_builder_credits`), and the provenance endpoint gains `role=participated`, whose receipt
+  count reconciles to it exactly, as `role=prime` continues to reconcile to `fleet_total`.
+  No published leaderboard number moved: `fleet_total` remains prime-position-only on every
+  cohort, verified by a controlled before-and-after diff on identical data with an empty
+  allowed-change list. On current data this records 876 co-builder credits across 904
+  joint-build satellites; Terran Orbital reads 19 prime against 40 participated (56 against
+  79 with its Tyvak subsidiary). A `?` on a non-first position keeps that credit out of the
+  bridge (19 positions today). 79 never-prime organizations remain pageless by design (see
+  section 6). No metric definitions changed.
 
 * **v1.5 (2026-07-31).** Join provenance published per satellite: the resolver now joins by
   permanent NORAD id first, then by COSPAR crosswalk to anchored satellites, then records

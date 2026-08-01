@@ -44,6 +44,11 @@ def main() -> None:
         f"{stats['rolled_up']} via gcat_orgs, {stats['rolled_up_override']} via override, "
         f"{stats['unresolved_codes']} unresolved codes"
     )
+    print(
+        "participation credits:   "
+        f"{stats['credit_rows']} rows, {stats['co_builder_credits']} co-builder credits "
+        f"across {stats['joint_build_satellites']} joint-build satellites"
+    )
     print(f"behavior matview:        {'refreshed' if refreshed else 'absent (run make metrics)'}")
     for kind, n in snapshots.items():
         state = "views absent" if n is None else f"{n} rows inserted"
