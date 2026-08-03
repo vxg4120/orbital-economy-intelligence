@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.6, updated 2026-07-31.**
+**Version 1.7, updated 2026-08-03.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -228,6 +228,26 @@ satellites, and this column says how large that slice is. Coverage is strongly L
 near-zero behavior metrics not because its buses do nothing but because we do not observe them
 yet.
 
+### 5.8 Pending FCC applications (`pending_n`, informational, detail pages only)
+
+The count of space-station applications filed with the FCC and not yet decided whose applicant
+belongs to the same corporate group as the manufacturer cohort. An FCC authorization precedes
+launch by months to years, so this is the scoreboard's one forward-looking signal: satellites
+that exist in no tracking catalog yet. It is informational rather than a benchmark metric: it
+appears on detail payloads only, never on the leaderboard, never in frozen snapshots, and
+never as a sort key, and it measures regulatory activity, not spacecraft or their behavior.
+
+The join is a curated allowlist, not an inference. `identity/fcc_applicants.yml` maps FCC
+Registration Numbers (FRN, the Commission's stable org-level identity) to cohort slugs, and an
+application counts only when its applicant FRN is curated to the cohort, which is only done
+where the same corporate group both builds satellites and files for its own systems (SpaceX,
+Planet, Capella, Astranis, and about thirty others). Applicant is NOT builder in general:
+incumbent operators who buy their spacecraft match no cohort and inherit nothing, and
+operators whose builders are third parties are deliberately excluded. Every count reconciles
+against its receipt set at `/api/filings/pending?applicant_slug={slug}`. Source: FCC IBFS
+bulk data, public domain; "pending" is date-defined (filed, with no grant, denial, dismissal
+or surrender date).
+
 ## 6. Known limitations and biases
 
 **Manufacturers and bus models share one URL namespace.** `/buses/{slug}` resolves manufacturers
@@ -308,6 +328,16 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.7 (2026-08-03).** Forward signal: pending FCC applications on manufacturer detail
+  pages (section 5.8). The IBFS ingest now lands applicant identity (organization name and
+  FRN from the dump's address table; 100 percent of the 667 pending applications resolve),
+  and a curated FRN-to-cohort allowlist joins applications to the cohorts whose corporate
+  group filed them: 136 applications light up 32 builder cohorts, while operator-only
+  applicants (Intelsat with 114 pending, Viasat, EchoStar, SES) correctly match nothing
+  because applicant is not builder. Informational and detail-only: no leaderboard column, no
+  snapshot key, no sort. Counts reconcile against `/api/filings/pending?applicant_slug=`
+  receipts. No metric definitions changed.
 
 * **v1.6 (2026-07-31).** Additive participation metric for joint builds. Every position in a
   co-manufactured satellite's builder string now earns a credit, resolved through the same

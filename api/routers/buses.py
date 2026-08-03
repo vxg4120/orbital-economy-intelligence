@@ -385,6 +385,47 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
                 "receipts": f"/api/buses/{slug}/provenance?metric=fleet&role=participated",
             }
 
+        pending_applications = None
+        if k == "manufacturer":
+            # Forward signal (methodology v1.7, informational): pending FCC applications
+            # filed by this cohort's own corporate group, joined by curated applicant FRN.
+            # Applicant is not builder in general, so operator-only cohorts stay null-signal
+            # rather than inheriting their customers' filings.
+            cur.execute(
+                """
+                SELECT count(*) AS pending_n, max(p.date_filed) AS latest_filed
+                FROM v_fcc_pending_applications p
+                JOIN fcc_applicant_link l ON l.frn = p.applicant_frn
+                WHERE l.manufacturer_slug = %(slug)s
+                """,
+                {"slug": slug},
+            )
+            pend = cur.fetchone()
+            if pend["pending_n"] > 0:
+                cur.execute(
+                    """
+                    SELECT p.file_number, p.date_filed, p.satellite_name,
+                           p.applicant_name, left(p.description, 200) AS description
+                    FROM v_fcc_pending_applications p
+                    JOIN fcc_applicant_link l ON l.frn = p.applicant_frn
+                    WHERE l.manufacturer_slug = %(slug)s
+                    ORDER BY p.date_filed DESC, p.file_number LIMIT 3
+                    """,
+                    {"slug": slug},
+                )
+                sample = cur.fetchall()
+                pending_applications = {
+                    "pending_n": pend["pending_n"],
+                    "latest_filed": pend["latest_filed"],
+                    "sample": sample,
+                    "note": (
+                        "pending FCC applications filed by this manufacturer's own corporate "
+                        "group (curated applicant identity); informational, not a benchmark "
+                        "metric"
+                    ),
+                    "receipts": f"/api/filings/pending?applicant_slug={slug}",
+                }
+
     total = benchmark["fleet_total"]
     provenance = {
         "source": "gcat",
@@ -408,6 +449,7 @@ def detail_payload(db, slug: str, kind: str | None = None) -> dict:
         "orgs": orgs,
         "satellites_sample": satellites_sample,
         "participation": participation,
+        "pending_applications": pending_applications,
         "provenance": provenance,
         "also_exists_as": _other_kind(db, slug, k),
         # Set when the requested slug was retired by a cohort merge: the payload served is the

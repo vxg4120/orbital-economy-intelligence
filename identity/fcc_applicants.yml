@@ -1,0 +1,57 @@
+# FCC applicant FRN -> Bus Benchmarks manufacturer cohort.
+#
+# The join rule for the pending-applications forward signal (methodology v1.7): a pending
+# application lights up a manufacturer page ONLY when its applicant belongs to the same
+# corporate group as the cohort, i.e. builder-operators who file for their own systems.
+# Applicant is NOT builder in general: incumbent operators who buy their spacecraft
+# (Intelsat, SES, EchoStar, Viasat, DIRECTV, SiriusXM, Telesat, Iridium, OneWeb...) are
+# deliberately absent, as are operators whose builders are third parties (BlackSky/LeoStella,
+# HawkEye 360/SFL, MethaneSAT/Ball, Loft/Airbus). Keyed on FRN (the FCC's stable org-level
+# registration number) rather than name because the same org files under many legal names,
+# and the same name recurs across unrelated legal entities.
+#
+# Slugs are validated against the live leaderboard at build time (scripts/build_rf.py);
+# merge-retired slugs resolve through benchmark_slug_alias to the surviving cohort.
+
+applicants:
+  # SpaceX files under two corporate names, plus subsidiary Swarm (acquired 2021; the
+  # methodology's current-state rule credits the group that owns the org today).
+  - {frn: "0025985060", slug: spx, name: "Space Exploration Holdings, LLC"}
+  - {frn: "0026043968", slug: spx, name: "Space Exploration Technologies Corp."}
+  - {frn: "0026233890", slug: spx, name: "Swarm Technologies, Inc. (SpaceX)"}
+  - {frn: "0028584761", slug: amaz, name: "Kuiper Systems LLC (Amazon)"}
+  - {frn: "0021516331", slug: plan, name: "Planet Labs PBC"}
+  - {frn: "0022106892", slug: spireg, name: "Spire Global, Inc."}
+  - {frn: "0001583483", slug: boe, name: "The Boeing Company"}
+  - {frn: "0008919946", slug: boe, name: "The Boeing Company"}
+  - {frn: "0008610107", slug: boe, name: "The Boeing Company"}
+  - {frn: "0002149359", slug: lm, name: "Lockheed Martin Corporation"}
+  - {frn: "0011567351", slug: maxar, name: "Maxar License Inc."}
+  - {frn: "0027711787", slug: maxar, name: "Maxar License Inc."}
+  - {frn: "0030543268", slug: iceye, name: "ICEYE US, Inc."}
+  - {frn: "0026499889", slug: capsp, name: "Capella Space Corp."}
+  - {frn: "0025655093", slug: umbra, name: "Umbra Lab Inc"}
+  - {frn: "0032990756", slug: astran, name: "Astranis Projects USA LLC"}
+  - {frn: "0032028425", slug: moment, name: "Momentus Space LLC"}
+  - {frn: "0028806776", slug: moment, name: "Momentus Inc"}
+  - {frn: "0030442651", slug: intma, name: "Intuitive Machines"}
+  - {frn: "0025946229", slug: kepler, name: "Kepler Communications Inc."}
+  - {frn: "0014817662", slug: blor, name: "Blue Origin, LLC"}
+  - {frn: "0027122399", slug: blor, name: "Blue Origin Florida, LLC"}
+  - {frn: "0031096530", slug: ffly, name: "Firefly Aerospace, Inc."}
+  - {frn: "0027683135", slug: lynk, name: "Lynk Global, Inc."}
+  - {frn: "0032389611", slug: muon, name: "Muon Space Inc."}
+  - {frn: "0027863257", slug: asts, name: "AST & Science, LLC"}
+  - {frn: "0028643161", slug: pixx, name: "Pixxel Space Technologies, Inc."}
+  - {frn: "0030988307", slug: fleet, name: "Fleet Space Technologies"}
+  - {frn: "0004354171", slug: spq, name: "SpaceQuest, Ltd."}
+  - {frn: "0034810259", slug: novi, name: "NOVI Space, Inc."}
+  - {frn: "0032808065", slug: impul, name: "Impulse Space, Inc."}
+  - {frn: "0035931757", slug: sienv, name: "Sierra Nevada Company, LLC"}
+  - {frn: "0032451825", slug: stfish, name: "Starfish Space Inc."}
+  - {frn: "0035975119", slug: astsc, name: "Astroscale U.S. Inc."}
+  - {frn: "0036729259", slug: bslt, name: "Basalt Technologies Corp."}
+  - {frn: "0029965993", slug: astbt, name: "Astrobotic Technology, Inc"}
+  - {frn: "0031996408", slug: albedo, name: "Albedo Space Corp."}
+  - {frn: "0031267883", slug: lunasd, name: "Lunasonde, Inc."}
+  - {frn: "0024499394", slug: adig, name: "Astro Digital US, Inc."}

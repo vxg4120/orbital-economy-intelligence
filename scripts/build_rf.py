@@ -32,6 +32,7 @@ from common.db import get_conn  # noqa: E402
 from identity.normalize import norm_name  # noqa: E402
 
 CONSTELLATIONS_YML = REPO_ROOT / "identity" / "fcc_constellations.yml"
+APPLICANTS_YML = REPO_ROOT / "identity" / "fcc_applicants.yml"
 
 _LATEST_SSAL = """
 SELECT orbital_location, satellite_name, call_sign, licensee, administration,
@@ -136,10 +137,64 @@ def build(conn) -> dict:
     }
 
 
+def build_applicant_links(conn) -> dict:
+    """Rebuild fcc_applicant_link from identity/fcc_applicants.yml.
+
+    Every curated slug must resolve against the live leaderboard, directly or through
+    benchmark_slug_alias (a cohort merge retires slugs but never breaks the contract). An
+    unresolvable slug raises rather than silently dropping a curated link; main() has not
+    committed yet at that point, so the whole RF build rolls back and yesterday's tables
+    survive intact while the nightly log shows the failure line. Runs after build_bus in the
+    nightly so validation sees current slugs.
+    """
+    spec = yaml.safe_load(APPLICANTS_YML.read_text(encoding="utf-8"))
+    entries = spec.get("applicants", [])
+    with conn.cursor() as cur:
+        cur.execute("SELECT manufacturer_slug FROM v_bus_benchmarks_manufacturer")
+        live = {r[0] for r in cur.fetchall()}
+        cur.execute(
+            "SELECT old_slug, new_slug FROM benchmark_slug_alias WHERE kind = 'manufacturer'"
+        )
+        alias = dict(cur.fetchall())
+
+        resolved = []
+        for e in entries:
+            slug = e["slug"]
+            if slug not in live:
+                slug = alias.get(slug)
+                if slug is None or slug not in live:
+                    raise SystemExit(
+                        f"fcc_applicants.yml: slug '{e['slug']}' ({e['name']}) resolves to no "
+                        "live manufacturer cohort; fix the yml before the link table rebuilds"
+                    )
+            resolved.append((e["frn"], slug, e["name"]))
+
+        cur.execute("DELETE FROM fcc_applicant_link")
+        cur.executemany(
+            "INSERT INTO fcc_applicant_link (frn, manufacturer_slug, applicant_note) "
+            "VALUES (%s, %s, %s)",
+            resolved,
+        )
+        cur.execute(
+            """
+            SELECT count(*), count(DISTINCT l.manufacturer_slug)
+            FROM v_fcc_pending_applications p
+            JOIN fcc_applicant_link l ON l.frn = p.applicant_frn
+            """
+        )
+        matched, cohorts = cur.fetchone()
+    return {
+        "applicant_links": len(resolved),
+        "pending_apps_matched": matched,
+        "cohorts_with_pending": cohorts,
+    }
+
+
 def main() -> None:
     conn = get_conn()
     try:
         stats = build(conn)
+        stats.update(build_applicant_links(conn))
         conn.commit()
     finally:
         conn.close()

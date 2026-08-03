@@ -292,8 +292,8 @@ def test_retired_slug_still_serves_via_api(db_conn):
 
 @pytest.mark.db
 def test_methodology_version_matches_changelog():
-    assert bus_mod.METHODOLOGY_VERSION == "1.6"
+    assert bus_mod.METHODOLOGY_VERSION == "1.7"
     doc = (REPO_ROOT / "docs" / "BUS_BENCHMARKS_METHODOLOGY.md").read_text(encoding="utf-8")
     top = doc.split("## Changelog")[1].strip().splitlines()[0]
-    assert "v1.6" in top
+    assert "v1.7" in top
     assert "Planet" in doc.split("## Changelog")[1]

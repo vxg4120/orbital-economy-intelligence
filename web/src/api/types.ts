@@ -557,6 +557,23 @@ export interface BusParticipation {
   receipts: string;
 }
 
+/** Forward signal (methodology v1.7, informational): pending FCC applications filed by the
+ *  cohort's own corporate group, joined by curated applicant FRN. Null for bus models, for
+ *  cohorts with no filings, and for operator-only applicants (applicant is not builder). */
+export interface BusPendingApplications {
+  pending_n: number;
+  latest_filed: string | null;
+  sample: {
+    file_number: string;
+    date_filed: string | null;
+    satellite_name: string | null;
+    applicant_name: string | null;
+    description: string | null;
+  }[];
+  note: string;
+  receipts: string;
+}
+
 export interface BusDetail {
   kind: BusGroup;
   benchmark: BusRow & Record<string, unknown>;
@@ -564,6 +581,7 @@ export interface BusDetail {
   orgs: BusOrgRef[];
   satellites_sample: BusSatellite[];
   participation: BusParticipation | null;
+  pending_applications: BusPendingApplications | null;
   provenance: BusProvenanceSummary;
   correction_channel: string;
 }

@@ -120,7 +120,9 @@ TOOLS = [
             "member satellites with per-satellite metrics, and per-metric provenance and "
             "coverage. Manufacturer cohorts also carry participation (participated_total): "
             "fleet_total credits the prime builder only, participated_total additionally "
-            "counts joint builds where the cohort holds a non-first position."
+            "counts joint builds where the cohort holds a non-first position. Builder cohorts "
+            "whose corporate group files with the FCC also carry pending_applications, a "
+            "forward signal of not-yet-launched systems (curated applicant FRN join)."
         ),
         "inputSchema": {
             "type": "object",

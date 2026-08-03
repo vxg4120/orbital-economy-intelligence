@@ -547,6 +547,21 @@
       "co_builder_credits": 0,
       "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
       "receipts": "/api/buses/spx/provenance?metric=fleet&role=participated"
+    },
+    "pending_applications": {
+      "pending_n": 31,
+      "latest_filed": "2025-06-11",
+      "sample": [
+        {
+          "file_number": "SATMOD2025061100144",
+          "date_filed": "2025-06-11",
+          "satellite_name": "SPACEX GEN2 (S3069)",
+          "applicant_name": "Space Exploration Holdings, LLC",
+          "description": "SpaceX seeks modification of its Gen2 authorization"
+        }
+      ],
+      "note": "pending FCC applications filed by this manufacturer's own corporate group (curated applicant identity); informational, not a benchmark metric",
+      "receipts": "/api/filings/pending?applicant_slug=spx"
     }
   },
   "onewus": {
@@ -1031,7 +1046,8 @@
       "co_builder_credits": 0,
       "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
       "receipts": "/api/buses/onewus/provenance?metric=fleet&role=participated"
-    }
+    },
+    "pending_applications": null
   },
   "plan": {
     "kind": "manufacturer",
@@ -1527,7 +1543,8 @@
       "co_builder_credits": 0,
       "note": "fleet_total credits the prime (first-listed) builder only; participated_total additionally counts joint builds where this manufacturer holds a non-first position",
       "receipts": "/api/buses/plan/provenance?metric=fleet&role=participated"
-    }
+    },
+    "pending_applications": null
   },
   "starlink-v2m": {
     "kind": "bus",
@@ -1998,7 +2015,8 @@
       "receipts": "/api/buses/starlink-v2m/provenance?metric=fleet"
     },
     "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
-    "participation": null
+    "participation": null,
+    "pending_applications": null
   },
   "arrow": {
     "kind": "bus",
@@ -2475,6 +2493,7 @@
       "receipts": "/api/buses/arrow/provenance?metric=fleet"
     },
     "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
-    "participation": null
+    "participation": null,
+    "pending_applications": null
   }
 }

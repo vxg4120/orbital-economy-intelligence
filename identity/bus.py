@@ -35,8 +35,8 @@ from __future__ import annotations
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.6"
-METHODOLOGY_UPDATED = "2026-07-31"
+METHODOLOGY_VERSION = "1.7"
+METHODOLOGY_UPDATED = "2026-08-03"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry

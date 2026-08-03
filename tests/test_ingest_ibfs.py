@@ -19,8 +19,8 @@ import pytest
 from ingest import ibfs
 
 # A pending SAT filing (filed, no grant/deny/dismiss/surrender), full live-record shape:
-# documented columns in positions 0-52, then the undocumented post-1998 tail (positions 53+,
-# including the FRN-looking value at position 61) which the parser must ignore.
+# documented columns in positions 0-52, then the post-1998 tail, from which the parser lands
+# the applicant address key (position 41) and the FRN (position 61); the rest stays ignored.
 PENDING_FILING = (
     "-525566|0|S3236|SATLOA2025061800152|SAT|FAFV|Jun 18 2025  4:50:24:023PM||||"
     "Jun 18 2025  4:50:22:490PM||||||||Jun 18 2025  4:50:24:223PM|||||IC2025003246| |LOA"
@@ -40,6 +40,14 @@ GRANTED_FILING = (
 )
 
 FILING_BLOB = PENDING_FILING + "|^|\r\n" + GRANTED_FILING + "|^|\r\n"
+
+# Real address shapes: the applicant org row the pending filing's address key points at
+# (name at position 2, FRN at position 12), and a sparse legacy row.
+ADDRESS_BLOB = (
+    "-525777|TMPA91242|Astranis Projects USA LLC||13467 Example Street||San Francisco|CA|"
+    "94107|USA|ASTRANAS||0032990756|N|^|\r\n"
+    "545594|IB24362| | | | | || |   | | |||^|\r\n"
+)
 
 # Real space-station shapes: the same row exported twice back to back (the dump does this at
 # scale), a call sign embedded in parentheses, a cp1252 degree sign, and blank-padded cells.
@@ -76,7 +84,10 @@ def test_parse_records_filings_real_format():
     assert pending["date_grant"] is None
     assert pending["date_deny"] is None
     assert pending["description"].startswith("Authority to provide FSS")
-    # Only spec columns come back; the undocumented tail (FRN at position 61 etc.) is ignored.
+    # Applicant identity lands from the tail: the address key at 41, the FRN at 61.
+    assert pending["applicant_address_key"] == -525777
+    assert pending["frn"] == "0032990756"
+    # Only spec columns come back; the rest of the tail stays ignored.
     assert set(pending) == {c for c, _, _ in ibfs._FILING_SPEC}
 
     assert granted["date_filed"] == dt.date(1996, 12, 4)
@@ -84,6 +95,10 @@ def test_parse_records_filings_real_format():
     assert granted["last_action"] == "GRA"
     # The embedded CRLF stays inside the field instead of splitting the record.
     assert "\r\n" in granted["description"]
+    # This fixture record carries an address key but ends before position 61: present tail
+    # positions parse, missing ones degrade to NULL.
+    assert granted["applicant_address_key"] == 123
+    assert granted["frn"] is None
 
 
 def test_parse_records_space_stations_keeps_duplicates_and_cp1252_text():
@@ -139,11 +154,19 @@ def test_parse_zip_decodes_cp1252_members():
         zf.writestr("main.dat", FILING_BLOB.encode("cp1252"))
         zf.writestr("space_sta.dat", SPACE_STATION_BLOB.encode("cp1252"))
         zf.writestr("freq.dat", FREQUENCY_BLOB.encode("cp1252"))
+        zf.writestr("address.dat", ADDRESS_BLOB.encode("cp1252"))
         zf.writestr("anten.dat", b"ignored|^|\r\n")  # non-landed members are skipped
     tables = ibfs.parse_zip(buf.getvalue())
-    assert set(tables) == {"raw_ibfs_filings", "raw_ibfs_space_stations", "raw_ibfs_frequencies"}
+    assert set(tables) == {"raw_ibfs_filings", "raw_ibfs_space_stations",
+                           "raw_ibfs_frequencies", "raw_ibfs_addresses"}
     assert len(tables["raw_ibfs_filings"]) == 2
     assert "97.5°" in tables["raw_ibfs_space_stations"][2]["verbose_name"]
+    # The applicant row parses name and FRN, and its key matches the filing's address key.
+    addr = tables["raw_ibfs_addresses"][0]
+    assert addr["address_key"] == -525777
+    assert addr["name"] == "Astranis Projects USA LLC"
+    assert addr["frn"] == "0032990756"
+    assert addr["address_key"] == tables["raw_ibfs_filings"][0]["applicant_address_key"]
 
 
 @pytest.mark.db

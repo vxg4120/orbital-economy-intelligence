@@ -1,11 +1,12 @@
-"""FCC IBFS bulk-dump loader (IBFS.zip). Raw landing only, three tables of ~70.
+"""FCC IBFS bulk-dump loader (IBFS.zip). Raw landing only, four tables of ~70.
 
 IBFS is the FCC International Bureau's legacy filing system: every Part 25 space-station filing
 ever made, including PENDING applications, which the Approved Space Station List by definition
 omits. The bureau publishes the whole relational database as a pipe-delimited dump
 (ftp://ftp.fcc.gov/pub/Bureaus/International/databases/IBFS.zip, ~49 MB, US Government work,
 refreshed roughly weekly). We land MAIN (the filing docket), SPACE_STATION (name/orbit
-reference) and FREQUENCY (per-authorization frequency rows); the DDL for everything is ibfs.txt
+reference), FREQUENCY (per-authorization frequency rows) and ADDRESS (applicant organization
+names and FRNs, reached from MAIN's applicant address key); the DDL for everything is ibfs.txt
 alongside the zip.
 
 Format facts, verified against the live dump 2026-07-30 rather than trusted from the 1998 docs:
@@ -80,6 +81,11 @@ _FILING_SPEC = [
     ("type_applicant_code", 33, "text"),
     ("class_of_station_code", 35, "text"),
     ("description", 40, "text"),
+    # Applicant identity: column 41 keys into address.dat (the applicant's org name lives
+    # there, not in main.dat); column 61 carries the applicant's FRN directly on the filing,
+    # kept as a fallback for filings whose address row is missing from the dump.
+    ("applicant_address_key", 41, "int"),
+    ("frn", 61, "text"),
 ]
 
 _SPACE_STATION_SPEC = [
@@ -104,11 +110,21 @@ _FREQUENCY_SPEC = [
     ("modulation", 9, "text"),
 ]
 
-# zip member -> (destination table, column spec). Only these three of the dump's ~70 land.
+_ADDRESS_SPEC = [
+    ("address_key", 0, "int"),
+    ("name", 2, "text"),
+    ("city", 6, "text"),
+    ("state_code", 7, "text"),
+    ("country", 9, "text"),
+    ("frn", 12, "text"),
+]
+
+# zip member -> (destination table, column spec). Only these four of the dump's ~70 land.
 MEMBERS = {
     "main.dat": ("raw_ibfs_filings", _FILING_SPEC),
     "space_sta.dat": ("raw_ibfs_space_stations", _SPACE_STATION_SPEC),
     "freq.dat": ("raw_ibfs_frequencies", _FREQUENCY_SPEC),
+    "address.dat": ("raw_ibfs_addresses", _ADDRESS_SPEC),
 }
 
 

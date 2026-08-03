@@ -1,5 +1,5 @@
 # Data Quality and Conflict Report
-Generated at: 2026-08-01 02:12:44 UTC
+Generated at: 2026-08-03 14:12:31 UTC
 
 Every number below comes from a live query against the identity graph and fact layer -- disagreements are data, not errors (SPEC.md §8).
 
@@ -7,25 +7,25 @@ Every number below comes from a live query against the identity graph and fact l
 | source | endpoint | status | finished_at | rows_ingested | bytes_downloaded |
 | --- | --- | --- | --- | --- | --- |
 | celestrak | gp_active | error | 2026-07-08T04:24:48.910018+00:00 | 0 | 0 |
-| celestrak | gp_active | ok | 2026-08-01T02:10:39.984197+00:00 | 16284 | 6831419 |
+| celestrak | gp_active | ok | 2026-08-03T14:10:31.718748+00:00 | 16278 | 6855588 |
 | celestrak | satcat_bulk | error | 2026-07-30T14:10:06.966193+00:00 | 0 | 0 |
-| celestrak | satcat_bulk | ok | 2026-07-31T02:10:21.428247+00:00 | 70177 | 6692824 |
-| celestrak | satcat_bulk | skipped_fresh | 2026-08-01T02:10:06.006278+00:00 | 0 | 0 |
-| celestrak | supgp_index | ok | 2026-08-01T02:10:40.365043+00:00 | 5 | 39574 |
-| celestrak | supgp_index | skipped_fresh | 2026-07-31T14:10:14.651262+00:00 | 0 | 0 |
-| fcc | ibfs | ok | 2026-07-30T18:53:26.750429+00:00 | 674366 | 48807002 |
-| fcc | ibfs | skipped_fresh | 2026-08-01T02:10:46.086238+00:00 | 0 | 0 |
+| celestrak | satcat_bulk | ok | 2026-08-03T02:10:20.081709+00:00 | 70177 | 6692772 |
+| celestrak | satcat_bulk | skipped_fresh | 2026-08-03T14:10:06.192719+00:00 | 0 | 0 |
+| celestrak | supgp_index | ok | 2026-08-02T14:13:45.911843+00:00 | 5 | 34568 |
+| celestrak | supgp_index | skipped_fresh | 2026-08-03T14:10:31.733045+00:00 | 0 | 0 |
+| fcc | ibfs | ok | 2026-08-03T02:10:51.770904+00:00 | 674366 | 48807002 |
+| fcc | ibfs | skipped_fresh | 2026-08-03T14:10:31.739860+00:00 | 0 | 0 |
 | fcc | ssal | error | 2026-07-30T00:46:42.993071+00:00 | 0 | 0 |
-| fcc | ssal | ok | 2026-08-01T02:10:46.083712+00:00 | 239 | 115649 |
-| fcc | ssal | skipped_fresh | 2026-07-31T14:10:14.656709+00:00 | 0 | 0 |
+| fcc | ssal | ok | 2026-08-02T14:13:52.085934+00:00 | 239 | 115649 |
+| fcc | ssal | skipped_fresh | 2026-08-03T14:10:31.738012+00:00 | 0 | 0 |
 | gcat | gcat_orgs | ok | 2026-07-08T05:38:36.546620+00:00 | 4090 | 702914 |
-| gcat | gcat_psatcat | ok | 2026-08-01T02:10:31.745899+00:00 | 27940 | 5140280 |
-| gcat | gcat_psatcat | skipped_fresh | 2026-07-31T14:10:05.724849+00:00 | 0 | 0 |
-| gcat | gcat_satcat | ok | 2026-08-01T02:10:24.482266+00:00 | 69999 | 19291798 |
-| gcat | gcat_satcat | skipped_fresh | 2026-07-31T14:10:05.722580+00:00 | 0 | 0 |
+| gcat | gcat_psatcat | ok | 2026-08-02T14:13:37.934271+00:00 | 27940 | 5140301 |
+| gcat | gcat_psatcat | skipped_fresh | 2026-08-03T14:10:25.301779+00:00 | 0 | 0 |
+| gcat | gcat_satcat | ok | 2026-08-03T14:10:25.269447+00:00 | 69999 | 19291935 |
+| gcat | gcat_satcat | skipped_fresh | 2026-08-03T02:10:20.196464+00:00 | 0 | 0 |
 | satnogs | transmitters | error | 2026-07-30T00:46:34.494326+00:00 |  |  |
-| satnogs | transmitters | ok | 2026-08-01T02:10:44.895184+00:00 | 4994 | 3484982 |
-| satnogs | transmitters | skipped_fresh | 2026-07-31T14:10:14.654777+00:00 | 0 | 0 |
+| satnogs | transmitters | ok | 2026-08-02T14:13:50.956712+00:00 | 4994 | 3484982 |
+| satnogs | transmitters | skipped_fresh | 2026-08-03T14:10:31.736192+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/15158,18351,19331,20777,21056,21803,22028,23537,24665,24931,25237,25491,25495,25673,26243,26369,26487,26719,26927,27499,27508,27554,27948,28187,28946,29270,33459,33460,33750,34710,36101,37206,37258,37816,37836,38992,39020,39163,39773,40425,40875,41310,41382,41589,42741,44057,44058,44059,44060,44061,44062,44334,44624,45027,45131,45132,45133,45134,45135,45136,45137,45138,45139,45140,45141,45142,45143,45144,45145,45146,45147,45148,45149,45150,45151,45152,45153,45154,45155,45156,45157,45158,45159,45160,45161,45162,45163,45164,45424,45425,45426,45427,45428,45429,45430,45431,45432,45433,45434,45435/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | error | 2026-07-10T02:43:11.369396+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/25544/CREATION_DATE/2026-07-06--2026-07-08/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T18:59:25.539926+00:00 | 10 | 11323 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/33393,36595,37244,38348,38846,39115,39271,39680,40210,40370,40588,41452,41672,42053,42744,42904,43060,43205,43216,43217,43267,43522,43827,44063,44222,44235,44236,44237,44238,44239,44240,44241,44242,44243,44244,44245,44246,44247,44248,44249,44250,44251,44252,44253,44254,44255,44256,44257,44258,44259,44260,44261,44262,44263,44264,44265,44266,44267,44268,44269,44270,44271,44272,44273,44274,44275,44276,44277,44278,44279,44280,44281,44282,44283,44284,44285,44286,44287,44288,44289,44290,44291,44292,44293,44294,44446,44713,44714,44715,44716,44717,44718,44719,44720,44721,44722,44723,44724,44725,44726/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T19:44:54.984041+00:00 | 929 | 1054823 |
@@ -1675,7 +1675,7 @@ Every number below comes from a live query against the identity graph and fact l
 
 ## 1. Status disagreements: SATCAT vs GCAT
 
-Count: **36**
+Count: **37**
 
 | norad_id | canonical_name | satcat_status | gcat_status |
 | --- | --- | --- | --- |
@@ -1692,7 +1692,7 @@ Count: **36**
 
 ## 2. Decay-date conflicts across sources
 
-Count: **4252**
+Count: **4257**
 
 | norad_id | canonical_name | sources_and_dates |
 | --- | --- | --- |
@@ -1728,7 +1728,7 @@ Count: **159**
 
 ## 4. SupGP cross-tag anomalies
 
-Count: **27**
+Count: **32**
 
 | norad_id | object_name | file_tag | flag | detail |
 | --- | --- | --- | --- | --- |
@@ -1750,15 +1750,15 @@ Count: **27**
 | --- | --- |
 | cospar | 140257 |
 | gcat_id | 70084 |
-| name_gcat | 69465 |
-| name_satcat | 70222 |
+| name_gcat | 69466 |
+| name_satcat | 70239 |
 | norad | 70177 |
 
 ### merge_log by rule_fired
 | rule_fired | merges |
 | --- | --- |
 | cospar_exact | 1401 |
-| norad_exact | 418848 |
+| norad_exact | 418866 |
 | promotion_cospar_launch | 73 |
 
 ### Review-queue size: **0**
@@ -1773,6 +1773,10 @@ Provisional catalog keys move on fresh launches; these are measurements, not ass
 ### Key stability, latest comparisons
 | source | id_type | observations | referent_changes | changes_anchored | prev_run_id | curr_run_id |
 | --- | --- | --- | --- | --- | --- | --- |
+| gcat | cospar | 27853 | 0 | 0 | 4842 | 4858 |
+| gcat | gcat_id | 27853 | 0 | 0 | 4842 | 4858 |
+| gcat | cospar | 27853 | 0 | 0 | 4721 | 4842 |
+| gcat | gcat_id | 27853 | 0 | 0 | 4721 | 4842 |
 | gcat | cospar | 27853 | 9 | 0 | 4415 | 4721 |
 | gcat | gcat_id | 27853 | 9 | 0 | 4415 | 4721 |
 | gcat | cospar | 27853 | 20 | 0 | 4069 | 4415 |
@@ -1791,11 +1795,11 @@ Expired volatile identifiers: **0** -- satellites still provisional: **0**
 
 ## 7. Coverage
 
-On-orbit payloads (PAYLOAD, latest status != DECAYED): **19734**
+On-orbit payloads (PAYLOAD, latest status != DECAYED): **19729**
 
-- With resolved operator: 19734/19734 (100.0%)
-- With non-UNKNOWN status: 18210/19734 (92.3%)
-- With >=2 source identifiers (graph vs list): 19734/19734 (100.0%)
+- With resolved operator: 19729/19729 (100.0%)
+- With non-UNKNOWN status: 18205/19729 (92.3%)
+- With >=2 source identifiers (graph vs list): 19729/19729 (100.0%)
 
 ## 7. Phase 2 metrics (per benchmark operator)
 
@@ -1803,19 +1807,19 @@ SPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count`
 
 | operator | sats_with_history | elset_count | median_days_to_operational | tto_n | station_keeping_p50_km | sk_active_n |
 | --- | --- | --- | --- | --- | --- | --- |
-| SpaceX | 11231 | 8384570 | 78.0 | 6380 | 0.0422 | 10384 |
-| Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0050 | 672 |
-| Amazon | 367 | 185119 | 80.0 | 321 | 0.6697 | 390 |
-| Planet Labs | 184 | 132023 | 167.0 | 106 | 0.6495 | 92 |
+| SpaceX | 11231 | 8384570 | 78.0 | 6441 | 0.0422 | 10384 |
+| Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0049 | 672 |
+| Amazon | 367 | 185119 | 86.0 | 297 | 0.6881 | 390 |
+| Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6481 | 90 |
 | Iridium | 107 | 117981 |  |  | 0.0026 | 80 |
-| ICEYE | 44 | 40653 | 107.0 | 19 | 0.2612 | 36 |
-| Spire | 53 | 35568 | 31.0 | 37 | 0.3190 | 54 |
-| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2278 | 9 |
+| ICEYE | 44 | 40653 | 107.0 | 19 | 0.2493 | 35 |
+| Spire | 53 | 35568 | 33.0 | 38 | 0.3209 | 54 |
+| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2547 | 9 |
 
 ### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- Eutelsat
 
 SATCAT's OWNER field is a country/agency code, not a company: the ex-OneWeb LEO fleet is coded 'UK' (maps to no operator) while only Eutelsat's legacy birds carry 'EUTE'. Temporal identity resolution assigns the whole fleet to its actual current operator; naive SATCAT owner codes cannot.
 
-- Temporal (SCD2) attribution: **708** sats, **264,159** elset-days.
-- Naive SATCAT owner code: **57** sats, **19,280** elset-days.
-- Delta: **651** sats / **244,879** elset-days (13.7x more elset-days attributed under temporal resolution).
+- Temporal (SCD2) attribution: **708** sats, **266,131** elset-days.
+- Naive SATCAT owner code: **57** sats, **19,359** elset-days.
+- Delta: **651** sats / **246,772** elset-days (13.7x more elset-days attributed under temporal resolution).

@@ -390,6 +390,28 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
         </Panel>
 
         <Panel title="Fleet sample" meta="active and observed first" flush>
+          {detail.pending_applications ? (
+            <div className="panel__body" style={{ borderBottom: "1px solid var(--rule)" }}>
+              <span className="label" title={detail.pending_applications.note}>
+                Pending FCC applications ·{" "}
+                <span className="num">{fmtInt(detail.pending_applications.pending_n)}</span>
+              </span>
+              <ul className="results" style={{ marginTop: 6 }}>
+                {detail.pending_applications.sample.map((p) => (
+                  <li key={p.file_number}>
+                    <span className="result-row">
+                      <span className="result-row__name mono-hi" title={p.description ?? undefined}>
+                        {p.satellite_name ?? p.file_number}
+                      </span>
+                      <span className="result-row__meta">
+                        <span className="num">{p.date_filed ?? "undated"}</span>
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {detail.satellites_sample.length === 0 ? (
             <EmptyState title="No satellites" />
           ) : (
