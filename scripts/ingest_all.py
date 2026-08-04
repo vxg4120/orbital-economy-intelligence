@@ -19,11 +19,16 @@ from ingest import (celestrak_gp, celestrak_satcat, celestrak_sw, fcc_ssal, gcat
                     satnogs_db, supgp_crosstags, ucs_seed)
 
 # Execution order (politeness-safe: cheapest/most-stable sources first).
-_ORDER = ["satcat", "gcat", "gp", "supgp", "ucs", "satnogs", "fcc_ssal", "ibfs", "sw"]
+_ORDER = ["satcat", "gcat", "gcat_orgs", "gp", "supgp", "ucs", "satnogs", "fcc_ssal", "ibfs",
+          "sw"]
 
 _RUNNERS = {
     "satcat": celestrak_satcat.run,
     "gcat": gcat_loader.run,
+    # The org registry is the manufacturer rollup's input (parents, names, classes). It was
+    # originally pulled only by the one-off enrichment build, which silently froze it while
+    # every other source refreshed nightly; the ledger's freshness gate paces it like the rest.
+    "gcat_orgs": gcat_loader.run_orgs,
     "gp": celestrak_gp.run,
     "supgp": supgp_crosstags.run,
     "ucs": ucs_seed.run,
@@ -38,8 +43,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run OEI ingestion loaders.")
     parser.add_argument(
         "--source",
-        choices=["satcat", "gp", "gcat", "ucs", "supgp", "satnogs", "fcc_ssal", "ibfs", "sw",
-                 "all"],
+        choices=["satcat", "gp", "gcat", "gcat_orgs", "ucs", "supgp", "satnogs", "fcc_ssal",
+                 "ibfs", "sw", "all"],
         default="all",
         help="Which loader to run (default: all, in politeness-safe order).",
     )
