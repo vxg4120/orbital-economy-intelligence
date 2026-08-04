@@ -46,7 +46,11 @@ orbital.{$BASE_DOMAIN} {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# geolocation=(self): the Reachability view asks the browser for the observer's
+		# position to sweep what is overhead. An empty list, geolocation=(), disables the
+		# feature outright, so Chrome never prompts and getCurrentPosition fails instantly
+		# with PERMISSION_DENIED. Camera and mic stay closed; nothing here uses them.
+		Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 	}
 
 	reverse_proxy oei-api:8600
