@@ -1,0 +1,88 @@
+{
+  "file_number": "SATMOD2025061100144",
+  "documents": [
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Application.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/4b68e7da8796e610b986a7570cbb3519",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Application.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/6768e7da8796e610b986a7570cbb351f",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "HTML.htm",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/eb68e7da8796e610b986a7570cbb3585",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "HTML.htm",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/c768e7da8796e610b986a7570cbb351c",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Narrative.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/a568a7da8796e610b986a7570cbb35c6",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Ownership.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/8968a7da8796e610b986a7570cbb35c0",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Sched S Tech Report.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/fa68e7da8796e610b986a7570cbb3516",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "SpaceX_1.5-1.6 1.6-2.mdb",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/1668a7da8796e610b986a7570cbb35c9",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Technical Attachment.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/3c68a7da8796e610b986a7570cbb35bd",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "doc_name": "Waiver Requests.pdf",
+      "doc_date": "2025-06-25",
+      "download_url": "https://api-prod.fcc.gov/icfs-attachment/exp/api/v1/1968a7da8796e610b986a7570cbb35c3",
+      "fetched_at": "2026-08-04T21:27:37.636641+00:00"
+    }
+  ],
+  "analyst_note": {
+    "summary": "SpaceX asks to bolt a mobile-satellite service system onto the Gen2 constellation in the 1.5/1.6 GHz and 1.6/2.4 GHz bands, which is the spectrum play behind expanding direct-to-device service beyond the T-Mobile PCS band. The application revives a request the Space Bureau previously dismissed without prejudice, argues the dismissal was made in error, and picks a direct sharing fight with Globalstar in the Big LEO band, contending the incumbent's legacy CDMA systems use only 0.3 percent of the spectrum they hold.",
+    "key_points": [
+      "Bands sought: 1525-1559 MHz, 1626.5-1660.5 MHz, 1610-1617.775 MHz, 2483.5-2500 MHz",
+      "Modification of the existing Gen2 NGSO authorization (call sign S3069), not a new system",
+      "Frames direct-to-device MSS as a 6G-era strategic priority for consumers, critical industries and first responders",
+      "Explicitly targets Globalstar's exclusivity in the 1.6/2.4 GHz band, citing 0.3 percent utilization of legacy capacity"
+    ],
+    "source_doc": "Narrative.pdf",
+    "source_pages": "Summary, pp. i-ii",
+    "noted_at": "2026-08-04"
+  },
+  "source": "FCC ICFS portal (public), harvested inventory; documents served by api-prod.fcc.gov"
+}

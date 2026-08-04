@@ -19,6 +19,7 @@ const Reachability = lazy(() =>
 );
 const Review = lazy(() => import("./views/Review").then((m) => ({ default: m.Review })));
 const ReviewCase = lazy(() => import("./views/ReviewCase").then((m) => ({ default: m.ReviewCase })));
+const Filings = lazy(() => import("./views/Filings").then((m) => ({ default: m.Filings })));
 
 const NAV = [
   { to: "/", idx: "00", name: "Overview", end: true },
@@ -28,6 +29,7 @@ const NAV = [
   { to: "/review", idx: "04", name: "Review", end: false },
   { to: "/buses", idx: "05", name: "Buses", end: false },
   { to: "/reachability", idx: "06", name: "Reachability", end: false },
+  { to: "/filings", idx: "07", name: "Filings", end: false },
 ];
 
 function Clock() {
@@ -140,6 +142,7 @@ export default function App() {
             <Route path="/buses" element={<Buses />} />
             <Route path="/buses/:slug" element={<Buses />} />
             <Route path="/reachability" element={<Reachability />} />
+            <Route path="/filings" element={<Filings />} />
           </Routes>
         </Suspense>
       </main>

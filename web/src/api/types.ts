@@ -622,6 +622,60 @@ export interface BusProvenanceResponse {
   methodology_version: string;
 }
 
+/* ---- GET /api/filings/pending ---- */
+export interface PendingFiling {
+  filing_key: number;
+  file_number: string;
+  callsign: string | null;
+  app_type_code: string | null;
+  status_code: string | null;
+  status_date: string | null;
+  last_action: string | null;
+  date_filed: string | null;
+  date_last_update: string | null;
+  satellite_name: string | null;
+  itu_name: string | null;
+  orbit_location: string | null;
+  description: string | null;
+  applicant_name: string | null;
+  applicant_frn: string | null;
+  /** Bus Benchmarks cohort whose corporate group filed this (curated FRN link), else null. */
+  applicant_slug: string | null;
+  /** Harvested ICFS attachment count (0 when the filing is outside the harvested scope). */
+  documents_n: number;
+  note_summary: string | null;
+  note_key_points: string[] | null;
+  note_source_doc: string | null;
+  note_source_pages: string | null;
+}
+
+export interface PendingFilingsResponse {
+  rows: PendingFiling[];
+  total: number;
+  note: string;
+}
+
+export interface FilingDocument {
+  file_number: string;
+  doc_name: string;
+  doc_date: string | null;
+  download_url: string;
+  fetched_at: string;
+}
+
+export interface FilingDocumentsResponse {
+  file_number: string;
+  documents: FilingDocument[];
+  analyst_note: {
+    summary: string;
+    key_points: string[] | null;
+    source_doc: string | null;
+    source_pages: string | null;
+    noted_at: string;
+  } | null;
+  source: string;
+}
+
 /* ---- GET /api/environment ---- */
 export interface EnvironmentRow {
   day: string;

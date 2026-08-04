@@ -1,0 +1,195 @@
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { getFilingDocuments, getPendingFilings } from "../api/client";
+import type { PendingFiling } from "../api/types";
+import { useApi } from "../hooks/useApi";
+import { fmtInt } from "../lib/format";
+import { Panel } from "../components/Panel";
+import { Async, EmptyState } from "../components/States";
+
+/** The pre-launch pipeline: FCC space-station applications filed and not yet decided.
+ *  An authorization precedes launch by months to years, so this queue is the terminal's
+ *  furthest-forward view; rows link to harvested filing documents (the narratives and
+ *  technical annexes on the FCC's own gateway) and to the builder cohort where the
+ *  applicant's corporate group is one. */
+export function Filings() {
+  const [params, setParams] = useSearchParams();
+  const q = params.get("q") ?? "";
+  const slug = params.get("applicant_slug") ?? "";
+  const [draft, setDraft] = useState(q);
+  const filings = useApi(() => getPendingFilings(q, slug, 100), [q, slug]);
+
+  return (
+    <div className="stack">
+      <Panel
+        title="Pending FCC applications"
+        meta="the pre-launch pipeline · IBFS bulk data + harvested ICFS documents"
+      >
+        <p className="hint">
+          Space-station applications filed with the FCC and not yet granted, denied, dismissed
+          or surrendered. Filed-to-launch lead runs months to years (Starlink Gen1 filed 14
+          months ahead; Kuiper 39), so nothing here exists in any tracking catalog yet.
+          Builder-cohort chips link to the scoreboard page whose corporate group filed.
+        </p>
+        <form
+          style={{ marginTop: 10, display: "flex", gap: 8 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const next = new URLSearchParams(params);
+            if (draft) next.set("q", draft);
+            else next.delete("q");
+            setParams(next, { replace: true });
+          }}
+        >
+          <input
+            className="input"
+            style={{ maxWidth: 420 }}
+            placeholder="Search applicant, satellite, file number, description"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            aria-label="Search pending applications"
+          />
+          {slug ? (
+            <button
+              type="button"
+              className="chip"
+              title="Clear cohort filter"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete("applicant_slug");
+                setParams(next, { replace: true });
+              }}
+            >
+              cohort: {slug} ✕
+            </button>
+          ) : null}
+        </form>
+      </Panel>
+
+      <Panel title="Applications" meta="newest first" flush>
+        <Async state={filings} loadingLabel="Loading pending applications">
+          {(f) =>
+            f.rows.length === 0 ? (
+              <EmptyState title="No pending applications match" />
+            ) : (
+              <>
+                <p className="hint" style={{ padding: "8px 14px 0" }}>
+                  {fmtInt(f.total)} pending · showing {fmtInt(f.rows.length)}
+                </p>
+                <ul className="results">
+                  {f.rows.map((r) => (
+                    <FilingRow key={r.filing_key} filing={r} />
+                  ))}
+                </ul>
+              </>
+            )
+          }
+        </Async>
+      </Panel>
+    </div>
+  );
+}
+
+function FilingRow({ filing: r }: { filing: PendingFiling }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li style={{ borderBottom: "1px solid var(--rule)" }}>
+      <button
+        type="button"
+        className="result-row"
+        style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="result-row__name">
+          <span className="mono-hi">{r.file_number}</span>
+          {r.satellite_name ? <> · {r.satellite_name}</> : null}
+          {r.note_summary ? (
+            <span className="badge" style={{ marginLeft: 8 }} title="Analyst note inside">
+              note
+            </span>
+          ) : null}
+        </span>
+        <span className="result-row__meta">
+          {r.applicant_name}
+          {r.applicant_slug ? (
+            <Link
+              className="chip"
+              style={{ marginLeft: 8 }}
+              to={`/buses/${r.applicant_slug}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {r.applicant_slug}
+            </Link>
+          ) : null}
+          <span className="num" style={{ marginLeft: 10 }}>
+            {r.date_filed ?? "undated"}
+          </span>
+          {r.documents_n > 0 ? (
+            <span className="num" style={{ marginLeft: 10 }} title="harvested documents">
+              {r.documents_n} docs
+            </span>
+          ) : null}
+        </span>
+      </button>
+      {open ? <FilingDetail filing={r} /> : null}
+    </li>
+  );
+}
+
+function FilingDetail({ filing: r }: { filing: PendingFiling }) {
+  const docs = useApi(() => getFilingDocuments(r.file_number), [r.file_number]);
+  return (
+    <div className="panel__body" style={{ background: "var(--bg-inset, transparent)" }}>
+      {r.description ? <p className="hint">{r.description}</p> : null}
+      {r.note_summary ? (
+        <div style={{ margin: "8px 0" }}>
+          <span className="label">Analyst note</span>
+          <p style={{ marginTop: 4 }}>{r.note_summary}</p>
+          {r.note_key_points?.length ? (
+            <ul className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
+              {r.note_key_points.map((k) => (
+                <li key={k}>{k}</li>
+              ))}
+            </ul>
+          ) : null}
+          {r.note_source_doc ? (
+            <p className="hint" style={{ marginTop: 4 }}>
+              source: {r.note_source_doc}
+              {r.note_source_pages ? `, ${r.note_source_pages}` : ""}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <Async state={docs} loadingLabel="Loading documents">
+        {(d) =>
+          d.documents.length === 0 ? (
+            <p className="hint">
+              No harvested documents for this filing yet (harvest covers builder-cohort
+              filings; the FCC portal has the full record).
+            </p>
+          ) : (
+            <div>
+              <span className="label">Filing documents · direct FCC downloads</span>
+              <ul className="results" style={{ marginTop: 4 }}>
+                {d.documents.map((doc) => (
+                  <li key={doc.download_url}>
+                    <a
+                      className="result-row"
+                      href={doc.download_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span className="result-row__name mono-hi">{doc.doc_name}</span>
+                      <span className="result-row__meta num">{doc.doc_date ?? ""}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+      </Async>
+    </div>
+  );
+}

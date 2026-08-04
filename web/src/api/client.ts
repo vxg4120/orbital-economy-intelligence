@@ -20,6 +20,8 @@ import type {
   BusSort,
   CongestionResponse,
   EnvironmentResponse,
+  FilingDocumentsResponse,
+  PendingFilingsResponse,
   LifeTrack,
   OperatorDetail,
   OperatorRow,
@@ -58,6 +60,8 @@ import operatorsFixture from "./fixtures/operators.json";
 import operatorDetailFixture from "./fixtures/operator_detail.json";
 import congestionFixture from "./fixtures/congestion.json";
 import environmentFixture from "./fixtures/environment.json";
+import filingsFixture from "./fixtures/filings.json";
+import filingDocumentsFixture from "./fixtures/filing_documents.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
 import trackFixture from "./fixtures/track.json";
 import auditFixture from "./fixtures/audit_summary.json";
@@ -493,6 +497,26 @@ export function getCongestion(): Promise<CongestionResponse> {
 export function getEnvironment(days = 60): Promise<EnvironmentResponse> {
   if (MOCK) return delay(environmentFixture as unknown as EnvironmentResponse);
   return realGet<EnvironmentResponse>(`/environment?days=${days}`);
+}
+
+export function getPendingFilings(
+  q = "",
+  applicantSlug = "",
+  limit = 50,
+  offset = 0,
+): Promise<PendingFilingsResponse> {
+  if (MOCK) return delay(filingsFixture as unknown as PendingFilingsResponse);
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (q) params.set("q", q);
+  if (applicantSlug) params.set("applicant_slug", applicantSlug);
+  return realGet<PendingFilingsResponse>(`/filings/pending?${params.toString()}`);
+}
+
+export function getFilingDocuments(fileNumber: string): Promise<FilingDocumentsResponse> {
+  if (MOCK) return delay(filingDocumentsFixture as unknown as FilingDocumentsResponse);
+  return realGet<FilingDocumentsResponse>(
+    `/filings/${encodeURIComponent(fileNumber)}/documents`,
+  );
 }
 
 export function getSatelliteTrack(id: number): Promise<LifeTrack> {

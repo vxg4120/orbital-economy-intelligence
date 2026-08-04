@@ -1,0 +1,87 @@
+# Curated reading notes for high-value pending FCC filings.
+#
+# Each note is written from the filing's own documents (harvested via
+# scripts/fetch_filing_documents.py, fetched from the FCC's api-prod gateway) and cites the
+# document and pages it summarizes, so every claim is checkable against the primary source.
+# The notes are analyst work, not extraction: they say what the filing SEEKS in one
+# paragraph, with the load-bearing specifics as key points. Loaded into fcc_filing_note by
+# the same fetch script (replace-all; git history is the audit trail).
+
+notes:
+  - file_number: SATMOD2025061100144
+    noted_at: 2026-08-04
+    source_doc: Narrative.pdf
+    source_pages: Summary, pp. i-ii
+    summary: >-
+      SpaceX asks to bolt a mobile-satellite service system onto the Gen2 constellation in
+      the 1.5/1.6 GHz and 1.6/2.4 GHz bands, which is the spectrum play behind expanding
+      direct-to-device service beyond the T-Mobile PCS band. The application revives a
+      request the Space Bureau previously dismissed without prejudice, argues the dismissal
+      was made in error, and picks a direct sharing fight with Globalstar in the Big LEO
+      band, contending the incumbent's legacy CDMA systems use only 0.3 percent of the
+      spectrum they hold.
+    key_points:
+      - "Bands sought: 1525-1559 MHz, 1626.5-1660.5 MHz, 1610-1617.775 MHz, 2483.5-2500 MHz"
+      - Modification of the existing Gen2 NGSO authorization (call sign S3069), not a new
+        system
+      - Frames direct-to-device MSS as a 6G-era strategic priority for consumers, critical
+        industries and first responders
+      - Explicitly targets Globalstar's exclusivity in the 1.6/2.4 GHz band, citing 0.3
+        percent utilization of legacy capacity
+
+  - file_number: SATLOA2021110400145
+    noted_at: 2026-08-04
+    source_doc: Legal Narrative.pdf
+    source_pages: Executive Summary, pp. i-ii
+    summary: >-
+      Amazon's second-generation constellation application, pending since November 2021: the
+      Kuiper-V System, 7,774 satellites in five altitude and inclination combinations
+      between 590 and 650 km, including two polar shells that extend coverage beyond 56
+      degrees to pole-to-pole. It adds V-band and Ku-band capacity on top of the granted
+      Ka-band Kuiper system, which makes this single pending filing larger than the entire
+      granted Kuiper constellation and the clearest published statement of Amazon's
+      long-term scale ambitions.
+    key_points:
+      - "7,774 satellites, 590-650 km, five shells, two of them polar"
+      - V-band and Ku-band FSS, supplementing the granted Ka-band Kuiper-Ka system
+      - Two-satellite-generation strategy mirrors SpaceX's Gen1/Gen2 pattern
+      - Pending nearly five years, the oldest large item in the builder-cohort queue
+
+  - file_number: SATLOA2025061800152
+    noted_at: 2026-08-04
+    source_doc: Astranis 157E Application Amendment Narrative 092325.pdf
+    source_pages: pp. 1-2
+    summary: >-
+      Astranis seeks authority for a dedicated GSO Ka-band system at 157 degrees East,
+      serving the Philippines, Taiwan, Japan, the Northern Marianas, Guam and surrounding
+      waters. As amended in September 2025 the system is a single MicroGEO satellite rather
+      than the two originally proposed. The amendment also documents that the FCC's own
+      migration to ICFS corrupted the originally submitted Schedule S, redistributing
+      channels across beams, which Astranis had to refile corrected: a data-quality artifact
+      of the Commission's system migration, recorded in the applicant's own words.
+    key_points:
+      - Single MicroGEO satellite at nominal 157 degrees E.L., Ka-band FSS
+      - Service area is Asia-Pacific (Philippines, Taiwan, Japan, Marianas, Guam)
+      - Amended down from two satellites to one, with surety-bond waiver text replaced
+      - Notes ICFS migration corrupted the original Schedule S (channels redistributed
+        across beams), requiring corrected refiling
+
+  - file_number: SATMOD2025061200145
+    noted_at: 2026-08-04
+    source_doc: FINAL AST Narrative (7.18.2025).pdf
+    source_pages: pp. 1-2
+    summary: >-
+      AST SpaceMobile amends its SpaceMobile constellation modification to add Supplemental
+      Coverage from Space using FirstNet's 700 MHz public-safety spectrum (Band 14, 758-768
+      MHz space-to-Earth and 788-798 MHz Earth-to-space), putting the first-responder
+      network's terrestrial frequencies on its direct-to-device satellites. The filing also
+      catalogs limitations of the new ICFS Schedule S form (power-density units, reference
+      bandwidth, non-conforming-use flags) that forced technical workarounds, a second
+      applicant-documented data-quality artifact of the Commission's system migration.
+    key_points:
+      - "Adds SCS service links on FirstNet Band 14: 758-768 MHz down, 788-798 MHz up"
+      - Rights held via contractual arrangements with FirstNet; Form 601 companion filing
+        submitted
+      - Public-safety direct-to-device framing under the Commission's 2024 SCS Report and
+        Order
+      - Documents ICFS Schedule S form limitations requiring unit and tolerance workarounds
