@@ -29,7 +29,13 @@ ATTRIBUTION = (
 
 
 def environment_rows(db, days: int, forward: int) -> dict:
-    """Shared by the HTTP route and the MCP tool, so the two surfaces cannot drift."""
+    """Shared by the HTTP route and the MCP tool, so the two surfaces cannot drift.
+
+    One query, then Python selection: latest_observed and worst_drag_day both live inside
+    the requested window (the newest observed index day is at most two days old and
+    days >= 7, and "worst" MEANS worst-in-window), and each extra query re-evaluates the
+    index view, which tripled the endpoint's latency on modest hardware.
+    """
     with db.cursor() as cur:
         cur.execute(
             """
@@ -44,27 +50,19 @@ def environment_rows(db, days: int, forward: int) -> dict:
             {"days": days, "forward": forward},
         )
         rows = cur.fetchall()
-        cur.execute(
-            """
-            SELECT day, round(kp_max, 1) AS kp_max, ap_avg, ap_max, storm_level,
-                   f107_obs, f107_obs_center81
-            FROM v_space_weather_daily
-            WHERE f107_data_type = 'OBS'
-            ORDER BY day DESC LIMIT 1
-            """
-        )
-        latest = cur.fetchone()
-        cur.execute(
-            """
-            SELECT day, storm_level, round(kp_max, 1) AS kp_max, ap_avg,
-                   sats_observed, median_dsma_m
-            FROM v_drag_environment_daily
-            WHERE median_dsma_m IS NOT NULL AND day >= current_date - %(days)s
-            ORDER BY median_dsma_m ASC LIMIT 1
-            """,
-            {"days": days},
-        )
-        worst = cur.fetchone()
+
+    observed = [r for r in rows if r["f107_data_type"] == "OBS"]
+    latest = None
+    if observed:
+        r = observed[-1]
+        latest = {k: r[k] for k in ("day", "kp_max", "ap_avg", "ap_max", "storm_level",
+                                    "f107_obs", "f107_obs_center81")}
+    dragged = [r for r in rows if r["median_dsma_m"] is not None]
+    worst = None
+    if dragged:
+        r = min(dragged, key=lambda x: x["median_dsma_m"])
+        worst = {k: r[k] for k in ("day", "storm_level", "kp_max", "ap_avg",
+                                   "sats_observed", "median_dsma_m")}
     return {
         "rows": rows,
         "latest_observed": latest,
