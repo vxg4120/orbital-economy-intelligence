@@ -9,7 +9,7 @@ import pathlib
 
 from fastapi import FastAPI
 
-from api.routers import (audit, buses, conflicts, congestion, filings, operators,
+from api.routers import (audit, buses, conflicts, congestion, environment, filings, operators,
                          reachability, review, satellites, stats)
 
 app = FastAPI(
@@ -28,6 +28,7 @@ app.include_router(review.router, prefix="/api")
 app.include_router(audit.router, prefix="/api")
 app.include_router(reachability.router, prefix="/api")
 app.include_router(filings.router, prefix="/api")
+app.include_router(environment.router, prefix="/api")
 
 
 _WEB_DIST = pathlib.Path(__file__).resolve().parent.parent / "web" / "dist"

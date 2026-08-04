@@ -19,6 +19,7 @@ import type {
   BusRow,
   BusSort,
   CongestionResponse,
+  EnvironmentResponse,
   LifeTrack,
   OperatorDetail,
   OperatorRow,
@@ -56,6 +57,7 @@ import conflictsStaleFixture from "./fixtures/conflicts_stale.json";
 import operatorsFixture from "./fixtures/operators.json";
 import operatorDetailFixture from "./fixtures/operator_detail.json";
 import congestionFixture from "./fixtures/congestion.json";
+import environmentFixture from "./fixtures/environment.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
 import trackFixture from "./fixtures/track.json";
 import auditFixture from "./fixtures/audit_summary.json";
@@ -486,6 +488,11 @@ export function getOperator(id: number): Promise<OperatorDetail> {
 export function getCongestion(): Promise<CongestionResponse> {
   if (MOCK) return delay(congestionFixture as CongestionResponse);
   return realGet<CongestionResponse>("/congestion");
+}
+
+export function getEnvironment(days = 60): Promise<EnvironmentResponse> {
+  if (MOCK) return delay(environmentFixture as unknown as EnvironmentResponse);
+  return realGet<EnvironmentResponse>(`/environment?days=${days}`);
 }
 
 export function getSatelliteTrack(id: number): Promise<LifeTrack> {

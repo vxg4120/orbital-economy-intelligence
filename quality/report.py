@@ -403,6 +403,74 @@ def _section_key_churn(cur):
     }
 
 
+def _section_space_weather(cur):
+    """The drag environment: what the thermosphere did to the LEO fleet, and under whose Kp.
+
+    Guarded on the metrics views existing (they come from scripts/apply_metrics.py, not a
+    migration), so the report still generates on a database that has raw layers only.
+    """
+    cur.execute("SELECT to_regclass('v_drag_environment_daily') IS NOT NULL")
+    if not cur.fetchone()[0]:
+        return None
+    cur.execute(
+        """
+        SELECT count(*) FILTER (WHERE f107_data_type = 'OBS'),
+               max(day) FILTER (WHERE f107_data_type = 'OBS'),
+               max(f107_obs_center81) FILTER (WHERE day = (
+                   SELECT max(day) FROM v_space_weather_daily
+                   WHERE f107_data_type = 'OBS' AND f107_obs_center81 IS NOT NULL))
+        FROM v_space_weather_daily
+        """
+    )
+    observed_days, observed_through, f107_81 = cur.fetchone()
+    if not observed_days:
+        return None
+    # The coupling table: the fleet's worst drag days, with the indices that explain them.
+    top_cols, top_rows = _rows(cur, """
+        SELECT day, COALESCE(storm_level, '') AS storm, round(kp_max, 1) AS kp_max,
+               ap_avg, sats_observed, median_dsma_m, p10_dsma_m
+        FROM v_drag_environment_daily
+        WHERE median_dsma_m IS NOT NULL
+        ORDER BY median_dsma_m ASC LIMIT 5
+    """)
+    cur.execute(
+        """
+        SELECT
+            round((percentile_cont(0.5) WITHIN GROUP (ORDER BY median_dsma_m))::numeric, 1),
+            count(*) FILTER (WHERE storm_level IS NOT NULL)
+        FROM v_drag_environment_daily
+        WHERE median_dsma_m IS NOT NULL
+        """
+    )
+    quiet_median, storm_days = cur.fetchone()
+    # The freshest event: sharpest 3-hourly Ap peak in the last 14 observed days (peak, not
+    # daily average, because a brief severe storm matters more here than a long mild one),
+    # with the fleet's response on the day and on the day after: the thermosphere's density
+    # response lags the storm, so the aftermath row is usually the louder one.
+    cur.execute(
+        """
+        SELECT d.day, d.storm_level, round(d.kp_max, 1), d.ap_max, d.median_dsma_m,
+               (SELECT d2.median_dsma_m FROM v_drag_environment_daily d2
+                WHERE d2.day = d.day + 1) AS next_day_dsma
+        FROM v_drag_environment_daily d
+        WHERE d.f107_data_type = 'OBS' AND d.day >= (
+            SELECT max(day) FROM v_space_weather_daily WHERE f107_data_type = 'OBS'
+        ) - 14
+        ORDER BY d.ap_max DESC NULLS LAST, d.day DESC LIMIT 1
+        """
+    )
+    fresh = cur.fetchone()
+    return {
+        "observed_days": observed_days,
+        "observed_through": observed_through,
+        "f107_center81": f107_81,
+        "top": (top_cols, top_rows),
+        "overall_median_dsma": quiet_median,
+        "storm_days_in_window": storm_days,
+        "freshest": fresh,
+    }
+
+
 def _pct(numerator: int, denominator: int) -> str:
     if denominator == 0:
         return "0.0%"
@@ -433,6 +501,7 @@ def generate_report(conn) -> str:
         coverage = _section_coverage(cur)
         p2_cols, p2_rows, p2_killer = _section_phase2_metrics(cur)
         key_churn = _section_key_churn(cur)
+        space_weather = _section_space_weather(cur)
 
     out.append("# Data Quality and Conflict Report\n")
     out.append(f"Generated at: {now}\n")
@@ -510,7 +579,7 @@ def generate_report(conn) -> str:
         f"({_pct(coverage['with_2plus_ids'], total)})\n"
     )
 
-    out.append("\n## 7. Phase 2 metrics (per benchmark operator)\n")
+    out.append("\n## 8. Phase 2 metrics (per benchmark operator)\n")
     out.append(
         "\nSPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count` are "
         "attributed via the current SCD2 owner; `median_days_to_operational` is over in-window LEO "
@@ -534,6 +603,53 @@ def generate_report(conn) -> str:
             f"- Delta: **{t_sats - n_sats}** sats / **{t_days - n_days:,}** elset-days "
             f"({ratio_txt} more elset-days attributed under temporal resolution).\n"
         )
+
+    out.append("\n## 9. Space weather and the drag environment\n")
+    if space_weather is None:
+        out.append(
+            "\nNo space-weather data landed yet (run `scripts/ingest_all.py --source sw` and "
+            "`scripts/apply_metrics.py`).\n"
+        )
+    else:
+        sw = space_weather
+        out.append(
+            f"\nCelesTrak consolidated indices: **{sw['observed_days']:,}** observed days, "
+            f"through **{sw['observed_through']}**; F10.7 81-day centered mean at the last "
+            f"observed day: **{sw['f107_center81']}** sfu.\n"
+        )
+        out.append(
+            "\nThe coupling this section exists to measure: geomagnetic storms heat the "
+            "thermosphere and the LEO fleet's semi-major axes respond within a day or two. "
+            "`median_dsma_m` is the fleet-wide median one-day SMA change over LEO payload "
+            "observations (consecutive-day pairs only, 10 km/day glitch clamp, days under 500 "
+            "pairs withheld), so it is robust to individual maneuvers: when it moves, the "
+            "atmosphere moved everyone.\n"
+        )
+        out.append("\n### Worst fleet drag days in the behavior window\n\n")
+        out.append(_md_table(*sw["top"]))
+        out.append(
+            f"\nAll-window median of the daily fleet median: **{sw['overall_median_dsma']} "
+            f"m/day**; geomagnetic-storm days (G1 or stronger) inside the window: "
+            f"**{sw['storm_days_in_window']}**. Storm days and their one-to-two-day aftermath "
+            "dominate the worst-drag table; the lag is the thermosphere's density response "
+            "time, visible directly in the data.\n"
+        )
+        if sw["freshest"] is not None:
+            day, level, kp, ap_max, dsma, next_dsma = sw["freshest"]
+            level_txt = level or "below G1"
+            parts = []
+            if dsma is not None:
+                parts.append(f"fleet median {dsma} m/day on the day")
+            if next_dsma is not None:
+                parts.append(f"{next_dsma} m/day the day after")
+            dsma_txt = ("; ".join(parts) if parts
+                        else "no published drag rows around it yet")
+            out.append(
+                f"\n### Freshest event\n\nSharpest 3-hourly Ap peak in the last 14 observed "
+                f"days: **{day}** (peak Ap {ap_max}, Kp max {kp}, {level_txt}); {dsma_txt}. "
+                "The day-after number is usually the louder one: thermospheric density "
+                "responds with a lag.\n"
+            )
 
     return "".join(out)
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { getAuditSummary, getCongestion, getStats } from "../api/client";
+import { getAuditSummary, getCongestion, getEnvironment, getStats } from "../api/client";
 import { useApi } from "../hooks/useApi";
 import { compact, fmtInt } from "../lib/format";
 import { CONFLICT_TABS } from "../lib/conflicts";
@@ -8,6 +8,7 @@ import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
 import { LedgerTable } from "../components/LedgerTable";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
+import { EnvironmentStrip } from "../components/EnvironmentStrip";
 import { AuditStrip } from "../components/AuditStrip";
 import { Async } from "../components/States";
 
@@ -15,6 +16,7 @@ export function Overview() {
   const stats = useApi(() => getStats(), []);
   const audit = useApi(() => getAuditSummary(), []);
   const congestion = useApi(() => getCongestion(), []);
+  const env = useApi(() => getEnvironment(60), []);
 
   return (
     <div className="view fadein">
@@ -127,6 +129,17 @@ export function Overview() {
         <p className="hint" style={{ marginTop: 10 }}>
           LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
           <Link to="/operators">Operators</Link> view. Click a shell to read its count.
+        </p>
+      </Panel>
+
+      <Panel title="Drag environment" meta="space weather · fleet response · 60 days">
+        <Async state={env} loadingLabel="Loading drag environment">
+          {(e) => <EnvironmentStrip env={e} />}
+        </Async>
+        <p className="hint" style={{ marginTop: 10 }}>
+          Bars: fleet-wide median one-day SMA change over LEO consecutive-day element pairs —
+          maneuver-robust, so when a bar stretches, the atmosphere moved everyone. Storm days
+          (NOAA G scale) tinted. Indices: CelesTrak consolidated space-weather data.
         </p>
       </Panel>
     </div>

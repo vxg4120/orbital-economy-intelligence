@@ -1,5 +1,5 @@
 # Data Quality and Conflict Report
-Generated at: 2026-08-03 14:12:31 UTC
+Generated at: 2026-08-04 19:55:57 UTC
 
 Every number below comes from a live query against the identity graph and fact layer -- disagreements are data, not errors (SPEC.md §8).
 
@@ -7,25 +7,26 @@ Every number below comes from a live query against the identity graph and fact l
 | source | endpoint | status | finished_at | rows_ingested | bytes_downloaded |
 | --- | --- | --- | --- | --- | --- |
 | celestrak | gp_active | error | 2026-07-08T04:24:48.910018+00:00 | 0 | 0 |
-| celestrak | gp_active | ok | 2026-08-03T14:10:31.718748+00:00 | 16278 | 6855588 |
+| celestrak | gp_active | ok | 2026-08-04T14:10:29.634908+00:00 | 16276 | 6855587 |
 | celestrak | satcat_bulk | error | 2026-07-30T14:10:06.966193+00:00 | 0 | 0 |
-| celestrak | satcat_bulk | ok | 2026-08-03T02:10:20.081709+00:00 | 70177 | 6692772 |
-| celestrak | satcat_bulk | skipped_fresh | 2026-08-03T14:10:06.192719+00:00 | 0 | 0 |
-| celestrak | supgp_index | ok | 2026-08-02T14:13:45.911843+00:00 | 5 | 34568 |
-| celestrak | supgp_index | skipped_fresh | 2026-08-03T14:10:31.733045+00:00 | 0 | 0 |
-| fcc | ibfs | ok | 2026-08-03T02:10:51.770904+00:00 | 674366 | 48807002 |
-| fcc | ibfs | skipped_fresh | 2026-08-03T14:10:31.739860+00:00 | 0 | 0 |
+| celestrak | satcat_bulk | ok | 2026-08-04T14:10:21.108013+00:00 | 70177 | 6692816 |
+| celestrak | satcat_bulk | skipped_fresh | 2026-08-04T02:10:06.553668+00:00 | 0 | 0 |
+| celestrak | space_weather | ok | 2026-08-04T19:39:15.566631+00:00 | 25370 | 2882893 |
+| celestrak | supgp_index | ok | 2026-08-04T02:10:20.392392+00:00 | 3 | 37818 |
+| celestrak | supgp_index | skipped_fresh | 2026-08-04T14:10:29.650806+00:00 | 0 | 0 |
+| fcc | ibfs | ok | 2026-08-03T20:33:19.377004+00:00 | 815438 | 48807002 |
+| fcc | ibfs | skipped_fresh | 2026-08-04T14:10:29.658122+00:00 | 0 | 0 |
 | fcc | ssal | error | 2026-07-30T00:46:42.993071+00:00 | 0 | 0 |
-| fcc | ssal | ok | 2026-08-02T14:13:52.085934+00:00 | 239 | 115649 |
-| fcc | ssal | skipped_fresh | 2026-08-03T14:10:31.738012+00:00 | 0 | 0 |
+| fcc | ssal | ok | 2026-08-04T02:10:36.955482+00:00 | 239 | 115649 |
+| fcc | ssal | skipped_fresh | 2026-08-04T14:10:29.656291+00:00 | 0 | 0 |
 | gcat | gcat_orgs | ok | 2026-07-08T05:38:36.546620+00:00 | 4090 | 702914 |
-| gcat | gcat_psatcat | ok | 2026-08-02T14:13:37.934271+00:00 | 27940 | 5140301 |
-| gcat | gcat_psatcat | skipped_fresh | 2026-08-03T14:10:25.301779+00:00 | 0 | 0 |
+| gcat | gcat_psatcat | ok | 2026-08-04T02:10:13.768592+00:00 | 27940 | 5140689 |
+| gcat | gcat_psatcat | skipped_fresh | 2026-08-04T14:10:21.216981+00:00 | 0 | 0 |
 | gcat | gcat_satcat | ok | 2026-08-03T14:10:25.269447+00:00 | 69999 | 19291935 |
-| gcat | gcat_satcat | skipped_fresh | 2026-08-03T02:10:20.196464+00:00 | 0 | 0 |
+| gcat | gcat_satcat | skipped_fresh | 2026-08-04T14:10:21.214683+00:00 | 0 | 0 |
 | satnogs | transmitters | error | 2026-07-30T00:46:34.494326+00:00 |  |  |
-| satnogs | transmitters | ok | 2026-08-02T14:13:50.956712+00:00 | 4994 | 3484982 |
-| satnogs | transmitters | skipped_fresh | 2026-08-03T14:10:31.736192+00:00 | 0 | 0 |
+| satnogs | transmitters | ok | 2026-08-04T02:10:35.945333+00:00 | 4994 | 3484839 |
+| satnogs | transmitters | skipped_fresh | 2026-08-04T14:10:29.654019+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/15158,18351,19331,20777,21056,21803,22028,23537,24665,24931,25237,25491,25495,25673,26243,26369,26487,26719,26927,27499,27508,27554,27948,28187,28946,29270,33459,33460,33750,34710,36101,37206,37258,37816,37836,38992,39020,39163,39773,40425,40875,41310,41382,41589,42741,44057,44058,44059,44060,44061,44062,44334,44624,45027,45131,45132,45133,45134,45135,45136,45137,45138,45139,45140,45141,45142,45143,45144,45145,45146,45147,45148,45149,45150,45151,45152,45153,45154,45155,45156,45157,45158,45159,45160,45161,45162,45163,45164,45424,45425,45426,45427,45428,45429,45430,45431,45432,45433,45434,45435/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | error | 2026-07-10T02:43:11.369396+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/25544/CREATION_DATE/2026-07-06--2026-07-08/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T18:59:25.539926+00:00 | 10 | 11323 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/33393,36595,37244,38348,38846,39115,39271,39680,40210,40370,40588,41452,41672,42053,42744,42904,43060,43205,43216,43217,43267,43522,43827,44063,44222,44235,44236,44237,44238,44239,44240,44241,44242,44243,44244,44245,44246,44247,44248,44249,44250,44251,44252,44253,44254,44255,44256,44257,44258,44259,44260,44261,44262,44263,44264,44265,44266,44267,44268,44269,44270,44271,44272,44273,44274,44275,44276,44277,44278,44279,44280,44281,44282,44283,44284,44285,44286,44287,44288,44289,44290,44291,44292,44293,44294,44446,44713,44714,44715,44716,44717,44718,44719,44720,44721,44722,44723,44724,44725,44726/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T19:44:54.984041+00:00 | 929 | 1054823 |
@@ -1675,7 +1676,7 @@ Every number below comes from a live query against the identity graph and fact l
 
 ## 1. Status disagreements: SATCAT vs GCAT
 
-Count: **37**
+Count: **36**
 
 | norad_id | canonical_name | satcat_status | gcat_status |
 | --- | --- | --- | --- |
@@ -1692,7 +1693,7 @@ Count: **37**
 
 ## 2. Decay-date conflicts across sources
 
-Count: **4257**
+Count: **4254**
 
 | norad_id | canonical_name | sources_and_dates |
 | --- | --- | --- |
@@ -1728,7 +1729,7 @@ Count: **159**
 
 ## 4. SupGP cross-tag anomalies
 
-Count: **32**
+Count: **35**
 
 | norad_id | object_name | file_tag | flag | detail |
 | --- | --- | --- | --- | --- |
@@ -1795,31 +1796,53 @@ Expired volatile identifiers: **0** -- satellites still provisional: **0**
 
 ## 7. Coverage
 
-On-orbit payloads (PAYLOAD, latest status != DECAYED): **19729**
+On-orbit payloads (PAYLOAD, latest status != DECAYED): **19726**
 
-- With resolved operator: 19729/19729 (100.0%)
-- With non-UNKNOWN status: 18205/19729 (92.3%)
-- With >=2 source identifiers (graph vs list): 19729/19729 (100.0%)
+- With resolved operator: 19726/19726 (100.0%)
+- With non-UNKNOWN status: 18202/19726 (92.3%)
+- With >=2 source identifiers (graph vs list): 19726/19726 (100.0%)
 
-## 7. Phase 2 metrics (per benchmark operator)
+## 8. Phase 2 metrics (per benchmark operator)
 
 SPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count` are attributed via the current SCD2 owner; `median_days_to_operational` is over in-window LEO launches that acquired their shell band (v_time_to_operational); `station_keeping_p50_km` is the p50 of per-satellite median 30-day rolling sma-stddev for ACTIVE payloads. Blank = no landed gp_history for that operator (see the attribution note below).
 
 | operator | sats_with_history | elset_count | median_days_to_operational | tto_n | station_keeping_p50_km | sk_active_n |
 | --- | --- | --- | --- | --- | --- | --- |
-| SpaceX | 11231 | 8384570 | 78.0 | 6441 | 0.0422 | 10384 |
+| SpaceX | 11231 | 8384570 | 77.0 | 6530 | 0.0422 | 10381 |
 | Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0049 | 672 |
-| Amazon | 367 | 185119 | 86.0 | 297 | 0.6881 | 390 |
-| Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6481 | 90 |
+| Amazon | 367 | 185119 | 88.0 | 305 | 0.6860 | 390 |
+| Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6477 | 90 |
 | Iridium | 107 | 117981 |  |  | 0.0026 | 80 |
-| ICEYE | 44 | 40653 | 107.0 | 19 | 0.2493 | 35 |
-| Spire | 53 | 35568 | 33.0 | 38 | 0.3209 | 54 |
-| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2547 | 9 |
+| ICEYE | 44 | 40653 | 107.0 | 19 | 0.2489 | 35 |
+| Spire | 53 | 35568 | 33.0 | 38 | 0.3221 | 54 |
+| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2614 | 9 |
 
 ### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- Eutelsat
 
 SATCAT's OWNER field is a country/agency code, not a company: the ex-OneWeb LEO fleet is coded 'UK' (maps to no operator) while only Eutelsat's legacy birds carry 'EUTE'. Temporal identity resolution assigns the whole fleet to its actual current operator; naive SATCAT owner codes cannot.
 
-- Temporal (SCD2) attribution: **708** sats, **266,131** elset-days.
-- Naive SATCAT owner code: **57** sats, **19,359** elset-days.
-- Delta: **651** sats / **246,772** elset-days (13.7x more elset-days attributed under temporal resolution).
+- Temporal (SCD2) attribution: **708** sats, **266,811** elset-days.
+- Naive SATCAT owner code: **57** sats, **19,390** elset-days.
+- Delta: **651** sats / **247,421** elset-days (13.8x more elset-days attributed under temporal resolution).
+
+## 9. Space weather and the drag environment
+
+CelesTrak consolidated indices: **25,084** observed days, through **2026-08-03**; F10.7 81-day centered mean at the last observed day: **134** sfu.
+
+The coupling this section exists to measure: geomagnetic storms heat the thermosphere and the LEO fleet's semi-major axes respond within a day or two. `median_dsma_m` is the fleet-wide median one-day SMA change over LEO payload observations (consecutive-day pairs only, 10 km/day glitch clamp, days under 500 pairs withheld), so it is robust to individual maneuvers: when it moves, the atmosphere moved everyone.
+
+### Worst fleet drag days in the behavior window
+
+| day | storm | kp_max | ap_avg | sats_observed | median_dsma_m | p10_dsma_m |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-01-23 |  | 4.3 | 27 | 10383 | -40.1 | -214.1 |
+| 2026-07-04 | G3 | 7.3 | 77 | 10891 | -33.3 | -299.7 |
+| 2026-01-22 | G1 | 5.3 | 17 | 9242 | -33.3 | -229.6 |
+| 2025-11-15 |  | 3.3 | 8 | 8900 | -28.8 | -175.2 |
+| 2026-03-21 | G3 | 7.0 | 43 | 10753 | -28.4 | -440.5 |
+
+All-window median of the daily fleet median: **-1.9 m/day**; geomagnetic-storm days (G1 or stronger) inside the window: **63**. Storm days and their one-to-two-day aftermath dominate the worst-drag table; the lag is the thermosphere's density response time, visible directly in the data.
+
+### Freshest event
+
+Sharpest 3-hourly Ap peak in the last 14 observed days: **2026-08-02** (peak Ap 67, Kp max 5.7, G1); fleet median -4.3 m/day on the day; -14.1 m/day the day after. The day-after number is usually the louder one: thermospheric density responds with a lag.

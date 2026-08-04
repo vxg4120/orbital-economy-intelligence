@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from api.routers.buses import METHODOLOGY, detail_payload, leaderboard_rows
+from api.routers.environment import environment_rows
 from common.db import get_conn
 
 
@@ -58,6 +59,13 @@ def bus_detail(slug: str, kind: str | None = None) -> dict:
     if not slug or not isinstance(slug, str):
         raise ToolError("slug is required")
     return _run(lambda conn: detail_payload(conn, slug.strip().lower(), kind))
+
+
+def drag_environment(days: int = 60, forward: int = 7) -> dict:
+    """Space weather indices joined to the LEO fleet's measured drag response, per day."""
+    days = max(7, min(int(days), 730))
+    forward = max(0, min(int(forward), 45))
+    return _run(lambda conn: environment_rows(conn, days, forward))
 
 
 TOOLS = [
@@ -137,5 +145,30 @@ TOOLS = [
             "required": ["slug"],
         },
         "handler": bus_detail,
+    },
+    {
+        "name": "drag_environment",
+        "description": (
+            "Daily space-weather indices (planetary Kp/Ap, F10.7 solar flux, NOAA G storm "
+            "levels; CelesTrak consolidated data) joined to the LEO fleet's MEASURED drag "
+            "response: the fleet-wide median one-day semi-major-axis change from this "
+            "platform's element history. Storm days show the atmosphere physically dragging "
+            "thousands of satellites at once. Includes CelesTrak's predicted forward days "
+            "(no drag numbers there: drag is a measurement, not a model)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "integer",
+                    "description": "Days of history to return (7-730, default 60).",
+                },
+                "forward": {
+                    "type": "integer",
+                    "description": "Predicted days ahead to include (0-45, default 7).",
+                },
+            },
+        },
+        "handler": drag_environment,
     },
 ]

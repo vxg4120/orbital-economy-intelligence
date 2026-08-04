@@ -26,7 +26,7 @@ def test_initialize_and_tools_list_need_no_db():
 
     r = server.handle_message(_req(3, "tools/list"))
     names = [t["name"] for t in r["result"]["tools"]]
-    assert names == ["bus_benchmarks", "bus_detail"]
+    assert names == ["bus_benchmarks", "bus_detail", "drag_environment"]
     for tool in r["result"]["tools"]:
         assert tool["description"] and tool["inputSchema"]["type"] == "object"
 

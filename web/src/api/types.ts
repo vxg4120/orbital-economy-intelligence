@@ -622,6 +622,48 @@ export interface BusProvenanceResponse {
   methodology_version: string;
 }
 
+/* ---- GET /api/environment ---- */
+export interface EnvironmentRow {
+  day: string;
+  kp_max: number | null;
+  ap_avg: number | null;
+  ap_max: number | null;
+  f107_obs: number | null;
+  f107_obs_center81: number | null;
+  /** OBS = observed, INT = interpolated, PRD = CelesTrak prediction (never carries drag). */
+  f107_data_type: string | null;
+  storm_level: string | null;
+  sats_observed: number | null;
+  /** Fleet-wide median one-day SMA change (meters) over LEO consecutive-day element pairs;
+   *  maneuver-robust by construction. Null on withheld days (<500 pairs) and forward rows. */
+  median_dsma_m: number | null;
+  p10_dsma_m: number | null;
+  p90_dsma_m: number | null;
+}
+
+export interface EnvironmentResponse {
+  rows: EnvironmentRow[];
+  latest_observed: {
+    day: string;
+    kp_max: number | null;
+    ap_avg: number | null;
+    ap_max: number | null;
+    storm_level: string | null;
+    f107_obs: number | null;
+    f107_obs_center81: number | null;
+  } | null;
+  worst_drag_day: {
+    day: string;
+    storm_level: string | null;
+    kp_max: number | null;
+    ap_avg: number | null;
+    sats_observed: number | null;
+    median_dsma_m: number | null;
+  } | null;
+  note: string;
+  attribution: string;
+}
+
 /* ---- GET /api/buses/history/{slug} ---- */
 export interface BusSnapshot {
   snapshot_month: string;

@@ -12,6 +12,7 @@ DC="docker compose"
   $DC exec -T -e SPACETRACK_IDENTITY="${SPACETRACK_IDENTITY:-}" -e SPACETRACK_PASSWORD="${SPACETRACK_PASSWORD:-}" \
       oei-api python scripts/ingest_all.py || echo "!! oei ingest_all failed"
   $DC exec -T oei-api python scripts/build_graph.py || echo "!! oei build_graph failed"
+  $DC exec -T oei-api python scripts/refresh_drag.py || echo "!! oei refresh_drag failed"
   $DC exec -T oei-api python quality/report.py      || echo "!! oei report failed"
   $DC exec -T oei-api python scripts/build_bus.py   || echo "!! oei build_bus failed"
   $DC exec -T oei-api python scripts/diff_published_buses.py --gate --structural \
