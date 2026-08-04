@@ -18,6 +18,7 @@ reading notes for high-value filings, reviewable in git, replace-all on every lo
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import sys
 from pathlib import Path
 
@@ -27,6 +28,11 @@ import yaml  # noqa: E402
 
 from common.db import get_conn  # noqa: E402
 from ingest import icfs_documents, runlog  # noqa: E402
+
+# The pending set shifts by a handful of filings per week, so the nightly runs this with
+# --if-stale and the ledger gates the actual harvest to roughly weekly: 136 paced page-API
+# calls twice a day would be pointless load on the portal for data that barely moves.
+STALE_AFTER = dt.timedelta(days=6)
 
 NOTES_YML = Path(__file__).resolve().parent.parent / "identity" / "fcc_filing_notes.yml"
 
@@ -65,10 +71,15 @@ def main() -> int:
     scope.add_argument("--all", action="store_true", help="every pending filing")
     scope.add_argument("--file-number", help="one filing (dashless dump form)")
     ap.add_argument("--limit", type=int, default=None, help="cap the batch size")
+    ap.add_argument("--if-stale", action="store_true",
+                    help="skip when the last ok harvest is fresher than a week (nightly mode)")
     args = ap.parse_args()
 
     conn = get_conn()
     try:
+        if args.if_stale and runlog.fresh_within(conn, "fcc", "icfs_documents", STALE_AFTER):
+            print(f"skipped: last harvest within {STALE_AFTER}")
+            return 0
         with conn.cursor() as cur:
             if args.file_number:
                 numbers = [args.file_number]
