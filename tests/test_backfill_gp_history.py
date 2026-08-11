@@ -10,7 +10,6 @@ import pytest
 
 from scripts import backfill_gp_history as bf
 
-
 # --- fakes --------------------------------------------------------------------
 
 

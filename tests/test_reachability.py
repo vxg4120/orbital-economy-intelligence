@@ -100,8 +100,9 @@ def test_satnogs_parse_rows_coerces_and_ignores_unknown_keys():
 
 
 def test_ssal_parse_rows_finds_header_and_skips_section_rows():
-    from openpyxl import Workbook
     import io
+
+    from openpyxl import Workbook
 
     wb = Workbook()
     ws = wb.active
@@ -126,8 +127,9 @@ def test_ssal_parse_rows_finds_header_and_skips_section_rows():
 
 
 def test_ssal_parse_rows_raises_without_header():
-    from openpyxl import Workbook
     import io
+
+    from openpyxl import Workbook
 
     wb = Workbook()
     wb.active.append(["nothing", "useful", "here"])

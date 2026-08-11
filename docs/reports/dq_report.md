@@ -1,5 +1,5 @@
 # Data Quality and Conflict Report
-Generated at: 2026-08-11 02:12:55 UTC
+Generated at: 2026-08-11 14:11:29 UTC
 
 Every number below comes from a live query against the identity graph and fact layer -- disagreements are data, not errors (SPEC.md §8).
 
@@ -7,32 +7,32 @@ Every number below comes from a live query against the identity graph and fact l
 | source | endpoint | status | finished_at | rows_ingested | bytes_downloaded |
 | --- | --- | --- | --- | --- | --- |
 | celestrak | gp_active | error | 2026-08-06T14:10:06.360636+00:00 | 0 | 0 |
-| celestrak | gp_active | ok | 2026-08-11T02:10:56.631355+00:00 | 16323 | 6813412 |
+| celestrak | gp_active | ok | 2026-08-11T14:10:20.851702+00:00 | 16323 | 6828729 |
 | celestrak | satcat_bulk | error | 2026-07-30T14:10:06.966193+00:00 | 0 | 0 |
 | celestrak | satcat_bulk | ok | 2026-08-11T02:10:17.054259+00:00 | 70244 | 6698940 |
-| celestrak | satcat_bulk | skipped_fresh | 2026-08-06T14:10:06.277961+00:00 | 0 | 0 |
+| celestrak | satcat_bulk | skipped_fresh | 2026-08-11T14:10:05.652646+00:00 | 0 | 0 |
 | celestrak | space_weather | error | 2026-08-06T14:10:06.649566+00:00 | 0 | 0 |
-| celestrak | space_weather | ok | 2026-08-11T02:11:36.619697+00:00 | 25377 | 2883592 |
+| celestrak | space_weather | ok | 2026-08-11T14:10:22.699348+00:00 | 25377 | 2883590 |
 | celestrak | space_weather | skipped_fresh | 2026-08-05T02:12:07.504332+00:00 | 0 | 0 |
 | celestrak | supgp_index | error | 2026-08-06T14:10:06.370211+00:00 | 0 | 0 |
 | celestrak | supgp_index | ok | 2026-08-11T02:10:57.042953+00:00 | 3 | 46282 |
-| celestrak | supgp_index | skipped_fresh | 2026-08-06T02:10:46.624154+00:00 | 0 | 0 |
+| celestrak | supgp_index | skipped_fresh | 2026-08-11T14:10:20.877287+00:00 | 0 | 0 |
 | fcc | ibfs | ok | 2026-08-11T02:11:34.568133+00:00 | 815438 | 48807002 |
-| fcc | ibfs | skipped_fresh | 2026-08-06T14:10:06.642557+00:00 | 0 | 0 |
+| fcc | ibfs | skipped_fresh | 2026-08-11T14:10:20.885657+00:00 | 0 | 0 |
 | fcc | icfs_documents | ok | 2026-08-04T21:35:04.452617+00:00 | 1307 | 0 |
 | fcc | ssal | error | 2026-08-06T14:10:06.632948+00:00 | 0 | 0 |
 | fcc | ssal | ok | 2026-08-11T02:11:05.501281+00:00 | 239 | 115649 |
-| fcc | ssal | skipped_fresh | 2026-08-06T02:10:46.630055+00:00 | 0 | 0 |
+| fcc | ssal | skipped_fresh | 2026-08-11T14:10:20.883557+00:00 | 0 | 0 |
 | gcat | gcat_orgs | ok | 2026-08-11T02:10:47.903447+00:00 | 4105 | 705563 |
-| gcat | gcat_orgs | skipped_fresh | 2026-08-06T14:10:06.344315+00:00 | 0 | 0 |
+| gcat | gcat_orgs | skipped_fresh | 2026-08-11T14:10:05.662705+00:00 | 0 | 0 |
 | gcat | gcat_psatcat | ok | 2026-08-11T02:10:46.040772+00:00 | 27940 | 5226786 |
-| gcat | gcat_psatcat | skipped_fresh | 2026-08-06T02:10:35.973597+00:00 | 0 | 0 |
+| gcat | gcat_psatcat | skipped_fresh | 2026-08-11T14:10:05.660266+00:00 | 0 | 0 |
 | gcat | gcat_satcat | error | 2026-08-06T14:10:06.337975+00:00 | 0 | 0 |
 | gcat | gcat_satcat | ok | 2026-08-11T02:10:37.786650+00:00 | 69999 | 19292233 |
-| gcat | gcat_satcat | skipped_fresh | 2026-08-06T02:10:35.969790+00:00 | 0 | 0 |
+| gcat | gcat_satcat | skipped_fresh | 2026-08-11T14:10:05.658194+00:00 | 0 | 0 |
 | satnogs | transmitters | error | 2026-08-06T14:10:06.393632+00:00 | 0 | 0 |
 | satnogs | transmitters | ok | 2026-08-11T02:11:02.297785+00:00 | 5003 | 3492049 |
-| satnogs | transmitters | skipped_fresh | 2026-08-06T02:10:46.627867+00:00 | 0 | 0 |
+| satnogs | transmitters | skipped_fresh | 2026-08-11T14:10:20.880515+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/15158,18351,19331,20777,21056,21803,22028,23537,24665,24931,25237,25491,25495,25673,26243,26369,26487,26719,26927,27499,27508,27554,27948,28187,28946,29270,33459,33460,33750,34710,36101,37206,37258,37816,37836,38992,39020,39163,39773,40425,40875,41310,41382,41589,42741,44057,44058,44059,44060,44061,44062,44334,44624,45027,45131,45132,45133,45134,45135,45136,45137,45138,45139,45140,45141,45142,45143,45144,45145,45146,45147,45148,45149,45150,45151,45152,45153,45154,45155,45156,45157,45158,45159,45160,45161,45162,45163,45164,45424,45425,45426,45427,45428,45429,45430,45431,45432,45433,45434,45435/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | error | 2026-07-10T02:43:11.369396+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/25544/CREATION_DATE/2026-07-06--2026-07-08/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T18:59:25.539926+00:00 | 10 | 11323 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/33393,36595,37244,38348,38846,39115,39271,39680,40210,40370,40588,41452,41672,42053,42744,42904,43060,43205,43216,43217,43267,43522,43827,44063,44222,44235,44236,44237,44238,44239,44240,44241,44242,44243,44244,44245,44246,44247,44248,44249,44250,44251,44252,44253,44254,44255,44256,44257,44258,44259,44260,44261,44262,44263,44264,44265,44266,44267,44268,44269,44270,44271,44272,44273,44274,44275,44276,44277,44278,44279,44280,44281,44282,44283,44284,44285,44286,44287,44288,44289,44290,44291,44292,44293,44294,44446,44713,44714,44715,44716,44717,44718,44719,44720,44721,44722,44723,44724,44725,44726/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T19:44:54.984041+00:00 | 929 | 1054823 |
@@ -1820,20 +1820,20 @@ SPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count`
 | --- | --- | --- | --- | --- | --- | --- |
 | SpaceX | 11231 | 8384570 | 77.0 | 6544 | 0.0422 | 10380 |
 | Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0049 | 672 |
-| Amazon | 367 | 185119 | 89.0 | 309 | 0.6963 | 390 |
+| Amazon | 367 | 185119 | 89.0 | 310 | 0.7209 | 390 |
 | Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6438 | 89 |
 | Iridium | 107 | 117981 |  |  | 0.0026 | 80 |
-| ICEYE | 44 | 40653 | 68.5 | 20 | 0.2485 | 35 |
-| Spire | 53 | 35568 | 28.0 | 43 | 0.3221 | 54 |
+| ICEYE | 44 | 40653 | 68.5 | 20 | 0.2484 | 35 |
+| Spire | 53 | 35568 | 28.0 | 43 | 0.3209 | 54 |
 | Capella Space | 9 | 6468 | 28.0 | 7 | 0.2738 | 9 |
 
 ### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- Eutelsat
 
 SATCAT's OWNER field is a country/agency code, not a company: the ex-OneWeb LEO fleet is coded 'UK' (maps to no operator) while only Eutelsat's legacy birds carry 'EUTE'. Temporal identity resolution assigns the whole fleet to its actual current operator; naive SATCAT owner codes cannot.
 
-- Temporal (SCD2) attribution: **708** sats, **268,503** elset-days.
-- Naive SATCAT owner code: **57** sats, **19,449** elset-days.
-- Delta: **651** sats / **249,054** elset-days (13.8x more elset-days attributed under temporal resolution).
+- Temporal (SCD2) attribution: **708** sats, **268,938** elset-days.
+- Naive SATCAT owner code: **57** sats, **19,469** elset-days.
+- Delta: **651** sats / **249,469** elset-days (13.8x more elset-days attributed under temporal resolution).
 
 ## 9. Space weather and the drag environment
 

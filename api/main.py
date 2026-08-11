@@ -11,8 +11,20 @@ import pathlib
 from fastapi import FastAPI
 
 from api import cache
-from api.routers import (audit, buses, conflicts, congestion, environment, filings, operators,
-                         reachability, review, satellites, stats)
+from api.routers import (
+    audit,
+    buses,
+    conflicts,
+    congestion,
+    environment,
+    filings,
+    operators,
+    reachability,
+    review,
+    satellites,
+    stats,
+)
+
 
 @contextlib.asynccontextmanager
 async def _lifespan(_app: FastAPI):

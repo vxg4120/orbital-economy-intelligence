@@ -1,6 +1,8 @@
 -r requirements.txt
 pytest
 responses
-ruff
+# Pinned deliberately: an unpinned linter is a CI gate whose meaning changes when the tool
+# publishes. Bump this on purpose, with the diff reviewed, never implicitly on a Tuesday.
+ruff==0.16.2
 httpx
 matplotlib  # analysis/case_studies.py — behavioral-status exemplar charts

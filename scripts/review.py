@@ -21,6 +21,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+
 # The verdict-write + verdicts.jsonl append live in common.gold_verdicts so the CLI and the review
 # API share one writer. Re-exported here so existing importers (tests, tooling) keep working.
 from common.gold_verdicts import (  # noqa: F401  (re-exported)

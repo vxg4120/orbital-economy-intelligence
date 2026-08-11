@@ -15,8 +15,17 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from ingest import (celestrak_gp, celestrak_satcat, celestrak_sw, fcc_ssal, gcat_loader, ibfs,
-                    satnogs_db, supgp_crosstags, ucs_seed)
+from ingest import (
+    celestrak_gp,
+    celestrak_satcat,
+    celestrak_sw,
+    fcc_ssal,
+    gcat_loader,
+    ibfs,
+    satnogs_db,
+    supgp_crosstags,
+    ucs_seed,
+)
 
 # Execution order (politeness-safe: cheapest/most-stable sources first).
 _ORDER = ["satcat", "gcat", "gcat_orgs", "gp", "supgp", "ucs", "satnogs", "fcc_ssal", "ibfs",
