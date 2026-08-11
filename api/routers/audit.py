@@ -21,6 +21,7 @@ All queries filter by NORAD / operator first and only touch the multi-million-ro
 
 from fastapi import APIRouter, Depends
 
+from api import cache
 from api.deps import get_db
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -197,8 +198,11 @@ WHERE ls.canonical_status = 'ACTIVE'
 """
 
 
-@router.get("/summary")
-def audit_summary(db=Depends(get_db)):
+def _build_summary(db) -> dict:
+    """Compute the audit summary. The decaying-plateau analysis alone walks the 4.1M-row
+    sat_daily aggregate (~9 s warm), and the whole payload only moves at ingest time, so it is
+    served from the warm cache (same registry, same pytest-disable behavior as stats and
+    congestion)."""
     with db.cursor() as cur:
         cur.execute(_KUIPER_SQL, {"op": KUIPER_OPERATOR, "lo": _KUIPER_SHELL_LO, "hi": _KUIPER_SHELL_HI})
         k = cur.fetchone()
@@ -222,3 +226,11 @@ def audit_summary(db=Depends(get_db)):
         "lingering_leaderboard": lingering,
         "active_but_decaying": decaying["n"],
     }
+
+
+_summary_cache = cache.register("audit_summary", _build_summary)
+
+
+@router.get("/summary")
+def audit_summary(db=Depends(get_db)):
+    return _summary_cache.get(db)
