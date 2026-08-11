@@ -190,28 +190,30 @@ def test_v_sat_operator_daily_transition_day_attributes_single_owner(db_conn):
 
 @pytest.mark.db
 def test_v_congestion_exposure_returns_bins(db_conn):
-    try:
-        with db_conn.cursor() as cur:
-            _seed_acquisition_fixture(cur)
-
-            cur.execute(
-                "SELECT altitude_bin_50km, inclination_bin_5deg, bin_object_count, "
-                "       operator_name, operator_object_count_in_bin, operator_exposure_contribution "
-                "FROM v_congestion_exposure WHERE operator_name IN (%s, %s) "
-                "ORDER BY altitude_bin_50km, inclination_bin_5deg",
-                (OP_ALPHA, OP_BETA),
-            )
-            rows = cur.fetchall()
-
-        assert len(rows) >= 2, "expected at least one congestion bin per synthetic operator"
-        for alt_bin, inc_bin, bin_count, operator_name, op_count_in_bin, exposure in rows:
-            assert isinstance(alt_bin, int)
-            assert isinstance(inc_bin, int)
-            assert bin_count >= op_count_in_bin > 0
-            assert operator_name in (OP_ALPHA, OP_BETA)
-            assert 0 < float(exposure) <= 1
-    finally:
-        db_conn.rollback()
+    """Real-data invariants rather than the old synthetic fixture: since migration 0019 the
+    view reads mv_latest_gp_element, and a materialization structurally cannot see an
+    uncommitted fixture row (the same reason api caching is disabled under pytest — but a
+    matview cannot be "disabled", so the test changes shape instead). What still gets gated:
+    the view populates, its arithmetic invariants hold on every row, and a known LEO-dense
+    operator actually appears."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT altitude_bin_50km, inclination_bin_5deg, bin_object_count, "
+            "       operator_name, operator_object_count_in_bin, operator_exposure_contribution "
+            "FROM v_congestion_exposure"
+        )
+        rows = cur.fetchall()
+    assert len(rows) > 100, "exposure view went vacuous against live data"
+    for alt_bin, inc_bin, bin_count, operator_name, op_count_in_bin, exposure in rows:
+        assert isinstance(alt_bin, int)
+        assert isinstance(inc_bin, int)
+        assert bin_count >= op_count_in_bin > 0
+        assert operator_name
+        assert 0 < float(exposure) <= 1
+    names = {r[3] for r in rows}
+    assert any("SpaceX" in n or "OneWeb" in n for n in names), (
+        "no known LEO-dense operator appears in the exposure field"
+    )
 
 
 def _seed_killer_fixture(cur):

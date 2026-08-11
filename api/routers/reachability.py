@@ -46,11 +46,14 @@ SATNOGS_ATTRIBUTION = (
 
 _CANDIDATES_SQL = """
 WITH latest_gp AS (
-    SELECT DISTINCT ON (norad_id) norad_id, epoch, mean_motion, eccentricity, inclination,
+    -- The latest element per satellite comes pre-computed (mv_latest_gp_element, refreshed
+    -- right after GP ingest, so identically fresh); the age filter moves OUTSIDE the
+    -- latest-per-norad choice, which is equivalent: the latest element overall is also the
+    -- latest among fresh ones whenever any fresh element exists.
+    SELECT norad_id, epoch, mean_motion, eccentricity, inclination,
            ra_of_asc_node, arg_of_pericenter, mean_anomaly, bstar
-    FROM gp_elements
+    FROM mv_latest_gp_element
     WHERE epoch >= now() - %(age_days)s * interval '1 day'
-    ORDER BY norad_id, epoch DESC
 ),
 tx AS (
     SELECT norad_cat_id, count(*) AS n

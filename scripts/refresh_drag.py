@@ -1,38 +1,13 @@
-"""Refresh mv_drag_daily (the fleet drag series). Nightly, after GP ingest, before the report.
+"""Deprecated name; delegates to scripts/refresh_matviews.py.
 
-The materialization exists because the pair-building window scan over sat_daily costs seconds
-nobody should pay on a page load; this script is where that cost is paid instead. CONCURRENTLY
-so API reads never block on the refresh (the unique index metrics/space_weather.sql creates is
-what makes that legal). Guarded on the matview existing, so a database that has not applied
-metrics yet exits cleanly instead of tracebacking the nightly log.
+Kept for one deploy cycle because scripts/ is baked into the docker image while deploy/ is a
+bind mount: a box that has pulled the nightly-refresh.sh rename but not yet rebuilt the image
+would otherwise call a script that does not exist inside its container (and the nightly's
+`|| echo` soft-fail would bury the error in the log). Remove once every environment's image
+postdates the rename.
 """
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from common.db import get_autocommit_conn  # noqa: E402
-
-
-def main() -> int:
-    conn = get_autocommit_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT to_regclass('mv_drag_daily') IS NOT NULL")
-            if not cur.fetchone()[0]:
-                print("mv_drag_daily absent (run scripts/apply_metrics.py first); nothing to do")
-                return 0
-            cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_drag_daily")
-            cur.execute("SELECT count(*), max(day) FROM mv_drag_daily")
-            days, latest = cur.fetchone()
-    finally:
-        conn.close()
-    print(f"mv_drag_daily refreshed: {days} days, latest {latest}")
-    return 0
-
+from refresh_matviews import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

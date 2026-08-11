@@ -141,9 +141,8 @@ def detail(operator_id: int, db=Depends(get_db)):
             "               JOIN satellite s ON s.satellite_id = so.satellite_id "
             "               WHERE so.operator_id = %s AND so.role = 'owner' "
             "                 AND so.valid_to IS NULL AND s.norad_id IS NOT NULL), "
-            "le AS (SELECT DISTINCT ON (norad_id) norad_id, (perigee_km + apogee_km) / 2.0 AS alt "
-            "       FROM gp_elements WHERE norad_id IN (SELECT norad_id FROM owned) "
-            "       ORDER BY norad_id, epoch DESC) "
+            "le AS (SELECT norad_id, (perigee_km + apogee_km) / 2.0 AS alt "
+            "       FROM mv_latest_gp_element WHERE norad_id IN (SELECT norad_id FROM owned)) "
             "SELECT CASE WHEN alt < 2000 THEN 'LEO' WHEN alt < 35586 THEN 'MEO' "
             "            WHEN alt <= 35986 THEN 'GEO' ELSE 'HEO' END AS regime, count(*) AS n "
             "FROM le WHERE alt IS NOT NULL GROUP BY 1",

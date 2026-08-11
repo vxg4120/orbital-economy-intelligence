@@ -152,10 +152,9 @@ def _kuiper(cur, period_start, period_end):
             FROM satellite_status_history ORDER BY satellite_id, observed_at DESC
         ),
         latest AS (
-            SELECT DISTINCT ON (ge.norad_id) ge.norad_id,
+            SELECT ge.norad_id,
                    (ge.perigee_km + ge.apogee_km) / 2.0 AS mean_alt, ge.perigee_km
-            FROM gp_elements ge JOIN fleet f ON f.norad_id = ge.norad_id
-            ORDER BY ge.norad_id, ge.epoch DESC, ge.source
+            FROM mv_latest_gp_element ge JOIN fleet f ON f.norad_id = ge.norad_id
         ),
         recent AS (
             SELECT sd.norad_id, stddev_samp(sd.sma_avg) AS sma_sd_30d
@@ -273,10 +272,9 @@ def _leo_disposal(cur, period_start, period_end):
             WHERE s.object_type = 'PAYLOAD'
         ),
         latest AS (
-            SELECT DISTINCT ON (ge.norad_id) ge.norad_id, ge.perigee_km, ge.apogee_km,
+            SELECT ge.norad_id, ge.perigee_km, ge.apogee_km,
                    (ge.perigee_km + ge.apogee_km) / 2.0 AS mean_alt
-            FROM gp_elements ge JOIN inactive_fleet f ON f.norad_id = ge.norad_id
-            ORDER BY ge.norad_id, ge.epoch DESC, ge.source
+            FROM mv_latest_gp_element ge JOIN inactive_fleet f ON f.norad_id = ge.norad_id
         )
         SELECT f.op,
             count(*) FILTER (WHERE l.apogee_km < %(leo_apo)s AND l.perigee_km > %(ling_per)s)
@@ -399,9 +397,8 @@ def _leo_disposal(cur, period_start, period_end):
             WHERE s.object_type = 'PAYLOAD'
         ),
         latest AS (
-            SELECT DISTINCT ON (ge.norad_id) ge.norad_id, ge.perigee_km, ge.apogee_km, ge.epoch
-            FROM gp_elements ge JOIN inactive_fleet f ON f.norad_id = ge.norad_id
-            ORDER BY ge.norad_id, ge.epoch DESC, ge.source
+            SELECT ge.norad_id, ge.perigee_km, ge.apogee_km, ge.epoch
+            FROM mv_latest_gp_element ge JOIN inactive_fleet f ON f.norad_id = ge.norad_id
         )
         SELECT f.op AS operator, f.norad_id, f.name,
             round(l.perigee_km::numeric, 0) AS perigee_km,
@@ -441,10 +438,9 @@ def _geo_eol(cur):
             WHERE s.object_type = 'PAYLOAD'
         ),
         latest AS (
-            SELECT DISTINCT ON (ge.norad_id) ge.norad_id, ge.perigee_km, ge.apogee_km,
+            SELECT ge.norad_id, ge.perigee_km, ge.apogee_km,
                    (ge.perigee_km + ge.apogee_km) / 2.0 AS mean_alt
-            FROM gp_elements ge JOIN cand c ON c.norad_id = ge.norad_id
-            ORDER BY ge.norad_id, ge.epoch DESC, ge.source
+            FROM mv_latest_gp_element ge JOIN cand c ON c.norad_id = ge.norad_id
         ),
         geo AS (
             SELECT c.satellite_id, c.norad_id, c.name, o.canonical_name AS op,

@@ -1,34 +1,37 @@
 # Data Quality and Conflict Report
-Generated at: 2026-08-06 02:11:59 UTC
+Generated at: 2026-08-11 02:12:55 UTC
 
 Every number below comes from a live query against the identity graph and fact layer -- disagreements are data, not errors (SPEC.md §8).
 
 ## Ingestion ledger: last run per source/status
 | source | endpoint | status | finished_at | rows_ingested | bytes_downloaded |
 | --- | --- | --- | --- | --- | --- |
-| celestrak | gp_active | error | 2026-07-08T04:24:48.910018+00:00 | 0 | 0 |
-| celestrak | gp_active | ok | 2026-08-06T02:10:46.610886+00:00 | 16302 | 6868533 |
+| celestrak | gp_active | error | 2026-08-06T14:10:06.360636+00:00 | 0 | 0 |
+| celestrak | gp_active | ok | 2026-08-11T02:10:56.631355+00:00 | 16323 | 6813412 |
 | celestrak | satcat_bulk | error | 2026-07-30T14:10:06.966193+00:00 | 0 | 0 |
-| celestrak | satcat_bulk | ok | 2026-08-06T02:10:35.867710+00:00 | 70217 | 6696356 |
-| celestrak | satcat_bulk | skipped_fresh | 2026-08-05T14:10:05.957881+00:00 | 0 | 0 |
-| celestrak | space_weather | ok | 2026-08-06T02:10:48.628236+00:00 | 25371 | 2882999 |
+| celestrak | satcat_bulk | ok | 2026-08-11T02:10:17.054259+00:00 | 70244 | 6698940 |
+| celestrak | satcat_bulk | skipped_fresh | 2026-08-06T14:10:06.277961+00:00 | 0 | 0 |
+| celestrak | space_weather | error | 2026-08-06T14:10:06.649566+00:00 | 0 | 0 |
+| celestrak | space_weather | ok | 2026-08-11T02:11:36.619697+00:00 | 25377 | 2883592 |
 | celestrak | space_weather | skipped_fresh | 2026-08-05T02:12:07.504332+00:00 | 0 | 0 |
-| celestrak | supgp_index | ok | 2026-08-05T02:11:51.758600+00:00 | 4 | 33707 |
+| celestrak | supgp_index | error | 2026-08-06T14:10:06.370211+00:00 | 0 | 0 |
+| celestrak | supgp_index | ok | 2026-08-11T02:10:57.042953+00:00 | 3 | 46282 |
 | celestrak | supgp_index | skipped_fresh | 2026-08-06T02:10:46.624154+00:00 | 0 | 0 |
-| fcc | ibfs | ok | 2026-08-03T20:33:19.377004+00:00 | 815438 | 48807002 |
-| fcc | ibfs | skipped_fresh | 2026-08-06T02:10:46.632202+00:00 | 0 | 0 |
+| fcc | ibfs | ok | 2026-08-11T02:11:34.568133+00:00 | 815438 | 48807002 |
+| fcc | ibfs | skipped_fresh | 2026-08-06T14:10:06.642557+00:00 | 0 | 0 |
 | fcc | icfs_documents | ok | 2026-08-04T21:35:04.452617+00:00 | 1307 | 0 |
-| fcc | ssal | error | 2026-07-30T00:46:42.993071+00:00 | 0 | 0 |
-| fcc | ssal | ok | 2026-08-05T02:12:07.498936+00:00 | 239 | 115649 |
+| fcc | ssal | error | 2026-08-06T14:10:06.632948+00:00 | 0 | 0 |
+| fcc | ssal | ok | 2026-08-11T02:11:05.501281+00:00 | 239 | 115649 |
 | fcc | ssal | skipped_fresh | 2026-08-06T02:10:46.630055+00:00 | 0 | 0 |
-| gcat | gcat_orgs | ok | 2026-08-06T02:10:38.198884+00:00 | 4103 | 705195 |
-| gcat | gcat_orgs | skipped_fresh | 2026-08-05T14:10:05.968484+00:00 | 0 | 0 |
-| gcat | gcat_psatcat | ok | 2026-08-05T02:10:54.441908+00:00 | 27940 | 5140689 |
+| gcat | gcat_orgs | ok | 2026-08-11T02:10:47.903447+00:00 | 4105 | 705563 |
+| gcat | gcat_orgs | skipped_fresh | 2026-08-06T14:10:06.344315+00:00 | 0 | 0 |
+| gcat | gcat_psatcat | ok | 2026-08-11T02:10:46.040772+00:00 | 27940 | 5226786 |
 | gcat | gcat_psatcat | skipped_fresh | 2026-08-06T02:10:35.973597+00:00 | 0 | 0 |
-| gcat | gcat_satcat | ok | 2026-08-05T02:10:40.762716+00:00 | 69999 | 19291935 |
+| gcat | gcat_satcat | error | 2026-08-06T14:10:06.337975+00:00 | 0 | 0 |
+| gcat | gcat_satcat | ok | 2026-08-11T02:10:37.786650+00:00 | 69999 | 19292233 |
 | gcat | gcat_satcat | skipped_fresh | 2026-08-06T02:10:35.969790+00:00 | 0 | 0 |
-| satnogs | transmitters | error | 2026-07-30T00:46:34.494326+00:00 |  |  |
-| satnogs | transmitters | ok | 2026-08-05T02:12:06.519652+00:00 | 4994 | 3484839 |
+| satnogs | transmitters | error | 2026-08-06T14:10:06.393632+00:00 | 0 | 0 |
+| satnogs | transmitters | ok | 2026-08-11T02:11:02.297785+00:00 | 5003 | 3492049 |
 | satnogs | transmitters | skipped_fresh | 2026-08-06T02:10:46.627867+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/15158,18351,19331,20777,21056,21803,22028,23537,24665,24931,25237,25491,25495,25673,26243,26369,26487,26719,26927,27499,27508,27554,27948,28187,28946,29270,33459,33460,33750,34710,36101,37206,37258,37816,37836,38992,39020,39163,39773,40425,40875,41310,41382,41589,42741,44057,44058,44059,44060,44061,44062,44334,44624,45027,45131,45132,45133,45134,45135,45136,45137,45138,45139,45140,45141,45142,45143,45144,45145,45146,45147,45148,45149,45150,45151,45152,45153,45154,45155,45156,45157,45158,45159,45160,45161,45162,45163,45164,45424,45425,45426,45427,45428,45429,45430,45431,45432,45433,45434,45435/CREATION_DATE/2025-07-01--2025-08-01/orderby/CREATION_DATE asc/format/json | error | 2026-07-10T02:43:11.369396+00:00 | 0 | 0 |
 | spacetrack | /basicspacedata/query/class/gp_history/NORAD_CAT_ID/25544/CREATION_DATE/2026-07-06--2026-07-08/orderby/CREATION_DATE asc/format/json | ok | 2026-07-09T18:59:25.539926+00:00 | 10 | 11323 |
@@ -1696,7 +1699,7 @@ Count: **36**
 
 ## 2. Decay-date conflicts across sources
 
-Count: **4254**
+Count: **4256**
 
 | norad_id | canonical_name | sources_and_dates |
 | --- | --- | --- |
@@ -1732,7 +1735,7 @@ Count: **159**
 
 ## 4. SupGP cross-tag anomalies
 
-Count: **39**
+Count: **42**
 
 | norad_id | object_name | file_tag | flag | detail |
 | --- | --- | --- | --- | --- |
@@ -1752,17 +1755,17 @@ Count: **39**
 ### Crosswalk rows by id_type
 | id_type | crosswalk_rows |
 | --- | --- |
-| cospar | 140297 |
+| cospar | 140328 |
 | gcat_id | 70084 |
-| name_gcat | 69466 |
-| name_satcat | 70286 |
-| norad | 70217 |
+| name_gcat | 69477 |
+| name_satcat | 70323 |
+| norad | 70244 |
 
 ### merge_log by rule_fired
 | rule_fired | merges |
 | --- | --- |
 | cospar_exact | 1401 |
-| norad_exact | 418993 |
+| norad_exact | 419099 |
 | promotion_cospar_launch | 73 |
 
 ### Review-queue size: **0**
@@ -1777,6 +1780,8 @@ Provisional catalog keys move on fresh launches; these are measurements, not ass
 ### Key stability, latest comparisons
 | source | id_type | observations | referent_changes | changes_anchored | prev_run_id | curr_run_id |
 | --- | --- | --- | --- | --- | --- | --- |
+| gcat | cospar | 27852 | 20 | 3 | 5350 | 5389 |
+| gcat | gcat_id | 27853 | 18 | 1 | 5350 | 5389 |
 | gcat | cospar | 27853 | 0 | 0 | 4858 | 5350 |
 | gcat | gcat_id | 27853 | 0 | 0 | 4858 | 5350 |
 | gcat | cospar | 27853 | 0 | 0 | 4842 | 4858 |
@@ -1785,14 +1790,14 @@ Provisional catalog keys move on fresh launches; these are measurements, not ass
 | gcat | gcat_id | 27853 | 0 | 0 | 4721 | 4842 |
 | gcat | cospar | 27853 | 9 | 0 | 4415 | 4721 |
 | gcat | gcat_id | 27853 | 9 | 0 | 4415 | 4721 |
-| gcat | cospar | 27853 | 20 | 0 | 4069 | 4415 |
-| gcat | gcat_id | 27853 | 20 | 0 | 4069 | 4415 |
 
 ### Churn by launch
 | launch_key | churned_keys | on_anchored_rows | latest |
 | --- | --- | --- | --- |
-| 2026-156 | 54 | 0 | 2026-08-01 |
+| 2026-156 | 88 | 0 | 2026-08-11 |
 | 1998-067 | 4 | 0 | 2026-07-30 |
+| 2025-106 | 2 | 2 | 2026-08-11 |
+| 2025-243 | 2 | 2 | 2026-08-11 |
 
 ### Identity events
 _(none)_
@@ -1801,11 +1806,11 @@ Expired volatile identifiers: **0** -- satellites still provisional: **0**
 
 ## 7. Coverage
 
-On-orbit payloads (PAYLOAD, latest status != DECAYED): **19762**
+On-orbit payloads (PAYLOAD, latest status != DECAYED): **19775**
 
-- With resolved operator: 19762/19762 (100.0%)
-- With non-UNKNOWN status: 18238/19762 (92.3%)
-- With >=2 source identifiers (graph vs list): 19762/19762 (100.0%)
+- With resolved operator: 19775/19775 (100.0%)
+- With non-UNKNOWN status: 18251/19775 (92.3%)
+- With >=2 source identifiers (graph vs list): 19775/19775 (100.0%)
 
 ## 8. Phase 2 metrics (per benchmark operator)
 
@@ -1813,26 +1818,26 @@ SPEC §7 metrics over the gp_history backfill. `sats_with_history`/`elset_count`
 
 | operator | sats_with_history | elset_count | median_days_to_operational | tto_n | station_keeping_p50_km | sk_active_n |
 | --- | --- | --- | --- | --- | --- | --- |
-| SpaceX | 11231 | 8384570 | 77.0 | 6541 | 0.0423 | 10381 |
+| SpaceX | 11231 | 8384570 | 77.0 | 6544 | 0.0422 | 10380 |
 | Eutelsat | 708 | 762878 | 253.0 | 17 | 0.0049 | 672 |
-| Amazon | 367 | 185119 | 88.0 | 311 | 0.6918 | 390 |
-| Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6452 | 89 |
+| Amazon | 367 | 185119 | 89.0 | 309 | 0.6963 | 390 |
+| Planet Labs | 184 | 132023 | 167.0 | 104 | 0.6438 | 89 |
 | Iridium | 107 | 117981 |  |  | 0.0026 | 80 |
 | ICEYE | 44 | 40653 | 68.5 | 20 | 0.2485 | 35 |
-| Spire | 53 | 35568 | 28.0 | 39 | 0.3232 | 54 |
-| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2636 | 9 |
+| Spire | 53 | 35568 | 28.0 | 43 | 0.3221 | 54 |
+| Capella Space | 9 | 6468 | 28.0 | 7 | 0.2738 | 9 |
 
 ### Killer chart (SPEC §12): temporal vs naive-SATCAT attribution -- Eutelsat
 
 SATCAT's OWNER field is a country/agency code, not a company: the ex-OneWeb LEO fleet is coded 'UK' (maps to no operator) while only Eutelsat's legacy birds carry 'EUTE'. Temporal identity resolution assigns the whole fleet to its actual current operator; naive SATCAT owner codes cannot.
 
-- Temporal (SCD2) attribution: **708** sats, **267,487** elset-days.
-- Naive SATCAT owner code: **57** sats, **19,418** elset-days.
-- Delta: **651** sats / **248,069** elset-days (13.8x more elset-days attributed under temporal resolution).
+- Temporal (SCD2) attribution: **708** sats, **268,503** elset-days.
+- Naive SATCAT owner code: **57** sats, **19,449** elset-days.
+- Delta: **651** sats / **249,054** elset-days (13.8x more elset-days attributed under temporal resolution).
 
 ## 9. Space weather and the drag environment
 
-CelesTrak consolidated indices: **25,086** observed days, through **2026-08-05**; F10.7 81-day centered mean at the last observed day: **133.4** sfu.
+CelesTrak consolidated indices: **25,091** observed days, through **2026-08-10**; F10.7 81-day centered mean at the last observed day: **115.3** sfu.
 
 The coupling this section exists to measure: geomagnetic storms heat the thermosphere and the LEO fleet's semi-major axes respond within a day or two. `median_dsma_m` is the fleet-wide median one-day SMA change over LEO payload observations (consecutive-day pairs only, 10 km/day glitch clamp, days under 500 pairs withheld), so it is robust to individual maneuvers: when it moves, the atmosphere moved everyone.
 
@@ -1850,4 +1855,4 @@ All-window median of the daily fleet median: **-1.9 m/day**; geomagnetic-storm d
 
 ### Freshest event
 
-Sharpest 3-hourly Ap peak in the last 14 observed days: **2026-08-02** (peak Ap 67, Kp max 5.7, G1); fleet median -4.3 m/day on the day; -14.1 m/day the day after. The day-after number is usually the louder one: thermospheric density responds with a lag.
+Sharpest 3-hourly Ap peak in the last 14 observed days: **2026-08-08** (peak Ap 67, Kp max 5.7, G1); no published drag rows around it yet. The day-after number is usually the louder one: thermospheric density responds with a lag.

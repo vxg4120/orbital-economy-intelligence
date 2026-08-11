@@ -13,16 +13,11 @@ from api.deps import get_db
 router = APIRouter(tags=["congestion"])
 
 _CONGESTION_SQL = """
-WITH latest_elements AS (
-    SELECT DISTINCT ON (norad_id) norad_id, perigee_km, apogee_km, inclination
-    FROM gp_elements
-    ORDER BY norad_id, epoch DESC
-)
 SELECT
     (floor(((apogee_km + perigee_km) / 2.0) / 50.0) * 50)::int AS alt_bin_km,
     (floor(inclination / 5.0) * 5)::int AS inc_bin_deg,
     count(*) AS object_count
-FROM latest_elements
+FROM mv_latest_gp_element
 WHERE inclination IS NOT NULL AND perigee_km IS NOT NULL AND apogee_km IS NOT NULL
   AND ((apogee_km + perigee_km) / 2.0) < 2000
 GROUP BY 1, 2
@@ -31,8 +26,9 @@ ORDER BY 1, 2
 
 
 def _build_congestion(db) -> dict:
-    """Compute the density field. The DISTINCT ON reads all 10.2M element rows (~11.4 s warm),
-    so it is served from a cache rather than recomputed per request."""
+    """Compute the density field over mv_latest_gp_element (17k rows, milliseconds). The cache
+    stays: the value is still whole-catalog and page-load-hot, and the warm-refresh machinery
+    now costs next to nothing to keep."""
     with db.cursor() as cur:
         cur.execute(_CONGESTION_SQL)
         return {"bins": cur.fetchall()}

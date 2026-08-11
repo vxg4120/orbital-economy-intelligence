@@ -113,10 +113,10 @@ GROUP BY operator_id, operator_name;
 -- conjunction/collision data (which is restricted) -- documented plainly in the README.
 CREATE OR REPLACE VIEW v_congestion_exposure AS
 WITH latest_elements AS (
-    SELECT DISTINCT ON (norad_id)
-        norad_id, perigee_km, apogee_km, inclination
-    FROM gp_elements
-    ORDER BY norad_id, epoch DESC
+    -- Pre-computed by migration 0019's mv_latest_gp_element (refreshed post-ingest in the
+    -- nightly); migrations run before metrics apply, so the mv always exists here.
+    SELECT norad_id, perigee_km, apogee_km, inclination
+    FROM mv_latest_gp_element
 ),
 binned AS (
     SELECT

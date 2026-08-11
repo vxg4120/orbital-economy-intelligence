@@ -140,13 +140,31 @@ def test_view_cardinality_one_row_per_slug(db_conn):
 @pytest.mark.db
 def test_alias_source_restriction_blocks_country_codes(db_conn):
     """GCAT org codes and SATCAT country codes share a namespace: without the source restriction
-    POL (Polyot, 95 satellites) resolves to Poland, unambiguously and wrongly."""
+    POL (Polyot, 95 satellites) resolves to Poland, unambiguously and wrongly.
+
+    Pins the RULE, not the outcome: an earlier version asserted these codes never resolve at
+    all, which broke honestly in 2026-08 when the refreshed org registry added a legitimate
+    in-namespace alias (COL -> Columbia University, source gcat_orgs). What must hold forever
+    is that any resolution rides an alias from the restricted sources, never the satcat
+    country-code namespace."""
     with db_conn.cursor() as cur:
         cur.execute(
-            "SELECT count(manufacturer_group_operator_id) FROM satellite_bus "
-            "WHERE manufacturer_group_code IN ('POL', 'COL', 'LTU')"
+            "SELECT DISTINCT manufacturer_group_code, manufacturer_group_operator_id "
+            "FROM satellite_bus "
+            "WHERE manufacturer_group_code IN ('POL', 'COL', 'LTU') "
+            "  AND manufacturer_group_operator_id IS NOT NULL"
         )
-        assert cur.fetchone()[0] == 0
+        for gcode, opid in cur.fetchall():
+            cur.execute(
+                "SELECT 1 FROM operator_alias WHERE alias = %s AND operator_id = %s "
+                "AND source IN ('gcat_orgs', 'gcat', 'seed')",
+                (gcode, opid),
+            )
+            assert cur.fetchone() is not None, (
+                f"{gcode} resolved to operator {opid} without an in-namespace alias: "
+                "the country-code restriction has been bypassed"
+            )
+        # The concrete country hazard, forever: Polyot's cohort never becomes Poland's.
         cur.execute(
             "SELECT manufacturer_name, fleet_total FROM v_bus_benchmarks_manufacturer "
             "WHERE manufacturer_slug = 'pol'"

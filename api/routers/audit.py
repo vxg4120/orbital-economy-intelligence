@@ -66,10 +66,9 @@ fleet AS (
       AND s.object_type = 'PAYLOAD'
 ),
 le AS (
-    SELECT DISTINCT ON (norad_id) norad_id, (perigee_km + apogee_km) / 2.0 AS alt
-    FROM gp_elements
+    SELECT norad_id, (perigee_km + apogee_km) / 2.0 AS alt
+    FROM mv_latest_gp_element
     WHERE norad_id IN (SELECT norad_id FROM fleet)
-    ORDER BY norad_id, epoch DESC
 ),
 gmax AS (SELECT max(day) AS g FROM sat_daily),
 trail AS (
