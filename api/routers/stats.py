@@ -7,6 +7,7 @@ section header). All read-only aggregates.
 
 from fastapi import APIRouter, Depends
 
+from api import cache
 from api.deps import get_db
 from api.routers.conflicts import (
     count_decay_conflicts,
@@ -100,8 +101,12 @@ def _pct(numerator: int, denominator: int) -> float:
     return round(100.0 * numerator / denominator, 1)
 
 
-@router.get("/stats")
-def get_stats(db=Depends(get_db)):
+def _build_stats(db) -> dict:
+    """Compute the whole Overview payload. Expensive (~8.9 s warm), so it is served from a cache.
+
+    Kept separate from the route so the background refresher in api.cache can call it with its own
+    connection rather than a request-scoped one.
+    """
     with db.cursor() as cur:
         cur.execute(
             """
@@ -141,3 +146,11 @@ def get_stats(db=Depends(get_db)):
         },
         "ingest_runs": ingest_runs,
     }
+
+
+_cache = cache.register("stats", _build_stats)
+
+
+@router.get("/stats")
+def get_stats(db=Depends(get_db)):
+    return _cache.get(db)

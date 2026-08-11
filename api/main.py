@@ -5,17 +5,32 @@ it statically at ``/`` for single-process demo mode. The static mount is added A
 routers so ``/api/*`` always wins the route match (the SPA only catches everything else).
 """
 
+import contextlib
 import pathlib
 
 from fastapi import FastAPI
 
+from api import cache
 from api.routers import (audit, buses, conflicts, congestion, environment, filings, operators,
                          reachability, review, satellites, stats)
+
+@contextlib.asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Start the background refreshers for the whole-catalog aggregates (see api.cache).
+
+    Each runs on its own daemon thread, so startup is never delayed by a first compute and the
+    process still exits cleanly. Under pytest the caches are disabled by an autouse fixture, so
+    the threads idle without affecting what the endpoint tests observe.
+    """
+    cache.start_all()
+    yield
+
 
 app = FastAPI(
     title="Orbital Economy Terminal API",
     description="Read-only JSON API over the satellite identity graph and fact layer.",
     version="1.0.0",
+    lifespan=_lifespan,
 )
 
 app.include_router(stats.router, prefix="/api")

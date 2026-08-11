@@ -7,6 +7,7 @@ catalog-density proxy, not conjunction data. Bin cardinality is naturally bounde
 
 from fastapi import APIRouter, Depends
 
+from api import cache
 from api.deps import get_db
 
 router = APIRouter(tags=["congestion"])
@@ -29,8 +30,17 @@ ORDER BY 1, 2
 """
 
 
-@router.get("/congestion")
-def congestion(db=Depends(get_db)):
+def _build_congestion(db) -> dict:
+    """Compute the density field. The DISTINCT ON reads all 10.2M element rows (~11.4 s warm),
+    so it is served from a cache rather than recomputed per request."""
     with db.cursor() as cur:
         cur.execute(_CONGESTION_SQL)
         return {"bins": cur.fetchall()}
+
+
+_cache = cache.register("congestion", _build_congestion)
+
+
+@router.get("/congestion")
+def congestion(db=Depends(get_db)):
+    return _cache.get(db)
