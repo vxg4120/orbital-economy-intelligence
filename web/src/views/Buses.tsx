@@ -105,7 +105,24 @@ export function Buses() {
         </span>
       ),
     },
-    { key: "sort:fleet", header: "Fleet", num: true, sortable: true, render: (r) => fmtInt(r.fleet_total) },
+    {
+      key: "sort:fleet",
+      header: "Fleet",
+      num: true,
+      sortable: true,
+      render: (r) => (
+        <a
+          className="receipt-link"
+          href={`/api/buses/${r.slug}/provenance?metric=fleet`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title={`Reconciles against ${fmtInt(r.fleet_total)} receipt rows, one per satellite · role=prime`}
+        >
+          {fmtInt(r.fleet_total)}
+        </a>
+      ),
+    },
     { key: "sort:on_orbit", header: "On-orbit", num: true, sortable: true, render: (r) => fmtInt(r.fleet_on_orbit) },
     {
       key: "sort:tto",
@@ -283,7 +300,17 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
         <StatTile
           lead
           label="Fleet"
-          value={fmtInt(b.fleet_total)}
+          value={
+            <a
+              className="receipt-link"
+              href={`/api/buses/${slug}/provenance?metric=fleet`}
+              target="_blank"
+              rel="noreferrer"
+              title={`Reconciles against ${fmtInt(b.fleet_total)} receipt rows, one per satellite`}
+            >
+              {fmtInt(b.fleet_total)}
+            </a>
+          }
           sub={
             <>
               on-orbit <span className="num">{fmtInt(b.fleet_on_orbit)}</span> · active{" "}

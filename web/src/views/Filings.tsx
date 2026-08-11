@@ -140,7 +140,7 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
 function FilingDetail({ filing: r }: { filing: PendingFiling }) {
   const docs = useApi(() => getFilingDocuments(r.file_number), [r.file_number]);
   return (
-    <div className="panel__body" style={{ background: "var(--bg-inset, transparent)" }}>
+    <div className="panel__body" style={{ background: "var(--surface-2)" }}>
       {r.description ? <p className="hint">{r.description}</p> : null}
       {r.note_summary ? (
         <div style={{ margin: "8px 0" }}>

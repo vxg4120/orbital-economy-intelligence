@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { getStats, MOCK } from "./api/client";
 import { useApi } from "./hooks/useApi";
 import { compact, fmtPct } from "./lib/format";
+import { Colophon } from "./components/Colophon";
 import { SourceBadge } from "./components/SourceBadge";
 import { Loading } from "./components/States";
 import { maybeAutoStartTour, startTour } from "./lib/tour";
@@ -145,6 +146,7 @@ export default function App() {
             <Route path="/filings" element={<Filings />} />
           </Routes>
         </Suspense>
+        <Colophon />
       </main>
     </div>
   );

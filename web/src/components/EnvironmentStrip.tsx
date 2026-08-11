@@ -69,7 +69,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                   y={y}
                   width={Math.max(2, barW - 2)}
                   height={Math.max(1, h)}
-                  fill={storm ? "var(--warn, #e5c07b)" : "var(--accent, #61afef)"}
+                  fill={storm ? "var(--conflict)" : "var(--signal-dim)"}
                   opacity={storm ? 0.95 : 0.65}
                 >
                   <title>
@@ -83,7 +83,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                     y={H - 2}
                     textAnchor="middle"
                     fontSize={8}
-                    fill="var(--warn, #e5c07b)"
+                    fill="var(--conflict)"
                   >
                     {r.storm_level}
                   </text>

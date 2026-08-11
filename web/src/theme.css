@@ -1,32 +1,37 @@
 /* =============================================================================
-   Orbital Economy Terminal — theme tokens + hand-rolled instrument styling.
-   Dark mission-control, committed single look. No CSS framework, no CDN fonts.
-   Color discipline (dataviz): one "signal" hue = interactive + sequential
-   magnitude; a reserved status scale carries object state and is never reused.
+   Orbital Economy Terminal — "The Ledger" (observatory-plate identity).
+   Engraved dark plate, committed single look. No CSS framework, no CDN fonts
+   (Fraunces is vendored via @fontsource and bundled). Two voices, strict jobs:
+   Fraunces narrates (display, titles, hero numerals), mono testifies (every
+   datum, label, table). Color discipline (dataviz): one "signal" hue =
+   interactive + sequential magnitude; a reserved status scale carries object
+   state and is never reused. Contrast for every ink/surface pair verified
+   >= 4.5:1 (faint) and ~3:1 (ghost) at the 2026-08-06 retune.
    ============================================================================= */
 
 :root {
-  /* ---- surfaces (cold near-black, faint blue cast for depth) ---- */
-  --void: #07090c; /* page plane */
-  --surface: #0d1015; /* panel surface */
-  --surface-2: #12161d; /* raised row / hover */
-  --surface-3: #171c25; /* active / selected */
+  /* ---- surfaces (neutral ink-black plate; the old blue cast is gone) ---- */
+  --void: #09090a; /* page plane */
+  --surface: #111112; /* panel surface */
+  --surface-2: #171718; /* raised row / hover */
+  --surface-3: #1d1d1f; /* active / selected */
 
-  /* ---- rules (hairlines) ---- */
-  --rule: #1b212c;
-  --rule-2: #262e3b;
+  /* ---- rules (silver hairlines, engraved not boxed) ---- */
+  --rule: #26262a;
+  --rule-2: #35353b;
 
-  /* ---- ink (dimmest two lifted to clear WCAG AA on --surface: faint ~4.5:1 for
-     small body text, ghost ~3:1 for the null-placeholder em-dash) ---- */
-  --ink: #e6ecf2;
-  --ink-dim: #98a2b3;
-  --ink-faint: #7d8798;
-  --ink-ghost: #5a6472;
+  /* ---- ink (warm starlight-on-plate; dimmest two clear WCAG AA on --surface:
+     faint >= 4.5:1 for small body text, ghost ~3:1 for the null placeholder) ---- */
+  --ink: #ece9e1;
+  --ink-dim: #a8a49b;
+  --ink-faint: #8e8a81;
+  --ink-ghost: #67645e;
 
-  /* ---- signal: interactive accent AND sequential-ramp anchor ---- */
-  --signal: #4da6ff;
-  --signal-dim: #2f6ba8;
-  --signal-wash: rgba(77, 166, 255, 0.1);
+  /* ---- signal: interactive accent AND sequential-ramp anchor (starlight blue:
+     desaturated toward instrument glow, kept cool against the warm ink) ---- */
+  --signal: #82b4e8;
+  --signal-dim: #5d87ad;
+  --signal-wash: rgba(130, 180, 232, 0.1);
 
   /* ---- reserved status scale (state only; always paired with glyph+label) ---- */
   --st-active: #35d07a;
@@ -40,16 +45,19 @@
   --ok: #35d07a;
   --err: #e0604d;
 
-  /* ---- sequential ramp (blue, dark mode: near-zero recedes to surface) ---- */
+  /* ---- sequential ramp (silvery-blue, dark: near-zero recedes to surface;
+     ordering preserved from the pre-ledger ramp, chroma pulled toward the
+     retuned signal so the heatmap reads engraved rather than lit) ---- */
   --seq-0: transparent; /* empty bin = surface */
-  --seq-1: #14283c;
-  --seq-2: #17405f;
-  --seq-3: #1c5688;
-  --seq-4: #2472b3;
-  --seq-5: #3a92dd;
-  --seq-6: #62b4ff;
+  --seq-1: #1c2530;
+  --seq-2: #24384c;
+  --seq-3: #2e4d6a;
+  --seq-4: #3d6890;
+  --seq-5: #5788b8;
+  --seq-6: #8ab8ea;
 
-  /* ---- type ---- */
+  /* ---- type: Fraunces narrates, mono testifies ---- */
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
     Consolas, "Liberation Mono", "Courier New", monospace;
   --fs-micro: 10px;
@@ -101,6 +109,18 @@ body::before {
   background-size: 44px 44px;
   opacity: 0.14;
   mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 30%, transparent 78%);
+}
+/* plate grain: near-subliminal noise so the void reads as engraved plate, not
+   flat CSS. Inline SVG turbulence, self-contained, ~0.03 opacity — visible only
+   as texture, never as pattern. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 a {
   color: var(--signal);
@@ -168,7 +188,7 @@ button {
      through the grid track and forces page-wide horizontal scroll on phones */
   min-width: 0;
   border-bottom: 1px solid var(--rule-2);
-  background: linear-gradient(180deg, #0a0d12, var(--void));
+  background: linear-gradient(180deg, #0e0e0f, var(--void));
 }
 .topbar__brand {
   display: flex;
@@ -179,11 +199,13 @@ button {
   border-right: 1px solid var(--rule-2);
 }
 .topbar__mark {
-  font-size: var(--fs-sm);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  /* the byline: Fraunces with the wonk on — the one place the brand speaks */
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 620;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: 0.01em;
   color: var(--ink);
-  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -318,6 +340,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--pad);
+  /* plates number per view: the counter restarts with each routed page */
+  counter-reset: plate;
 }
 .view {
   display: flex;
@@ -337,10 +361,13 @@ button {
   padding-bottom: 12px;
 }
 .vhead__title {
-  font-size: var(--fs-lg);
-  letter-spacing: 0.02em;
-  color: var(--ink);
+  /* the view's byline: Fraunces, wonk on — this is a chapter head, not a label */
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
   font-weight: 600;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: 0.005em;
+  color: var(--ink);
   margin: 0;
 }
 .vhead__desc {
@@ -356,6 +383,8 @@ button {
 .panel {
   border: 1px solid var(--rule);
   background: var(--surface);
+  /* plates are numbered per view (counter reset on <main>) */
+  counter-increment: plate;
 }
 .panel__head {
   display: flex;
@@ -363,13 +392,27 @@ button {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
+  /* ledger double rule: hairline plus a second hairline 3px below */
   border-bottom: 1px solid var(--rule);
+  box-shadow: 0 3px 0 -2px var(--rule);
 }
 .panel__title {
+  /* engraved caption: mono micro plate number, then the title in Fraunces */
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 560;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+}
+.panel__title::before {
+  content: "Pl. " counter(plate, decimal-leading-zero) "  ·  ";
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--ink-dim);
+  color: var(--ink-ghost);
+  vertical-align: 2px;
 }
 .panel__meta {
   font-size: var(--fs-micro);
@@ -434,13 +477,17 @@ button {
   color: var(--ink-faint);
 }
 .stat__value {
+  /* hero numerals speak Fraunces; column data everywhere else stays mono */
+  font-family: var(--font-display);
   font-size: var(--fs-xl);
   color: var(--ink);
   line-height: 1.05;
-  font-weight: 600;
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
 }
 .stat__value.is-hero {
   font-size: var(--fs-hero);
+  font-variation-settings: "SOFT" 0, "WONK" 1;
 }
 .stat__sub {
   font-size: var(--fs-xs);
@@ -1292,7 +1339,7 @@ button {
   position: fixed;
   z-index: 50;
   pointer-events: none;
-  background: #05070a;
+  background: #0b0b0c;
   border: 1px solid var(--rule-2);
   padding: 7px 9px;
   font-size: var(--fs-xs);
@@ -2879,4 +2926,69 @@ button {
   .reach-detail__cols {
     grid-template-columns: 1fr;
   }
+}
+
+/* =============================================================================
+   The Ledger primitives (2026-08-06): display voice, receipts, colophon
+   ============================================================================= */
+
+/* display voice utilities: Fraunces narrates. Never below 15px; wonk only large. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  letter-spacing: 0.005em;
+}
+.display--xl {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  line-height: 1.1;
+}
+
+/* receipt underline: a number that reconciles against a listable receipt set.
+   Fine dotted rule + a section mark, print-style; the ink stays ink (the claim
+   is the content), signal appears only on hover. */
+.receipt-link {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--signal-dim);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.receipt-link::after {
+  content: "\00a7"; /* § — the reference mark of a published record */
+  font-size: 0.68em;
+  vertical-align: super;
+  color: var(--signal-dim);
+  margin-left: 2px;
+}
+.receipt-link:hover {
+  color: var(--signal);
+  text-decoration-color: var(--signal);
+}
+
+/* colophon: the plate's edge-notes. Closes every view under a double rule. */
+.colophon {
+  margin-top: auto;
+  padding: 10px 2px 2px;
+  border-top: 3px double var(--rule-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+.colophon a {
+  color: var(--ink-faint);
+}
+.colophon a:hover {
+  color: var(--signal);
+}
+.colophon .num {
+  color: var(--ink-faint);
 }

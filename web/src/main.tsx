@@ -2,6 +2,7 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import "@fontsource-variable/fraunces/full.css";
 import "./theme.css";
 
 /** Screen-level error boundary: a single React fault anywhere in the tree used to unmount the
