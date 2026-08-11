@@ -127,6 +127,7 @@ def test_signal_is_detail_only_and_null_where_it_should_be(db_conn):
     assert client.get("/api/buses/terran").json()["pending_applications"] is None
 
 
+@pytest.mark.db
 def test_filings_q_searches_applicant_name():
     client = _client()
     r = client.get("/api/filings/pending?q=intuitive").json()

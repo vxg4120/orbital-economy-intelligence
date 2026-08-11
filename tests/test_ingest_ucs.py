@@ -46,12 +46,14 @@ def test_run_with_explicit_path_lands_rows(clean_db):
     assert rows == [(900000001, "OEI Test Sat 1"), (900000002, "OEI Test Sat 2")]
 
 
+@pytest.mark.db
 def test_run_with_no_file_and_no_url_is_a_graceful_noop(db_conn, monkeypatch):
     monkeypatch.setattr(ucs_seed, "LOCAL_GLOBS", ("data/ucs-does-not-exist/*.txt",))
     n = ucs_seed.run(db_conn, path_or_url=None)
     assert n == 0
 
 
+@pytest.mark.db
 def test_run_rejects_xlsx_with_a_clear_error(db_conn, tmp_path):
     fake_xlsx = tmp_path / "ucs.xlsx"
     fake_xlsx.write_bytes(b"not really an xlsx")
