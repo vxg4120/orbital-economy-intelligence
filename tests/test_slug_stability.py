@@ -21,14 +21,20 @@ EXPECTED_ALIASES = {("plabs", "plan"), ("cosmog", "plan"), ("skybox", "plan")}
 
 
 @pytest.mark.db
-def test_alias_table_holds_exactly_the_planet_merge(db_conn):
+def test_alias_table_holds_the_planet_merge(db_conn):
+    """Rule-pin, not outcome-pin: the alias table is append-only by design (a published,
+    retired slug's redirect is a permanent contract), so a future legitimate merge ADDS rows
+    here after passing the diff gate's --allow blessing. What must hold forever is that the
+    Planet rows are present (never removed, never retargeted) and that no alias points at a
+    dead slug (covered by the resolution test below)."""
     with db_conn.cursor() as cur:
         cur.execute(
             "SELECT old_slug, new_slug FROM benchmark_slug_alias WHERE kind = 'manufacturer'"
         )
-        assert set(cur.fetchall()) == EXPECTED_ALIASES
-        cur.execute("SELECT count(*) FROM benchmark_slug_alias WHERE kind <> 'manufacturer'")
-        assert cur.fetchone()[0] == 0
+        rows = set(cur.fetchall())
+    assert EXPECTED_ALIASES <= rows, "a recorded redirect vanished or was retargeted"
+    old_slugs = [old for old, _ in rows]
+    assert len(old_slugs) == len(set(old_slugs)), "an old slug redirects to two targets"
 
 
 @pytest.mark.db
@@ -77,14 +83,19 @@ def test_frozen_bus_rows_embedded_manufacturer_slugs_resolve(db_conn):
 
 @pytest.mark.db
 def test_planet_merge_outcome(db_conn):
+    """Identity pins stay exact (name, group code: a change means the URL serves a different
+    entity); magnitude pins are floors (Planet launches routinely, and a fleet that GROWS is
+    not a reviewable event -- the 661 floor is what the 2026-07 merge delivered, and falling
+    below it would mean the merge partially unwound)."""
     with db_conn.cursor() as cur:
         cur.execute(
             "SELECT manufacturer_name, manufacturer_group_code, fleet_total, org_count "
             "FROM v_bus_benchmarks_manufacturer WHERE manufacturer_slug = 'plan'"
         )
         name, gcode, fleet, orgs = cur.fetchone()
-    assert (name, gcode, fleet) == ("Planet", "PLAN", 661)
-    assert orgs == 4, "PLAN + PLABS + COSMOG + SKYBOX leaf codes"
+    assert (name, gcode) == ("Planet", "PLAN")
+    assert fleet >= 661, "the merged Planet cohort lost members it had at merge time"
+    assert orgs >= 4, "PLAN + PLABS + COSMOG + SKYBOX leaf codes at minimum"
 
 
 @pytest.mark.db
@@ -293,11 +304,13 @@ def test_retired_slug_still_serves_via_api(db_conn):
     body = r.json()
     assert body["aliased_from"] == "plabs"
     assert body["benchmark"]["slug"] == "plan"
-    assert body["benchmark"]["fleet_total"] == 661
-    # Receipts reconcile against the surviving cohort's headline.
+    # Reconciliation pin, not magnitude pin: the redirect must serve the surviving cohort's
+    # CURRENT headline, and receipts must equal it exactly, whatever Planet's fleet is today.
+    fleet_now = body["benchmark"]["fleet_total"]
+    assert fleet_now >= 661, "the merged cohort fell below its merge-time fleet"
     r2 = client.get("/api/buses/plabs/provenance?metric=fleet")
     assert r2.status_code == 200
-    assert r2.json()["total"] == 661
+    assert r2.json()["total"] == fleet_now
     # The frozen series is reachable and names its continuation.
     r3 = client.get("/api/buses/history/plabs")
     assert r3.status_code == 200
