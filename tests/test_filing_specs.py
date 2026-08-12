@@ -47,6 +47,25 @@ def test_page_texts_returns_one_entry_per_physical_page(two_page_pdf):
     assert all(isinstance(p, str) for p in pages)
 
 
+def test_looks_complete_accepts_a_whole_pdf(two_page_pdf):
+    assert filing_blobs.looks_complete(two_page_pdf) is True
+
+
+def test_looks_complete_rejects_a_truncated_transfer(two_page_pdf):
+    """The real failure: the gateway answers 200 with content-type application/pdf and sends only
+    the opening bytes. Every document of SATLOA2016062200058 arrives as 455 bytes against a
+    declared length of 87,684. Those bytes ARE a valid PDF opening, so a header check alone passes
+    them; the EOF marker is what catches it."""
+    truncated = two_page_pdf[:455]
+    assert truncated.startswith(b"%PDF-")          # a header check alone would be fooled
+    assert filing_blobs.looks_complete(truncated) is False
+
+
+def test_looks_complete_rejects_something_that_is_not_a_pdf():
+    assert filing_blobs.looks_complete(b"<html>Access Denied</html>") is False
+    assert filing_blobs.looks_complete(b"") is False
+
+
 # ---------------------------------------------------------------------------------------------
 # citation validation
 # ---------------------------------------------------------------------------------------------

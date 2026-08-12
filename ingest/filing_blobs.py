@@ -33,6 +33,23 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def looks_complete(data: bytes) -> bool:
+    """True when the bytes are a whole PDF rather than a truncated transfer.
+
+    The api-prod gateway serves some attachments partially: it answers 200 with
+    content-type application/pdf, and delivers only the first few hundred bytes. Measured on
+    SATLOA2016062200058 (filed 2016), all 28 of its "Schedule S DOC N.pdf" attachments come back as
+    exactly 455 bytes, and the truncation is server-side -- identity encoding, gzip, curl and
+    curl_cffi all get the same 455 bytes, while the file's own linearization header declares a full
+    length of 87,684.
+
+    Worth distinguishing from a parse failure, because the two mean different things and deserve
+    different responses. A truncated transfer is the FCC's data being unavailable, which is a
+    coverage fact to publish. A parse failure on complete bytes would be our problem to fix.
+    """
+    return data.startswith(b"%PDF-") and b"%%EOF" in data[-2048:]
+
+
 def page_texts(data: bytes) -> list[str]:
     """Per-physical-page text. Index 0 is page 1; citations are 1-based everywhere else.
 

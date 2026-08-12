@@ -101,6 +101,15 @@ def process_one(session, conn, run_id: int, file_number: str, sys_id: str, url: 
         return "fetch_failed"
 
     sha = filing_blobs.sha256_bytes(data)
+    if not filing_blobs.looks_complete(data):
+        # Server-side truncation, not our parse failure: the gateway answers 200 with
+        # content-type application/pdf and sends only the opening bytes. Recorded distinctly so
+        # coverage reporting can say "the FCC did not serve this" rather than implying we choked.
+        _record_blob_failure(
+            conn, file_number, sys_id, "truncated",
+            f"gateway returned {len(data)} bytes with no EOF marker", sha, len(data),
+        )
+        return "truncated"
     try:
         pages = filing_blobs.page_texts(data)
     except Exception as exc:  # noqa: BLE001

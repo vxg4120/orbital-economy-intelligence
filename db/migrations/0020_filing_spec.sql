@@ -32,7 +32,14 @@ CREATE TABLE IF NOT EXISTS fcc_filing_blob (
     byte_count    BIGINT,
     content_type  TEXT,
     page_count    INT,
-    fetch_status  TEXT NOT NULL,           -- ok | http_error | parse_error
+    -- ok | http_error | truncated | parse_error.  'truncated' is kept distinct from 'parse_error'
+    -- on purpose: the gateway serves some attachments partially, answering 200 with
+    -- content-type application/pdf and only the opening bytes (measured: all 28 documents of
+    -- SATLOA2016062200058 come back as exactly 455 bytes against a declared length of 87,684, and
+    -- it is server-side -- identity, gzip, curl and curl_cffi all get the same). That is the FCC's
+    -- data being unavailable, which belongs in published coverage. A parse failure on complete
+    -- bytes would be our defect. Collapsing the two would hide which is which.
+    fetch_status  TEXT NOT NULL,
     fetch_note    TEXT,
     fetched_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (file_number, sys_id)
