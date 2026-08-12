@@ -42,9 +42,27 @@ Apogee 1030.0 km
 Perigee 1030.0 km
 """
 
-BAND_PAGE = """Earth Exploration-Satellite Service 25500.0 MHz -27000.0 MHz Transmit
-Earth Exploration-Satellite Service 2025.0 MHz -2110.0 MHz Receive
-Space Operation Service 400.15 MHz -401.0 MHz Transmit
+# Verbatim pypdf rendering of the frequency table from SATAMD2022063000067 page 3. Note it comes
+# out ONE CELL PER LINE, and the service label wraps across two of them. This is the real shape;
+# a one-row-per-line fixture would have hidden the truncation bug this text exposes. The column
+# header is kept in the fixture on purpose: it is what the capture ran into once the group was
+# allowed to cross newlines.
+BAND_PAGE = """Nature of service Description Frequency Band(s)
+Mode
+Type
+Earth Exploration-Satellite
+Service
+25500.0 MHz
+-27000.0 MHz
+Transmit
+Earth Exploration-Satellite
+Service
+2025.0 MHz -2110.0
+MHz
+Receive
+Space Operation Service
+400.15 MHz -401.0 MHz
+Transmit
 """
 
 
@@ -111,6 +129,29 @@ def test_parses_frequency_bands_with_direction():
     assert bands[0]["freq_high_mhz"] == 27000.0
     assert bands[0]["direction"] == "Transmit"
     assert bands[1]["direction"] == "Receive"
+    assert bands[1]["freq_low_mhz"] == 2025.0
     assert bands[2]["freq_low_mhz"] == 400.15
     assert bands[2]["service"] == "Space Operation Service"
     assert [b["band_idx"] for b in bands] == [0, 1, 2]
+
+
+def test_wrapped_service_label_is_captured_whole():
+    """The table renders one cell per line, so "Earth Exploration-Satellite" and "Service" arrive
+    on separate lines. Keeping only the trailing fragment yields the useless service name
+    "Service", and it survives citation validation because that word IS on the page. Presence is
+    not completeness, so the parse has to be right rather than merely checkable."""
+    bands = schedule_s.parse_bands([BAND_PAGE])
+    assert bands[0]["service"] == "Earth Exploration-Satellite Service"
+    assert bands[1]["service"] == "Earth Exploration-Satellite Service"
+    assert all("\n" not in b["service"] for b in bands)
+
+
+def test_service_capture_does_not_swallow_the_column_header():
+    """Letting the label cross newlines made the first match start up in the header row, producing
+    "Nature of service Description Frequency Band(s) Mode Type Earth Exploration-Satellite
+    Service". Bounding the capture to a two-line, label-sized span is what stops it."""
+    bands = schedule_s.parse_bands([BAND_PAGE])
+    for band in bands:
+        assert "Nature of service" not in band["service"]
+        assert "Frequency Band" not in band["service"]
+        assert len(band["service"]) < 60

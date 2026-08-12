@@ -59,11 +59,16 @@ _ORBIT_LINE = re.compile(
     re.M,
 )
 
+# The frequency table renders ONE CELL PER LINE under pypdf, not one row per line, so a band's
+# service / range / direction arrive as five or more separate lines and a wrapped service label
+# ("Earth Exploration-Satellite" then "Service") is split across two of them. The service group
+# therefore has to admit newlines, and the match is whitespace-joined afterwards. Without that the
+# capture silently keeps only the trailing fragment, "Service", which still passes citation
+# validation because that word genuinely is on the page -- presence is not completeness.
 _BAND_LINE = re.compile(
-    r"^\s*(?P<service>[A-Za-z][A-Za-z ,'/()-]*?[A-Za-z])\s+"
+    r"(?P<service>[A-Za-z][A-Za-z ,'/()-]{0,44}(?:\n[A-Za-z][A-Za-z ,'/()-]{0,44})?)\s+"
     r"(?P<low>\d+(?:\.\d+)?)\s*MHz\s*-\s*(?P<high>\d+(?:\.\d+)?)\s*MHz\s+"
-    r"(?P<direction>Transmit|Receive)\s*$",
-    re.M,
+    r"(?P<direction>Transmit|Receive)\b",
 )
 
 
@@ -144,7 +149,8 @@ def parse_bands(pages: list[str]) -> list[dict]:
         for match in _BAND_LINE.finditer(text):
             bands.append({
                 "band_idx": len(bands),
-                "service": match.group("service").strip(),
+                # Whitespace-joined because the label may have wrapped across table lines.
+                "service": " ".join(match.group("service").split()),
                 "freq_low_mhz": float(match.group("low")),
                 "freq_high_mhz": float(match.group("high")),
                 "direction": match.group("direction"),
