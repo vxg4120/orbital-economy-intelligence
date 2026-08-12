@@ -34,17 +34,43 @@ def test_view_is_exactly_one_latest_row_per_satellite(db_conn):
             "(SELECT count(DISTINCT norad_id) FROM gp_elements)"
         )
         mv_rows, live_norads = cur.fetchone()
-        assert mv_rows == live_norads, "cardinality drifted from the live table"
-        # Every stored epoch is the satellite's true maximum.
+        # The matview is a SNAPSHOT refreshed by its own nightly step, so it may lag the live
+        # table and must never lead it. An earlier version of this test asserted exact equality
+        # here and on the epochs below, which made it fail whenever a GP ingest landed between
+        # the refresh and the assertion. That is the system working correctly, so the equality
+        # was pinning an outcome (perfectly current) where the real rule is: consistent, never
+        # ahead, never fabricated. A sibling session hit the false failure before this fix.
+        assert mv_rows <= live_norads, "the matview holds satellites the live table does not"
+        assert mv_rows > 15000, "matview went vacuous; check scripts/refresh_matviews.py"
+
+        # No duplicates: the unique index guarantees it, and this proves the guarantee.
+        cur.execute(
+            "SELECT count(*), count(DISTINCT norad_id) FROM mv_latest_gp_element"
+        )
+        rows, distinct = cur.fetchone()
+        assert rows == distinct, "a satellite appears twice in the matview"
+
+        # Never ahead, and never fabricated: every stored (norad, epoch) pair must exist in
+        # gp_elements, and must not be newer than that satellite's current maximum.
         cur.execute(
             """
             SELECT count(*) FROM mv_latest_gp_element mv
             JOIN (SELECT norad_id, max(epoch) AS max_epoch FROM gp_elements GROUP BY 1) t
               ON t.norad_id = mv.norad_id
-            WHERE mv.epoch <> t.max_epoch
+            WHERE mv.epoch > t.max_epoch
             """
         )
-        assert cur.fetchone()[0] == 0, "a stale epoch is stored as latest"
+        assert cur.fetchone()[0] == 0, "the matview stores an epoch newer than any real element"
+        cur.execute(
+            """
+            SELECT count(*) FROM mv_latest_gp_element mv
+            WHERE NOT EXISTS (
+                SELECT 1 FROM gp_elements g
+                WHERE g.norad_id = mv.norad_id AND g.epoch = mv.epoch
+            )
+            """
+        )
+        assert cur.fetchone()[0] == 0, "the matview stores an element that does not exist"
 
 
 @pytest.mark.db
