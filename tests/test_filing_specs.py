@@ -209,6 +209,7 @@ def _client():
     return TestClient(app)
 
 
+@pytest.mark.db
 def test_spec_endpoint_shape_and_citations(db_conn):
     """Every served plane must carry a resolvable page citation. A row without one is exactly the
     thing the validator exists to keep off the wire."""
@@ -225,6 +226,7 @@ def test_spec_endpoint_shape_and_citations(db_conn):
         assert "\n" not in (band["service"] or "")
 
 
+@pytest.mark.db
 def test_spec_endpoint_reports_the_source_document_hash(db_conn):
     """The citation is only checkable if the reader knows which bytes it refers to."""
     body = _client().get("/api/filings/SATAMD2022063000067/spec").json()
@@ -232,6 +234,7 @@ def test_spec_endpoint_reports_the_source_document_hash(db_conn):
     assert body["source_document"]["page_count"] > 0
 
 
+@pytest.mark.db
 def test_spec_endpoint_flags_as_filed_sentinels_rather_than_correcting_them(db_conn):
     """Astrobotic files apogee 99999 because Schedule S cannot express a lunar trajectory. The
     number must be served as filed and flagged, never silently repaired, or the citation would
@@ -242,6 +245,7 @@ def test_spec_endpoint_flags_as_filed_sentinels_rather_than_correcting_them(db_c
     assert flagged[0]["apogee_km"] == 99999
 
 
+@pytest.mark.db
 def test_spec_endpoint_is_empty_not_404_for_a_filing_with_no_schedule_s(db_conn):
     """Absence of a Schedule S is a coverage fact, not an error. 65 of 136 filings have one."""
     r = _client().get("/api/filings/SATLOA2016062200058/spec")
