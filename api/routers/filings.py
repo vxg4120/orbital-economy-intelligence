@@ -109,3 +109,71 @@ def documents(file_number: str, db=Depends(get_db)):
         "source": "FCC ICFS portal (public), harvested inventory; documents served by "
                   "api-prod.fcc.gov",
     }
+
+
+# Values a lunar or deep-space applicant enters because Schedule S has no field that describes a
+# translunar trajectory: the form demands numbers, so they file sentinels. Observed across four
+# planes (Intuitive Machines IM-3 Nova-C and Lockheed's LM Lunar file 1/1/0; Astrobotic's Griffin
+# and Peregrine file apogee 99999). Reported as-filed and flagged, never silently corrected --
+# the filing really does say this, and a reader checking the citation must find what we published.
+_IMPLAUSIBLE_APOGEE_KM = (150, 50_000)
+
+
+@router.get("/{file_number}/spec")
+def filing_spec(file_number: str, db=Depends(get_db)):
+    """Machine-derived Schedule S specs for one filing, every field carrying a page citation.
+
+    Parsed deterministically from the FCC's own generated Tech Report, not inferred by a model.
+    Only validated rows are served: a row whose cited page did not physically contain its value is
+    kept in the table for debugging and never returned here.
+
+    Orbital planes are returned raw, one per plane as Schedule S lists them. Grouping them into
+    "shells" is a judgement with its own rule and is deliberately not done here.
+    """
+    fn = file_number.strip().upper()
+    with db.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM fcc_spec_filing WHERE file_number = %(fn)s AND is_validated",
+            {"fn": fn},
+        )
+        summary = cur.fetchone()
+        cur.execute(
+            "SELECT plane_idx, apogee_km, apogee_page, perigee_km, perigee_page, "
+            "inclination_deg, inclination_page, arg_perigee_deg, arg_perigee_page, source_page "
+            "FROM fcc_spec_orbital WHERE file_number = %(fn)s AND is_validated "
+            "ORDER BY plane_idx",
+            {"fn": fn},
+        )
+        planes = cur.fetchall()
+        cur.execute(
+            "SELECT band_idx, service, freq_low_mhz, freq_high_mhz, direction, source_page "
+            "FROM fcc_spec_band WHERE file_number = %(fn)s AND is_validated ORDER BY band_idx",
+            {"fn": fn},
+        )
+        bands = cur.fetchall()
+        cur.execute(
+            "SELECT sha256, byte_count, page_count, fetch_status, fetched_at "
+            "FROM fcc_filing_blob WHERE file_number = %(fn)s ORDER BY fetched_at DESC LIMIT 1",
+            {"fn": fn},
+        )
+        blob = cur.fetchone()
+
+    lo, hi = _IMPLAUSIBLE_APOGEE_KM
+    for plane in planes:
+        apogee = plane.get("apogee_km")
+        plane["as_filed_implausible"] = apogee is not None and not (lo <= apogee <= hi)
+
+    return {
+        "file_number": fn,
+        "summary": summary,
+        "planes": planes,
+        "bands": bands,
+        "source_document": blob,
+        "extraction": {
+            "method": "deterministic parse of the FCC-generated Schedule S Tech Report",
+            "validated": "every field re-checked against its cited page before being served",
+            "caveat": "values are reported exactly as filed; planes flagged as_filed_implausible "
+                      "carry sentinels the applicant entered because Schedule S cannot express a "
+                      "translunar trajectory",
+        },
+    }

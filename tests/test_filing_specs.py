@@ -191,3 +191,59 @@ def test_validator_confirms_a_real_parsed_row_end_to_end():
         [page], planes, ("apogee_km", "perigee_km", "inclination_deg")
     )
     assert verdicts == [True]
+
+
+# ---------------------------------------------------------------------------------------------
+# the served surface
+# ---------------------------------------------------------------------------------------------
+
+
+def _client():
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from fastapi.testclient import TestClient
+    from api.main import app
+
+    return TestClient(app)
+
+
+def test_spec_endpoint_shape_and_citations(db_conn):
+    """Every served plane must carry a resolvable page citation. A row without one is exactly the
+    thing the validator exists to keep off the wire."""
+    body = _client().get("/api/filings/SATAMD2022063000067/spec").json()
+    assert body["file_number"] == "SATAMD2022063000067"
+    assert body["summary"]["orbit_type"] == "NGSO"
+    assert body["planes"], "expected planes for a filing known to have them"
+    for plane in body["planes"]:
+        assert plane["source_page"] >= 1
+        if plane["apogee_km"] is not None:
+            assert plane["apogee_page"] >= 1
+    for band in body["bands"]:
+        assert band["source_page"] >= 1
+        assert "\n" not in (band["service"] or "")
+
+
+def test_spec_endpoint_reports_the_source_document_hash(db_conn):
+    """The citation is only checkable if the reader knows which bytes it refers to."""
+    body = _client().get("/api/filings/SATAMD2022063000067/spec").json()
+    assert len(body["source_document"]["sha256"]) == 64
+    assert body["source_document"]["page_count"] > 0
+
+
+def test_spec_endpoint_flags_as_filed_sentinels_rather_than_correcting_them(db_conn):
+    """Astrobotic files apogee 99999 because Schedule S cannot express a lunar trajectory. The
+    number must be served as filed and flagged, never silently repaired, or the citation would
+    point at a page that disagrees with us."""
+    body = _client().get("/api/filings/SATSTA2021020800018/spec").json()
+    flagged = [p for p in body["planes"] if p["as_filed_implausible"]]
+    assert flagged, "expected the lunar sentinel to be flagged"
+    assert flagged[0]["apogee_km"] == 99999
+
+
+def test_spec_endpoint_is_empty_not_404_for_a_filing_with_no_schedule_s(db_conn):
+    """Absence of a Schedule S is a coverage fact, not an error. 65 of 136 filings have one."""
+    r = _client().get("/api/filings/SATLOA2016062200058/spec")
+    assert r.status_code == 200
+    assert r.json()["planes"] == []

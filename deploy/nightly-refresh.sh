@@ -20,6 +20,9 @@ DC="docker compose"
   $DC exec -T oei-api python scripts/build_rf.py    || echo "!! oei build_rf failed"
   $DC exec -T oei-api python scripts/fetch_filing_documents.py --if-stale \
                                                     || echo "!! oei filing documents failed"
+  # Runs after the document harvest, since it consumes what that just inventoried.
+  $DC exec -T oei-api python scripts/extract_filing_specs.py --if-stale \
+                                                    || echo "!! oei schedule S specs failed"
   echo "--- exodossier (exo) ---"
   $DC exec -T exo-api python scripts/ingest_all.py  || echo "!! exo ingest_all failed"
   $DC exec -T exo-api python scripts/build_graph.py || echo "!! exo build_graph failed"
