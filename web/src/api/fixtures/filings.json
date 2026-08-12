@@ -26,7 +26,16 @@
         "Explicitly targets Globalstar's exclusivity in the 1.6/2.4 GHz band, citing 0.3 percent utilization of legacy capacity"
       ],
       "note_source_doc": "Narrative.pdf",
-      "note_source_pages": "Summary, pp. i-ii"
+      "note_source_pages": "Summary, pp. i-ii",
+      "spec_orbit_type": "NGSO",
+      "spec_network_name": "Flock",
+      "spec_total_satellites": 200,
+      "spec_planes_n": 1,
+      "spec_alt_min_km": 500,
+      "spec_alt_max_km": 500,
+      "spec_incl_min_deg": 97.4,
+      "spec_incl_max_deg": 97.4,
+      "spec_implausible_n": 0
     },
     {
       "filing_key": -525521,
@@ -49,7 +58,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": "NGSO",
+      "spec_network_name": "LEMUR-4",
+      "spec_total_satellites": 175,
+      "spec_planes_n": 13,
+      "spec_alt_min_km": 500,
+      "spec_alt_max_km": 650,
+      "spec_incl_min_deg": 0.0,
+      "spec_incl_max_deg": 98.0,
+      "spec_implausible_n": 0
     },
     {
       "filing_key": -524530,
@@ -72,7 +90,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": "NGSO",
+      "spec_network_name": "Griffin Mission",
+      "spec_total_satellites": 1,
+      "spec_planes_n": 1,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": 30.0,
+      "spec_incl_max_deg": 30.0,
+      "spec_implausible_n": 1
     },
     {
       "filing_key": -524856,
@@ -95,7 +122,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -524855,
@@ -118,7 +154,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -523458,
@@ -141,7 +186,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -523258,
@@ -164,7 +218,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -521466,
@@ -187,7 +250,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -520518,
@@ -210,7 +282,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -520520,
@@ -233,7 +314,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -519848,
@@ -256,7 +346,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -519699,
@@ -279,7 +378,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -516819,
@@ -302,7 +410,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -516931,
@@ -325,7 +442,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -514589,
@@ -348,7 +474,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -514643,
@@ -371,7 +506,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -514530,
@@ -394,7 +538,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -511011,
@@ -417,7 +570,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -509134,
@@ -440,7 +602,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -506881,
@@ -463,7 +634,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -503184,
@@ -486,7 +666,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -501622,
@@ -509,7 +698,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -501606,
@@ -532,7 +730,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -498627,
@@ -555,7 +762,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     },
     {
       "filing_key": -490765,
@@ -578,7 +794,16 @@
       "note_summary": null,
       "note_key_points": null,
       "note_source_doc": null,
-      "note_source_pages": null
+      "note_source_pages": null,
+      "spec_orbit_type": null,
+      "spec_network_name": null,
+      "spec_total_satellites": null,
+      "spec_planes_n": null,
+      "spec_alt_min_km": null,
+      "spec_alt_max_km": null,
+      "spec_incl_min_deg": null,
+      "spec_incl_max_deg": null,
+      "spec_implausible_n": null
     }
   ],
   "total": 31,

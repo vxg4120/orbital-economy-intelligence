@@ -130,10 +130,66 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
               {r.documents_n} docs
             </span>
           ) : null}
+          <SpecChips filing={r} />
         </span>
       </button>
       {open ? <FilingDetail filing={r} /> : null}
     </li>
+  );
+}
+
+/** Constellation shape read out of the filing's own Schedule S, or nothing when it has none.
+ *
+ * Every datum stays mono, per the Ledger rule. These are machine-derived, so the title attributes
+ * say where each number came from rather than presenting it as catalog truth. */
+function SpecChips({ filing: r }: { filing: PendingFiling }) {
+  if (!r.spec_planes_n) return null;
+  const alt =
+    r.spec_alt_min_km != null && r.spec_alt_max_km != null
+      ? r.spec_alt_min_km === r.spec_alt_max_km
+        ? `${r.spec_alt_min_km} km`
+        : `${r.spec_alt_min_km}-${r.spec_alt_max_km} km`
+      : null;
+  const inc =
+    r.spec_incl_min_deg != null && r.spec_incl_max_deg != null
+      ? r.spec_incl_min_deg === r.spec_incl_max_deg
+        ? `${r.spec_incl_min_deg}°`
+        : `${r.spec_incl_min_deg}-${r.spec_incl_max_deg}°`
+      : null;
+  return (
+    <>
+      {r.spec_total_satellites ? (
+        <span className="num" style={{ marginLeft: 10 }} title="Total satellites in the active constellation, per Schedule S">
+          {r.spec_total_satellites} {r.spec_total_satellites === 1 ? "sat" : "sats"}
+        </span>
+      ) : null}
+      <span className="num" style={{ marginLeft: 10 }} title="Orbital planes listed in Schedule S">
+        {r.spec_planes_n} {r.spec_planes_n === 1 ? "plane" : "planes"}
+      </span>
+      {alt ? (
+        <span className="num" style={{ marginLeft: 10 }} title="Mean altitude across planes, from filed apogee and perigee">
+          {alt}
+        </span>
+      ) : null}
+      {inc ? (
+        <span className="num" style={{ marginLeft: 10 }} title="Inclination range across planes, as filed">
+          {inc}
+        </span>
+      ) : null}
+      {r.spec_implausible_n ? (
+        <span
+          className="badge"
+          style={{ marginLeft: 8 }}
+          title={
+            `${r.spec_implausible_n} plane(s) filed an apogee outside 150-50,000 km and are ` +
+            "excluded from the altitude range. Not a parse error: Schedule S has no field for a " +
+            "translunar trajectory, so lunar applicants enter sentinel values."
+          }
+        >
+          lunar
+        </span>
+      ) : null}
+    </>
   );
 }
 

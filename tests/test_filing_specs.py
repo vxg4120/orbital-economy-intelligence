@@ -251,3 +251,35 @@ def test_spec_endpoint_is_empty_not_404_for_a_filing_with_no_schedule_s(db_conn)
     r = _client().get("/api/filings/SATLOA2016062200058/spec")
     assert r.status_code == 200
     assert r.json()["planes"] == []
+
+
+@pytest.mark.db
+def test_pending_list_carries_the_spec_summary(db_conn):
+    """The list has to answer "what shape is this constellation" without the client fetching every
+    filing's spec separately, so the summary rides along on the row."""
+    body = _client().get("/api/filings/pending?limit=200").json()
+    withspec = [r for r in body["rows"] if r.get("spec_planes_n")]
+    assert withspec, "expected some pending filings to carry a parsed Schedule S"
+    for row in withspec:
+        assert row["spec_planes_n"] >= 1
+        if row["spec_alt_min_km"] is not None:
+            assert row["spec_alt_min_km"] <= row["spec_alt_max_km"]
+
+
+@pytest.mark.db
+def test_lunar_sentinels_are_excluded_from_the_altitude_range_and_counted(db_conn):
+    """A filing with apogee 99999 must not report an altitude range spanning to 99,999 km. The
+    sentinel is excluded and surfaced as a count, so the exclusion is visible rather than silent."""
+    # The endpoint caps limit at 200, so page rather than asking for more and getting a 422.
+    client = _client()
+    rows = []
+    for offset in (0, 200, 400, 600):
+        page = client.get(f"/api/filings/pending?limit=200&offset={offset}").json()
+        rows.extend(page["rows"])
+        if len(page["rows"]) < 200:
+            break
+    lunar = [r for r in rows if (r.get("spec_implausible_n") or 0) > 0]
+    assert lunar, "expected at least one filing carrying a lunar sentinel"
+    for row in lunar:
+        if row["spec_alt_max_km"] is not None:
+            assert row["spec_alt_max_km"] <= 50_000

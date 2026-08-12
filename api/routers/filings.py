@@ -58,12 +58,44 @@ def pending(
                    n.summary  AS note_summary,
                    n.key_points AS note_key_points,
                    n.source_doc AS note_source_doc,
-                   n.source_pages AS note_source_pages
+                   n.source_pages AS note_source_pages,
+                   s.orbit_type AS spec_orbit_type,
+                   s.network_name AS spec_network_name,
+                   s.total_satellites AS spec_total_satellites,
+                   o.planes_n AS spec_planes_n,
+                   o.alt_min_km AS spec_alt_min_km,
+                   o.alt_max_km AS spec_alt_max_km,
+                   o.incl_min_deg AS spec_incl_min_deg,
+                   o.incl_max_deg AS spec_incl_max_deg,
+                   o.implausible_n AS spec_implausible_n
             FROM (SELECT * FROM v_fcc_pending_applications {where}
                   ORDER BY date_filed DESC NULLS LAST, file_number
                   LIMIT %(limit)s OFFSET %(offset)s) p
             LEFT JOIN fcc_applicant_link l ON l.frn = p.applicant_frn
             LEFT JOIN fcc_filing_note n ON n.file_number = p.file_number
+            -- Machine-derived Schedule S summary, validated rows only, so a row can show
+            -- constellation shape without the client fetching every filing's spec separately.
+            LEFT JOIN fcc_spec_filing s
+                   ON s.file_number = p.file_number AND s.is_validated
+            LEFT JOIN (
+                SELECT file_number,
+                       count(*) AS planes_n,
+                       -- Altitude range uses mean altitude per plane, and EXCLUDES the lunar
+                       -- sentinels: an applicant filing apogee 99999 because Schedule S cannot
+                       -- express a translunar trajectory would otherwise set every summary range
+                       -- to a meaningless span. The count of them travels alongside so the
+                       -- exclusion is visible rather than silent.
+                       round(min((apogee_km + perigee_km) / 2.0) FILTER (
+                           WHERE apogee_km BETWEEN 150 AND 50000)) AS alt_min_km,
+                       round(max((apogee_km + perigee_km) / 2.0) FILTER (
+                           WHERE apogee_km BETWEEN 150 AND 50000)) AS alt_max_km,
+                       min(inclination_deg) AS incl_min_deg,
+                       max(inclination_deg) AS incl_max_deg,
+                       count(*) FILTER (
+                           WHERE apogee_km IS NOT NULL
+                             AND apogee_km NOT BETWEEN 150 AND 50000) AS implausible_n
+                FROM fcc_spec_orbital WHERE is_validated GROUP BY file_number
+            ) o ON o.file_number = p.file_number
             ORDER BY p.date_filed DESC NULLS LAST, p.file_number
             """,
             params,
@@ -76,7 +108,10 @@ def pending(
             "Applications filed with the FCC and not yet decided: a forward view of satellites "
             "months to years before they reach any tracking catalog. Source: FCC IBFS bulk "
             "data, public domain. documents_n counts harvested ICFS attachments; "
-            "/api/filings/{file_number}/documents lists them with direct FCC download links."
+            "/api/filings/{file_number}/documents lists them with direct FCC download links. "
+            "spec_* fields are parsed deterministically from the filing's own Schedule S Tech "
+            "Report and served only after each value was re-checked against the page it cites; "
+            "/api/filings/{file_number}/spec carries the per-plane detail and those citations."
         ),
     }
 

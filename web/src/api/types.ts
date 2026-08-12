@@ -647,6 +647,28 @@ export interface PendingFiling {
   note_key_points: string[] | null;
   note_source_doc: string | null;
   note_source_pages: string | null;
+  /**
+   * Schedule S summary, parsed deterministically from the filing's own FCC-generated Tech Report
+   * and served only after each value was re-checked against the page it cites. Null throughout
+   * when the filing has no Schedule S, which is a coverage fact rather than an error: the form is
+   * present for 65 of the 136 filings with a harvested document inventory.
+   */
+  spec_orbit_type: string | null;
+  spec_network_name: string | null;
+  spec_total_satellites: number | null;
+  spec_planes_n: number | null;
+  /** Mean altitude range across planes. Excludes lunar sentinels; see spec_implausible_n. */
+  spec_alt_min_km: number | null;
+  spec_alt_max_km: number | null;
+  spec_incl_min_deg: number | null;
+  spec_incl_max_deg: number | null;
+  /**
+   * Planes whose filed apogee is outside 150-50,000 km. Not a parse error: Schedule S has no field
+   * for a translunar trajectory, so lunar applicants file sentinels (Intuitive Machines and
+   * Lockheed file 1 km; Astrobotic files 99,999 km). They are excluded from the altitude range and
+   * counted here so the exclusion is visible instead of silent.
+   */
+  spec_implausible_n: number | null;
 }
 
 export interface PendingFilingsResponse {
