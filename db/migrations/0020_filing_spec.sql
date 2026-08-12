@@ -58,16 +58,25 @@ CREATE TABLE IF NOT EXISTS fcc_spec_filing (
     extracted_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Citations here are PER FIELD, not per row, and that is not fastidiousness. A plane's four values
+-- routinely straddle a page break in real filings: measured on SATAMD2017030100030, 17 of 74 planes
+-- have their inclination on one page and their apogee and perigee on the next. A single row-level
+-- page number is therefore wrong for a quarter of the corpus, and wrong in the worst available
+-- direction, because it points a reader at a real page that does not contain the value.
 CREATE TABLE IF NOT EXISTS fcc_spec_orbital (
-    file_number       TEXT NOT NULL,
-    sys_id            TEXT NOT NULL,
-    plane_idx         INT  NOT NULL,       -- ordinal within the document, not an FCC plane id
-    apogee_km         NUMERIC,
-    perigee_km        NUMERIC,
-    inclination_deg   NUMERIC,
-    arg_perigee_deg   NUMERIC,
-    source_page       INT NOT NULL,
-    doc_sha256        TEXT NOT NULL,
+    file_number         TEXT NOT NULL,
+    sys_id              TEXT NOT NULL,
+    plane_idx           INT  NOT NULL,     -- ordinal within the document, not an FCC plane id
+    apogee_km           NUMERIC,
+    apogee_page         INT,
+    perigee_km          NUMERIC,
+    perigee_page        INT,
+    inclination_deg     NUMERIC,
+    inclination_page    INT,
+    arg_perigee_deg     NUMERIC,
+    arg_perigee_page    INT,
+    source_page         INT NOT NULL,      -- where the plane begins; per-field pages are authoritative
+    doc_sha256          TEXT NOT NULL,
     extractor_version TEXT NOT NULL,
     run_id            BIGINT,
     is_validated      BOOLEAN NOT NULL DEFAULT false,

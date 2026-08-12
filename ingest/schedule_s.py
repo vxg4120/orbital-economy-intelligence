@@ -43,6 +43,13 @@ _ORBIT_FIELDS = {
     "Apogee": ("apogee_km", "km"),
     "Perigee": ("perigee_km", "km"),
 }
+# Each orbital value carries its own page, because a plane's fields straddle page breaks.
+_PAGE_KEY = {
+    "inclination_deg": "inclination_page",
+    "arg_perigee_deg": "arg_perigee_page",
+    "apogee_km": "apogee_page",
+    "perigee_km": "perigee_page",
+}
 
 # Anchored on the unit so prose can never match. A narrative saying "at low and very low altitudes"
 # has no number and no unit, and that is exactly the sentence that would otherwise become data.
@@ -99,6 +106,12 @@ def parse_planes(pages: list[str]) -> list[dict]:
     second 'Inclination Angle' means a new plane began. Shells are NOT derived here. Grouping planes
     into shells is a judgement with its own rule, and whatever makes that call has to cite these
     rows rather than silently bake the rule into the data.
+
+    Each field carries its OWN page. A plane's four values routinely straddle a page break: on
+    SATAMD2017030100030, 17 of 74 planes have their inclination on one page and their apogee and
+    perigee on the next. A single row-level page would be wrong for a quarter of that document, and
+    wrong in the worst direction, since it points a reader at a real page lacking the value.
+    `source_page` is kept as where the plane begins, but the per-field pages are authoritative.
     """
     planes: list[dict] = []
     current: dict = {}
@@ -112,6 +125,7 @@ def parse_planes(pages: list[str]) -> list[dict]:
                 current = {"source_page": page_no}
             current.setdefault("source_page", page_no)
             current[key] = float(value)
+            current[_PAGE_KEY[key]] = page_no
     if current and any(k in current for k in ("apogee_km", "inclination_deg")):
         planes.append(current)
     for idx, plane in enumerate(planes):
