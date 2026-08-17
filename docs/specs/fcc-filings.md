@@ -3,7 +3,7 @@
 **Status:** active
 **Owner:** Vib
 **Repos touched:** space (OEI)
-**Last updated:** 2026-08-17
+**Last updated:** 2026-08-17 (Increment A shipped, commit 7c31f93 + spec close-out)
 
 ## Goal
 
@@ -97,21 +97,21 @@ Hard boundary for all work, and especially for anything autonomous or overnight:
 ## Acceptance criteria
 
 Increment A — dockets (in progress):
-- [ ] Migration 0021 creates `v_fcc_docket_filing` and `v_fcc_docket`, latest-run scoped.
+- [x] Migration 0021 creates `v_fcc_docket_filing` and `v_fcc_docket`, latest-run scoped.
       Verify: `sum(filings_pending)` over `v_fcc_docket` equals
       `count(*) FROM v_fcc_pending_applications WHERE callsign <> ''` (531 at spec time; the test
       pins the *equality*, not the number).
-- [ ] The docket views' pending predicate cannot drift from the canonical view. Verify: a test
+- [x] The docket views' pending predicate cannot drift from the canonical view. Verify: a test
       diffs `v_fcc_docket_filing WHERE is_pending` against `v_fcc_pending_applications` by
       file_number, both directions, empty.
-- [ ] `/api/filings/pending` rows carry `docket_filings_pending/_total/_pending_amendments`.
+- [x] `/api/filings/pending` rows carry `docket_filings_pending/_total/_pending_amendments`.
       Verify: pytest `tests/test_filing_lineage.py`; S3069 rows show total ≥ pending, granted ≥ 1.
-- [ ] `/api/filings/docket/{callsign}` serves the dated timeline (granted + pending) with
+- [x] `/api/filings/docket/{callsign}` serves the dated timeline (granted + pending) with
       per-filing `spec_available`. Verify: curl S3069 on prod returns both granted and pending
       entries, dates ascending.
-- [ ] Filings view shows a docket chip on multi-filing rows and the docket timeline in the
+- [x] Filings view shows a docket chip on multi-filing rows and the docket timeline in the
       expanded detail. Verify: tsc + vite build clean; mock fixtures carry docket fields.
-- [ ] Deployed and live-verified outside the nightly windows.
+- [x] Deployed and live-verified outside the nightly windows.
 
 Increment B — documentation (next, per Vib 2026-08-17 "work extensively on marketing and
 documentation"):
