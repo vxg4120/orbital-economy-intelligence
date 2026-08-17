@@ -67,7 +67,10 @@ def pending(
                    o.alt_max_km AS spec_alt_max_km,
                    o.incl_min_deg AS spec_incl_min_deg,
                    o.incl_max_deg AS spec_incl_max_deg,
-                   o.implausible_n AS spec_implausible_n
+                   o.implausible_n AS spec_implausible_n,
+                   d.filings_pending AS docket_filings_pending,
+                   d.filings_total AS docket_filings_total,
+                   d.pending_amendments AS docket_pending_amendments
             FROM (SELECT * FROM v_fcc_pending_applications {where}
                   ORDER BY date_filed DESC NULLS LAST, file_number
                   LIMIT %(limit)s OFFSET %(offset)s) p
@@ -96,6 +99,9 @@ def pending(
                              AND apogee_km NOT BETWEEN 150 AND 50000) AS implausible_n
                 FROM fcc_spec_orbital WHERE is_validated GROUP BY file_number
             ) o ON o.file_number = p.file_number
+            -- Docket summary: how many filings share this callsign, granted and pending. Null on
+            -- filings without a callsign, which is a fact about the filing, not a gap to fill.
+            LEFT JOIN v_fcc_docket d ON d.callsign = p.callsign
             ORDER BY p.date_filed DESC NULLS LAST, p.file_number
             """,
             params,
@@ -111,7 +117,9 @@ def pending(
             "/api/filings/{file_number}/documents lists them with direct FCC download links. "
             "spec_* fields are parsed deterministically from the filing's own Schedule S Tech "
             "Report and served only after each value was re-checked against the page it cites; "
-            "/api/filings/{file_number}/spec carries the per-plane detail and those citations."
+            "/api/filings/{file_number}/spec carries the per-plane detail and those citations. "
+            "docket_* fields summarize every filing sharing this callsign, granted and pending; "
+            "/api/filings/docket/{callsign} serves that full dated timeline."
         ),
     }
 
@@ -143,6 +151,52 @@ def documents(file_number: str, db=Depends(get_db)):
         "analyst_note": note,
         "source": "FCC ICFS portal (public), harvested inventory; documents served by "
                   "api-prod.fcc.gov",
+    }
+
+
+@router.get("/docket/{callsign}")
+def docket(callsign: str, db=Depends(get_db)):
+    """One callsign's full regulatory docket: every filing, granted and pending, dated.
+
+    Deliberately a timeline and not a chain. Concurrent pending modifications to a single
+    authorization are the normal case, not an anomaly (S3069 carries four at once, each touching
+    a different aspect of the system); the bulk data has no parent-filing key; and which earlier
+    filing an amendment amends lives in its prose. So nothing here asserts supersession, and
+    specs are never merged across filings: each row reports only whether its own validated
+    Schedule S extraction exists.
+
+    An unknown callsign returns an empty docket with HTTP 200, because absence from the record
+    is a fact about the record, not an error.
+    """
+    cs = callsign.strip().upper()
+    with db.cursor() as cur:
+        cur.execute("SELECT * FROM v_fcc_docket WHERE callsign = %(cs)s", {"cs": cs})
+        summary = cur.fetchone()
+        cur.execute(
+            """
+            SELECT df.file_number, df.app_type_code, df.date_filed, df.status_code,
+                   df.date_grant, df.date_deny, df.date_dismiss, df.date_surrender,
+                   df.is_pending,
+                   (s.file_number IS NOT NULL) AS spec_available
+            FROM v_fcc_docket_filing df
+            LEFT JOIN fcc_spec_filing s
+                   ON s.file_number = df.file_number AND s.is_validated
+            WHERE df.callsign = %(cs)s
+            ORDER BY df.date_filed NULLS LAST, df.file_number
+            """,
+            {"cs": cs},
+        )
+        timeline = cur.fetchall()
+    return {
+        "callsign": cs,
+        "summary": summary,
+        "timeline": timeline,
+        "note": (
+            "A docket is a timeline, not a chain: concurrent pending modifications to one "
+            "authorization are normal, the bulk data carries no parent-filing key, so no "
+            "supersession is asserted and specs are never merged across filings. Source: FCC "
+            "IBFS bulk data, latest ingest run."
+        ),
     }
 
 

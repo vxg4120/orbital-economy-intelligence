@@ -83,3 +83,46 @@ def test_a_filing_appears_in_exactly_one_docket_row(db_conn):
             "GROUP BY file_number HAVING count(*) > 1) dupes"
         )
         assert cur.fetchone()[0] == 0
+
+
+@pytest.mark.db
+def test_pending_list_carries_docket_summaries(db_conn):
+    body = _client().get("/api/filings/pending?limit=200").json()
+    docketed = [r for r in body["rows"] if r.get("docket_filings_total")]
+    assert docketed, "expected some pending filings to sit in dockets"
+    for row in docketed:
+        assert row["docket_filings_pending"] >= 1
+        assert row["docket_filings_total"] >= row["docket_filings_pending"]
+
+
+@pytest.mark.db
+def test_docket_endpoint_serves_a_dated_timeline(db_conn):
+    """Self-selects a docket that has both granted and pending filings rather than hardcoding a
+    callsign, so the test survives the FCC deciding things. The properties pinned are structural:
+    summary total equals timeline length, both statuses present, dates ascending, file numbers
+    unique, and at least one row carrying a validated spec somewhere in the corpus's richest
+    mixed docket."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT callsign FROM v_fcc_docket WHERE filings_granted > 0 AND filings_pending > 0 "
+            "ORDER BY filings_total DESC LIMIT 1"
+        )
+        row = cur.fetchone()
+    assert row, "corpus should contain at least one docket with both granted and pending filings"
+    body = _client().get(f"/api/filings/docket/{row[0]}").json()
+    timeline = body["timeline"]
+    assert body["summary"]["filings_total"] == len(timeline)
+    assert any(r["is_pending"] for r in timeline)
+    assert any(r["date_grant"] for r in timeline)
+    dates = [r["date_filed"] for r in timeline if r["date_filed"]]
+    assert dates == sorted(dates)
+    numbers = [r["file_number"] for r in timeline]
+    assert len(numbers) == len(set(numbers))
+
+
+@pytest.mark.db
+def test_docket_endpoint_is_empty_not_404_for_an_unknown_callsign(db_conn):
+    response = _client().get("/api/filings/docket/ZZZZ9")
+    assert response.status_code == 200
+    assert response.json()["summary"] is None
+    assert response.json()["timeline"] == []
