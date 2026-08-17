@@ -669,6 +669,44 @@ export interface PendingFiling {
    * counted here so the exclusion is visible instead of silent.
    */
   spec_implausible_n: number | null;
+  /**
+   * Docket summary: how many filings share this callsign, granted and pending. Null when the
+   * filing carries no callsign, which is a fact about the filing, not a gap. A docket is a
+   * timeline, never a supersession chain (concurrent pending MODs on one authorization are the
+   * normal case), and specs are never merged across a docket's filings.
+   */
+  docket_filings_pending: number | null;
+  docket_filings_total: number | null;
+  docket_pending_amendments: number | null;
+}
+
+export interface DocketFiling {
+  file_number: string;
+  app_type_code: string | null;
+  date_filed: string | null;
+  status_code: string | null;
+  date_grant: string | null;
+  date_deny: string | null;
+  date_dismiss: string | null;
+  date_surrender: string | null;
+  is_pending: boolean;
+  /** True when this filing's own validated Schedule S extraction exists. Never inherited. */
+  spec_available: boolean;
+}
+
+export interface DocketResponse {
+  callsign: string;
+  summary: {
+    callsign: string;
+    filings_total: number;
+    filings_pending: number;
+    filings_granted: number;
+    pending_amendments: number;
+    first_filed: string | null;
+    last_filed: string | null;
+  } | null;
+  timeline: DocketFiling[];
+  note: string;
 }
 
 export interface PendingFilingsResponse {

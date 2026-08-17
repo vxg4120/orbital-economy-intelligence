@@ -9,6 +9,7 @@
    ============================================================================= */
 
 import type {
+  DocketResponse,
   AuditSummary,
   BusDetail,
   BusesResponse,
@@ -62,6 +63,7 @@ import congestionFixture from "./fixtures/congestion.json";
 import environmentFixture from "./fixtures/environment.json";
 import filingsFixture from "./fixtures/filings.json";
 import filingDocumentsFixture from "./fixtures/filing_documents.json";
+import filingDocketFixture from "./fixtures/filing_docket.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
 import trackFixture from "./fixtures/track.json";
 import auditFixture from "./fixtures/audit_summary.json";
@@ -517,6 +519,11 @@ export function getFilingDocuments(fileNumber: string): Promise<FilingDocumentsR
   return realGet<FilingDocumentsResponse>(
     `/filings/${encodeURIComponent(fileNumber)}/documents`,
   );
+}
+
+export function getFilingDocket(callsign: string): Promise<DocketResponse> {
+  if (MOCK) return delay(filingDocketFixture as unknown as DocketResponse);
+  return realGet<DocketResponse>(`/filings/docket/${encodeURIComponent(callsign)}`);
 }
 
 export function getSatelliteTrack(id: number): Promise<LifeTrack> {

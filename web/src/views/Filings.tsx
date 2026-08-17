@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getFilingDocuments, getPendingFilings } from "../api/client";
-import type { PendingFiling } from "../api/types";
+import { getFilingDocket, getFilingDocuments, getPendingFilings } from "../api/client";
+import type { DocketResponse, PendingFiling } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtInt } from "../lib/format";
 import { Panel } from "../components/Panel";
@@ -131,6 +131,23 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
             </span>
           ) : null}
           <SpecChips filing={r} />
+          {r.docket_filings_total && r.docket_filings_total > 1 ? (
+            <span
+              className="num"
+              style={{ marginLeft: 10 }}
+              title={
+                `This callsign's docket: ${r.docket_filings_pending} pending of ` +
+                `${r.docket_filings_total} filings, granted and pending together` +
+                (r.docket_pending_amendments
+                  ? `, ${r.docket_pending_amendments} pending amendment(s)`
+                  : "") +
+                ". Concurrent pending filings on one authorization are normal; no supersession " +
+                "is implied. Expand the row for the timeline."
+              }
+            >
+              docket {r.docket_filings_pending}/{r.docket_filings_total}
+            </span>
+          ) : null}
         </span>
       </button>
       {open ? <FilingDetail filing={r} /> : null}
@@ -193,11 +210,66 @@ function SpecChips({ filing: r }: { filing: PendingFiling }) {
   );
 }
 
+/** The filing's docket: every filing sharing its callsign, granted and pending, dated.
+ *
+ *  Rendered as a timeline and never as a chain. Concurrent pending filings on one authorization
+ *  are the normal case, so no row is presented as superseding another, and a spec badge on a row
+ *  speaks only for that filing's own validated extraction. */
+function DocketTimeline({ callsign, current }: { callsign: string; current: string }) {
+  const docket = useApi<DocketResponse>(() => getFilingDocket(callsign), [callsign]);
+  return (
+    <Async state={docket} loadingLabel="Loading docket">
+      {(d) =>
+        !d.summary || d.timeline.length < 2 ? null : (
+          <div style={{ margin: "8px 0" }}>
+            <span className="label">
+              Docket {d.callsign} &middot; {d.summary.filings_pending} pending of{" "}
+              {d.summary.filings_total} filings since {d.summary.first_filed ?? "?"}
+            </span>
+            <ul className="hint" style={{ marginTop: 4, paddingLeft: 0, listStyle: "none" }}>
+              {d.timeline.map((f) => (
+                <li
+                  key={f.file_number}
+                  style={{
+                    padding: "2px 0",
+                    opacity: f.is_pending ? 1 : 0.65,
+                    fontWeight: f.file_number === current ? 600 : 400,
+                  }}
+                >
+                  <span className="num">{f.date_filed ?? "undated"}</span>
+                  {" · "}
+                  <span className="mono-hi">{f.file_number}</span>
+                  {" · "}
+                  {f.app_type_code ?? "?"}
+                  {" · "}
+                  {f.is_pending ? "pending" : f.date_grant ? `granted ${f.date_grant}` : "decided"}
+                  {f.spec_available ? (
+                    <span className="badge" style={{ marginLeft: 6 }} title="Validated Schedule S extraction for this filing">
+                      spec
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="hint" style={{ marginTop: 4 }}>
+              Timeline, not a chain: concurrent pending filings on one authorization are normal,
+              and no supersession is implied.
+            </p>
+          </div>
+        )
+      }
+    </Async>
+  );
+}
+
 function FilingDetail({ filing: r }: { filing: PendingFiling }) {
   const docs = useApi(() => getFilingDocuments(r.file_number), [r.file_number]);
   return (
     <div className="panel__body" style={{ background: "var(--surface-2)" }}>
       {r.description ? <p className="hint">{r.description}</p> : null}
+      {r.callsign && r.docket_filings_total && r.docket_filings_total > 1 ? (
+        <DocketTimeline callsign={r.callsign} current={r.file_number} />
+      ) : null}
       {r.note_summary ? (
         <div style={{ margin: "8px 0" }}>
           <span className="label">Analyst note</span>

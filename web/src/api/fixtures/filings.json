@@ -35,7 +35,10 @@
       "spec_alt_max_km": 500,
       "spec_incl_min_deg": 97.4,
       "spec_incl_max_deg": 97.4,
-      "spec_implausible_n": 0
+      "spec_implausible_n": 0,
+      "docket_filings_pending": 3,
+      "docket_filings_total": 6,
+      "docket_pending_amendments": 0
     },
     {
       "filing_key": -525521,
@@ -67,7 +70,10 @@
       "spec_alt_max_km": 650,
       "spec_incl_min_deg": 0.0,
       "spec_incl_max_deg": 98.0,
-      "spec_implausible_n": 0
+      "spec_implausible_n": 0,
+      "docket_filings_pending": 2,
+      "docket_filings_total": 2,
+      "docket_pending_amendments": 1
     },
     {
       "filing_key": -524530,
@@ -99,7 +105,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": 30.0,
       "spec_incl_max_deg": 30.0,
-      "spec_implausible_n": 1
+      "spec_implausible_n": 1,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -524856,
@@ -131,7 +140,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -524855,
@@ -163,7 +175,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -523458,
@@ -195,7 +210,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -523258,
@@ -227,7 +245,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -521466,
@@ -259,7 +280,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -520518,
@@ -291,7 +315,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -520520,
@@ -323,7 +350,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -519848,
@@ -355,7 +385,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -519699,
@@ -387,7 +420,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -516819,
@@ -419,7 +455,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -516931,
@@ -451,7 +490,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -514589,
@@ -483,7 +525,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -514643,
@@ -515,7 +560,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -514530,
@@ -547,7 +595,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -511011,
@@ -579,7 +630,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -509134,
@@ -611,7 +665,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -506881,
@@ -643,7 +700,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -503184,
@@ -675,7 +735,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -501622,
@@ -707,7 +770,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -501606,
@@ -739,7 +805,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -498627,
@@ -771,7 +840,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     },
     {
       "filing_key": -490765,
@@ -803,7 +875,10 @@
       "spec_alt_max_km": null,
       "spec_incl_min_deg": null,
       "spec_incl_max_deg": null,
-      "spec_implausible_n": null
+      "spec_implausible_n": null,
+      "docket_filings_pending": null,
+      "docket_filings_total": null,
+      "docket_pending_amendments": null
     }
   ],
   "total": 31,

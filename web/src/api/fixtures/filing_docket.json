@@ -1,0 +1,87 @@
+{
+  "callsign": "S3069",
+  "summary": {
+    "callsign": "S3069",
+    "filings_total": 6,
+    "filings_pending": 3,
+    "filings_granted": 3,
+    "pending_amendments": 0,
+    "first_filed": "2022-12-15",
+    "last_filed": "2025-06-11"
+  },
+  "timeline": [
+    {
+      "file_number": "SATSTA2022121500174",
+      "app_type_code": "STA",
+      "date_filed": "2022-12-15",
+      "status_code": "Q",
+      "date_grant": "2023-01-20",
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": false,
+      "spec_available": false
+    },
+    {
+      "file_number": "SATMOD2023020700022",
+      "app_type_code": "MOD",
+      "date_filed": "2023-02-07",
+      "status_code": "P",
+      "date_grant": null,
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": true,
+      "spec_available": true
+    },
+    {
+      "file_number": "SATSTA2023061400121",
+      "app_type_code": "STA",
+      "date_filed": "2023-06-14",
+      "status_code": "Q",
+      "date_grant": "2023-07-01",
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": false,
+      "spec_available": false
+    },
+    {
+      "file_number": "SATMOD2024101100224",
+      "app_type_code": "MOD",
+      "date_filed": "2024-10-11",
+      "status_code": "P",
+      "date_grant": null,
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": true,
+      "spec_available": true
+    },
+    {
+      "file_number": "SATSTA2025021000038",
+      "app_type_code": "STA",
+      "date_filed": "2025-02-10",
+      "status_code": "Q",
+      "date_grant": "2025-03-01",
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": false,
+      "spec_available": false
+    },
+    {
+      "file_number": "SATMOD2025061100144",
+      "app_type_code": "MOD",
+      "date_filed": "2025-06-11",
+      "status_code": "P",
+      "date_grant": null,
+      "date_deny": null,
+      "date_dismiss": null,
+      "date_surrender": null,
+      "is_pending": true,
+      "spec_available": true
+    }
+  ],
+  "note": "A docket is a timeline, not a chain: concurrent pending modifications to one authorization are normal, the bulk data carries no parent-filing key, so no supersession is asserted and specs are never merged across filings. Source: FCC IBFS bulk data, latest ingest run."
+}
