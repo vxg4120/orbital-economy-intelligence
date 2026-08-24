@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getFilingDocket, getFilingDocuments, getPendingFilings } from "../api/client";
-import type { DocketResponse, PendingFiling } from "../api/types";
+import { getFilingDocket, getFilingDocuments, getFilingsMethodology, getPendingFilings } from "../api/client";
+import type { DocketResponse, FilingsMethodology, PendingFiling } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtInt } from "../lib/format";
 import { Panel } from "../components/Panel";
@@ -18,6 +18,7 @@ export function Filings() {
   const slug = params.get("applicant_slug") ?? "";
   const [draft, setDraft] = useState(q);
   const filings = useApi(() => getPendingFilings(q, slug, 100), [q, slug]);
+  const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
   return (
     <div className="stack">
@@ -84,6 +85,66 @@ export function Filings() {
               </>
             )
           }
+        </Async>
+      </Panel>
+
+      <Panel
+        title="Methodology"
+        meta={
+          methodology.data
+            ? `${methodology.data.version} · as of ${methodology.data.as_of} · full doc on GitHub`
+            : undefined
+        }
+      >
+        <Async state={methodology} loadingLabel="Loading methodology">
+          {(m) => (
+            <div className="stack" style={{ gap: 10 }}>
+              <p className="hint">{m.purpose}</p>
+              <div>
+                <span className="label">Pipeline</span>
+                <ol className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
+                  {m.pipeline.map((step) => (
+                    <li key={step.slice(0, 40)}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+              <div>
+                <span className="label">Coverage, as of {m.as_of}</span>
+                <ul className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
+                  {Object.entries(m.coverage).map(([k, v]) => (
+                    <li key={k}>
+                      {k.replaceAll("_", " ")}: <span className="num">{String(v)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <span className="label">Docket model</span>
+                <p className="hint" style={{ marginTop: 4 }}>
+                  {m.docket_model.model} {m.docket_model.why} {m.docket_model.scale}
+                </p>
+              </div>
+              <div>
+                <span className="label">Caveats</span>
+                <ul className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
+                  {m.caveats.map((c) => (
+                    <li key={c.slice(0, 40)}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="hint">{m.no_llm}</p>
+              <p className="hint">
+                Full document:{" "}
+                <a
+                  href="https://github.com/vxg4120/orbital-economy-intelligence/blob/main/docs/FCC_FILINGS_METHODOLOGY.md"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  FCC_FILINGS_METHODOLOGY.md
+                </a>
+              </p>
+            </div>
+          )}
         </Async>
       </Panel>
     </div>

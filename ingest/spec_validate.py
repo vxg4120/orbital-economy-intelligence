@@ -46,13 +46,20 @@ def page_supports(page_text: str, value) -> bool:
         return False
     if isinstance(value, (int, float)):
         candidates = _number_forms(float(value))
-    else:
-        candidates = [str(value)]
-    for form in candidates:
-        # Reject a match that is part of a longer number: 25 inside 525.0, 30 inside 1030.0.
-        if re.search(rf"(?<![\d.]){re.escape(form)}(?![\d.])", page_text):
-            return True
-    return False
+        for form in candidates:
+            # Reject a match that is part of a longer number: 25 inside 525.0, 30 inside 1030.0.
+            if re.search(rf"(?<![\d.]){re.escape(form)}(?![\d.])", page_text):
+                return True
+        return False
+    # String values: whitespace-normalize both sides before comparing, because the generated
+    # report wraps labels across table lines ("Earth Exploration-Satellite" then "Service"), and
+    # a value that differs from the page only by a line break is present, not absent. Without
+    # this, validating string fields would reject correct rows wholesale, and the practical
+    # response to a validator that cries wolf is to stop validating those fields, which is how
+    # service and direction went unvalidated in the first version of this layer.
+    needle = " ".join(str(value).split())
+    haystack = " ".join(page_text.split())
+    return needle != "" and needle in haystack
 
 
 def validate_rows(pages: list[str], rows: list[dict], fields: tuple[str, ...]) -> list[bool]:

@@ -135,13 +135,19 @@ def process_one(session, conn, run_id: int, file_number: str, sys_id: str, url: 
     bands = schedule_s.parse_bands(pages)
 
     # Scalars each carry their own page already, so they validate fieldwise like the planes do.
+    # Every served scalar is in this contract. lifetime_years was absent from the first
+    # version, which meant it was served without ever being checked against its page; the
+    # cross-provider verify pass caught it (spec decision log, 2026-08-24).
     scalar_ok = spec_validate.validate_fieldwise(
         pages, [scalars],
         {"orbit_type": "orbit_type_page", "network_name": "network_name_page",
-         "total_satellites": "total_satellites_page"},
+         "total_satellites": "total_satellites_page", "lifetime_years": "lifetime_years_page"},
     )[0]
     plane_ok = spec_validate.validate_fieldwise(pages, planes, _PLANE_PAGES)
-    band_ok = spec_validate.validate_rows(pages, bands, ("freq_low_mhz", "freq_high_mhz"))
+    # service and direction are served, so they are validated: presence of the frequency
+    # numbers alone would let a mislabeled service or flipped direction through checked-looking.
+    band_ok = spec_validate.validate_rows(
+        pages, bands, ("service", "freq_low_mhz", "freq_high_mhz", "direction"))
 
     with conn.cursor() as cur:
         cur.execute(
@@ -203,7 +209,12 @@ def main() -> int:
         if args.limit:
             todo = todo[: args.limit]
 
-        run_id = runlog.start_run(conn, "fcc", "schedule_s_specs")
+        # A targeted or capped run must not satisfy the nightly's weekly freshness gate: it
+        # processed a subset, and letting it confer freshness would silently skip the full sweep
+        # for a week. Scoped runs are ledgered under their own endpoint name.
+        scoped = bool(args.file_number or args.limit)
+        endpoint = "schedule_s_specs_partial" if scoped else "schedule_s_specs"
+        run_id = runlog.start_run(conn, "fcc", endpoint)
         session = _session()
         try:
             for i, (file_number, sys_id, url) in enumerate(todo):

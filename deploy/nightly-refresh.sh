@@ -6,6 +6,15 @@ set -uo pipefail
 cd "$(dirname "$0")"                  # deploy/
 set -a; [ -f .env ] && . ./.env; set +a
 DC="docker compose"
+
+# Rotate the log before appending: it grows without bound otherwise (~300k lines by Aug 2026),
+# and it is the ONLY record of nightly failures, since every step below soft-fails into it.
+# One generation is kept (refresh.log.1, overwritten each rotation), so a failure discovered
+# late still has up to ~two windows of history. Rotation is size-based and cheap to check.
+if [ -f ./refresh.log ] && [ "$(wc -c < ./refresh.log)" -gt 10485760 ]; then   # 10 MB
+  mv ./refresh.log ./refresh.log.1
+fi
+
 {
   echo "===== refresh $(date -u +%FT%TZ) ====="
   echo "--- satellite (oei) ---"

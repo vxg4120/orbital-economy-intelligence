@@ -10,6 +10,7 @@
 
 import type {
   DocketResponse,
+  FilingsMethodology,
   AuditSummary,
   BusDetail,
   BusesResponse,
@@ -64,6 +65,7 @@ import environmentFixture from "./fixtures/environment.json";
 import filingsFixture from "./fixtures/filings.json";
 import filingDocumentsFixture from "./fixtures/filing_documents.json";
 import filingDocketFixture from "./fixtures/filing_docket.json";
+import filingsMethodologyFixture from "./fixtures/filings_methodology.json";
 import reviewCasesFixture from "./fixtures/review_cases.json";
 import trackFixture from "./fixtures/track.json";
 import auditFixture from "./fixtures/audit_summary.json";
@@ -519,6 +521,11 @@ export function getFilingDocuments(fileNumber: string): Promise<FilingDocumentsR
   return realGet<FilingDocumentsResponse>(
     `/filings/${encodeURIComponent(fileNumber)}/documents`,
   );
+}
+
+export function getFilingsMethodology(): Promise<FilingsMethodology> {
+  if (MOCK) return delay(filingsMethodologyFixture as unknown as FilingsMethodology);
+  return realGet<FilingsMethodology>(`/filings/methodology`);
 }
 
 export function getFilingDocket(callsign: string): Promise<DocketResponse> {

@@ -676,6 +676,7 @@ export interface PendingFiling {
    * normal case), and specs are never merged across a docket's filings.
    */
   docket_filings_pending: number | null;
+  docket_filings_granted: number | null;
   docket_filings_total: number | null;
   docket_pending_amendments: number | null;
 }
@@ -692,6 +693,19 @@ export interface DocketFiling {
   is_pending: boolean;
   /** True when this filing's own validated Schedule S extraction exists. Never inherited. */
   spec_available: boolean;
+}
+
+export interface FilingsMethodology {
+  title: string;
+  version: string;
+  as_of: string;
+  purpose: string;
+  data_sources: { name: string; role: string; url: string }[];
+  pipeline: string[];
+  coverage: Record<string, string | number>;
+  docket_model: { model: string; why: string; scale: string };
+  caveats: string[];
+  no_llm: string;
 }
 
 export interface DocketResponse {

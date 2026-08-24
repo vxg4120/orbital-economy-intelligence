@@ -93,6 +93,9 @@ def test_pending_list_carries_docket_summaries(db_conn):
     for row in docketed:
         assert row["docket_filings_pending"] >= 1
         assert row["docket_filings_total"] >= row["docket_filings_pending"]
+        assert row["docket_filings_granted"] is not None
+        assert row["docket_filings_granted"] <= row["docket_filings_total"]
+        assert (row["docket_pending_amendments"] or 0) <= row["docket_filings_pending"]
 
 
 @pytest.mark.db
@@ -126,3 +129,37 @@ def test_docket_endpoint_is_empty_not_404_for_an_unknown_callsign(db_conn):
     assert response.status_code == 200
     assert response.json()["summary"] is None
     assert response.json()["timeline"] == []
+
+
+def test_methodology_dict_is_versioned_and_complete():
+    """Tests the dict itself, not the wire: this must hold even in the network-free CI job,
+    because the methodology is the document that explains any absence of data."""
+    from api.routers.filings import _METHODOLOGY as m
+
+    assert m["version"].startswith("filings-methodology/")
+    assert m["as_of"] >= "2026-08-24"
+    assert m["coverage"] and m["caveats"] and m["pipeline"]
+    assert "no language model" in m["no_llm"]
+
+
+def test_methodology_carries_no_dashes():
+    """The voice rule, enforced at the source: no em or en dashes anywhere in the methodology,
+    including nested values. The marketing and docs layers quote this material, so a dash here
+    propagates."""
+    import json as _json
+
+    from api.routers.filings import _METHODOLOGY as m
+
+    raw = _json.dumps(m)
+    assert "\u2014" not in _json.dumps(m) and "—" not in raw    # em dash
+    assert "\u2013" not in _json.dumps(m) and "–" not in raw    # en dash
+
+
+@pytest.mark.db
+def test_methodology_endpoint_serves_the_dict(db_conn):
+    """One marked test pins the wire: the endpoint returns the same dict the tests above vetted."""
+    from api.routers.filings import _METHODOLOGY as m
+
+    body = _client().get("/api/filings/methodology").json()
+    assert body["version"] == m["version"]
+    assert body["coverage"] == m["coverage"]

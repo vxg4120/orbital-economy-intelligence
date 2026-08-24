@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-EXTRACTOR_VERSION = "schedule_s/1.0"
+EXTRACTOR_VERSION = "schedule_s/1.1"  # 1.1: lifetime, service and direction join the validation contract
 
 # Verified present in every sampled Tech Report and absent from narratives. Two of three are
 # required, so a single layout change or a text-extraction hiccup does not silently drop a document.

@@ -482,6 +482,51 @@ def _pct(numerator: int, denominator: int) -> str:
 # ---------------------------------------------------------------------------------------------
 
 
+def _section_filing_specs(cur):
+    """The pre-launch pipeline: pending FCC filings, harvested documents, extracted specs.
+
+    Guarded on the 0020/0021 objects existing, so the report still generates on a database that
+    has raw layers only. Validation-rate numbers separate served from stored on purpose: rows
+    that fail page-level validation are kept for debugging and never served, and the gap between
+    the two is the honest health signal for the extraction layer.
+    """
+    cur.execute("SELECT to_regclass('fcc_spec_filing') IS NOT NULL AND "
+                "to_regclass('fcc_filing_blob') IS NOT NULL")
+    if not cur.fetchone()[0]:
+        return None
+    cur.execute(
+        """
+        SELECT
+          (SELECT count(*) FROM v_fcc_pending_applications),
+          (SELECT count(DISTINCT file_number) FROM fcc_filing_document),
+          (SELECT count(*) FROM fcc_filing_document),
+          (SELECT count(*) FROM fcc_spec_filing WHERE is_validated),
+          (SELECT count(*) FROM fcc_spec_orbital WHERE is_validated),
+          (SELECT count(*) FROM fcc_spec_orbital),
+          (SELECT count(*) FROM fcc_spec_band WHERE is_validated),
+          (SELECT count(*) FROM fcc_spec_band),
+          (SELECT count(*) FROM fcc_filing_blob WHERE fetch_status = 'ok'),
+          (SELECT count(*) FROM fcc_filing_blob WHERE fetch_status = 'truncated'),
+          (SELECT count(DISTINCT file_number) FROM fcc_filing_blob
+            WHERE fetch_status = 'truncated'),
+          (SELECT count(*) FROM fcc_spec_orbital WHERE is_validated
+            AND apogee_km IS NOT NULL AND apogee_km NOT BETWEEN 150 AND 50000),
+          (SELECT count(*) FROM v_fcc_docket),
+          (SELECT count(*) FROM v_fcc_docket WHERE filings_total > 1)
+        """
+    )
+    (pending, filings_with_docs, doc_rows, spec_filings, planes_ok, planes_all,
+     bands_ok, bands_all, blobs_ok, blobs_trunc, trunc_filings, lunar,
+     dockets, multi_dockets) = cur.fetchone()
+    return {
+        "pending": pending, "filings_with_docs": filings_with_docs, "doc_rows": doc_rows,
+        "spec_filings": spec_filings, "planes_ok": planes_ok, "planes_all": planes_all,
+        "bands_ok": bands_ok, "bands_all": bands_all, "blobs_ok": blobs_ok,
+        "blobs_trunc": blobs_trunc, "trunc_filings": trunc_filings, "lunar": lunar,
+        "dockets": dockets, "multi_dockets": multi_dockets,
+    }
+
+
 def generate_report(conn) -> str:
     """Build the full markdown report against the given open connection.
 
@@ -502,6 +547,7 @@ def generate_report(conn) -> str:
         p2_cols, p2_rows, p2_killer = _section_phase2_metrics(cur)
         key_churn = _section_key_churn(cur)
         space_weather = _section_space_weather(cur)
+        filing_specs = _section_filing_specs(cur)
 
     out.append("# Data Quality and Conflict Report\n")
     out.append(f"Generated at: {now}\n")
@@ -650,6 +696,33 @@ def generate_report(conn) -> str:
                 "The day-after number is usually the louder one: thermospheric density "
                 "responds with a lag.\n"
             )
+
+    out.append("\n## 10. FCC filings and extracted specs\n")
+    if filing_specs is None:
+        out.append(
+            "\nNo filings layer yet (migrations 0018/0020/0021 not applied, or the IBFS ingest "
+            "has not run).\n"
+        )
+    else:
+        fs = filing_specs
+        out.append(
+            f"\nPending space-station applications: **{fs['pending']:,}**; "
+            f"**{fs['filings_with_docs']}** filings carry harvested document inventories "
+            f"(**{fs['doc_rows']:,}** documents). Validated Schedule S extractions serve "
+            f"**{fs['spec_filings']}** filings: **{fs['planes_ok']}/{fs['planes_all']}** orbital "
+            f"planes and **{fs['bands_ok']}/{fs['bands_all']}** frequency bands validated "
+            "against the pages they cite; rows that fail validation are stored and never "
+            "served, so a widening gap here is the extraction layer's health alarm.\n"
+        )
+        out.append(
+            f"\nBlob cache: **{fs['blobs_ok']}** documents fetched whole, "
+            f"**{fs['blobs_trunc']}** truncated server-side by the FCC gateway (all in "
+            f"**{fs['trunc_filings']}** filing(s)) -- a published coverage gap, not a parse "
+            f"failure. **{fs['lunar']}** plane rows carry as-filed lunar sentinels, served "
+            "flagged and excluded from summary ranges. Dockets: "
+            f"**{fs['dockets']:,}** callsign groups, **{fs['multi_dockets']}** holding more "
+            "than one filing; dockets are timelines, never supersession chains.\n"
+        )
 
     return "".join(out)
 

@@ -283,3 +283,39 @@ def test_lunar_sentinels_are_excluded_from_the_altitude_range_and_counted(db_con
     for row in lunar:
         if row["spec_alt_max_km"] is not None:
             assert row["spec_alt_max_km"] <= 50_000
+
+
+def test_page_supports_survives_a_wrapped_string_value():
+    """The generated report wraps labels across table lines, so a string that differs from the
+    page only by a line break is present, not absent. Without whitespace normalization the
+    validator would reject correct service rows wholesale, and the practical response to a
+    validator that cries wolf is to stop validating those fields, which is exactly how service
+    and direction went unvalidated in v1.0 of this layer."""
+    assert spec_validate.page_supports(
+        "Earth Exploration-Satellite \nService\n25500.0 MHz", "Earth Exploration-Satellite Service"
+    ) is True
+    assert spec_validate.page_supports("Transmit\n", "Transmit") is True
+    assert spec_validate.page_supports("Earth Exploration-Satellite Service", "Space Operation Service") is False
+
+
+@pytest.mark.db
+def test_lunar_sentinels_do_not_drag_the_inclination_range(db_conn):
+    """The sentinel is the whole row, not just the altitude: a lunar filing's inclination 0 is
+    part of the same placeholder. A filing whose every plane is a sentinel must show no
+    inclination range at all, rather than a range anchored at zero."""
+    body = _client().get("/api/filings/pending?limit=200").json()
+    for row in body["rows"]:
+        n_impl = row.get("spec_implausible_n") or 0
+        if n_impl and n_impl == (row.get("spec_planes_n") or 0):
+            assert row["spec_incl_min_deg"] is None
+            assert row["spec_alt_min_km"] is None
+
+
+@pytest.mark.db
+def test_spec_response_is_one_receipt_identity(db_conn):
+    """Summary, planes, bands and source document must all come from the same underlying
+    document: a filing can carry more than one Schedule S attachment, and citations into a
+    document the reader is not looking at are the exact failure this layer exists to prevent."""
+    body = _client().get("/api/filings/SATAMD2022063000067/spec").json()
+    assert body["summary"] is not None
+    assert body["source_document"]["sys_id"] == body["summary"]["sys_id"]

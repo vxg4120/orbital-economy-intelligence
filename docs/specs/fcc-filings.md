@@ -133,6 +133,20 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
 
 ## Open questions
 
+- **Slash-bearing file numbers break the path routes.** T/C and A/O types (23 pending) contain
+  a literal slash, so /filings/{file_number}/spec and /documents cannot address them; Starlette
+  splits on the decoded path. Needs a route redesign (query-param form or dual-segment routes).
+  Found by Codex verify 2026-08-24. Assign: Claude.
+- **Blob bytes are not retained.** The store holds sha256 + page counts, so a reissued attachment
+  is detectable on refetch but not replayable; re-verification depends on continued FCC
+  availability. Disclosed in the methodology 2026-08-24; actual byte storage is open. Assign: Vib
+  (disk/scope call).
+- **Multiple Schedule S documents on one filing** (95 docs across 64 filings): versions or
+  multipart? Today the first extracted document wins the summary and the response is keyed to it.
+  Define ordering semantics before extracting the rest. Assign: Claude.
+- **Full-inventory content sweep**: candidates are name-selected then content-confirmed, so a
+  Schedule S attached under an unrelated name would be missed and absence claims are name-scoped
+  (now disclosed). Sweeping all ~660 PDFs would close that at real politeness cost. Assign: Vib.
 - Granted-filing spec extraction (the `current_authorized` baseline): extend 0020's extractor
   beyond the pending set? Real value for docket views, real harvest cost (~2k more documents).
   Assign: Vib (scope), then Claude.
@@ -163,6 +177,23 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
   one nightly fired mid-rebuild ("service oei-api is not running" ×6, including a spurious slug-
   gate alarm) and sat unnoticed 18 days because every step soft-fails into the log. Deploy outside
   nightly windows; read the log after rebuilds.
+- 2026-08-24 (Codex-verify, applied) — the validation contract must enumerate EVERY served
+  field. lifetime_years, band service and direction were served while sitting outside the
+  fieldwise contract, which made them checked-looking but unchecked; caught by the cross-provider
+  pass, fixed in extractor 1.1, and prod re-extracted. String validation whitespace-normalizes,
+  because wrapped labels differ from their page only by a line break.
+- 2026-08-24 (Codex-verify, applied) — one response, one receipt identity: /spec now keys planes,
+  bands and the source document to the summary's (file_number, sys_id), because a filing can
+  carry more than one Schedule S attachment and unioning children across documents hands the
+  reader citations into a document they are not looking at.
+- 2026-08-24 (Codex-verify, applied) — the lunar sentinel is the whole row: inclination 0 is part
+  of the same placeholder as apogee 1, so summary ranges exclude the row, not just the altitude.
+- 2026-08-24 (Codex-verify, applied) — a scoped extraction run (--file-number/--limit) is
+  ledgered under schedule_s_specs_partial and confers no weekly freshness, because a one-filing
+  run satisfying the full-sweep gate would silently skip the sweep for a week.
+- 2026-08-24 (Codex-verify, applied) — mock fixtures must preserve domain invariants: null
+  callsign means null docket fields, and every row sharing a callsign carries the same docket
+  summary. A fixture that violates the model it mocks tests the wrong product.
 - 2026-08-17 (Claude, measured) — lineage evidence: callsign is near-universal on LOA/MOD/AMD,
   absent on half of STAs; 84 multi-filing pending dockets hold 251 of 667 pending; S3069 = 28
   filings (19 granted, 9 pending, 4 concurrent MODs with specs); `raw_ibfs_filings` has no parent
