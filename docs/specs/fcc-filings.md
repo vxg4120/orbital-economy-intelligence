@@ -3,7 +3,7 @@
 **Status:** active
 **Owner:** Vib
 **Repos touched:** space (OEI)
-**Last updated:** 2026-08-17 (Increment A shipped, commit 7c31f93 + spec close-out)
+**Last updated:** 2026-08-24 (Increment B shipped at c44f22b; C's landing mention live; announcement draft awaiting Vib's venue call)
 
 ## Goal
 
@@ -115,16 +115,16 @@ Increment A — dockets (in progress):
 
 Increment B — documentation (next, per Vib 2026-08-17 "work extensively on marketing and
 documentation"):
-- [ ] A published extraction-methodology section: deterministic method, per-field citations,
+- [x] A published extraction-methodology section: deterministic method, per-field citations,
       validator, coverage split (Schedule S 65/136), truncation disclosure, sentinel policy.
       Verify: reachable from the Filings view; curl + grep for the coverage numbers.
-- [ ] The DQ report gains a filings/spec section (counts, validation rate, truncated inventory).
-- [ ] Codex verify pass over this spec's increments, findings triaged into the decision log.
+- [x] The DQ report gains a filings/spec section (counts, validation rate, truncated inventory).
+- [x] Codex verify pass over this spec's increments, findings triaged into the decision log.
 
 Increment C — marketing (scope with Vib before starting):
 - [ ] Changelog/announcement draft for the filings + specs + dockets feature set, in Vib's voice,
       no em dashes, claims limited to measured numbers with their n attached.
-- [ ] Landing page (vibcreates.com) OEI entry mentions the pre-launch pipeline with one honest
+- [x] Landing page (vibcreates.com) OEI entry mentions the pre-launch pipeline with one honest
       metric. Verify: live curl.
 
 Deferred, unchanged: shell rollups (must cite plane rows + record the grouping rule); the
