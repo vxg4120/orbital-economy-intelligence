@@ -14,7 +14,9 @@ set -uo pipefail
 cd "$(dirname "$0")"
 DAYS="${1:-7}"
 
-docker compose exec -T caddy sh -c 'cat /data/access/*.log* 2>/dev/null' | python3 - "$DAYS" <<'PY'
+# The program rides in -c via command substitution so the PIPE keeps stdin: a heredoc into
+# `python3 -` would replace stdin and silently discard the piped log data (found the hard way).
+docker compose exec -T caddy sh -c 'cat /data/access/*.log* 2>/dev/null' | python3 -c "$(cat <<'PY'
 import collections
 import datetime as dt
 import json
@@ -76,3 +78,4 @@ for host in sorted(per_host):
     for path, n in h["paths"].most_common(8):
         print(f"    {path[:70]:<70} {n}")
 PY
+)" "$DAYS"
