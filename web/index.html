@@ -9,7 +9,44 @@
       name="description"
       content="Read-only mission-control terminal over a satellite identity graph: crosswalks, provenance, temporal ownership, and cross-source conflicts."
     />
-  </head>
+  
+  <!-- Visitor analytics. Each service activates only when its id below is filled in; while an
+       id is empty nothing loads and no request leaves the page. Ids live here and nowhere else
+       on this surface. GA4 wants a measurement id (G-XXXXXXXXXX), Clarity a project id,
+       Fingerprint the public API key from its free tier. For Search Console, paste the
+       verification token into the meta tag. -->
+  <meta name="google-site-verification" content="">
+  <script>
+    (function () {
+      var ids = { ga4: "", clarity: "", fingerprint: "" };
+      if (ids.ga4) {
+        var g = document.createElement("script");
+        g.async = true;
+        g.src = "https://www.googletagmanager.com/gtag/js?id=" + ids.ga4;
+        document.head.appendChild(g);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        window.gtag("js", new Date());
+        window.gtag("config", ids.ga4);
+      }
+      if (ids.clarity) {
+        window.clarity = window.clarity || function () {
+          (window.clarity.q = window.clarity.q || []).push(arguments);
+        };
+        var c = document.createElement("script");
+        c.async = true;
+        c.src = "https://www.clarity.ms/tag/" + ids.clarity;
+        document.head.appendChild(c);
+      }
+      if (ids.fingerprint) {
+        import("https://fpjscdn.net/v3/" + ids.fingerprint)
+          .then(function (FingerprintJS) { return FingerprintJS.load(); })
+          .then(function (fp) { return fp.get(); })
+          .catch(function () {});
+      }
+    })();
+  </script>
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -9,6 +9,13 @@
 # Root landing page (portfolio; /live/* proxies let the page query the apps
 # same-origin so its metrics are real, no CORS needed)
 {$BASE_DOMAIN} {
+	log {
+		output file /data/access/landing.log {
+			roll_size 25MiB
+			roll_keep 5
+		}
+		format json
+	}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -40,6 +47,13 @@ www.{$BASE_DOMAIN} {
 
 # Satellite platform — Orbital Economy Intelligence
 orbital.{$BASE_DOMAIN} {
+	log {
+		output file /data/access/orbital.log {
+			roll_size 25MiB
+			roll_keep 5
+		}
+		format json
+	}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -58,6 +72,13 @@ orbital.{$BASE_DOMAIN} {
 
 # ExoDossier — exoplanet candidate vetting
 exo.{$BASE_DOMAIN} {
+	log {
+		output file /data/access/exo.log {
+			roll_size 25MiB
+			roll_keep 5
+		}
+		format json
+	}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
