@@ -194,6 +194,14 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
 - 2026-08-24 (Codex-verify, applied) — mock fixtures must preserve domain invariants: null
   callsign means null docket fields, and every row sharing a callsign carries the same docket
   summary. A fixture that violates the model it mocks tests the wrong product.
+- 2026-08-24 (Vib, applied) — per-attribute conflict badges must compare CANONICAL values,
+  never raw per-source vocabularies. K2 Space's Gravitas badged four false conflicts (Gravitas vs
+  GRAVITAS, P vs PAY, O vs +, K2SP vs US); the headline conflict machinery had always compared
+  canonically with UNKNOWN excluded, and the detail endpoint had quietly diverged into a
+  stricter, noisier rule. GCAT status O (in orbit) is a no-claim about operations and cannot
+  disagree; SATCAT's owner is a jurisdiction code and is not commensurable with an organization
+  identity. Fixed in api/routers/satellites.py by reusing norm_name, canonical_object_type,
+  parse_date_loose and status_mapping; the repo-wide sweep found no other raw comparison.
 - 2026-08-17 (Claude, measured) — lineage evidence: callsign is near-universal on LOA/MOD/AMD,
   absent on half of STAs; 84 multi-filing pending dockets hold 251 of 667 pending; S3069 = 28
   filings (19 granted, 9 pending, 4 concurrent MODs with specs); `raw_ibfs_filings` has no parent

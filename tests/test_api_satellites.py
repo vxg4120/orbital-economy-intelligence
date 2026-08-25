@@ -115,3 +115,85 @@ def test_detail_null_norad_is_graceful(client, db_conn):
 @pytest.mark.db
 def test_detail_unknown_id_is_404(client):
     assert client.get("/api/satellites/999999999").status_code == 404
+
+
+# ---------------------------------------------------------------------------------------------
+# conflict semantics: canonical, never raw (the Gravitas false-positive class)
+# ---------------------------------------------------------------------------------------------
+
+from api.routers.satellites import _conflict_attributes  # noqa: E402
+
+_STATUS_MAP = {("gcat", "O"): "UNKNOWN", ("satcat", "+"): "ACTIVE", ("satcat", "-"): "INACTIVE",
+               ("gcat", "AO"): "ACTIVE"}
+
+
+def _assertion(attr, source, value):
+    return {"attribute": attr, "source": source, "value": value}
+
+
+def test_case_only_name_difference_is_not_a_conflict():
+    """Gravitas vs GRAVITAS: the two catalogs case names differently, and the platform's own
+    name matcher (norm_name) has always treated them as the same name."""
+    rows = [_assertion("name", "gcat", "Gravitas"), _assertion("name", "satcat", "GRAVITAS")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == []
+
+
+def test_vocabulary_only_object_type_difference_is_not_a_conflict():
+    """GCAT 'P' and SATCAT 'PAY' are two vocabularies for PAYLOAD, per canonical_object_type."""
+    rows = [_assertion("object_type", "gcat", "P"), _assertion("object_type", "satcat", "PAY")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == []
+
+
+def test_gcat_in_orbit_status_is_a_no_claim_not_a_disagreement():
+    """GCAT 'O' means in orbit, which says nothing about operations (it canonicalizes to
+    UNKNOWN); SATCAT '+' means active. A no-claim cannot disagree, matching the headline
+    conflict machinery's UNKNOWN-excluded semantics."""
+    rows = [_assertion("status", "gcat", "O"), _assertion("status", "satcat", "+")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == []
+
+
+def test_satcat_owner_jurisdiction_code_is_not_commensurable():
+    """SATCAT's owner vocabulary is jurisdiction-coarse ('US'); GCAT's is an organization
+    ('K2SP'). A country and a company are not rival claims about the same thing."""
+    rows = [_assertion("owner", "gcat", "K2SP"), _assertion("owner", "satcat", "US")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == []
+
+
+def test_format_only_decay_date_difference_is_not_a_conflict():
+    rows = [_assertion("decay_date", "gcat", "2026 Aug  1"),
+            _assertion("decay_date", "satcat", "2026-08-01")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == []
+
+
+def test_genuine_disagreements_still_flag():
+    """The fix must not eat real conflicts: distinct canonical statuses, genuinely different
+    names, different real dates, and disagreeing organization owners all still badge."""
+    assert _conflict_attributes(
+        [_assertion("status", "gcat", "AO"), _assertion("status", "satcat", "-")],
+        _STATUS_MAP) == ["status"]
+    assert _conflict_attributes(
+        [_assertion("name", "gcat", "Gravitas"), _assertion("name", "satcat", "GRAVITY-1")],
+        _STATUS_MAP) == ["name"]
+    assert _conflict_attributes(
+        [_assertion("decay_date", "gcat", "2026 Aug 1"),
+         _assertion("decay_date", "satcat", "2026-08-03")], _STATUS_MAP) == ["decay_date"]
+    assert _conflict_attributes(
+        [_assertion("owner", "gcat", "K2SP"), _assertion("owner", "ucs", "Rocket Lab")],
+        _STATUS_MAP) == ["owner"]
+
+
+def test_unmapped_status_codes_still_surface():
+    """A novel status code must not vanish into the no-claim bucket: unmapped raw values stay
+    comparable, so gcat AO (ACTIVE) against an unmapped satcat code still flags."""
+    rows = [_assertion("status", "gcat", "AO"), _assertion("status", "satcat", "WEIRD_NEW")]
+    assert _conflict_attributes(rows, _STATUS_MAP) == ["status"]
+
+
+@pytest.mark.db
+def test_known_real_status_conflict_still_flags(client):
+    """Enhanced CRYSTAL 2105 (satellite_id 23728) is the repo's canonical real status conflict,
+    referenced as such in the Resolver view's example list. The canonicalized badge must keep
+    flagging it: this pins that the fix removed the false positives without eating true ones."""
+    r = client.get("/api/satellites/23728")
+    assert r.status_code == 200
+    assert "status" in r.json()["conflicts"]

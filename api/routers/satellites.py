@@ -15,6 +15,54 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.deps import get_db
+from identity.normalize import canonical_object_type, norm_name, parse_date_loose
+
+
+def _conflict_key(attr: str, source: str, value, status_map: dict):
+    """The comparable form of one source claim, or None when the claim cannot disagree.
+
+    Raw values are per-source vocabularies, so comparing them directly manufactures conflicts out
+    of spelling: GCAT files object type 'P' where SATCAT files 'PAY', GCAT status 'O' (in orbit,
+    which is a no-claim about operations) where SATCAT files '+' (active), and names differ only
+    in case. The headline conflict machinery (routers/conflicts.py) has always compared canonical
+    values with UNKNOWN excluded on both sides; this gives the per-satellite badge the same
+    semantics instead of a stricter, noisier one.
+
+    Returns None for values that carry no comparable claim: unparseable/empty, canonicalized
+    UNKNOWN, and SATCAT's owner field, whose vocabulary is jurisdiction-coarse ('US') rather than
+    an organization identity (precedence.yml documents it as "coarse code") -- a country and a
+    company are not rival claims about the same thing. Unmapped status codes stay comparable as
+    tagged raw values, so a genuinely novel code still surfaces instead of vanishing.
+    """
+    if value is None:
+        return None
+    if attr == "object_type":
+        canonical = canonical_object_type(value)
+        return None if canonical == "UNKNOWN" else canonical
+    if attr == "status":
+        canonical = status_map.get((source, value))
+        if canonical is None:
+            return ("unmapped", " ".join(str(value).split()).upper())
+        return None if canonical == "UNKNOWN" else canonical
+    if attr == "decay_date":
+        parsed = parse_date_loose(value)
+        return parsed or ("unparsed", " ".join(str(value).split()).upper())
+    if attr == "name":
+        return norm_name(value) or None
+    if attr == "owner" and source == "satcat":
+        return None
+    return " ".join(str(value).split()).upper() or None
+
+
+def _conflict_attributes(assertions, status_map: dict) -> list[str]:
+    """Attributes whose latest per-source claims disagree after canonicalization."""
+    by_attr: dict[str, set] = {}
+    for a in assertions:
+        key = _conflict_key(a["attribute"], a["source"], a["value"], status_map)
+        if key is not None:
+            by_attr.setdefault(a["attribute"], set()).add(key)
+    return sorted(attr for attr, keys in by_attr.items() if len(keys) > 1)
+
 
 router = APIRouter(prefix="/satellites", tags=["satellites"])
 
@@ -204,11 +252,11 @@ def detail(satellite_id: int, db=Depends(get_db)):
         )
         merge_events = cur.fetchall()
 
-    # An attribute conflicts when its latest per-source values disagree across sources.
-    by_attr: dict[str, set] = {}
-    for a in assertions:
-        by_attr.setdefault(a["attribute"], set()).add(a["value"])
-    conflicts = sorted(attr for attr, values in by_attr.items() if len(values) > 1)
+    with db.cursor() as cur:
+        cur.execute("SELECT source, source_value, canonical_status FROM status_mapping")
+        status_map = {(r["source"], r["source_value"]): r["canonical_status"]
+                      for r in cur.fetchall()}
+    conflicts = _conflict_attributes(assertions, status_map)
 
     return {
         "satellite": satellite,
