@@ -137,9 +137,22 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
   is detectable on refetch but not replayable; re-verification depends on continued FCC
   availability. Disclosed in the methodology 2026-08-24; actual byte storage is open. Assign: Vib
   (disk/scope call).
-- **Multiple Schedule S documents on one filing** (95 docs across 64 filings): versions or
-  multipart? Today the first extracted document wins the summary and the response is keyed to it.
-  Define ordering semantics before extracting the rest. Assign: Claude.
+- **Multiple Schedule S documents on one filing.** Measured 2026-09-08, and much smaller than the
+  "95 docs across 64 filings" framing suggested: over the 133 reachable filings the histogram is 69
+  with no candidate, 60 with exactly one, 3 with two, 1 with twenty-nine (Boeing, gateway-truncated
+  parts). Of the four multi-candidate filings, three are already protected because the extra
+  candidate fails the content check, so exactly ONE filing has two content-confirmed Tech Reports:
+  SATRPL2023102300259 (Astranis Arcturus-R), where prod serves the applicant's copy watermarked
+  "(DRAFT COPY - Not for submission)" rather than the FCC-stamped final, because the selection
+  orders on file_number alone and ON CONFLICT DO NOTHING keeps whichever row the plan emits first.
+  Two things this does NOT mean. No served number is wrong: the draft and the final parse to
+  byte-identical values, so the defect is provenance and credibility rather than data. And ranking
+  cannot close it alone: SATMOD2024010300004 (also Astranis) attaches no stamped Tech Report at
+  all, so its draft is its only Schedule S. Detecting "stamped" is the fragile half and is
+  avoidable: the file number's position relative to the "312 File Number:" label differs between
+  the two copies, which is a cheaper discriminator than watermark detection. Assign: Claude for the
+  ordering; Vib for the product call on a filing whose only Schedule S is a pre-submission copy,
+  which is either disclosed on the receipt or withheld at the cost of one filing of coverage.
 - **Full-inventory content sweep**: candidates are name-selected then content-confirmed, so a
   Schedule S attached under an unrelated name would be missed and absence claims are name-scoped
   (now disclosed). Sweeping all ~660 PDFs would close that at real politeness cost. Assign: Vib.
