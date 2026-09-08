@@ -26,7 +26,7 @@ router = APIRouter(prefix="/filings", tags=["filings"])
 # swallowing arbitrary multi-segment paths. Keep it a STRING and build a fresh Path() per
 # parameter: FastAPI stamps the parameter name onto a shared Path() instance, so reusing one
 # object across parameters silently 422s whichever route binds second.
-_ONE_SLASH = r"^[^/]+(?:/[^/]+)?$"
+_ONE_SLASH = r"^[^/]+(?:/[^/]+)?/?$"
 
 
 @router.get("/pending")
@@ -279,7 +279,7 @@ def docket(callsign: str = Path(pattern=_ONE_SLASH), db=Depends(get_db)):
     An unknown callsign returns an empty docket with HTTP 200, because absence from the record
     is a fact about the record, not an error.
     """
-    cs = callsign.strip().upper()
+    cs = callsign.strip().rstrip("/").upper()
     with db.cursor() as cur:
         cur.execute("SELECT * FROM v_fcc_docket WHERE callsign = %(cs)s", {"cs": cs})
         summary = cur.fetchone()

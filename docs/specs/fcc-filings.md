@@ -166,6 +166,23 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
 
 ## Decision log & lessons learned
 
+- 2026-09-08 (Codex verify pass, findings independently reproduced before acting) — four defects
+  in the slash-route change and its neighbours, all confirmed here rather than taken on trust.
+  (1) An autouse pytest fixture that takes a database probe as a PARAMETER makes every unmarked
+  test open a connection: with an unparseable DATABASE_URL that turned seven database-free tests
+  into errors. Resolve the probe inside the marker check with request.getfixturevalue, and catch
+  psycopg.Error rather than OperationalError, since a DSN that does not parse fails earlier.
+  (2) The `:path` converter captures a trailing slash, so /api/filings/docket/S3069/ went from
+  Starlette's 307 redirect to a 422. The pattern now permits one optional trailing slash and the
+  handler strips it. (3) A reader that suppresses its own errors turns a failed file into a
+  partial report with exit status 0; bytes that never arrive cannot be counted as skipped lines,
+  so the reader emits an explicit unreadable-file marker instead. (4) Catching an exception
+  mid-write is not the same as being atomic: a 200 carrying {"satellites":123} had already
+  overwritten one tile before the missing field threw, leaving a live number beside a cached one
+  from the same source, under a stamp saying cached. Validate the whole payload before writing
+  anything. The testing contract worth keeping: an unmarked test attempts zero connections, and a
+  marked one skips through a lazily resolved, immediately closed, session-cached probe.
+
 - 2026-09-08 (Claude, measured, adversarially reviewed) — slash-bearing file numbers are fixed by
   the `:path` converter, not by the route redesign the open question assumed. Three corrections to
   what we believed. First, the scope was larger than "23 pending T/C and A/O": paging every pending

@@ -24,8 +24,8 @@ docker compose exec -T caddy sh -c '
   for f in /data/access/*.log*; do
     [ -f "$f" ] || continue
     case "$f" in
-      *.gz) $UNZIP "$f" ;;
-      *)    cat "$f" ;;
+      *.gz) $UNZIP "$f" || echo "{\"unreadable_file\":\"$f\"}" ;;
+      *)    cat "$f" || echo "{\"unreadable_file\":\"$f\"}" ;;
     esac
   done 2>/dev/null' | python3 -c "$(cat <<'PY'
 import collections
@@ -48,12 +48,19 @@ per_host = collections.defaultdict(lambda: {
 # raises inside the iterator itself, outside any try, and kills the whole run. json.loads
 # takes bytes, so nothing else here has to change.
 unreadable = 0
+unreadable_files = []
 
 for line in sys.stdin.buffer:
     try:
         r = json.loads(line)
     except (json.JSONDecodeError, UnicodeDecodeError):
         unreadable += 1
+        continue
+    if r.get("unreadable_file"):
+        # The reader could not open or decompress this one. Bytes that never arrive cannot be
+        # counted as skipped lines, so the reader says so explicitly rather than letting the
+        # next healthy file make the report look complete.
+        unreadable_files.append(r["unreadable_file"])
         continue
     ts = dt.datetime.fromtimestamp(r.get("ts", 0), dt.timezone.utc)
     if ts < cutoff:
@@ -77,9 +84,12 @@ for line in sys.stdin.buffer:
         h["referers"][ref] += 1
     h["agents"][ua[:70]] += 1
 
-if unreadable:
-    # Loud on purpose: silently dropped lines look exactly like a quiet week.
-    print(f"note: skipped {unreadable} unreadable line(s); a rotated log may have arrived compressed")
+if unreadable or unreadable_files:
+    # Loud on purpose: a partial report looks exactly like a quiet week.
+    if unreadable:
+        print(f"WARNING: skipped {unreadable} unreadable line(s); a rotated log may have arrived compressed")
+    for bad in unreadable_files:
+        print(f"WARNING: {bad} could not be read, so the counts below are incomplete")
 
 if not per_host:
     print(f"no requests in the last {days} day(s); logs began when this shipped")

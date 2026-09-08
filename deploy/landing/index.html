@@ -782,21 +782,31 @@
   /* Rendered per source rather than after both, so a slow or hung platform delays only its own
      two tiles. The catch covers a 200 carrying the wrong shape, which would otherwise throw
      mid-write and strand the rest of that source's tiles. */
-  function show(url, apply){
-    grab(url).then(function(v){ apply(v); liveSources++; }, function(){}).catch(function(){}).then(settled);
+  /* Checked BEFORE anything is written. Catching mid-write would leave one tile on a live
+     number and its neighbour on the cached one, from the same source, under a cached stamp. */
+  function complete(v, keys){
+    if(!v || typeof v!=='object') return false;
+    for(var i=0;i<keys.length;i++){ var n=v[keys[i]]; if(typeof n!=='number' || !isFinite(n)) return false; }
+    return true;
   }
-  show('/live/orbital', function(o){
+  function show(url, keys, apply){
+    grab(url).then(function(v){
+      if(!complete(v, keys)) throw new Error('unexpected payload');
+      apply(v); liveSources++;
+    }, function(){}).catch(function(){}).then(settled);
+  }
+  show('/live/orbital', ['satellites','gp_elements'], function(o){
     {
       count(document.getElementById('s-sat'), o.satellites);
       count(document.getElementById('s-gp'), o.gp_elements, fmt(o.gp_elements));
       count(document.getElementById('r-sat'), o.satellites);
       var gpEl=document.getElementById('r-gp'); if(gpEl) gpEl.textContent=(o.gp_elements/1e6).toFixed(1)+'M';
-      var opEl=document.getElementById('r-op'); if(opEl&&o.coverage) opEl.textContent=o.coverage.operator_pct+'%';
+      var opEl=document.getElementById('r-op'); if(opEl&&o.coverage&&typeof o.coverage.operator_pct==='number') opEl.textContent=o.coverage.operator_pct+'%';
       var oc=o.conflicts?(o.conflicts.status+o.conflicts.decay+o.conflicts.stale_owners):null;
       if(oc){ count(document.getElementById('r-conf'), oc); }
     }
   });
-  show('/live/exo', function(e){
+  show('/live/exo', ['stars','candidates','source_assertions'], function(e){
     {
       count(document.getElementById('s-cand'), e.candidates);
       count(document.getElementById('s-assert'), e.source_assertions, fmt(e.source_assertions));
