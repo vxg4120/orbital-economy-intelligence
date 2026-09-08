@@ -273,16 +273,31 @@ export function Buses() {
 
 function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
   const b = detail.benchmark;
-  const cov = detail.provenance.metric_coverage;
+  // A retired cohort has no live provenance: it is served from its archived snapshot, so every
+  // section that reads live receipts is skipped rather than rendered against nothing.
+  const retired = detail.retired ?? null;
+  const cov = detail.provenance?.metric_coverage ?? null;
   const history = useApi(() => getBusHistory(slug, detail.kind), [slug, detail.kind]);
 
   return (
     <div className="stack">
+      {retired ? (
+        <Panel title="This cohort is retired" meta={`last published ${retired.last_published_month}`}>
+          <p className="hint">{retired.explanation}</p>
+          <p className="hint" style={{ marginTop: 6 }}>
+            The figures below are the archived snapshot from{" "}
+            <span className="num">{retired.last_published_month}</span> under methodology v
+            {retired.methodology_version}. They are kept addressable because they were published,
+            and they are <strong>not current</strong>.
+          </p>
+        </Panel>
+      ) : null}
       <div className="idhead">
         <div>
           <h2 className="idhead__name">{b.name}</h2>
           <div className="idhead__badges">
             <span className="badge">{detail.kind === "manufacturer" ? "manufacturer" : "bus model"}</span>
+            {retired ? <span className="badge badge--conflict">retired</span> : null}
             {detail.kind === "manufacturer" && b.manufacturer_country ? (
               <span className="badge">{b.manufacturer_country}</span>
             ) : null}
@@ -290,7 +305,8 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
               <span className="badge">{b.primary_manufacturer}</span>
             ) : null}
             <span className="hint">
-              slug {slug} · methodology v{detail.provenance.methodology_version}
+              slug {slug} · methodology v
+              {detail.provenance?.methodology_version ?? retired?.methodology_version ?? "?"}
             </span>
           </div>
         </div>
@@ -465,7 +481,24 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
       </div>
 
       <div className="grid grid--2">
-        <Panel title="Coverage and provenance" meta={`source gcat · run #${detail.provenance.ingest_run_id ?? "?"}`}>
+        {cov === null ? (
+          // Retired cohort: coverage meters describe how much live evidence backs each metric,
+          // and there is no live evidence to measure. Rendering zeroed meters would read as
+          // "we looked and found nothing" rather than "this is not measured any more".
+          <Panel title="Coverage and provenance" meta="not available for a retired cohort">
+            <p className="hint">
+              Coverage meters and provenance receipts describe live evidence, which a retired
+              cohort no longer has. The archived figures above were computed under methodology v
+              {retired?.methodology_version ?? "?"} when the cohort last resolved, and the
+              monthly record below is unchanged.
+            </p>
+            <p className="hint" style={{ marginTop: 10 }}>
+              Confirm or dispute this attribution: email vibhavgupta2@gmail.com with subject
+              {" "}&quot;Bus attribution: {b.name}&quot;.
+            </p>
+          </Panel>
+        ) : (
+        <Panel title="Coverage and provenance" meta={`source gcat · run #${detail.provenance?.ingest_run_id ?? "?"}`}>
           <CoverageMeter
             label="GP behavior data"
             pct={b.fleet_total > 0 ? (100 * cov.gp_behavior.n) / b.fleet_total : 0}
@@ -483,8 +516,8 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
           />
           <p className="hint" style={{ marginTop: 10 }}>
             Disposal verdicts: {fmtInt(cov.disposal.n)} decidable of {fmtInt(cov.disposal.of)}{" "}
-            decayed. Uncertain attributions: {fmtInt(detail.provenance.uncertain_attributions)}.
-            Attribution built {fmtDate(detail.provenance.built_at)}.
+            decayed. Uncertain attributions: {fmtInt(detail.provenance?.uncertain_attributions ?? 0)}.
+            Attribution built {fmtDate(detail.provenance?.built_at ?? null)}.
           </p>
           <p className="hint">
             Confirm or dispute this attribution: email vibhavgupta2@gmail.com with subject
@@ -492,6 +525,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
             with provenance and outrank catalog sources.
           </p>
         </Panel>
+        )}
 
         <Panel title="Monthly record" meta="immutable snapshots">
           <Async state={history} loadingLabel="Loading snapshots">

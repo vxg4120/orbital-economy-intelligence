@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.7, updated 2026-08-03.**
+**Version 1.8, updated 2026-09-07.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -302,6 +302,40 @@ day's values, observable in the July 2026 capture: 2,650 rows on the 23rd and 3 
 27th). The July 2026 month retains those three appended rows as a documented artifact of the
 old rule; from August 2026 onward each month is written exactly once.
 
+### 7.1 Retired cohorts
+
+A cohort can stop resolving without merging into anything. The alias table cannot express that,
+because an alias needs a survivor to point at, and here there is none: the cohort's objects simply
+stop meeting the inclusion rule, most often because a cross-catalog disagreement moves an object
+out of the payload-only scope, or because attribution changes.
+
+Since v1.8, a slug that was published in the monthly archive, no longer resolves to a live cohort,
+and has no alias, is **served from its last archived snapshot** rather than returning 404. The
+response carries a `retired` block naming the last published month and the methodology version
+that produced those figures, and the page states plainly that they are not current. Live sections
+(constituents, orgs, satellite sample, coverage meters, provenance receipts) come back empty
+rather than reconstructed, because they read live tables by slug and would otherwise be empty at
+best or, worse, pick up whatever occupies those identifiers now.
+
+The reason is the same one that makes the archive worth keeping: a published figure should stay
+citable. Letting the URL 404 would quietly break that for exactly the cohorts whose history is
+most interesting, which are the ones the catalogs changed their minds about.
+
+**Worked example, and the first case.** `bus/saman` covered Saman-1, an Iranian orbital transfer
+vehicle launched 2024-12-06 on Simorgh and decayed 2025-05-20. GCAT records it as object type
+`P ?`, a payload with an uncertainty flag, and attributes bus `Saman` to manufacturer ISRC. The
+resolved object type is `ROCKET_BODY`, and since this scoreboard includes payloads only, the
+cohort left the live views while remaining in the 2026-07 and 2026-08 archives. Note that calling
+an orbital transfer vehicle a rocket body is defensible, so this is a genuine cross-catalog
+disagreement rather than an error to correct: overriding one catalog to make a slug resolve would
+be this pipeline taking a side on precisely the kind of disagreement it exists to surface. The
+retired-cohort rule keeps the URL honest without needing that question settled.
+
+The nightly structural gate reports retired cohorts every run as an informational count rather
+than failing on them, since the URL contract is intact. It still fails on a reference that
+resolves nowhere at all, which in practice means a manufacturer slug embedded in a bus snapshot
+that is neither live, nor aliased, nor itself archived.
+
 ## 8. Provenance statement
 
 Every published number is traceable to source rows:
@@ -328,6 +362,14 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.8 (2026-09-07).** Retired cohorts (section 7.1). A published slug that no longer resolves
+  and did not merge is now served from its last archived snapshot with an explicit `retired`
+  block, instead of 404ing; live sections come back empty rather than reconstructed. The nightly
+  structural gate reports retirement as an informational count and fails only on a reference that
+  resolves nowhere at all. First and currently only case: `bus/saman`, whose object type resolves
+  to ROCKET_BODY against GCAT's uncertainty-flagged payload, taking the cohort out of the
+  payload-only scope. No metric definitions changed, and no archived value was altered.
 
 * **v1.7 (2026-08-03).** Forward signal: pending FCC applications on manufacturer detail
   pages (section 5.8). The IBFS ingest now lands applicant identity (organization name and

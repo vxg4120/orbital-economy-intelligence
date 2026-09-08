@@ -298,9 +298,95 @@ def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict, str | None]
     return None
 
 
+def _find_archived(db, slug: str, kind: str | None) -> tuple[str, dict, dict] | None:
+    """The last archived snapshot for a slug that no longer resolves live.
+
+    A published cohort can stop resolving without merging into anything: the underlying objects
+    can be reclassified out of the inclusion rule (Bus Benchmarks is payloads-only, so a
+    spacecraft the catalogs disagree about can move to ROCKET_BODY and take its whole cohort with
+    it), or a cohort can fall out of attribution entirely. benchmark_slug_alias cannot express
+    that, because an alias needs a survivor to point at and there is none.
+
+    Leaving those URLs to 404 would break the property the monthly archive exists to create: that
+    a published figure stays citable. So the archive answers. The snapshot is immutable and
+    insert-only, which is exactly what makes it safe to serve as history: it is what we published,
+    unchanged, not a reconstruction.
+
+    Returns (kind, benchmark, archive_meta). The benchmark is rebuilt from the snapshot's metrics
+    blob plus the slug and display name, so it is shape-compatible with a live row.
+    """
+    kinds = [kind] if kind in _GROUPS else ["manufacturer", "bus"]
+    with db.cursor() as cur:
+        for k in kinds:
+            cur.execute(
+                "SELECT snapshot_month, display_name, metrics, methodology_version "
+                "FROM bus_benchmark_snapshots WHERE kind = %(kind)s AND slug = %(slug)s "
+                "ORDER BY snapshot_month DESC LIMIT 1",
+                {"kind": k, "slug": slug},
+            )
+            row = cur.fetchone()
+            if row is None:
+                continue
+            benchmark = dict(row["metrics"] or {})
+            benchmark["slug"] = slug
+            benchmark["name"] = row["display_name"]
+            benchmark[_GROUPS[k]["slug_col"]] = slug
+            benchmark[_GROUPS[k]["name_col"]] = row["display_name"]
+            meta = {
+                "last_published_month": row["snapshot_month"].isoformat()
+                if hasattr(row["snapshot_month"], "isoformat") else str(row["snapshot_month"]),
+                "methodology_version": row["methodology_version"],
+            }
+            return k, benchmark, meta
+    return None
+
+
+def _retired_payload(k: str, slug: str, benchmark: dict, meta: dict) -> dict:
+    """A retired cohort's page: the archived figures, and an unambiguous statement of what they are.
+
+    The live sections come back empty rather than reconstructed. Constituents, orgs, the satellite
+    sample and the provenance receipts all read live tables by slug, and for a cohort that no
+    longer resolves they would either be empty or, worse, silently pick up whatever occupies those
+    identifiers now. An honest empty beats a plausible wrong, which is the same rule the extraction
+    layer follows.
+    """
+    return {
+        "kind": k,
+        "benchmark": benchmark,
+        "constituents": [],
+        "orgs": [],
+        "satellites_sample": [],
+        "participation": None,
+        "pending_applications": None,
+        "provenance": None,
+        "also_exists_as": None,
+        "aliased_from": None,
+        "retired": {
+            "is_retired": True,
+            "last_published_month": meta["last_published_month"],
+            "methodology_version": meta["methodology_version"],
+            "explanation": (
+                "This cohort was published in the monthly archive and no longer resolves to a "
+                "live cohort, and it did not merge into another cohort, so there is no survivor "
+                "to redirect to. The figures below are the last archived snapshot exactly as "
+                "published, and they are not current. A cohort leaves the live views when its "
+                "objects stop meeting the inclusion rule, most often because a cross-catalog "
+                "disagreement moves an object out of the payload-only scope, or when attribution "
+                "changes. Live sections are empty rather than reconstructed."
+            ),
+        },
+        "correction_channel": CORRECTION_CHANNEL,
+    }
+
+
 def detail_payload(db, slug: str, kind: str | None = None) -> dict:
     found = _find_group(db, slug, kind)
     if found is None:
+        # Live miss and no alias: a published slug may still be answerable from the archive.
+        archived = _find_archived(db, slug, kind)
+        if archived is not None:
+            ak, abenchmark, ameta = archived
+            return _retired_payload(ak, slug, abenchmark, ameta)
         raise HTTPException(status_code=404, detail="no manufacturer or bus with that slug")
     k, benchmark, aliased_from = found
     if aliased_from is not None:

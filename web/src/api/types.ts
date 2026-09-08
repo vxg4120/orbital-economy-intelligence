@@ -582,7 +582,24 @@ export interface BusDetail {
   satellites_sample: BusSatellite[];
   participation: BusParticipation | null;
   pending_applications: BusPendingApplications | null;
-  provenance: BusProvenanceSummary;
+  /** Null on a retired cohort: live receipts cannot be offered for a cohort that no longer
+   *  resolves, and a link that resolved to something else would be worse than none. */
+  provenance: BusProvenanceSummary | null;
+  /** Set when the requested slug retired into another cohort by a merge; names the slug asked
+   *  for, while the payload is the survivor's. */
+  aliased_from?: string | null;
+  /**
+   * Set when the slug was published, no longer resolves live, and did NOT merge into anything,
+   * so there is no survivor to redirect to. The benchmark shown is the last archived snapshot
+   * exactly as published and is not current; the live sections come back empty rather than
+   * reconstructed.
+   */
+  retired?: {
+    is_retired: boolean;
+    last_published_month: string;
+    methodology_version: string;
+    explanation: string;
+  } | null;
   correction_channel: string;
 }
 

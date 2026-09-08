@@ -188,13 +188,31 @@ def render(report: dict) -> str:
     return "\n".join(lines)
 
 
-def _structural_violations(conn, now: dict) -> list[str]:
-    """Archived slugs that no longer resolve, checked against the live views and alias table."""
-    violations = []
+def _structural_violations(conn, now: dict) -> tuple[list[str], list[str]]:
+    """Published URLs that resolve nowhere, plus the retired cohorts that resolve from archive.
+
+    Returns (violations, retired). The gate's contract is that no published URL 404s, and there
+    are now three ways a slug can honour it: it is live, it aliases to a live survivor, or it is
+    served from its last archived snapshot as a retired cohort (api/routers/buses.py).
+
+    Retirement is therefore reported, not failed. A cohort can leave the live views without
+    merging into anything, which the alias table cannot express because an alias needs a survivor:
+    bus/saman did exactly that when Saman-1's object type resolved to ROCKET_BODY and the
+    payload-only inclusion rule dropped its cohort. Failing the nightly for that would be crying
+    wolf about a URL that answers correctly, and a gate that cries wolf gets ignored, which is how
+    this one went unread for days.
+
+    What is still a violation is a slug that resolves nowhere at all: not live, no alias, and no
+    archived snapshot to serve. The embedded manufacturer slugs inside bus snapshots are the real
+    remaining exposure there, because a bus row can reference a manufacturer that never had a
+    snapshot row of its own.
+    """
+    violations: list[str] = []
+    retired: list[str] = []
     with conn.cursor() as cur:
         cur.execute("SELECT to_regclass('bus_benchmark_snapshots') IS NOT NULL")
         if not cur.fetchone()[0]:
-            return violations  # nothing published yet, nothing to protect
+            return violations, retired  # nothing published yet, nothing to protect
         for kind, live_slugs in (("manufacturer", set(now.get("manufacturer", {}))),
                                  ("bus", set(now.get("bus", {})))):
             cur.execute(
@@ -205,23 +223,32 @@ def _structural_violations(conn, now: dict) -> list[str]:
             for slug in sorted(archived - live_slugs):
                 target = aliases.get(slug)
                 if not (target and target in live_slugs):
-                    violations.append(
-                        f"{kind}/{slug} is archived but resolves to no live cohort and no alias"
-                    )
-        # The second frozen surface: manufacturer slugs embedded in bus-kind snapshot rows.
+                    # Archived by definition here, so the detail route serves it from the
+                    # snapshot. The URL holds; the cohort is retired.
+                    retired.append(f"{kind}/{slug}")
+        # The second frozen surface: manufacturer slugs embedded in bus-kind snapshot rows. These
+        # can name a manufacturer with no snapshot row of its own, so the archive cannot always
+        # rescue them and a miss here is a genuine dead reference.
         cur.execute(
             "SELECT DISTINCT metrics->>'primary_manufacturer_slug' "
             "FROM bus_benchmark_snapshots WHERE kind = 'bus' "
             "AND metrics->>'primary_manufacturer_slug' IS NOT NULL"
         )
+        embedded = [r[0] for r in cur.fetchall()]
         live_m = set(now.get("manufacturer", {}))
         aliases_m = now.get("_aliases", {}).get("manufacturer", {})
-        for (ps,) in cur.fetchall():
-            if ps not in live_m and aliases_m.get(ps) not in live_m:
-                violations.append(
-                    f"bus snapshot embeds manufacturer slug {ps} which resolves nowhere"
-                )
-    return violations
+        cur.execute(
+            "SELECT DISTINCT slug FROM bus_benchmark_snapshots WHERE kind = 'manufacturer'"
+        )
+        archived_m = {r[0] for r in cur.fetchall()}
+        for ps in embedded:
+            if ps in live_m or aliases_m.get(ps) in live_m or ps in archived_m:
+                continue
+            violations.append(
+                f"bus snapshot embeds manufacturer slug {ps} which resolves nowhere: not live, "
+                "no alias, and no archived snapshot to serve"
+            )
+    return violations, retired
 
 
 def main() -> int:
@@ -246,15 +273,22 @@ def main() -> int:
             # slug ever published, so the invariant is checked database-against-itself. current()
             # above already refused to run on a slug collision. This is what the nightly runs,
             # including inside containers that do not ship the repo's tests/ directory.
-            violations = _structural_violations(conn, now)
+            violations, retired = _structural_violations(conn, now)
+            if retired:
+                # Reported every run, deliberately: these URLs answer from the archive, so they
+                # are not failures, but a growing list means cohorts are quietly leaving the live
+                # views and that is worth a human noticing.
+                print(f"retired cohorts served from archive: {len(retired)}")
+                for r in retired[:40]:
+                    print(f"  {r}")
             if violations:
                 print(f"STRUCTURAL GATE FAILED, {len(violations)} violations:")
                 for v in violations[:40]:
                     print(f"  {v}")
                 return 1
             print(
-                "STRUCTURAL GATE PASSED: no slug collisions, and every archived slug resolves "
-                "to a live cohort directly or through an alias."
+                "STRUCTURAL GATE PASSED: no slug collisions, and every published slug resolves "
+                "to a live cohort, an alias, or its archived snapshot."
             )
             return 0
     finally:
