@@ -433,9 +433,9 @@
       </div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num" id="r-sat">70,080</div><div class="l">satellites, one resolved identity each</div></div>
-      <div class="m"><div class="v num" id="r-gp">9.7M</div><div class="l">orbital element sets, hypertabled</div></div>
-      <div class="m"><div class="v num" id="r-op">99.9%</div><div class="l">operator attribution coverage</div></div>
+      <div class="m"><div class="v num" id="r-sat">70,587</div><div class="l">satellites, one resolved identity each</div></div>
+      <div class="m"><div class="v num" id="r-gp">10.9M</div><div class="l">orbital element sets, hypertabled</div></div>
+      <div class="m"><div class="v num" id="r-op">100%</div><div class="l">operator attribution coverage</div></div>
       <div class="m"><div class="v num" id="r-conf">4,400+</div><div class="l">live conflicts surfaced, not averaged</div></div>
     </div>
   </article>
@@ -456,9 +456,9 @@
       </div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num" id="r-star">20,341</div><div class="l">host stars cross-matched</div></div>
-      <div class="m"><div class="v num" id="r-cand">23,033</div><div class="l">candidates tracked</div></div>
-      <div class="m"><div class="v num" id="r-assert">684k</div><div class="l">per-attribute source assertions</div></div>
+      <div class="m"><div class="v num" id="r-star">21,515</div><div class="l">host stars cross-matched</div></div>
+      <div class="m"><div class="v num" id="r-cand">24,253</div><div class="l">candidates tracked</div></div>
+      <div class="m"><div class="v num" id="r-assert">695k</div><div class="l">per-attribute source assertions</div></div>
       <div class="m"><div class="v num" id="r-dconf">7,900+</div><div class="l">radius / disposition / T<sub>eff</sub> conflicts</div></div>
     </div>
   </article>
@@ -520,11 +520,14 @@
     <span class="k">Proof, not promises · four numbers pulled live from my platforms as you load this page</span>
     <span class="stamp" id="stamp"><span class="dot"></span>querying live systems…</span>
   </div>
+  <!-- The numbers below are the cached fallback, snapshot 2026-09-08. They are the only
+       hardcoded copy: the live fetch overwrites them on success and leaves them alone on
+       failure, so a tile is never an ellipsis and never a number nobody can date. -->
   <div class="stats">
-    <div class="stat orbit rv"><div class="v num" id="s-sat">…</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
-    <div class="stat orbit rv"><div class="v num" id="s-gp">…</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-cand">…</div><div class="l">exoplanet candidates tracked · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-assert">…</div><div class="l">sourced facts, receipts kept · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-sat">70,587</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-gp">10.9M</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-cand">24,253</div><div class="l">exoplanet candidates tracked · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-assert">695k</div><div class="l">sourced facts, receipts kept · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
   </div>
 </section>
 
@@ -743,19 +746,47 @@
   function count(el,target,text){
     if(!el) return;
     if(reduce || typeof target!=='number'){ el.textContent = text || fmt(target); return; }
+    /* Count up from whatever the tile already shows. The cached value ships in the markup, so
+       without this the live number would drop to zero on the first frame and climb back. */
+    var shown=(el.textContent||'').replace(/,/g,'');
+    var from=/M$/.test(shown) ? parseFloat(shown)*1e6 : parseFloat(shown);
+    if(!isFinite(from) || from>target) from=0;
     var t0=null, dur=900;
     function f(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/dur); p=1-Math.pow(1-p,3);
-      el.textContent = fmt(Math.round(target*p)); if(p<1) requestAnimationFrame(f); else if(text) el.textContent=text; }
+      el.textContent = fmt(Math.round(from+(target-from)*p)); if(p<1) requestAnimationFrame(f); else if(text) el.textContent=text; }
     requestAnimationFrame(f);
   }
   var stamp=document.getElementById('stamp');
-  Promise.allSettled([
-    fetch('/live/orbital').then(function(r){return r.json();}),
-    fetch('/live/exo').then(function(r){return r.json();})
-  ]).then(function(res){
-    var o=res[0].status==='fulfilled'?res[0].value:null;
-    var e=res[1].status==='fulfilled'?res[1].value:null;
-    if(o){
+  /* Each platform stands on its own: one backend being down, slow, or answering the wrong shape
+     must not strand the other's tiles, and it must never leave the stamp claiming live over
+     numbers that never arrived. A failure here is simply "no overwrite", because the cached
+     values are in the markup. Without the timeout a hung backend hangs the whole strip. */
+  function grab(u){
+    var opt=(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)?{signal:AbortSignal.timeout(6000)}:{};
+    return fetch(u,opt).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+  }
+  var liveSources=0, awaiting=2;
+  function settled(){
+    if(--awaiting) return;
+    if(liveSources===2){
+      var d=new Date();
+      stamp.innerHTML='<span class="dot"></span>live · queried '+
+        String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+':'+
+        String(d.getUTCSeconds()).padStart(2,'0')+' UTC';
+    } else {
+      /* Both down, or one of the two. Either way some tile on this strip is the cached number,
+         and the stamp says the weaker of the two things rather than the stronger. */
+      stamp.innerHTML='<span class="dot" style="background:var(--faint)"></span>cached · September 2026';
+    }
+  }
+  /* Rendered per source rather than after both, so a slow or hung platform delays only its own
+     two tiles. The catch covers a 200 carrying the wrong shape, which would otherwise throw
+     mid-write and strand the rest of that source's tiles. */
+  function show(url, apply){
+    grab(url).then(function(v){ apply(v); liveSources++; }, function(){}).catch(function(){}).then(settled);
+  }
+  show('/live/orbital', function(o){
+    {
       count(document.getElementById('s-sat'), o.satellites);
       count(document.getElementById('s-gp'), o.gp_elements, fmt(o.gp_elements));
       count(document.getElementById('r-sat'), o.satellites);
@@ -764,7 +795,9 @@
       var oc=o.conflicts?(o.conflicts.status+o.conflicts.decay+o.conflicts.stale_owners):null;
       if(oc){ count(document.getElementById('r-conf'), oc); }
     }
-    if(e){
+  });
+  show('/live/exo', function(e){
+    {
       count(document.getElementById('s-cand'), e.candidates);
       count(document.getElementById('s-assert'), e.source_assertions, fmt(e.source_assertions));
       count(document.getElementById('r-star'), e.stars);
@@ -772,16 +805,6 @@
       var aEl=document.getElementById('r-assert'); if(aEl) aEl.textContent=Math.round(e.source_assertions/1e3)+'k';
       var ec=e.conflicts?(e.conflicts.radius+e.conflicts.disposition+e.conflicts.teff):null;
       if(ec){ count(document.getElementById('r-dconf'), ec); }
-    }
-    if(o||e){
-      var d=new Date();
-      stamp.innerHTML='<span class="dot"></span>live · queried '+
-        String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+':'+
-        String(d.getUTCSeconds()).padStart(2,'0')+' UTC';
-    } else {
-      stamp.innerHTML='<span class="dot" style="background:var(--faint)"></span>cached · July 2026';
-      count(document.getElementById('s-sat'),70080); count(document.getElementById('s-gp'),0,'9.7M');
-      count(document.getElementById('s-cand'),23033); count(document.getElementById('s-assert'),0,'684k');
     }
   });
 
