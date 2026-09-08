@@ -79,6 +79,88 @@ def test_extract_documents_empty_tree_yields_nothing():
     assert extract_documents({"result": {"containers": []}}) == []
 
 
+def _stub_db_client():
+    """A TestClient whose get_db yields a cursor that answers nothing.
+
+    Routing is what these tests pin, so the handlers only need a cursor that does not raise.
+    Keeping them database-free means the slash contract is guarded in CI, where the db-marked
+    tests below are skipped."""
+    from api.deps import get_db
+    from api.main import app
+
+    class _Row(dict):
+        def __missing__(self, key):
+            return 0
+
+    class _Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, query, params=None):
+            pass
+
+        def fetchall(self):
+            return []
+
+        def fetchone(self):
+            return _Row()
+
+    class _Conn:
+        def cursor(self):
+            return _Cursor()
+
+    client = _client()
+    app.dependency_overrides[get_db] = _Conn
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+def test_slash_bearing_file_numbers_and_callsigns_are_addressable():
+    """T/C, A/O and L/A filings carry a literal slash, and so do some callsigns.
+
+    uvicorn percent-decodes the path before Starlette matches it, so %2F cannot rescue a route
+    whose converter is the default [^/]+: these were 404 on every form until the routes took
+    the ':path' converter. 92 of the 2,726 file numbers reachable from the pending dockets are
+    slash-bearing, 23 of them pending."""
+    for client in _stub_db_client():
+        for path, key, want in (
+            ("/api/filings/SATT%2FC2025052000121/documents", "file_number", "SATT/C2025052000121"),
+            ("/api/filings/SATT/C2025052000121/documents", "file_number", "SATT/C2025052000121"),
+            ("/api/filings/SATT%2FC2025052000121/spec", "file_number", "SATT/C2025052000121"),
+            ("/api/filings/docket/S2981%2F3070", "callsign", "S2981/3070"),
+        ):
+            response = client.get(path)
+            assert response.status_code == 200, path
+            assert response.json()[key] == want, path
+
+
+def test_path_converter_does_not_shadow_the_sibling_routes():
+    """The parameterized routes are declared before /methodology and /docket in the module, so
+    a greedy converter could swallow them. It cannot: ':path' still requires the literal
+    /documents or /spec suffix."""
+    for client in _stub_db_client():
+        for path in ("/api/filings/pending", "/api/filings/methodology", "/api/filings/docket/S3069"):
+            assert client.get(path).status_code == 200, path
+
+
+def test_path_converter_stays_shut_on_multi_segment_paths():
+    """':path' alone would answer 200 for /api/filings/a/b/c/documents with a garbage file
+    number. The one-slash pattern is what keeps a mistyped /api/* path an error, and an
+    unharvested-but-well-formed number its documented empty inventory."""
+    for client in _stub_db_client():
+        assert client.get("/api/filings/a/b/c/documents").status_code == 422
+        assert client.get("/api/filings//documents").status_code == 422
+        assert client.get("/api/filings/docket/a/b/c").status_code == 422
+        unharvested = client.get("/api/filings/SAT-LOA-1234/documents")
+        assert unharvested.status_code == 200
+        assert unharvested.json()["file_number"] == "SAT-LOA-1234"
+
+
 @pytest.mark.db
 def test_harvested_inventory_and_documents_endpoint_agree(db_conn):
     with db_conn.cursor() as cur:

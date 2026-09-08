@@ -11,11 +11,22 @@ IBFS status codes are workflow states rather than dispositions.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from api.deps import get_db
 
 router = APIRouter(prefix="/filings", tags=["filings"])
+
+# The T/C (transfer of control), A/O (assignment of authorization) and L/A (lease of authority)
+# application types carry a literal slash in the file number, and callsigns do too ('S2981/3070',
+# 'N/A'): 92 of the 2,726 file numbers reachable from the pending dockets, 23 of them pending.
+# uvicorn percent-decodes the path before Starlette matches it (h11_impl.py, unquote(raw_path)),
+# so sending %2F does not help; the default converter compiles to [^/]+, which can never address
+# these. The ':path' converter accepts the slash, and this pattern stops those routes from also
+# swallowing arbitrary multi-segment paths. Keep it a STRING and build a fresh Path() per
+# parameter: FastAPI stamps the parameter name onto a shared Path() instance, so reusing one
+# object across parameters silently 422s whichever route binds second.
+_ONE_SLASH = r"^[^/]+(?:/[^/]+)?$"
 
 
 @router.get("/pending")
@@ -132,8 +143,8 @@ def pending(
     }
 
 
-@router.get("/{file_number}/documents")
-def documents(file_number: str, db=Depends(get_db)):
+@router.get("/{file_number:path}/documents")
+def documents(file_number: str = Path(pattern=_ONE_SLASH), db=Depends(get_db)):
     """The filing's harvested document inventory, with direct FCC gateway download URLs.
 
     Inventory only: the bytes stay on api-prod.fcc.gov (which occasionally answers 503;
@@ -254,8 +265,8 @@ def methodology():
     return _METHODOLOGY
 
 
-@router.get("/docket/{callsign}")
-def docket(callsign: str, db=Depends(get_db)):
+@router.get("/docket/{callsign:path}")
+def docket(callsign: str = Path(pattern=_ONE_SLASH), db=Depends(get_db)):
     """One callsign's full regulatory docket: every filing, granted and pending, dated.
 
     Deliberately a timeline and not a chain. Concurrent pending modifications to a single
@@ -308,8 +319,8 @@ def docket(callsign: str, db=Depends(get_db)):
 _IMPLAUSIBLE_APOGEE_KM = (150, 50_000)
 
 
-@router.get("/{file_number}/spec")
-def filing_spec(file_number: str, db=Depends(get_db)):
+@router.get("/{file_number:path}/spec")
+def filing_spec(file_number: str = Path(pattern=_ONE_SLASH), db=Depends(get_db)):
     """Machine-derived Schedule S specs for one filing, every field carrying a page citation.
 
     Parsed deterministically from the FCC's own generated Tech Report, not inferred by a model.

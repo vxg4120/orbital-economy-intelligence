@@ -133,10 +133,6 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
 
 ## Open questions
 
-- **Slash-bearing file numbers break the path routes.** T/C and A/O types (23 pending) contain
-  a literal slash, so /filings/{file_number}/spec and /documents cannot address them; Starlette
-  splits on the decoded path. Needs a route redesign (query-param form or dual-segment routes).
-  Found by Codex verify 2026-08-24. Assign: Claude.
 - **Blob bytes are not retained.** The store holds sha256 + page counts, so a reissued attachment
   is detectable on refetch but not replayable; re-verification depends on continued FCC
   availability. Disclosed in the methodology 2026-08-24; actual byte storage is open. Assign: Vib
@@ -156,6 +152,27 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
   nightly failures). Assign: Claude, small, fold into Increment B.
 
 ## Decision log & lessons learned
+
+- 2026-09-08 (Claude, measured, adversarially reviewed) — slash-bearing file numbers are fixed by
+  the `:path` converter, not by the route redesign the open question assumed. Three corrections to
+  what we believed. First, the scope was larger than "23 pending T/C and A/O": paging every pending
+  docket gives 2,726 distinct file numbers of which 92 carry a slash, across THREE application
+  types (T/C 62, A/O 24, L/A 6); L/A was unknown to us. Second, `/docket/{callsign}` had the
+  identical defect and was the one with a live SPA consumer: four slash-bearing callsigns are in
+  the pending set ('S2981/3070', 'N/A'), all 404 until now. Third, percent-encoding can never be
+  the client-side answer, because uvicorn calls unquote(raw_path) before Starlette matches, so
+  %2F is already a real slash at routing time; a double-encoded request proves exactly one decode
+  happens end to end, which also clears Caddy of adding a decode layer. The pattern constraint
+  `^[^/]+(?:/[^/]+)?$` is what keeps `:path` from answering 200 for /api/filings/a/b/c/documents;
+  it constrains slash count only, because narrowing the alphabet would turn today's 200s
+  (SAT-LOA-1234, SATLOA2025.1) into 422s. HAZARD worth keeping: FastAPI stamps the parameter name
+  onto a `Path()` instance, so a module-level `Path()` shared across parameters silently 422s
+  whichever route binds second. Keep the constant a pattern STRING and build a fresh `Path()` per
+  parameter. Accepted consequence: a two-segment mistype like /api/filings/docket/S3069/documents
+  now returns the documented empty inventory instead of 404, which is indistinguishable from any
+  other unknown file number. Guarded by three database-free tests in tests/test_filing_documents.py
+  (verified to fail on the unpatched router). Open: whether a malformed file number should 422
+  rather than return the empty 200 that unknown filings already get. Assign: Vib (API contract).
 
 - 2026-08-11 (Claude, verified) — Schedule S Tech Reports never name themselves; anchor on
   `OMB 3060-0678` / `312 File Number:` / `Select Orbit Type` (3/3 measured), never on the form's
