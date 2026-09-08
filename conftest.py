@@ -24,6 +24,32 @@ def _no_warm_cache():
     cache.set_enabled(True)
 
 
+@pytest.fixture(scope="session")
+def _database_reachable():
+    """One connection attempt per session, closed immediately.
+
+    Held open it would be a second connection during the concurrent matview refresh that
+    tests/test_latest_elements.py spawns, so this probes and lets go."""
+    try:
+        conn = get_conn()
+    except psycopg.OperationalError:
+        return False
+    conn.close()
+    return True
+
+
+@pytest.fixture(autouse=True)
+def _skip_db_marked_without_a_database(request, _database_reachable):
+    """A db-marked test skips when there is no database, whether or not it takes db_conn.
+
+    Without this the marker only means "deselected by the fast job": a db-marked test that
+    reaches the database some other way (a subprocess, a TestClient) still ran in the full job
+    and failed on connection refused, which reads as a broken test rather than a missing
+    database. The marker is the declaration; this makes it the guarantee."""
+    if request.node.get_closest_marker("db") and not _database_reachable:
+        pytest.skip("database not reachable at DATABASE_URL")
+
+
 @pytest.fixture
 def db_conn():
     try:

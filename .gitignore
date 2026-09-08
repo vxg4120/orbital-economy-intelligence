@@ -14,3 +14,7 @@ web/dist/
 
 .DS_Store
 **/.DS_Store
+
+# Personal scratch that is not project output; nothing in the repo writes or reads here.
+# This repo is public, so an untracked file here is one `git add .` from being published.
+output/
