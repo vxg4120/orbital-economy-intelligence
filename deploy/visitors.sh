@@ -16,7 +16,18 @@ DAYS="${1:-7}"
 
 # The program rides in -c via command substitution so the PIPE keeps stdin: a heredoc into
 # `python3 -` would replace stdin and silently discard the piped log data (found the hard way).
-docker compose exec -T caddy sh -c 'cat /data/access/*.log* 2>/dev/null' | python3 -c "$(cat <<'PY'
+# Rotated logs are GZIPPED: caddy's roll_gzip defaults on and the Caddyfile never turns it off,
+# so the first roll leaves orbital-<ts>.log.gz next to orbital.log. A plain `cat` of *.log* would
+# feed DEFLATE bytes to python3, and it would die on the first one. Decompress by extension.
+docker compose exec -T caddy sh -c '
+  if command -v gzip >/dev/null 2>&1; then UNZIP="gzip -cd"; else UNZIP=cat; fi
+  for f in /data/access/*.log*; do
+    [ -f "$f" ] || continue
+    case "$f" in
+      *.gz) $UNZIP "$f" ;;
+      *)    cat "$f" ;;
+    esac
+  done 2>/dev/null' | python3 -c "$(cat <<'PY'
 import collections
 import datetime as dt
 import json
@@ -33,16 +44,23 @@ per_host = collections.defaultdict(lambda: {
     "referers": collections.Counter(), "agents": collections.Counter(), "bots": 0,
 })
 
-for line in sys.stdin:
+# Bytes, not text: one undecodable line (a rotated log that reached us still compressed)
+# raises inside the iterator itself, outside any try, and kills the whole run. json.loads
+# takes bytes, so nothing else here has to change.
+unreadable = 0
+
+for line in sys.stdin.buffer:
     try:
         r = json.loads(line)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        unreadable += 1
         continue
     ts = dt.datetime.fromtimestamp(r.get("ts", 0), dt.timezone.utc)
     if ts < cutoff:
         continue
     req = r.get("request", {})
-    host = req.get("host", "?")
+    # Scanners send `Host: vibcreates.com:443`, which would otherwise report as a 4th site.
+    host = req.get("host", "?").split(":")[0]
     ua = (req.get("headers", {}).get("User-Agent") or [""])[0]
     ref = (req.get("headers", {}).get("Referer") or [""])[0]
     ip = req.get("client_ip") or req.get("remote_ip") or "?"
@@ -58,6 +76,10 @@ for line in sys.stdin:
     if ref and host not in ref:
         h["referers"][ref] += 1
     h["agents"][ua[:70]] += 1
+
+if unreadable:
+    # Loud on purpose: silently dropped lines look exactly like a quiet week.
+    print(f"note: skipped {unreadable} unreadable line(s); a rotated log may have arrived compressed")
 
 if not per_host:
     print(f"no requests in the last {days} day(s); logs began when this shipped")
