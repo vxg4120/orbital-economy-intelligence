@@ -36,6 +36,22 @@ def test_league_table_shape_and_ordering(client):
 
 
 @pytest.mark.db
+def test_whole_league_never_serves_on_orbit_above_fleet(client):
+    """Every operator row on every page: fleet >= on-orbit >= active >= 0."""
+    offset, seen = 0, 0
+    while True:
+        body = client.get(f"/api/operators?limit=200&offset={offset}").json()
+        for row in body["rows"]:
+            assert row["fleet_total"] >= row["fleet_on_orbit"] >= row["fleet_active"] >= 0, (
+                row["operator_id"])
+        seen += len(body["rows"])
+        offset += 200
+        if not body["rows"] or offset >= body["total"]:
+            break
+    assert seen == body["total"]
+
+
+@pytest.mark.db
 def test_league_total_equals_the_header_operator_count(client, db_conn):
     """The header's OPERATORS counter is count(*) of the operator table; the league used to
     count only operators holding a current fleet, so the two disagreed on every page (audit

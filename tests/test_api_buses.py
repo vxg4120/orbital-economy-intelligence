@@ -45,6 +45,28 @@ def test_leaderboard_shape_ordering_and_cohort_floor(client):
 
 
 @pytest.mark.db
+@pytest.mark.parametrize("group", ["manufacturer", "bus"])
+def test_whole_board_never_serves_on_orbit_above_fleet(client, group):
+    """Every row of every page, both groupings, down to n>=1: fleet >= on-orbit >= active and
+    every percentage within 0..100 (the audit's morning Glonass row, ON-ORBIT 507 > FLEET 505,
+    is the regression case; the first-page check above covers ten rows, this covers all)."""
+    offset, seen = 0, 0
+    while True:
+        body = client.get(f"/api/buses?group={group}&min_n=1&limit=200&offset={offset}").json()
+        for row in body["rows"]:
+            assert row["fleet_total"] >= row["fleet_on_orbit"] >= row["fleet_active"] >= 0, row["slug"]
+            assert row["fleet_on_orbit"] + row["decayed_count"] == row["fleet_total"], row["slug"]
+            for col in ("decayed_share_pct", "station_keeping_share_pct",
+                        "disposal_compliance_pct", "gp_coverage_pct"):
+                assert row[col] is None or 0 <= row[col] <= 100, (row["slug"], col)
+        seen += len(body["rows"])
+        offset += 200
+        if not body["rows"] or offset >= body["total"]:
+            break
+    assert seen == body["total"]
+
+
+@pytest.mark.db
 def test_leaderboard_bus_group_and_min_n(client):
     r = client.get("/api/buses?group=bus&limit=10&min_n=50")
     assert r.status_code == 200

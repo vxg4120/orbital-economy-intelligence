@@ -26,6 +26,10 @@ fi
   $DC exec -T oei-api python scripts/build_bus.py   || echo "!! oei build_bus failed"
   $DC exec -T oei-api python scripts/diff_published_buses.py --gate --structural \
                                                     || echo "!! oei SLUG GATE FAILED: a published URL broke"
+  # Row-level invariants on what the API now serves (fleet >= on-orbit >= active, percentages,
+  # cohort floor, header counters); a failure here means a reader could see an impossible number.
+  $DC exec -T oei-api python scripts/assert_published.py \
+                                                    || echo "!! oei PUBLISH ASSERTIONS FAILED: a served aggregate breaks an invariant"
   $DC exec -T oei-api python scripts/build_rf.py    || echo "!! oei build_rf failed"
   $DC exec -T oei-api python scripts/fetch_filing_documents.py --if-stale \
                                                     || echo "!! oei filing documents failed"
