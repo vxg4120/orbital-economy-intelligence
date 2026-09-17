@@ -35,7 +35,7 @@ for ep in orbital exo; do
 done
 
 python3 - "$HTML" "$tmp/orbital.json" "$tmp/exo.json" <<'PY'
-import datetime, json, re, sys
+import datetime, json, os, re, sys
 from decimal import Decimal, ROUND_HALF_UP
 
 html_path, orbital_path, exo_path = sys.argv[1:4]
@@ -98,6 +98,7 @@ for pat, val, what in [
 
 if out == src:
     print("landing-snapshot: already current, nothing to write"); sys.exit(0)
-open(html_path, 'w', encoding='utf-8').write(out)
+tmp_path = html_path + '.tmp'                       # whole file or nothing, even if killed mid-write
+open(tmp_path, 'w', encoding='utf-8').write(out); os.replace(tmp_path, html_path)
 print("landing-snapshot: wrote " + html_path + "\n" + "\n".join(changed))
 PY
