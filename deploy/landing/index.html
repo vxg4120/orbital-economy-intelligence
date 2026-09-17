@@ -121,7 +121,7 @@
 
   /* figures: atlas plates */
   .fig{background:var(--plate); border:1px solid var(--ink); outline:1px solid var(--line); outline-offset:3px; padding:11px 11px 9px}
-  .fig img{display:block; width:100%; height:auto; border:1px solid var(--line)}
+  .fig img{display:block; width:100%; height:auto; border:1px solid var(--line); background:var(--line)}
   .fig img.la{aspect-ratio:4/5; object-fit:cover; object-position:50% 42%}
   .fig figcaption{font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-top:9px}
   .fig figcaption .star{margin-right:6px}
@@ -160,7 +160,7 @@
   .stat .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:clamp(1.5rem,2.8vw,2.1rem); font-weight:600; letter-spacing:-.03em; line-height:1}
   .stat .l{font-size:.82rem; color:var(--muted); margin-top:8px; line-height:1.35}
   .stat .l i{font-style:normal; font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase}
-  .stat .l a{color:inherit; text-decoration:none; border-bottom:1px dotted var(--line-2)}
+  .stat .l a{color:inherit; text-decoration:none; border-bottom:1px dotted var(--line-2); white-space:nowrap}
   .stat .l a:hover{color:var(--gold); border-color:var(--gold)}
   .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
 
@@ -247,6 +247,7 @@
     .contact .cgrid{grid-template-columns:1fr}
     .contact .fig{max-width:400px; margin:44px auto 0; transform:none}
     .stats{grid-template-columns:1fr 1fr}
+    .stat .l a{white-space:normal}
     .avail span{font-size:.66rem; letter-spacing:.02em}
     .cta{gap:14px 20px; font-size:.8rem}
     .qa{grid-template-columns:1fr; gap:0}
