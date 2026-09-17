@@ -522,11 +522,13 @@
 <section class="live wrap" aria-label="Live metrics">
   <div class="lede">
     <span class="k">Proof, not promises · four numbers pulled live from my platforms as you load this page</span>
-    <span class="stamp" id="stamp"><span class="dot"></span>querying live systems…</span>
+    <span class="stamp" id="stamp"><span class="dot" style="background:var(--faint)"></span>cached · September 2026</span>
   </div>
-  <!-- The numbers below are the cached fallback, snapshot 2026-09-08. They are the only
-       hardcoded copy: the live fetch overwrites them on success and leaves them alone on
-       failure, so a tile is never an ellipsis and never a number nobody can date. -->
+  <!-- The numbers below, and the two rails under "The work", are the cached fallback, snapshot 2026-09-08,
+       baked from the same /live/* endpoints by deploy/landing-snapshot.sh (run it before a deploy).
+       They are the only hardcoded copy: the live fetch overwrites them on success and leaves them
+       alone on failure, so a tile is never an ellipsis and never a number nobody can date. The stamp
+       above ships in its cached form for the same reason, and the script keeps its month current. -->
   <div class="stats">
     <div class="stat orbit rv"><div class="v num" id="s-sat">70,587</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
     <div class="stat orbit rv"><div class="v num" id="s-gp">10.9M</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
@@ -760,7 +762,11 @@
       el.textContent = fmt(Math.round(from+(target-from)*p)); if(p<1) requestAnimationFrame(f); else if(text) el.textContent=text; }
     requestAnimationFrame(f);
   }
-  var stamp=document.getElementById('stamp');
+  /* The markup ships the stamp already in its cached form: it is what a no-JS reader sees, and
+     deploy/landing-snapshot.sh keeps its month honest along with the numbers. Keep it to fall
+     back to, and claim only that the query is in flight until both platforms have answered. */
+  var stamp=document.getElementById('stamp'), cachedStamp=stamp.innerHTML;
+  stamp.innerHTML='<span class="dot"></span>querying live systems…';
   /* Each platform stands on its own: one backend being down, slow, or answering the wrong shape
      must not strand the other's tiles, and it must never leave the stamp claiming live over
      numbers that never arrived. A failure here is simply "no overwrite", because the cached
@@ -780,7 +786,7 @@
     } else {
       /* Both down, or one of the two. Either way some tile on this strip is the cached number,
          and the stamp says the weaker of the two things rather than the stronger. */
-      stamp.innerHTML='<span class="dot" style="background:var(--faint)"></span>cached · September 2026';
+      stamp.innerHTML=cachedStamp;
     }
   }
   /* Rendered per source rather than after both, so a slow or hung platform delays only its own
