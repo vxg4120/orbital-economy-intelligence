@@ -90,6 +90,12 @@ export class ApiError extends Error {
 }
 
 /* ---- real transport ------------------------------------------------------- */
+/** Upper bound on any GET. A request the API never answers (a cold cache warming a
+    multi-second aggregate, a dropped connection) would otherwise leave the view on its
+    loading state with no way out; past this the caller's Async state shows the error with a
+    Retry control. Generous, because the slowest honest answers (a cold /api/stats) take ~10 s. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 async function realGet<T>(path: string, params?: Record<string, string | number>): Promise<T> {
   const qs = params
     ? "?" +
@@ -97,13 +103,28 @@ async function realGet<T>(path: string, params?: Record<string, string | number>
         Object.entries(params).map(([k, v]) => [k, String(v)]),
       ).toString()
     : "";
-  const res = await fetch(`/api${path}${qs}`, {
-    headers: { accept: "application/json" },
-  });
-  if (!res.ok) {
-    throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`/api${path}${qs}`, {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
+    }
+    return (await res.json()) as T;
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new ApiError(
+        `No answer from the API within ${REQUEST_TIMEOUT_MS / 1000}s for ${path}`,
+        0,
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return (await res.json()) as T;
 }
 
 /** POST JSON with optional extra headers (the review-token header). Errors carry the status so the

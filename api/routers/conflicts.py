@@ -13,6 +13,7 @@ DESC, source_key) verbatim. The count_* helpers back the /api/stats conflict tal
 
 from fastapi import APIRouter, Depends, Query
 
+from api import cache
 from api.deps import get_db
 from identity.normalize import parse_date_loose
 
@@ -136,6 +137,12 @@ def _decay_conflict_rows(db) -> list[dict]:
     return rows
 
 
+# Parsing every decay_date claim in Python costs ~2 s warm and the answer only moves at ingest
+# time, so the rows are served from the warm cache (same registry and pytest-disable behavior
+# as /api/stats). The stats tally reads the same cached list, so the two never disagree.
+_decay_rows_cache = cache.register("conflicts_decay", _decay_conflict_rows)
+
+
 def count_status_conflicts(db) -> int:
     with db.cursor() as cur:
         cur.execute(_STATUS_SQL + "SELECT count(*) AS n FROM disagree")
@@ -149,7 +156,7 @@ def count_stale_owners(db) -> int:
 
 
 def count_decay_conflicts(db) -> int:
-    return len(_decay_conflict_rows(db))
+    return len(_decay_rows_cache.get(db))
 
 
 def _paginate_sql(db, cte: str, source: str, limit: int, offset: int) -> tuple[list, int]:
@@ -196,5 +203,5 @@ def conflicts_decay(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    all_rows = _decay_conflict_rows(db)
+    all_rows = _decay_rows_cache.get(db)
     return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}
