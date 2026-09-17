@@ -37,7 +37,7 @@ stable option; splitting across serverless services wouldn't remove that DB cost
 | File | Purpose |
 |------|---------|
 | `docker-compose.yml` | db + oei-api + exo-api + caddy |
-| `Caddyfile` | reverse proxy + auto-HTTPS for both subdomains |
+| `caddy/Caddyfile` | reverse proxy + auto-HTTPS for the landing page and both subdomains |
 | `.env.example` | copy to `.env`, fill in secrets (gitignored) |
 | `bootstrap.sh` | one-time box setup (Docker, clone repos) |
 | `seed/dump-local.sh` | **on laptop** — dump oei + exo to `seed/*.dump` |
@@ -142,6 +142,41 @@ cd ~/apps/space/deploy && docker compose up -d --build
 ```
 
 **Logs:** `docker compose logs -f oei-api` (or `exo-api`, `caddy`, `db`).
+
+### Caddy configuration updates
+
+Run these operator steps from `space/deploy`, outside the 07:10 and 19:10 UTC
+nightly ingest windows. The `caddy/` directory is mounted read-only, rather than
+the Caddyfile itself: replacing a single bound file through git or an editor can
+leave the container reading its old inode even after a graceful reload.
+See the [official image guidance](https://github.com/docker-library/docs/blob/master/caddy/README.md#-do-not-mount-the-caddyfile-directly-at-etccaddycaddyfile).
+
+When first adopting the directory mount, recreate **only Caddy** so Docker picks
+up the new mount (brief proxy interruption; existing TLS/config volumes persist):
+
+```bash
+docker compose up -d --no-deps --force-recreate caddy
+```
+
+For subsequent configuration updates, run this checked sequence; a successful
+API image rebuild does not reload Caddy. The hash comparison also detects an old
+single-file mount. Do not hide command failures behind unchecked `tail` pipelines.
+
+```bash
+(
+  set -eu
+  host_hash=$(sha256sum caddy/Caddyfile)
+  mounted_hash=$(docker compose exec -T caddy sha256sum /etc/caddy/Caddyfile)
+  test "${host_hash%% *}" = "${mounted_hash%% *}"
+  docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+  docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+  python3 ../scripts/check_landing.py https://vibcreates.com
+)
+```
+
+The read-only smoke check requires an unknown URL to return both HTTP 404 and the
+styled recovery page. HTTP status alone, a direct `/404.html` request, or Caddyfile
+validation does not establish that visitors receive the recovery page.
 
 **Backups:** re-run `seed/dump-local.sh`-style dumps on the box against the `db` service,
 or snapshot the Hetzner volume. The `pgdata` volume holds all state.

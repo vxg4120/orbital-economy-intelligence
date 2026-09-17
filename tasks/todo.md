@@ -5,7 +5,7 @@
 - [x] Verify deployed graphic and release branch incorrectly say2015.
 - [x] Restore first-QA constellation milestone to2014, confirmed directly by Vib.
 - [x] Preserve separately listed employer dates; inspect the exact one-line HTML diff.
-- [ ] Operator publishes corrected landing page and verifies live first-QA milestone2014.
+- [x] Operator published corrected landing page; public GET independently verified first-QA milestone2014 on2026-09-17.
 
 Review: minimal factual correction on isolated branch from release/audit-20260917;
 no runtime behavior changed, no production action performed.
@@ -115,3 +115,20 @@ Provenance-tracked performance scoreboard for spacecraft buses by manufacturer a
   published as n=0 with no rate rather than a fake 100%.
 - Slug fix mid-build: '+' is load-bearing in bus names (BSS-702MP+ vs BSS-702MP), preserved as
   '-plus' in slugs; leading-apostrophe GCAT markers stripped from display names.
+
+## 2026-09-17 — Close remaining site audit defects
+
+Spec: `docs/specs/audit-followup-20260917.md`.
+
+- [x] Recheck peer/source state and isolate from released ae3454e.
+- [x] Prove local404 routing; correct config mount and add checked operator smoke.
+- [x] Implement valid Operators Active sort and shared conflict warm caches.
+- [x] Run hermetic focused tests and desktop/375px browser verification.
+- [x] Commit reviewed source, run independent Codex verification and resolve findings.
+- [x] Record deployment/configuration prerequisites separately from source completion.
+
+Review: source fixes verified; independent review found one test-validity issue,
+reproduced and resolved in9e0edfd.14 focused SQL/API tests and3 Caddy tests passed;
+desktop/mobile browser evidence passed. See tasks/independent-followup-review.md.
+Live404 was repaired independently by Claude and confirmed by public GET; directory
+mount adoption and API release remain operator-owned. No production actions by Codex.

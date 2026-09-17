@@ -137,44 +137,36 @@ def _decay_conflict_rows(db) -> list[dict]:
     return rows
 
 
-# Parsing every decay_date claim in Python costs ~2 s warm and the answer only moves at ingest
-# time, so the rows are served from the warm cache (same registry and pytest-disable behavior
-# as /api/stats). The stats tally reads the same cached list, so the two never disagree.
+def _status_conflict_rows(db) -> list[dict]:
+    with db.cursor() as cur:
+        cur.execute(_STATUS_SQL + "SELECT * FROM disagree ORDER BY norad_id NULLS LAST, satellite_id")
+        return cur.fetchall()
+
+
+def _stale_owner_rows(db) -> list[dict]:
+    with db.cursor() as cur:
+        cur.execute(_STALE_SQL + "SELECT * FROM stale ORDER BY norad_id NULLS LAST, satellite_id")
+        return cur.fetchall()
+
+
+# All three conflict queries only change at ingest time. Cache the complete ordered rows once
+# per refresh, then derive both the count helpers and page totals from those same rows. Empty
+# pages still carry the true total, without rerunning each expensive CTE for count and page.
+_status_rows_cache = cache.register("conflicts_status", _status_conflict_rows)
+_stale_rows_cache = cache.register("conflicts_stale_owners", _stale_owner_rows)
 _decay_rows_cache = cache.register("conflicts_decay", _decay_conflict_rows)
 
 
 def count_status_conflicts(db) -> int:
-    with db.cursor() as cur:
-        cur.execute(_STATUS_SQL + "SELECT count(*) AS n FROM disagree")
-        return cur.fetchone()["n"]
+    return len(_status_rows_cache.get(db))
 
 
 def count_stale_owners(db) -> int:
-    with db.cursor() as cur:
-        cur.execute(_STALE_SQL + "SELECT count(*) AS n FROM stale")
-        return cur.fetchone()["n"]
+    return len(_stale_rows_cache.get(db))
 
 
 def count_decay_conflicts(db) -> int:
     return len(_decay_rows_cache.get(db))
-
-
-def _paginate_sql(db, cte: str, source: str, limit: int, offset: int) -> tuple[list, int]:
-    """Run ``cte`` + a page SELECT over ``source``, returning (page rows, total).
-
-    ``total`` is computed by a separate ``count(*)`` over the same CTE so it stays correct
-    for any offset. A windowed ``count(*) OVER()`` only rides along with the returned rows, so
-    once OFFSET passes the last row the page is empty and the count vanishes to 0.
-    """
-    with db.cursor() as cur:
-        cur.execute(cte + f"SELECT count(*) AS total FROM {source}")
-        total = cur.fetchone()["total"]
-        cur.execute(
-            cte + f"SELECT * FROM {source} LIMIT %s OFFSET %s",
-            (limit, offset),
-        )
-        rows = cur.fetchall()
-    return rows, total
 
 
 @router.get("/status")
@@ -183,8 +175,8 @@ def conflicts_status(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    rows, total = _paginate_sql(db, _STATUS_SQL, "disagree", limit, offset)
-    return {"rows": rows, "total": total}
+    all_rows = _status_rows_cache.get(db)
+    return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}
 
 
 @router.get("/stale-owners")
@@ -193,8 +185,8 @@ def conflicts_stale_owners(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    rows, total = _paginate_sql(db, _STALE_SQL, "stale", limit, offset)
-    return {"rows": rows, "total": total}
+    all_rows = _stale_rows_cache.get(db)
+    return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}
 
 
 @router.get("/decay")

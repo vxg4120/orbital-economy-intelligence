@@ -316,14 +316,14 @@
     <a href="#contact">contact</a>
   </nav>
   <span class="where">Los Angeles, CA · 34.05°N</span>
-  <button class="burger" aria-label="Menu" aria-expanded="false" onclick="var m=document.getElementById('mnav');var o=m.classList.toggle('open');this.setAttribute('aria-expanded',o)">
+  <button class="burger" id="menu-toggle" aria-label="Menu" aria-controls="mnav" aria-expanded="false" onclick="var m=document.getElementById('mnav');var o=m.classList.toggle('open');this.setAttribute('aria-expanded',o)">
     <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" stroke-width="1.6"/></svg>
   </button>
-  <nav class="mnav" id="mnav" aria-label="Site mobile">
-    <a href="#work" onclick="document.getElementById('mnav').classList.remove('open')">the work</a>
-    <a href="#method" onclick="document.getElementById('mnav').classList.remove('open')">method</a>
+  <nav class="mnav" id="mnav" aria-label="Site mobile" onclick="if(event.target.closest('a')){this.classList.remove('open');document.getElementById('menu-toggle').setAttribute('aria-expanded','false')}">
+    <a href="#work">the work</a>
+    <a href="#method">method</a>
     <a href="/fun/" >fun file</a>
-    <a href="#contact" onclick="document.getElementById('mnav').classList.remove('open')">contact</a>
+    <a href="#contact">contact</a>
   </nav>
 </div>
 
