@@ -158,8 +158,16 @@ def test_methodology_carries_no_dashes():
 @pytest.mark.db
 def test_methodology_endpoint_serves_the_dict(db_conn):
     """One marked test pins the wire: the endpoint returns the same dict the tests above vetted."""
+    import re as _re
+
     from api.routers.filings import _METHODOLOGY as m
 
     body = _client().get("/api/filings/methodology").json()
     assert body["version"] == m["version"]
-    assert body["coverage"] == m["coverage"]
+    # The last-run line is the one live value: it comes from the ingest ledger, so it carries
+    # the dates of the last ok harvest and extraction rather than the snapshot's typed date.
+    static = {k: v for k, v in m["coverage"].items() if k != "last_harvest_and_extraction_run"}
+    served = {k: v for k, v in body["coverage"].items() if k != "last_harvest_and_extraction_run"}
+    assert served == static
+    line = body["coverage"]["last_harvest_and_extraction_run"]
+    assert _re.search(r"\d{4}-\d{2}-\d{2}", line) and "staleness gates" in line

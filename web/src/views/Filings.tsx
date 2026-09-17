@@ -1,11 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getFilingDocket, getFilingDocuments, getFilingsMethodology, getPendingFilings } from "../api/client";
 import type { DocketResponse, FilingsMethodology, PendingFiling } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtInt } from "../lib/format";
 import { Panel } from "../components/Panel";
+import { Pager } from "../components/DataTable";
 import { Async, EmptyState } from "../components/States";
+
+const LIMIT = 100;
+
+/** IBFS application types, for the file-number tooltip. A file number is SAT + type + date +
+    sequence, and three types carry a literal slash: "SATT/C2025052000121" is a transfer of
+    control, not a malformed STA. Codes outside this list show as themselves. */
+const APP_TYPES: Record<string, string> = {
+  LOA: "space station license application",
+  STA: "special temporary authority",
+  MOD: "modification",
+  AMD: "amendment",
+  LOI: "letter of intent (non-US licensed system)",
+  PDR: "petition for declaratory ruling (market access)",
+  APL: "amendment to a petition for declaratory ruling",
+  MPL: "modification of a petition for declaratory ruling",
+  "T/C": "transfer of control",
+  ASG: "assignment",
+  RPL: "replacement",
+  MSC: "miscellaneous",
+};
+
+function fileNumberTitle(r: PendingFiling): string {
+  const code = r.app_type_code ?? "";
+  const label = APP_TYPES[code];
+  return code
+    ? `FCC IBFS file number · application type ${code}${label ? `: ${label}` : ""}`
+    : "FCC IBFS file number";
+}
 
 /** The pre-launch pipeline: FCC space-station applications filed and not yet decided.
  *  An authorization precedes launch by months to years, so this queue is the terminal's
@@ -17,7 +46,11 @@ export function Filings() {
   const q = params.get("q") ?? "";
   const slug = params.get("applicant_slug") ?? "";
   const [draft, setDraft] = useState(q);
-  const filings = useApi(() => getPendingFilings(q, slug, 100), [q, slug]);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    setOffset(0);
+  }, [q, slug]);
+  const filings = useApi(() => getPendingFilings(q, slug, LIMIT, offset), [q, slug, offset]);
   const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
   return (
@@ -75,13 +108,14 @@ export function Filings() {
             ) : (
               <>
                 <p className="hint" style={{ padding: "8px 14px 0" }}>
-                  {fmtInt(f.total)} pending · showing {fmtInt(f.rows.length)}
+                  {fmtInt(f.total)} pending
                 </p>
                 <ul className="results">
                   {f.rows.map((r) => (
                     <FilingRow key={r.filing_key} filing={r} />
                   ))}
                 </ul>
+                <Pager offset={offset} limit={LIMIT} total={f.total} onOffset={setOffset} />
               </>
             )
           }
@@ -163,7 +197,7 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
         aria-expanded={open}
       >
         <span className="result-row__name">
-          <span className="mono-hi">{r.file_number}</span>
+          <span className="mono-hi" title={fileNumberTitle(r)}>{r.file_number}</span>
           {r.satellite_name ? <> · {r.satellite_name}</> : null}
           {r.note_summary ? (
             <span className="badge" style={{ marginLeft: 8 }} title="Analyst note inside">

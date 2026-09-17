@@ -232,6 +232,8 @@ _METHODOLOGY = {
         "documents_fetched_whole": 67,
         "documents_truncated_by_the_gateway": 28,
         "filed_to_launch_lead_time_examples": "Starlink Gen1 filed 14 months before first launch; Kuiper filed 39 months before.",
+        # Replaced per request from the ingest ledger (see methodology()); this is the value of
+        # record for the as_of snapshot, served only when the ledger has nothing to say.
         "last_harvest_and_extraction_run": "2026-08-24, on weekly staleness gates inside the nightly refresh",
     },
     "docket_model": {
@@ -259,10 +261,48 @@ _METHODOLOGY = {
 }
 
 
+# The two nightly steps whose freshness the methodology claims, by their ingest_run endpoint.
+_LEDGER_STEPS = {"icfs_documents": "harvest", "schedule_s_specs": "extraction"}
+
+_LAST_OK_SQL = """
+SELECT endpoint, max(finished_at) AS last_ok
+FROM ingest_run
+WHERE source = 'fcc' AND status = 'ok' AND endpoint = ANY(%(endpoints)s)
+GROUP BY endpoint
+"""
+
+
+def last_run_line(db) -> str | None:
+    """'harvest 2026-09-14, extraction 2026-09-14; both on weekly staleness gates inside the
+    nightly refresh', read from the ingest ledger; None when neither step has ever run.
+
+    The coverage counts are a dated snapshot (as_of) by design, but the harvest date is a
+    freshness claim, and a freshness claim typed into a dict goes stale the day after it is
+    written (audit minor 17: the page still said 2026-08-24 three weeks later)."""
+    with db.cursor() as cur:
+        cur.execute(_LAST_OK_SQL, {"endpoints": list(_LEDGER_STEPS)})
+        last = {r["endpoint"]: r["last_ok"] for r in cur.fetchall()}
+    parts = [
+        f"{label} {last[endpoint].date().isoformat()}"
+        for endpoint, label in _LEDGER_STEPS.items()
+        if last.get(endpoint) is not None
+    ]
+    if not parts:
+        return None
+    return ", ".join(parts) + "; both on weekly staleness gates inside the nightly refresh"
+
+
 @router.get("/methodology")
-def methodology():
-    """Versioned, structured methodology: sources, pipeline, coverage, caveats, docket model."""
-    return _METHODOLOGY
+def methodology(db=Depends(get_db)):
+    """Versioned, structured methodology: sources, pipeline, coverage, caveats, docket model.
+
+    Static except for the last-run line, which is read from the ingest ledger per request so
+    the freshness claim can never be older than the data it describes."""
+    line = last_run_line(db)
+    if line is None:
+        return _METHODOLOGY
+    return {**_METHODOLOGY, "coverage": {**_METHODOLOGY["coverage"],
+                                          "last_harvest_and_extraction_run": line}}
 
 
 @router.get("/docket/{callsign:path}")
