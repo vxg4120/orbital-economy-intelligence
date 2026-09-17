@@ -121,7 +121,7 @@
 
   /* figures: atlas plates */
   .fig{background:var(--plate); border:1px solid var(--ink); outline:1px solid var(--line); outline-offset:3px; padding:11px 11px 9px}
-  .fig img{display:block; width:100%; height:auto; border:1px solid var(--line)}
+  .fig img{display:block; width:100%; height:auto; border:1px solid var(--line); background:var(--line)}
   .fig img.la{aspect-ratio:4/5; object-fit:cover; object-position:50% 42%}
   .fig figcaption{font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-top:9px}
   .fig figcaption .star{margin-right:6px}
@@ -160,7 +160,7 @@
   .stat .v{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:clamp(1.5rem,2.8vw,2.1rem); font-weight:600; letter-spacing:-.03em; line-height:1}
   .stat .l{font-size:.82rem; color:var(--muted); margin-top:8px; line-height:1.35}
   .stat .l i{font-style:normal; font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase}
-  .stat .l a{color:inherit; text-decoration:none; border-bottom:1px dotted var(--line-2)}
+  .stat .l a{color:inherit; text-decoration:none; border-bottom:1px dotted var(--line-2); white-space:nowrap}
   .stat .l a:hover{color:var(--gold); border-color:var(--gold)}
   .stat.orbit .v{color:var(--orbit)} .stat.deep .v{color:var(--deep)}
 
@@ -247,6 +247,7 @@
     .contact .cgrid{grid-template-columns:1fr}
     .contact .fig{max-width:400px; margin:44px auto 0; transform:none}
     .stats{grid-template-columns:1fr 1fr}
+    .stat .l a{white-space:normal}
     .avail span{font-size:.66rem; letter-spacing:.02em}
     .cta{gap:14px 20px; font-size:.8rem}
     .qa{grid-template-columns:1fr; gap:0}
@@ -263,13 +264,16 @@
     .crow{grid-template-columns:1fr; gap:2px}
   }
 </style>
+<!-- The scroll reveal starts every .rv block hidden and the script at the foot of the page
+     shows it; with scripting off nothing would ever show, so undo the hide here. -->
+<noscript><style>.rv{opacity:1; transform:none}</style></noscript>
 
   <!-- Visitor analytics. Each service activates only when its id below is filled in; while an
        id is empty nothing loads and no request leaves the page. Ids live here and nowhere else
        on this surface. GA4 wants a measurement id (G-XXXXXXXXXX), Clarity a project id,
-       Fingerprint the public API key from its free tier. For Search Console, paste the
-       verification token into the meta tag. -->
-  <meta name="google-site-verification" content="">
+       Fingerprint the public API key from its free tier. For Search Console, add
+       <meta name="google-site-verification" content="TOKEN"> here once there is a token; an
+       empty one is just noise in the head. -->
   <script>
     (function () {
       var ids = { ga4: "", clarity: "", fingerprint: "" };
@@ -433,10 +437,10 @@
       </div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num" id="r-sat">70,587</div><div class="l">satellites, one resolved identity each</div></div>
-      <div class="m"><div class="v num" id="r-gp">10.9M</div><div class="l">orbital element sets, hypertabled</div></div>
+      <div class="m"><div class="v num" id="r-sat">70,650</div><div class="l">satellites, one resolved identity each</div></div>
+      <div class="m"><div class="v num" id="r-gp">11.1M</div><div class="l">orbital element sets, hypertabled</div></div>
       <div class="m"><div class="v num" id="r-op">100%</div><div class="l">operator attribution coverage</div></div>
-      <div class="m"><div class="v num" id="r-conf">4,400+</div><div class="l">live conflicts surfaced, not averaged</div></div>
+      <div class="m"><div class="v num" id="r-conf">4,477</div><div class="l">live conflicts surfaced, not averaged</div></div>
     </div>
   </article>
 
@@ -456,10 +460,10 @@
       </div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num" id="r-star">21,515</div><div class="l">host stars cross-matched</div></div>
-      <div class="m"><div class="v num" id="r-cand">24,253</div><div class="l">candidates tracked</div></div>
+      <div class="m"><div class="v num" id="r-star">21,519</div><div class="l">host stars cross-matched</div></div>
+      <div class="m"><div class="v num" id="r-cand">24,259</div><div class="l">candidates tracked</div></div>
       <div class="m"><div class="v num" id="r-assert">695k</div><div class="l">per-attribute source assertions</div></div>
-      <div class="m"><div class="v num" id="r-dconf">7,900+</div><div class="l">radius / disposition / T<sub>eff</sub> conflicts</div></div>
+      <div class="m"><div class="v num" id="r-dconf">8,077</div><div class="l">radius / disposition / T<sub>eff</sub> conflicts</div></div>
     </div>
   </article>
 
@@ -518,16 +522,18 @@
 <section class="live wrap" aria-label="Live metrics">
   <div class="lede">
     <span class="k">Proof, not promises · four numbers pulled live from my platforms as you load this page</span>
-    <span class="stamp" id="stamp"><span class="dot"></span>querying live systems…</span>
+    <span class="stamp" id="stamp"><span class="dot" style="background:var(--faint)"></span>cached · September 2026</span>
   </div>
-  <!-- The numbers below are the cached fallback, snapshot 2026-09-08. They are the only
-       hardcoded copy: the live fetch overwrites them on success and leaves them alone on
-       failure, so a tile is never an ellipsis and never a number nobody can date. -->
+  <!-- The numbers below, and the two rails under "The work", are the cached fallback, snapshot 2026-09-17,
+       baked from the same /live/* endpoints by deploy/landing-snapshot.sh (run it before a deploy).
+       They are the only hardcoded copy: the live fetch overwrites them on success and leaves them
+       alone on failure, so a tile is never an ellipsis and never a number nobody can date. The stamp
+       above ships in its cached form for the same reason, and the script keeps its month current. -->
   <div class="stats">
-    <div class="stat orbit rv"><div class="v num" id="s-sat">70,587</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
-    <div class="stat orbit rv"><div class="v num" id="s-gp">10.9M</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-cand">24,253</div><div class="l">exoplanet candidates tracked · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
-    <div class="stat deep rv"><div class="v num" id="s-assert">695k</div><div class="l">sourced facts, receipts kept · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-sat">70,650</div><div class="l">satellites resolved to one identity · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat orbit rv"><div class="v num" id="s-gp">11.1M</div><div class="l">orbital position records kept · <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><i>my satellite platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-cand">24,259</div><div class="l">exoplanet candidates tracked · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
+    <div class="stat deep rv"><div class="v num" id="s-assert">694,752</div><div class="l">sourced facts, receipts kept · <a href="https://exo.vibcreates.com" target="_blank" rel="noopener"><i>my exoplanet platform ↗</i></a></div></div>
   </div>
 </section>
 
@@ -668,7 +674,7 @@
   var c = document.getElementById('signal');
   function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
   var STARS = [
-    {t:.04, y:.62, yr:'2014', l:'first QA job',        h:'--retail', mag:1},
+    {t:.04, y:.62, yr:'2015', l:'first QA job',        h:'--retail', mag:1},
     {t:.16, y:.36, yr:'2015', l:'made regression 5x faster', h:'--deep', mag:1},
     {t:.28, y:.58, yr:'2017', l:'IoT hyperscale at Uptake', h:'--orbit', mag:1},
     {t:.41, y:.20, yr:'2019', l:'founded CannMenus',   h:'--retail', mag:3},
@@ -756,7 +762,11 @@
       el.textContent = fmt(Math.round(from+(target-from)*p)); if(p<1) requestAnimationFrame(f); else if(text) el.textContent=text; }
     requestAnimationFrame(f);
   }
-  var stamp=document.getElementById('stamp');
+  /* The markup ships the stamp already in its cached form: it is what a no-JS reader sees, and
+     deploy/landing-snapshot.sh keeps its month honest along with the numbers. Keep it to fall
+     back to, and claim only that the query is in flight until both platforms have answered. */
+  var stamp=document.getElementById('stamp'), cachedStamp=stamp.innerHTML;
+  stamp.innerHTML='<span class="dot"></span>querying live systems…';
   /* Each platform stands on its own: one backend being down, slow, or answering the wrong shape
      must not strand the other's tiles, and it must never leave the stamp claiming live over
      numbers that never arrived. A failure here is simply "no overwrite", because the cached
@@ -776,7 +786,7 @@
     } else {
       /* Both down, or one of the two. Either way some tile on this strip is the cached number,
          and the stamp says the weaker of the two things rather than the stronger. */
-      stamp.innerHTML='<span class="dot" style="background:var(--faint)"></span>cached · September 2026';
+      stamp.innerHTML=cachedStamp;
     }
   }
   /* Rendered per source rather than after both, so a slow or hung platform delays only its own
