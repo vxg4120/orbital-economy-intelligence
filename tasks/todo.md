@@ -132,3 +132,7 @@ reproduced and resolved in9e0edfd.14 focused SQL/API tests and3 Caddy tests pass
 desktop/mobile browser evidence passed. See tasks/independent-followup-review.md.
 Live404 was repaired independently by Claude and confirmed by public GET; directory
 mount adoption and API release remain operator-owned. No production actions by Codex.
+
+Public follow-up: the new mobile menu markup and Active sort are now observable
+live. Four conflict page requests returned200 in about0.65s with consistent totals.
+The exact active Caddy mount and deployment revision remain operator evidence.

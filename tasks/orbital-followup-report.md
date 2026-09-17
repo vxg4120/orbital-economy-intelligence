@@ -184,3 +184,13 @@ fixture and records the prior browser check's exact evidentiary limit.
 Lesson: a sorting regression fixture must make alternative sort keys produce
 different orders; monotonic IDs and equal fleet totals can otherwise hide the
 wrong implementation even when real SQL is exercised.
+
+## Parent public GET verification after source handoff
+
+The Active endpoint subsequently returned HTTP 200, with first four active counts
+10,377 / 672 / 552 / 390 and total 1,443 operators. A repeat request took 2.724s;
+the initial request took 13.67s, so this does not claim uniformly fast operator
+queries. Status and stale-owner conflict pages at offsets 0 and 1 returned 200
+in 0.643–0.656s, carrying consistent totals 34 and 170 respectively. These are
+small public read-only samples, not a load test or proof of a running image digest.
+Codex performed no deployment or production DB operation.
