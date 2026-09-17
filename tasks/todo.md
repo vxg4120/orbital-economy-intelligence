@@ -5,7 +5,7 @@
 - [x] Verify deployed graphic and release branch incorrectly say2015.
 - [x] Restore first-QA constellation milestone to2014, confirmed directly by Vib.
 - [x] Preserve separately listed employer dates; inspect the exact one-line HTML diff.
-- [ ] Operator publishes corrected landing page and verifies live first-QA milestone2014.
+- [x] Operator published corrected landing page; public GET independently verified first-QA milestone2014 on2026-09-17.
 
 Review: minimal factual correction on isolated branch from release/audit-20260917;
 no runtime behavior changed, no production action performed.
@@ -115,3 +115,16 @@ Provenance-tracked performance scoreboard for spacecraft buses by manufacturer a
   published as n=0 with no rate rather than a fake 100%.
 - Slug fix mid-build: '+' is load-bearing in bus names (BSS-702MP+ vs BSS-702MP), preserved as
   '-plus' in slugs; leading-apostrophe GCAT markers stripped from display names.
+
+## 2026-09-17 — Close remaining site audit defects
+
+Spec: `docs/specs/audit-followup-20260917.md`.
+
+- [x] Recheck peer/source state and isolate from released ae3454e.
+- [x] Prove local404 routing; correct config mount and add checked operator smoke.
+- [x] Implement valid Operators Active sort and shared conflict warm caches.
+- [ ] Run hermetic focused tests and desktop/375px browser verification.
+- [ ] Commit reviewed source, run independent Codex verification and resolve findings.
+- [ ] Record deployment/configuration prerequisites separately from source completion.
+
+Review pending; no production actions by this session.

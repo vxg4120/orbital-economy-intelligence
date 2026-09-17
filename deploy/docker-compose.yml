@@ -67,7 +67,9 @@ services:
       BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Mount the directory: git/editor atomic file replacement must remain visible
+      # inside the container when Caddy validates/reloads its configuration.
+      - ./caddy:/etc/caddy:ro
       - ./landing:/srv/landing:ro
       - caddy_data:/data
       - caddy_config:/config
