@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vibhav "Vib" Gupta · not on the chart</title>
+<meta name="robots" content="noindex" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23F2EBDB'/%3E%3Ctext x='30' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='44' fill='%231C2742'%3EV%3C/text%3E%3Cpath d='M50 38 l2.2 5.8 L58 46 l-5.8 2.2 L50 54 l-2.2-5.8 L42 46 l5.8-2.2 Z' fill='%23B08A2E'/%3E%3C/svg%3E" />
+<style>
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-var.woff2') format('woff2');
+    font-weight:300 700; font-style:normal; font-display:swap;
+  }
+  :root{
+    --paper:#FBF7EC; --plate:#FFFDF6; --ink:#1E2A48; --muted:#475678; --faint:#8A91A6;
+    --line:#DFD8C2; --line-2:#BFB79D;
+    --gold:#B8860B;
+    --deep:#0E8DA0;
+    --serif:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --w:900px;
+  }
+  *{box-sizing:border-box}
+  html{overflow-x:clip} body{overflow-x:clip}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.66;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:var(--w); margin:0 auto; padding:0 28px; position:relative; z-index:2; width:100%}
+  a{color:inherit}
+  ::selection{background:var(--gold); color:var(--paper)}
+  .k{font-family:var(--mono); font-size:.72rem; letter-spacing:.16em; text-transform:uppercase}
+  .star{color:var(--gold); font-style:normal}
+
+  .top{display:flex; justify-content:space-between; align-items:baseline; padding-top:26px}
+  .top .brand{font-family:var(--serif); font-weight:600; font-size:1.05rem; text-decoration:none}
+  .top .brand .star{margin-right:8px}
+  .top a.back{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; border-bottom:1.5px solid var(--gold); padding-bottom:2px}
+  .top a.back:hover{color:var(--gold)}
+
+  main{flex:1}
+  header.head{padding-top:8vh}
+  h1{font-family:var(--serif); font-weight:380; font-variation-settings:"opsz" 144;
+     font-size:clamp(3rem,9vw,6.2rem); line-height:.97; letter-spacing:-.02em; margin:0}
+  h1 .dot{color:var(--gold)}
+  .lede{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin-top:18px}
+  .intro{max-width:56ch; color:var(--muted); margin:26px 0 0; font-size:1.04rem}
+  .intro code{font-family:var(--mono); font-size:.9em; color:var(--ink); word-break:break-all}
+  .path{display:none}
+
+  .routes{margin-top:54px; border-top:2px solid var(--ink); position:relative; padding:22px 0 90px;
+          display:flex; flex-wrap:wrap; gap:12px 28px}
+  .routes::after{content:""; position:absolute; top:4px; left:0; right:0; height:1px; background:var(--line-2)}
+  .routes a{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; border-bottom:1px dotted var(--line-2); padding-bottom:2px}
+  .routes a:hover{color:var(--gold); border-color:var(--gold)}
+
+  footer{border-top:2px solid var(--ink); position:relative}
+  footer::after{content:""; position:absolute; top:4px; left:0; right:0; height:1px; background:var(--line-2)}
+  footer .wrap{padding:22px 28px 34px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px}
+  footer span{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; color:var(--faint)}
+  a:focus-visible{outline:2px solid var(--deep); outline-offset:3px}
+</style>
+</head>
+<body>
+
+<div class="wrap top">
+  <a class="brand" href="/"><span class="star">✦</span>vibcreates</a>
+  <a class="back" href="/">back to the atlas</a>
+</div>
+
+<main class="wrap">
+  <header class="head">
+    <h1>Not on the chart<span class="dot">.</span></h1>
+    <div class="lede">fig. 404 · nothing catalogued at this address</div>
+    <p class="intro">Whatever was meant to be here has moved, or never existed<span class="path">: <code id="path"></code></span>.
+      The rest of the atlas is where it should be.</p>
+  </header>
+
+  <nav class="routes" aria-label="Elsewhere on the site">
+    <a href="/">the atlas</a>
+    <a href="/#work">the work</a>
+    <a href="/#method">method</a>
+    <a href="/fun/">fun file</a>
+    <a href="/splitstep/">splitstep</a>
+    <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener">satellites ↗</a>
+    <a href="https://exo.vibcreates.com" target="_blank" rel="noopener">exoplanets ↗</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Vibhav Gupta</span>
+    <span>made in Los Angeles</span>
+  </div>
+</footer>
+
+<script>
+  /* Name the path that missed, so a mistyped link is obvious at a glance. textContent, never
+     markup, since the path is whatever the visitor typed. */
+  (function(){
+    var p=location.pathname; if(!p || p==='/') return;
+    document.getElementById('path').textContent=p;
+    document.querySelector('.path').style.display='inline';
+  })();
+</script>
+</body>
+</html>
