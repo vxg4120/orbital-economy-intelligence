@@ -67,6 +67,7 @@ class WarmCache:
         self._name = name
         self._compute = compute
         self._lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
         self._value: Any = None
         self._has_value = False
         self._started = False
@@ -85,25 +86,34 @@ class WarmCache:
             if self._has_value:
                 return self._value
         # No value yet (first request during a cold start, or every refresh so far has failed).
-        return self._refresh()
+        return self._refresh(only_if_missing=True)
 
-    def _refresh(self) -> Any:
-        conn = _read_only_conn()
-        try:
-            started = time.monotonic()
-            value = self._compute(conn)
-        finally:
-            conn.close()
-        with self._lock:
-            self._value = value
-            self._has_value = True
-        log.info("warm cache %s refreshed in %.2fs", self._name, time.monotonic() - started)
-        return value
+    def _refresh(self, *, only_if_missing: bool = False) -> Any:
+        # Serialize computations, but keep the payload lock free during database work so warm
+        # readers never wait on a refresh. Cold callers recheck after waiting: another request
+        # or the startup refresher may already have populated even a valid empty payload.
+        with self._refresh_lock:
+            with self._lock:
+                if only_if_missing and self._has_value:
+                    return self._value
+            conn = _read_only_conn()
+            try:
+                started = time.monotonic()
+                value = self._compute(conn)
+            finally:
+                conn.close()
+            with self._lock:
+                self._value = value
+                self._has_value = True
+            log.info("warm cache %s refreshed in %.2fs", self._name, time.monotonic() - started)
+            return value
 
     def _loop(self) -> None:
+        first = True
         while True:
             try:
-                self._refresh()
+                self._refresh(only_if_missing=first)
+                first = False
                 delay = REFRESH_S
             except Exception:
                 # A refresh failure must never kill the thread: the last good value keeps serving

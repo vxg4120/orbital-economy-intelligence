@@ -18,7 +18,11 @@ from api.deps import get_db
 
 router = APIRouter(prefix="/operators", tags=["operators"])
 
-_SORTS = {"fleet": "fleet_total DESC, operator_id", "name": "canonical_name, operator_id"}
+_SORTS = {
+    "fleet": "fleet_total DESC, operator_id",
+    "active": "fleet_active DESC, operator_id",
+    "name": "canonical_name, operator_id",
+}
 
 # Current owned fleet per operator, joined to latest status. The shared CTE feeds both the
 # paged SELECT and a separate count(*) so the pagination total is stable at any offset (a
