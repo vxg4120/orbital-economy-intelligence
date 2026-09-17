@@ -51,7 +51,8 @@ def num(d, *path):
     return v
 
 # Each formatter mirrors the page script, so a baked value is exactly what the live fetch would
-# render over it. Rounding is half-up like JS toFixed / Math.round, not Python's half-even.
+# render over it: every count() tile ends on fmt(), which switches to x.xM at a million, so the
+# plain counts go through fmt() too. Rounding is half-up like JS toFixed / Math.round.
 def group(v): return f"{int(v):,}"                                                  # toLocaleString('en-US')
 def mega(v):  return str(Decimal(v / 1e6).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)) + 'M'   # (v/1e6).toFixed(1)+'M'
 def fmt(v):   return mega(v) if v >= 1e6 else group(v)                              # page fmt()
@@ -61,19 +62,19 @@ def kilo(v):  return str(int(Decimal(v / 1e3).quantize(Decimal('1'), rounding=RO
 tiles = {}
 sat, gp = num(o, 'satellites'), num(o, 'gp_elements')
 if sat is None or gp is None: sys.exit("landing-snapshot: /live/orbital lacks satellites/gp_elements; nothing written")
-tiles['s-sat'] = tiles['r-sat'] = group(sat)
+tiles['s-sat'] = tiles['r-sat'] = fmt(sat)
 tiles['s-gp'] = fmt(gp); tiles['r-gp'] = mega(gp)
 op = num(o, 'coverage', 'operator_pct')
 if op is not None: tiles['r-op'] = jsnum(op) + '%'
 oc = [num(o, 'conflicts', k) for k in ('status', 'decay', 'stale_owners')]
-if None not in oc and sum(oc): tiles['r-conf'] = group(sum(oc))
+if None not in oc and sum(oc): tiles['r-conf'] = fmt(sum(oc))
 
 stars, cand, sa = num(e, 'stars'), num(e, 'candidates'), num(e, 'source_assertions')
 if stars is None or cand is None or sa is None: sys.exit("landing-snapshot: /live/exo lacks stars/candidates/source_assertions; nothing written")
-tiles['s-cand'] = tiles['r-cand'] = group(cand); tiles['r-star'] = group(stars)
+tiles['s-cand'] = tiles['r-cand'] = fmt(cand); tiles['r-star'] = fmt(stars)
 tiles['s-assert'] = fmt(sa); tiles['r-assert'] = kilo(sa)
 ec = [num(e, 'conflicts', k) for k in ('radius', 'disposition', 'teff')]
-if None not in ec and sum(ec): tiles['r-dconf'] = group(sum(ec))
+if None not in ec and sum(ec): tiles['r-dconf'] = fmt(sum(ec))
 
 src = open(html_path, encoding='utf-8').read(); out = src; changed = []
 for tid, val in tiles.items():
