@@ -23,7 +23,10 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
   const k = summary.kuiper_milestone;
   const pct = k.required > 0 ? (k.deployed_total / k.required) * 100 : 0;
   const deadline = deadlineStatus(k.deadline);
-  const shortfall = Math.max(0, k.required - k.deployed_total);
+  // The obligation is judged on what had launched by the deadline, so a shortfall is a fixed
+  // historical fact: later launches raise the progress meter, never rewrite the verdict.
+  const atDeadline = k.deployed_by_deadline ?? k.deployed_total;
+  const shortfall = Math.max(0, k.required - atDeadline);
 
   // Before the deadline: a linear projection from the trailing-30-day rate to the deadline.
   // After it, the obligation is a settled fact (met or missed by N), and the only forward
@@ -36,8 +39,10 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
   const rate = `${fmtInt(k.deployed_last_30d)}/30d`;
   const projTitle = deadline.passed
     ? `Deadline ${k.deadline} passed ${deadline.daysSince}d ago with ${fmtInt(
-        k.deployed_total,
-      )} of ${fmtInt(k.required)} deployed. At ${rate} the required count is reached ${
+        atDeadline,
+      )} of ${fmtInt(k.required)} launched by then (${fmtInt(k.deployed_total)} today). At ${
+        rate
+      } the required count is reached ${
         reachDate ? `~${reachDate}` : "never (no launches in the trailing 30 days)"
       }.`
     : `Linear projection: ${fmtInt(k.deployed_total)} now + ${rate} × ${
@@ -86,8 +91,11 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
               deadline {k.deadline} passed <span className="num">{deadline.daysSince}</span>d ago —{" "}
               {missed ? (
                 <>
-                  <span className="audit-warn">missed by <span className="num">{fmtInt(shortfall)}</span></span>
-                  {" "}· at <span className="num">{rate}</span>,{" "}
+                  <span className="audit-warn">
+                    missed by <span className="num">{fmtInt(shortfall)}</span>
+                  </span>{" "}
+                  (<span className="num">{fmtInt(atDeadline)}</span> launched by then) · at{" "}
+                  <span className="num">{rate}</span>,{" "}
                   {reachDate ? (
                     <>
                       {fmtInt(k.required)} reached ~<span className="num">{reachDate}</span>
@@ -97,7 +105,10 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
                   )}
                 </>
               ) : (
-                <span className="audit-ok">obligation met</span>
+                <span className="audit-ok">
+                  obligation met with <span className="num">{fmtInt(atDeadline)}</span> launched
+                  by then
+                </span>
               )}
             </>
           ) : (

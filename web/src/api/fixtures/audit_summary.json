@@ -4,6 +4,7 @@
     "raising": 157,
     "deorbited": 4,
     "deployed_total": 398,
+    "deployed_by_deadline": 398,
     "deployed_last_30d": 65,
     "required": 1618,
     "deadline": "2026-07-30"

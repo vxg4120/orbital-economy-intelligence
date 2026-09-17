@@ -246,6 +246,7 @@ export interface KuiperMilestone {
   deorbited: number;
   deployed_total: number;
   deployed_last_30d: number; // trailing-30-day deployment rate (feeds the FE deadline projection)
+  deployed_by_deadline?: number; // launched on or before the deadline: settles the obligation
   required: number; // 1,618 — the FCC 50% obligation
   deadline: string; // YYYY-MM-DD
 }

@@ -47,7 +47,9 @@ _KUIPER_SHELL_HI = 645.0  # 630 km + 15 km tolerance
 # Kuiper fleet bucketed by current orbit. Fleet = PAYLOAD sats (with a NORAD) owned by Amazon or an
 # Amazon child operator. Altitude = mean of the latest element set (perigee+apogee)/2; the trailing
 # 14-day mean from sat_daily gates the "settled" half of at-shell. deployed_last_30d feeds the FE's
-# linear projection toward the deadline.
+# linear projection toward the deadline. deployed_by_deadline is the count launched on or before
+# the FCC date: once the deadline has passed it is the number that settles the obligation, and it
+# must not drift as later launches land (deployed_total keeps counting those for progress).
 _KUIPER_SQL = """
 WITH target AS (
     SELECT operator_id FROM operator WHERE canonical_name = %(op)s
@@ -97,7 +99,8 @@ SELECT
         WHERE COALESCE(ls.canonical_status, 'UNKNOWN') <> 'DECAYED'
           AND le.alt IS NOT NULL AND le.alt < %(lo)s
     ) AS raising,
-    count(*) FILTER (WHERE f.launch_date > current_date - interval '30 days') AS deployed_last_30d
+    count(*) FILTER (WHERE f.launch_date > current_date - interval '30 days') AS deployed_last_30d,
+    count(*) FILTER (WHERE f.launch_date <= %(deadline)s::date) AS deployed_by_deadline
 FROM fleet f
 LEFT JOIN le ON le.norad_id = f.norad_id
 LEFT JOIN trail t ON t.norad_id = f.norad_id
@@ -204,7 +207,11 @@ def _build_summary(db) -> dict:
     served from the warm cache (same registry, same pytest-disable behavior as stats and
     congestion)."""
     with db.cursor() as cur:
-        cur.execute(_KUIPER_SQL, {"op": KUIPER_OPERATOR, "lo": _KUIPER_SHELL_LO, "hi": _KUIPER_SHELL_HI})
+        cur.execute(
+            _KUIPER_SQL,
+            {"op": KUIPER_OPERATOR, "lo": _KUIPER_SHELL_LO, "hi": _KUIPER_SHELL_HI,
+             "deadline": KUIPER_DEADLINE},
+        )
         k = cur.fetchone()
 
         cur.execute(_LINGERING_SQL, {"names": BENCHMARK_OPERATORS})
@@ -220,6 +227,7 @@ def _build_summary(db) -> dict:
             "deorbited": k["deorbited"],
             "deployed_total": k["deployed_total"],
             "deployed_last_30d": k["deployed_last_30d"],
+            "deployed_by_deadline": k["deployed_by_deadline"],
             "required": KUIPER_REQUIRED,
             "deadline": KUIPER_DEADLINE,
         },

@@ -33,13 +33,15 @@ def test_audit_summary_shape(client):
 def test_kuiper_milestone_internally_consistent(client):
     km = client.get("/api/audit/summary").json()["kuiper_milestone"]
     assert {"at_shell", "raising", "deorbited", "deployed_total", "deployed_last_30d",
-            "required", "deadline"} <= set(km)
+            "deployed_by_deadline", "required", "deadline"} <= set(km)
     assert km["required"] == 1618
     assert km["deadline"] == "2026-07-30"
     for key in ("at_shell", "raising", "deorbited", "deployed_total", "deployed_last_30d"):
         assert isinstance(km[key], int) and km[key] >= 0
     # The three orbit buckets partition a subset of the fleet -- never more than were deployed.
     assert km["at_shell"] + km["raising"] + km["deorbited"] <= km["deployed_total"]
+    # What was launched by the deadline is a fixed subset of what has been launched at all.
+    assert 0 <= km["deployed_by_deadline"] <= km["deployed_total"]
     # The real build is nowhere near the 1,618 obligation -- that gap IS the thesis.
     assert km["deployed_total"] < km["required"]
 
