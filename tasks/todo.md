@@ -1,5 +1,15 @@
 # Phase 0 + Phase 1 — todo
 
+## 2026-09-17 — User-confirmed first QA year
+
+- [x] Verify deployed graphic and release branch incorrectly say2015.
+- [x] Restore first-QA constellation milestone to2014, confirmed directly by Vib.
+- [x] Preserve separately listed employer dates; inspect the exact one-line HTML diff.
+- [ ] Operator publishes corrected landing page and verifies live first-QA milestone2014.
+
+Review: minimal factual correction on isolated branch from release/audit-20260917;
+no runtime behavior changed, no production action performed.
+
 Plan: docs/plans/phase-0-1-plan.md · Spec: docs/SPEC.md
 
 - [x] Task 1: Repo foundation (scaffold, docker-compose, tooling)
