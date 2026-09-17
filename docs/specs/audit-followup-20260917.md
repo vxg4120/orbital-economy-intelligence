@@ -1,6 +1,6 @@
 # Spec: Close independently reproduced site audit gaps
 
-**Status:** active
+**Status:** complete (source verification; operator adoption tracked separately)
 **Owner:** Vib
 **Repos touched:** space; Exo has its own isolated spec
 **Last updated:** 2026-09-17
@@ -42,19 +42,20 @@ boundaries, operators without fleets, tied active counts, and concurrent cache r
   ordinary assets/pages and proxied failure behavior retain their expected status.
   Command: documented local Caddy smoke harness in `tasks/landing-followup-report.md`.
 - [x] `/api/operators?sort=active` succeeds with descending active counts and a
-  deterministic tie-break; unsupported sorts still422. Meaningful focused API test passes.
+  deterministic tie-break; unsupported sorts still422. Use a fixture whose Active,
+  Fleet, name and ID order differ; replacing Active with Fleet must fail the DB test.
 - [x] Status/stale conflict lists and counts share the same warm cached rows before
   slicing; no per-page duplicate expensive CTE. Cache/page/count tests pass including empty rows.
 - [x] Covering Python tests run with explicit local-only/invalid DSNs and pass;
   TypeScript/Vite build passes if frontend changed.
-- [ ] Desktop/375px local browser checks cover changed interactions and HTTP recovery.
-- [ ] Independent read-only Codex verify covers base `ae3454e` through final HEAD;
+- [x] Desktop/375px local browser checks cover changed interactions and HTTP recovery.
+- [x] Independent read-only Codex verify covers base `ae3454e` through final source HEAD;
   findings are reproduced and resolved, or recorded with a precise reason.
 
 ## Open questions
-- Local reproduction proves the repository routing serves styled404. The single-file
-  bind mount can retain replaced files; a stale mounted/active production configuration
-  is a candidate, not a confirmed runtime diagnosis. Operator hash/state checks remain.
+- Operator handoff now reports confirmed stale mount: host inode295597 contained
+  handle_errors, container inode258983 did not. Claude independently recreated Caddy;
+  Codex then verified public body+status smoke. Directory-mount adoption remains pending.
 - Operator: deployed Caddy config/reload state may differ from repository config;
   source fixes cannot prove a production reload occurred.
 
@@ -74,3 +75,16 @@ boundaries, operators without fleets, tied active counts, and concurrent cache r
   derive pagination totals/count helpers from them. Serialize cold computations but
   leave warm readers nonblocking. Existing independent stats-payload caching may lag
   a row refresh by its refresh cadence; this does not promise atomic cross-endpoint snapshots.
+
+- 2026-09-17 (operator evidence + Codex public GET) — Claude confirmed stale mounted
+  configuration and repaired the live404 by Caddy-only recreation. Five public smoke
+  checks now pass, including random unknown paths with/trailing slash:404/5764 bytes.
+  This live repair precedes adoption of the reviewed directory-mount source change.
+
+- 2026-09-17 (independent Codex review, confirmed) — Initial Active-sort fixtures
+  produced the same order under Fleet sorting. Strengthen behavioral regression data
+  and prove a Fleet-sort mutation fails. No runtime/security finding was reported.
+
+- 2026-09-17 (Codex, reproduced) — Commit9e0edfd makes all four sort orders differ.
+  Correct source passed14 focused tests; Fleet/Name/ID mutations each failed the
+  primary order assertion. Independent review found no runtime or security defect.

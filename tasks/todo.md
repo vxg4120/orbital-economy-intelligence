@@ -123,8 +123,12 @@ Spec: `docs/specs/audit-followup-20260917.md`.
 - [x] Recheck peer/source state and isolate from released ae3454e.
 - [x] Prove local404 routing; correct config mount and add checked operator smoke.
 - [x] Implement valid Operators Active sort and shared conflict warm caches.
-- [ ] Run hermetic focused tests and desktop/375px browser verification.
-- [ ] Commit reviewed source, run independent Codex verification and resolve findings.
-- [ ] Record deployment/configuration prerequisites separately from source completion.
+- [x] Run hermetic focused tests and desktop/375px browser verification.
+- [x] Commit reviewed source, run independent Codex verification and resolve findings.
+- [x] Record deployment/configuration prerequisites separately from source completion.
 
-Review pending; no production actions by this session.
+Review: source fixes verified; independent review found one test-validity issue,
+reproduced and resolved in9e0edfd.14 focused SQL/API tests and3 Caddy tests passed;
+desktop/mobile browser evidence passed. See tasks/independent-followup-review.md.
+Live404 was repaired independently by Claude and confirmed by public GET; directory
+mount adoption and API release remain operator-owned. No production actions by Codex.

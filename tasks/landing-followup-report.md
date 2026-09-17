@@ -54,3 +54,13 @@ Source/local validation only. Active production config/hash, directory mount
 adoption and subsequent public smoke are operator verification. A200 response for
 the standalone404 file is insufficient. Required independent integrated Codex
 review is recorded separately after commits.
+
+## Subsequent live evidence
+
+After the local fix was prepared, Claude's handoff recorded the actual cause:
+host Caddyfile inode295597 contained the error handler; container inode258983 did
+not. The operator independently recreated Caddy against the existing mount.
+`python3 scripts/check_landing.py https://vibcreates.com` then passed all5 public
+GET checks, including random unknown path and trailing slash404 with5764-byte HTML.
+The directory mount and mobile aria fix are still source changes awaiting adoption.
+Codex performed no production mutation. Local manual Caddy server stopped after tests.
