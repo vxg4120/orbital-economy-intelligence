@@ -12,7 +12,7 @@ const TOUR_FLAG = "oei_tour_done";
 const STEPS: DriveStep[] = [
   {
     popover: {
-      title: "Welcome to the Orbital Terminal",
+      title: "Welcome to the Orbital Economy Terminal",
       description:
         "An identity graph over ~70,000 satellites, reconciled from four conflicting public catalogs into one resolved record per real spacecraft. Here's a 20-second tour.",
     },

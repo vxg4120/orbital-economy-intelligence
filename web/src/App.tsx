@@ -83,7 +83,7 @@ export default function App() {
         <div className="topbar__brand">
           <span className="topbar__mark">
             <span className="dot" aria-hidden="true" />
-            Orbital Terminal
+            Orbital Economy Terminal
           </span>
           <span className="topbar__sub">Identity Graph · Read-only</span>
         </div>
@@ -123,9 +123,7 @@ export default function App() {
             <SourceBadge source="ucs" />
             <SourceBadge source="resolve" />
           </div>
-          <span className="hint">
-            {MOCK ? "Fixtures — API offline" : "Proxy → :8600"}
-          </span>
+          {MOCK ? <span className="hint">Fixtures — API offline</span> : null}
         </div>
       </nav>
 

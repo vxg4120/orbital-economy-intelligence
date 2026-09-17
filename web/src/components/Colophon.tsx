@@ -32,7 +32,7 @@ export function Colophon() {
 
   return (
     <div className="colophon">
-      <span>Orbital Economy Intelligence</span>
+      <span>Orbital Economy Terminal</span>
       <span>
         methodology <span className="num">v{line?.version ?? "—"}</span> ·{" "}
         <a href="/api/buses/methodology" target="_blank" rel="noreferrer">
