@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import type { AuditSummary } from "../api/types";
 import { compact, fmtInt, fmtNum, fmtPct } from "../lib/format";
+import { daysToReach, deadlineStatus, monthYear, plusDays } from "../lib/deadline";
 import { Panel } from "./Panel";
 
-const DAY_MS = 86_400_000;
 const INACTIVE = "#78828f"; // reserved status hue for INACTIVE — the loitering objects
 
 /** The AUDIT row: three live reads that carry the auditor thesis — Kuiper's deployment gap, the
@@ -22,30 +22,43 @@ export function AuditStrip({ summary }: { summary: AuditSummary }) {
 function KuiperMilestone({ summary }: { summary: AuditSummary }) {
   const k = summary.kuiper_milestone;
   const pct = k.required > 0 ? (k.deployed_total / k.required) * 100 : 0;
+  const deadline = deadlineStatus(k.deadline);
+  const shortfall = Math.max(0, k.required - k.deployed_total);
 
-  // Days to the FCC deadline, and a simple linear projection from the trailing-30-day rate.
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((Date.parse(k.deadline + "T00:00:00Z") - Date.now()) / DAY_MS),
-  );
-  const projected = Math.round(k.deployed_total + k.deployed_last_30d * (daysLeft / 30));
-  const short = projected < k.required;
-  const projTitle = `Linear projection: ${fmtInt(k.deployed_total)} now + ${fmtInt(
-    k.deployed_last_30d,
-  )}/30d × ${daysLeft}d = ~${fmtInt(projected)} by ${k.deadline} (need ${fmtInt(k.required)}).`;
+  // Before the deadline: a linear projection from the trailing-30-day rate to the deadline.
+  // After it, the obligation is a settled fact (met or missed by N), and the only forward
+  // number left is when the current rate reaches the required count, dated from today.
+  const projected = Math.round(k.deployed_total + k.deployed_last_30d * (deadline.daysLeft / 30));
+  const short = !deadline.passed && projected < k.required;
+  const missed = deadline.passed && shortfall > 0;
+  const reachDays = daysToReach(k.deployed_total, k.required, k.deployed_last_30d);
+  const reachDate = reachDays === null ? null : plusDays(new Date(), reachDays);
+  const rate = `${fmtInt(k.deployed_last_30d)}/30d`;
+  const projTitle = deadline.passed
+    ? `Deadline ${k.deadline} passed ${deadline.daysSince}d ago with ${fmtInt(
+        k.deployed_total,
+      )} of ${fmtInt(k.required)} deployed. At ${rate} the required count is reached ${
+        reachDate ? `~${reachDate}` : "never (no launches in the trailing 30 days)"
+      }.`
+    : `Linear projection: ${fmtInt(k.deployed_total)} now + ${rate} × ${
+        deadline.daysLeft
+      }d = ~${fmtInt(projected)} by ${k.deadline} (need ${fmtInt(k.required)}).`;
 
   return (
-    <Panel title="Kuiper milestone" meta="FCC 50% · 1,618 by Jul 2026">
+    <Panel title="Kuiper milestone" meta={`FCC 50% · ${fmtInt(k.required)} by ${monthYear(k.deadline)}`}>
       <div className="kuiper">
         <div className="kuiper__head">
           <span className="kuiper__count num">{fmtInt(k.deployed_total)}</span>
           <span className="kuiper__req num">/ {fmtInt(k.required)} required</span>
           <span
-            className={`countdown-chip${short ? " is-short" : ""}`}
+            className={`countdown-chip${short || missed ? " is-short" : ""}`}
             title={projTitle}
           >
-            {short ? "▲ " : ""}
-            {daysLeft}d left
+            {deadline.passed
+              ? missed
+                ? `▲ deadline passed · ${deadline.daysSince}d ago`
+                : "deadline met"
+              : `${short ? "▲ " : ""}${deadline.daysLeft}d left`}
           </span>
         </div>
         <div
@@ -54,9 +67,12 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
           aria-valuenow={Math.round(pct)}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Kuiper deployment toward 1,618"
+          aria-label={`Kuiper deployment toward ${fmtInt(k.required)}`}
         >
-          <div className={`meter__fill${short ? " is-warn" : ""}`} style={{ width: `${pct}%` }} />
+          <div
+            className={`meter__fill${short || missed ? " is-warn" : ""}`}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
         </div>
         <div className="kuiper__legend">
           <LegendDot label="at shell" n={k.at_shell} tone="active" />
@@ -64,12 +80,35 @@ function KuiperMilestone({ summary }: { summary: AuditSummary }) {
           <LegendDot label="deorbited" n={k.deorbited} tone="decayed" />
         </div>
         <p className="hint" title={projTitle}>
-          {fmtPct(pct)} of the obligation · projecting{" "}
-          <span className="num">~{compact(projected)}</span> by {k.deadline} at{" "}
-          <span className="num">{fmtInt(k.deployed_last_30d)}</span>/30d —{" "}
-          <span className={short ? "audit-warn" : "audit-ok"}>
-            {short ? "short of target" : "on track"}
-          </span>
+          {fmtPct(pct)} of the obligation ·{" "}
+          {deadline.passed ? (
+            <>
+              deadline {k.deadline} passed <span className="num">{deadline.daysSince}</span>d ago —{" "}
+              {missed ? (
+                <>
+                  <span className="audit-warn">missed by <span className="num">{fmtInt(shortfall)}</span></span>
+                  {" "}· at <span className="num">{rate}</span>,{" "}
+                  {reachDate ? (
+                    <>
+                      {fmtInt(k.required)} reached ~<span className="num">{reachDate}</span>
+                    </>
+                  ) : (
+                    "no launches in the trailing 30 days"
+                  )}
+                </>
+              ) : (
+                <span className="audit-ok">obligation met</span>
+              )}
+            </>
+          ) : (
+            <>
+              projecting <span className="num">~{compact(projected)}</span> by {k.deadline} at{" "}
+              <span className="num">{rate}</span> —{" "}
+              <span className={short ? "audit-warn" : "audit-ok"}>
+                {short ? "short of target" : "on track"}
+              </span>
+            </>
+          )}
         </p>
       </div>
     </Panel>
