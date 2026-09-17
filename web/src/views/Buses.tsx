@@ -16,6 +16,7 @@ import type {
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtInt, fmtNum, fmtPct } from "../lib/format";
+import { naturalDir, type SortDir } from "../lib/busSort";
 import { Panel } from "../components/Panel";
 import { Cell, DataTable, Pager, type Column, type SortSpec } from "../components/DataTable";
 import { StatTile } from "../components/StatTile";
@@ -25,11 +26,6 @@ import { Async, EmptyState, ErrorState, Loading } from "../components/States";
 
 const LIMIT = 50;
 const MIN_N_OPTIONS = [1, 5, 25, 100];
-
-// Descending metric sorts; everything else (tto, station_keeping, name) ranks ascending.
-const DESC_SORTS: BusSort[] = [
-  "fleet", "on_orbit", "active", "sk_share", "decayed_share", "lifetime", "compliance", "coverage",
-];
 
 /** "n of m observed" caption for a behavior metric, so no number hides its denominator. */
 function nOf(n: number, of: number): string {
@@ -43,6 +39,7 @@ export function Buses() {
 
   const [group, setGroup] = useState<BusGroup>("manufacturer");
   const [sort, setSort] = useState<BusSort>("fleet");
+  const [dir, setDir] = useState<SortDir>("desc");
   const [minN, setMinN] = useState(5);
   const [offset, setOffset] = useState(0);
 
@@ -61,8 +58,8 @@ export function Buses() {
   const effMinN = searching ? 1 : minN;
 
   const board = useApi(
-    () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined),
-    [group, sort, effMinN, offset, debounced],
+    () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined, dir),
+    [group, sort, dir, effMinN, offset, debounced],
   );
   const methodology = useApi(() => getBusMethodology(), []);
 
@@ -74,17 +71,23 @@ export function Buses() {
     [slug, kind],
   );
 
-  const sortSpec: SortSpec = {
-    key: `sort:${sort}`,
-    dir: DESC_SORTS.includes(sort) ? "desc" : "asc",
-  };
+  const sortSpec: SortSpec = { key: `sort:${sort}`, dir };
+  // A second click on the active column reverses it; a new column starts in its natural
+  // direction. The caret in the header reads from the same state, so it cannot drift.
   const onSort = (key: string) => {
-    setSort(key.replace("sort:", "") as BusSort);
+    const next = key.replace("sort:", "") as BusSort;
+    if (next === sort) {
+      setDir(dir === "asc" ? "desc" : "asc");
+    } else {
+      setSort(next);
+      setDir(naturalDir(next));
+    }
     setOffset(0);
   };
   const pickGroup = (g: BusGroup) => {
     setGroup(g);
     setSort("fleet");
+    setDir("desc");
     setOffset(0);
   };
 
@@ -160,6 +163,26 @@ export function Buses() {
       render: (r) => <Cell>{r.median_lifetime_years !== null ? fmtNum(r.median_lifetime_years, 1) : null}</Cell>,
     },
     {
+      // Post-mission disposal, the 5-year rule (methodology 5.6). Sparse by construction until
+      // the decay-history backfill deepens, so most cohorts show a dash; the title says why and
+      // reports n, which the definition promises for every metric.
+      key: "sort:compliance",
+      header: "PMD 5y",
+      num: true,
+      sortable: true,
+      render: (r) => (
+        <span
+          title={
+            r.disposal_n > 0
+              ? `n ${fmtInt(r.disposal_n)} decidable disposal verdicts of ${fmtInt(r.decayed_count)} decayed`
+              : "No decidable disposal verdict yet: decay-history backfill pending"
+          }
+        >
+          <Cell>{r.disposal_compliance_pct !== null ? fmtPct(r.disposal_compliance_pct) : null}</Cell>
+        </span>
+      ),
+    },
+    {
       key: "sort:coverage",
       header: "GP cov",
       num: true,
@@ -176,8 +199,9 @@ export function Buses() {
           <p className="vhead__desc">
             An independent, provenance-tracked scoreboard for spacecraft platforms: fleet,
             time-to-operational, station-keeping, lifetime and disposal, per manufacturer and per
-            bus model. Behavior metrics come from GP element history and report their n; the
-            methodology below states every definition and caveat.
+            bus model. Behavior metrics come from GP element history; each cohort's detail page
+            reports the n behind every one of them, and the methodology below states every
+            definition and caveat.
           </p>
         </div>
       </header>

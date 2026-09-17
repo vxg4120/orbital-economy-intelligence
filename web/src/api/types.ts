@@ -493,6 +493,7 @@ export interface BusRow {
 export interface BusesResponse extends Paginated<BusRow> {
   group: BusGroup;
   sort: string;
+  dir?: "asc" | "desc"; // the direction actually applied (the key's natural one when unsent)
   min_n: number;
 }
 

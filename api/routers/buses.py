@@ -45,20 +45,36 @@ _GROUPS = {
     },
 }
 
-# Whitelisted sort keys -> ORDER BY fragments (never interpolate user input directly).
+# Whitelisted sort keys -> (column, natural direction). Never interpolate user input directly:
+# the column comes from this table and the direction from _order_by's own check. NULLS LAST on
+# both directions, so a cohort with no value never leads the board whichever way it is read.
 _SORTS = {
-    "fleet": "fleet_total DESC",
-    "on_orbit": "fleet_on_orbit DESC",
-    "active": "fleet_active DESC",
-    "tto": "median_days_to_operational ASC NULLS LAST",
-    "station_keeping": "p50_station_keeping_km ASC NULLS LAST",
-    "sk_share": "station_keeping_share_pct DESC NULLS LAST",
-    "decayed_share": "decayed_share_pct DESC NULLS LAST",
-    "lifetime": "median_lifetime_years DESC NULLS LAST",
-    "compliance": "disposal_compliance_pct DESC NULLS LAST",
-    "coverage": "gp_coverage_pct DESC NULLS LAST",
-    "name": "name ASC",
+    "fleet": ("fleet_total", "DESC"),
+    "on_orbit": ("fleet_on_orbit", "DESC"),
+    "active": ("fleet_active", "DESC"),
+    "tto": ("median_days_to_operational", "ASC"),
+    "station_keeping": ("p50_station_keeping_km", "ASC"),
+    "sk_share": ("station_keeping_share_pct", "DESC"),
+    "decayed_share": ("decayed_share_pct", "DESC"),
+    "lifetime": ("median_lifetime_years", "DESC"),
+    "compliance": ("disposal_compliance_pct", "DESC"),
+    "coverage": ("gp_coverage_pct", "DESC"),
+    "name": ("name", "ASC"),
 }
+
+
+def _order_by(sort: str, direction: str | None) -> tuple[str, str]:
+    """The ORDER BY fragment for a sort key, in its natural direction unless one is given.
+
+    Returns (fragment, direction) so the payload can echo the direction actually applied."""
+    spec = _SORTS.get(sort)
+    if spec is None:
+        raise HTTPException(status_code=422, detail=f"sort must be one of {sorted(_SORTS)}")
+    column, natural = spec
+    applied = (direction or natural).upper()
+    if applied not in ("ASC", "DESC"):
+        raise HTTPException(status_code=422, detail="dir must be 'asc' or 'desc'")
+    return f"{column} {applied} NULLS LAST", applied.lower()
 
 # Provenance metrics: per-satellite value column + cohort filter over v_bus_sat. The "of" note
 # says which denominator the metric uses, so receipts are self-describing.
@@ -228,18 +244,17 @@ def _group_spec(group: str) -> dict:
 
 def leaderboard_rows(
     db, group: str, sort: str, min_n: int, limit: int, offset: int, q: str | None = None,
-    state: str = "all",
+    state: str = "all", direction: str | None = None,
 ) -> dict:
-    """Shared by the router and the MCP server. Returns {rows, total, group, sort, min_n}.
+    """Shared by the router and the MCP server. Returns {rows, total, group, sort, dir, min_n}.
 
     state='anchored' aggregates over anchored joins only, excluding provisional_slot rows.
     The default includes everything: provisional fleets are the newest and most interesting
     cohort, so they stay visible with their provisional_n flag rather than being withheld.
+    direction reverses a sort key's natural order ('asc' or 'desc'); None keeps it.
     """
     spec = _group_spec(group)
-    order = _SORTS.get(sort)
-    if order is None:
-        raise HTTPException(status_code=422, detail=f"sort must be one of {sorted(_SORTS)}")
+    order, applied_dir = _order_by(sort, direction)
     if state not in ("all", "anchored"):
         raise HTTPException(status_code=422, detail="state must be 'all' or 'anchored'")
     view = spec["view"] + ("_anchored" if state == "anchored" else "")
@@ -259,8 +274,8 @@ def leaderboard_rows(
             {**params, "limit": limit, "offset": offset},
         )
         rows = cur.fetchall()
-    return {"rows": rows, "total": total, "group": group, "sort": sort, "min_n": min_n,
-            "state": state}
+    return {"rows": rows, "total": total, "group": group, "sort": sort, "dir": applied_dir,
+            "min_n": min_n, "state": state}
 
 
 def _find_group(db, slug: str, kind: str | None) -> tuple[str, dict, str | None] | None:
@@ -682,8 +697,9 @@ def leaderboard(
     offset: int = Query(0, ge=0),
     q: str | None = Query(None, max_length=80),
     state: str = Query("all", pattern="^(all|anchored)$"),
+    dir: str | None = Query(None, pattern="^(asc|desc)$"),
 ):
-    return leaderboard_rows(db, group, sort, min_n, limit, offset, q, state)
+    return leaderboard_rows(db, group, sort, min_n, limit, offset, q, state, dir)
 
 
 # Static path routes must be declared before /{slug} so they win the route match.

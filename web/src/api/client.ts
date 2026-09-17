@@ -77,6 +77,8 @@ import busHistoryFixture from "./fixtures/bus_history.json";
 import reachabilityFixture from "./fixtures/reachability.json";
 import reachabilityPassesFixture from "./fixtures/reachability_passes.json";
 
+import { naturalDir, type SortDir } from "../lib/busSort";
+
 export const MOCK = import.meta.env.VITE_API_MOCK === "1";
 
 export class ApiError extends Error {
@@ -281,6 +283,7 @@ function mockBuses(
   limit: number,
   offset: number,
   q?: string,
+  dir?: SortDir,
 ): BusesResponse {
   const base = busLeaderboards[group] ?? busLeaderboards.manufacturer;
   const needle = q?.trim().toLowerCase();
@@ -292,11 +295,14 @@ function mockBuses(
     ),
     sort,
   );
+  // sortBusRows yields the key's natural order; an explicit opposite direction reverses it.
+  const ordered = dir && dir !== naturalDir(sort) ? [...filtered].reverse() : filtered;
   return {
-    rows: filtered.slice(offset, offset + limit),
-    total: filtered.length,
+    rows: ordered.slice(offset, offset + limit),
+    total: ordered.length,
     group,
     sort,
+    dir: dir ?? naturalDir(sort),
     min_n: minN,
   };
 }
@@ -572,10 +578,12 @@ export function getBuses(
   limit: number,
   offset: number,
   q?: string,
+  dir?: SortDir,
 ): Promise<BusesResponse> {
-  if (MOCK) return delay(mockBuses(group, sort, minN, limit, offset, q));
+  if (MOCK) return delay(mockBuses(group, sort, minN, limit, offset, q, dir));
   const params: Record<string, string | number> = { group, sort, min_n: minN, limit, offset };
   if (q?.trim()) params.q = q.trim();
+  if (dir) params.dir = dir;
   return realGet<BusesResponse>("/buses", params);
 }
 

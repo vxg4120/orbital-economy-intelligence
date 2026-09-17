@@ -61,6 +61,22 @@ def test_leaderboard_rejects_bad_params(client):
     assert client.get("/api/buses?group=bogus").status_code == 422
     assert client.get("/api/buses?limit=999").status_code == 422
     assert client.get("/api/buses?min_n=0").status_code == 422
+    assert client.get("/api/buses?dir=sideways").status_code == 422
+
+
+@pytest.mark.db
+def test_leaderboard_direction_can_be_reversed(client):
+    """A column header click on the active column reverses the board (audit minor 11); the
+    API contract behind it is an explicit dir that flips the key's natural order."""
+    down = client.get("/api/buses?limit=20&sort=fleet").json()
+    up = client.get("/api/buses?limit=20&sort=fleet&dir=asc&min_n=1").json()
+    assert down["dir"] == "desc" and up["dir"] == "asc"
+    fleets_up = [row["fleet_total"] for row in up["rows"]]
+    assert fleets_up == sorted(fleets_up)
+    assert fleets_up[0] <= down["rows"][0]["fleet_total"]
+    # NULLS LAST holds in both directions: a cohort with no value never leads the board.
+    top = client.get("/api/buses?limit=1&sort=tto&dir=desc").json()["rows"]
+    assert not top or top[0]["median_days_to_operational"] is not None
 
 
 @pytest.mark.db
