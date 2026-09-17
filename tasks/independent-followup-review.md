@@ -32,4 +32,24 @@ No runtime source changed after the reviewed `dd04f6b`.
 
 Parent inspected the fixture, changed report, cache/query diff, browser evidence,
 and Caddy HTTP checks. This resolves the finding without changing public behavior.
-Targeted read-only follow-up verification is recorded after completion.
+Targeted read-only follow-up verification completed with source acceptance PASS; see below.
+
+
+## Independent follow-up verdict
+
+**PASS — source acceptance. No new actionable findings.** Reviewed `dd04f6b…3ff8e9b`; only tests and documentation changed.
+
+The corrected fixture genuinely distinguishes all four orders:
+
+| Sort | Operator IDs |
+|---|---|
+| Active | 30, 10, 20, 40 |
+| Fleet | 20, 10, 30, 40 |
+| Name | 20, 30, 40, 10 |
+| ID | 10, 20, 30, 40 |
+
+Active ties retain ascending-ID order across pages `[30,10]`, `[20,40]`, `[]`. Zero-fleet coverage, active/fleet counts, `total=4`, and `with_fleet=3` persist.
+
+The earlier P2 is closed. Retained logs show **14 tests passed** and Fleet/Name/ID mutations each failed the primary ordering assertion. Fresh invalid-DSN verification: **12 passed, 2 DB tests deselected**. Earlier Caddy, browser, and cache acceptance remains supported by the prior review and recorded evidence; the browser fixture’s limitation is explicitly documented.
+
+This confirms local/source acceptance, **not deployment**. No production inspection or DB connection occurred; directory-mount adoption, mobile fix, and API release remain operator-owned.
