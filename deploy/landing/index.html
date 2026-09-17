@@ -263,6 +263,9 @@
     .crow{grid-template-columns:1fr; gap:2px}
   }
 </style>
+<!-- The scroll reveal starts every .rv block hidden and the script at the foot of the page
+     shows it; with scripting off nothing would ever show, so undo the hide here. -->
+<noscript><style>.rv{opacity:1; transform:none}</style></noscript>
 
   <!-- Visitor analytics. Each service activates only when its id below is filled in; while an
        id is empty nothing loads and no request leaves the page. Ids live here and nowhere else
