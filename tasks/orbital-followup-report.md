@@ -139,3 +139,48 @@ only this report. Earlier test attempts stopped cleanly: one failed at build on
 the architecture mismatch above; another passed desktop interactions but found
 an omitted `/buses/methodology` fixture in the harness. The final run includes
 that unchanged shell dependency and passes all checks.
+
+## Independent-review test correction
+
+The independent CLI review correctly identified that the original Active-sort SQL
+fixture did not distinguish Active from Fleet sorting: all three fleet-holding
+operators had fleet size two, and their IDs happened to match Active order.
+The original browser fixture shares that weakness. Its recorded click/request,
+200 response, rendering, and pagination evidence remains valid, but its particular
+row order alone does not exclude an incorrect Active-to-Fleet mapping.
+
+The committed SQL test now deliberately separates every candidate ordering:
+
+| Ordering | Operator IDs |
+| --- | --- |
+| Active descending with ID ties | 30, 10, 20, 40 |
+| Fleet descending with ID ties | 20, 10, 30, 40 |
+| Name ascending | 20, 30, 40, 10 |
+| ID ascending | 10, 20, 30, 40 |
+
+In Active order, active counts are **3, 2, 2, 0**, and fleet counts are
+**3, 5, 6, 0**. Two-row pagination splits the tied active pair across pages:
+`[30,10]`, `[20,40]`, `[]`. The test asserts those pages and counts, checks the
+actual competing Fleet and Name orders, and retains the zero-fleet operator.
+
+Verification used a fresh disposable local PostgreSQL server on port **60370**,
+root `/var/folders/8l/k8h8vpt11x972r4nhgmvyd100000gn/T/orbital-sort-mutations-pg-ons6yqwh`:
+
+- Correct source: all **14 focused tests passed**.
+- In a separate Python process for each mutation, changed only the in-memory
+  `operators._SORTS['active']` mapping to Fleet, Name, then ID order and ran the
+  exact DB test. **All three mutations failed the primary behavioral ordering
+  assertion**, at the first operator. No source file was modified for mutations.
+- Ruff and `git diff --check` passed. Disposable server stopped after verification.
+
+Logs are in `output/audit/orbital-followup/sort-mutations/`:
+`actual.txt`, `fleet.txt`, `name.txt`, `id.txt`, and `summary.json`.
+The mutation harness initially checked for an exception label absent from pytest's
+short traceback format; its expected test failure was already correct. The final
+harness checks the ordering diff and failing-test count and verified all three.
+No browser rerun was needed because this follow-up changes only the regression
+fixture and records the prior browser check's exact evidentiary limit.
+
+Lesson: a sorting regression fixture must make alternative sort keys produce
+different orders; monotonic IDs and equal fleet totals can otherwise hide the
+wrong implementation even when real SQL is exercised.

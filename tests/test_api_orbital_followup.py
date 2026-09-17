@@ -194,7 +194,7 @@ def test_cache_failed_initial_compute_can_retry(monkeypatch):
 
 @pytest.mark.db
 def test_active_sort_orders_actual_sql_with_ties_and_zero_fleets(db_conn):
-    """Use the real SQL over a tiny isolated TEMP schema, not a mocked ORDER BY."""
+    """Active order differs from fleet, name, and ID order; active ties cross a page boundary."""
     db_conn.row_factory = dict_row
     with db_conn.cursor() as cur:
         cur.execute("""
@@ -207,16 +207,20 @@ def test_active_sort_orders_actual_sql_with_ties_and_zero_fleets(db_conn):
             CREATE TEMP TABLE operator_relationship (
                 parent_id int, child_id int, valid_from date, valid_to date);
             INSERT INTO operator VALUES
-                (40, 'Empty', 'US', 'private'), (30, 'One', 'US', 'private'),
-                (20, 'Two later ID', 'US', 'private'), (10, 'Two first ID', 'US', 'private');
-            INSERT INTO satellite_operator VALUES
-                (30, 301, 'owner', NULL), (30, 302, 'owner', NULL),
-                (20, 201, 'owner', NULL), (20, 202, 'owner', NULL),
-                (10, 101, 'owner', NULL), (10, 102, 'owner', NULL);
-            INSERT INTO satellite_status_history VALUES
-                (301, 'ACTIVE', now()), (302, 'DECAYED', now()),
-                (201, 'ACTIVE', now()), (202, 'ACTIVE', now()),
-                (101, 'ACTIVE', now()), (102, 'ACTIVE', now());
+                (40, 'Delta empty', 'US', 'private'), (30, 'Beta most active', 'US', 'private'),
+                (20, 'Alpha largest fleet', 'US', 'private'), (10, 'Gamma tie first', 'US', 'private');
+            INSERT INTO satellite_operator
+                SELECT 30, n, 'owner', NULL FROM generate_series(301, 303) n;
+            INSERT INTO satellite_operator
+                SELECT 20, n, 'owner', NULL FROM generate_series(201, 206) n;
+            INSERT INTO satellite_operator
+                SELECT 10, n, 'owner', NULL FROM generate_series(101, 105) n;
+            INSERT INTO satellite_status_history
+                SELECT satellite_id,
+                    CASE WHEN operator_id = 30 OR satellite_id % 100 <= 2 THEN 'ACTIVE'
+                         ELSE 'INACTIVE' END,
+                    now()
+                FROM satellite_operator;
         """)
     client = client_for(operators.router, db_conn)
     pages = [client.get(f"/api/operators?sort=active&limit=2&offset={offset}")
@@ -225,7 +229,16 @@ def test_active_sort_orders_actual_sql_with_ties_and_zero_fleets(db_conn):
     bodies = [response.json() for response in pages]
     rows = [row for body in bodies for row in body["rows"]]
     assert [(row["operator_id"], row["fleet_active"]) for row in rows] == [
-        (10, 2), (20, 2), (30, 1), (40, 0)]
+        (30, 3), (10, 2), (20, 2), (40, 0)]
+    assert [[row["operator_id"] for row in body["rows"]] for body in bodies] == [
+        [30, 10], [20, 40], []]
+    # Make the competing orders explicit so this fixture cannot accidentally become
+    # non-discriminating again (the previous equal fleet sizes masked a wrong mapping).
+    fleet = client.get("/api/operators?sort=fleet").json()["rows"]
+    name = client.get("/api/operators?sort=name").json()["rows"]
+    assert [row["operator_id"] for row in fleet] == [20, 10, 30, 40]
+    assert [row["operator_id"] for row in name] == [20, 30, 40, 10]
+    assert [row["fleet_total"] for row in rows] == [3, 5, 6, 0]
     assert all(body["total"] == 4 and body["with_fleet"] == 3 for body in bodies)
     assert bodies[-1]["rows"] == []
 
