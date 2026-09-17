@@ -136,3 +136,7 @@ mount adoption and API release remain operator-owned. No production actions by C
 Public follow-up: the new mobile menu markup and Active sort are now observable
 live. Four conflict page requests returned200 in about0.65s with consistent totals.
 The exact active Caddy mount and deployment revision remain operator evidence.
+
+Operator completion recorded in CannMenus handoff: space `bf8c6ed` deployed with
+the permanent Caddy directory mount. Codex's independent public behavior checks
+passed. Source verification and operator release for this Space batch are complete.
