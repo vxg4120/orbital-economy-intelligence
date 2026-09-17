@@ -36,6 +36,25 @@ def test_league_table_shape_and_ordering(client):
 
 
 @pytest.mark.db
+def test_league_total_equals_the_header_operator_count(client, db_conn):
+    """The header's OPERATORS counter is count(*) of the operator table; the league used to
+    count only operators holding a current fleet, so the two disagreed on every page (audit
+    major 4: 1,443 in the header against 1,390 in the pager). One number, one query."""
+    body = client.get("/api/operators?limit=1").json()
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM operator")
+        operators = cur.fetchone()[0]
+    assert body["total"] == operators
+    assert 0 < body["with_fleet"] <= body["total"]
+    # Zero-fleet operators exist, sort last, and count as zero rather than one.
+    last = client.get(f"/api/operators?limit=1&offset={body['total'] - 1}").json()["rows"]
+    assert last and last[0]["fleet_total"] >= 0
+    if body["with_fleet"] < body["total"]:
+        assert last[0]["fleet_total"] == 0
+        assert last[0]["fleet_on_orbit"] == 0 and last[0]["fleet_active"] == 0
+
+
+@pytest.mark.db
 def test_sort_by_name_and_bad_sort(client):
     assert client.get("/api/operators?limit=5&sort=name").status_code == 200
     assert client.get("/api/operators?sort=bogus").status_code == 422

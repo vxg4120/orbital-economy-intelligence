@@ -98,7 +98,17 @@ export function Operators() {
         </div>
       </header>
 
-      <Panel title="Operator league" meta={`sorted by ${sort}`} flush>
+      <Panel
+        title="Operator league"
+        meta={
+          league.data && league.data.with_fleet !== undefined
+            ? `sorted by ${sort} · ${fmtInt(league.data.with_fleet)} of ${fmtInt(
+                league.data.total,
+              )} operators hold a current fleet`
+            : `sorted by ${sort}`
+        }
+        flush
+      >
         <Async state={league} loadingLabel="Loading operators">
           {(data) => (
             <>

@@ -2,6 +2,11 @@
 
 Fleet counts are over the CURRENT owned fleet (role='owner', valid_to IS NULL) joined to each
 satellite's latest canonical status: on-orbit = status != DECAYED, active = status ACTIVE.
+The league lists EVERY operator in the graph, including the ones holding no current fleet
+(acquired shells, holding companies, orgs known only as manufacturers), so its total is the
+same number the header's OPERATORS counter shows (count of the operator table); with_fleet
+says how many of them hold a current fleet. Zero-fleet operators sort last under the default
+fleet order.
 The detail endpoint adds the MSO hierarchy (parents/children/acquisitions from
 operator_relationship) and a fleet-by-orbital-regime breakdown from the latest element set per
 owned satellite.
@@ -29,14 +34,16 @@ owned AS (
     FROM satellite_operator WHERE role = 'owner' AND valid_to IS NULL
 ),
 agg AS (
+    -- count(ow.satellite_id) rather than count(*): an operator with no owned satellite still
+    -- yields one row from the LEFT JOIN, and that row must count as a fleet of zero, not one.
     SELECT
         o.operator_id, o.canonical_name, o.country, o.operator_class,
         count(ow.satellite_id) AS fleet_total,
-        count(*) FILTER (
+        count(ow.satellite_id) FILTER (
             WHERE COALESCE(ls.canonical_status, 'UNKNOWN') <> 'DECAYED') AS fleet_on_orbit,
-        count(*) FILTER (WHERE ls.canonical_status = 'ACTIVE') AS fleet_active
+        count(ow.satellite_id) FILTER (WHERE ls.canonical_status = 'ACTIVE') AS fleet_active
     FROM operator o
-    JOIN owned ow ON ow.operator_id = o.operator_id
+    LEFT JOIN owned ow ON ow.operator_id = o.operator_id
     LEFT JOIN latest_status ls ON ls.satellite_id = ow.satellite_id
     GROUP BY o.operator_id
 )
@@ -56,7 +63,9 @@ ORDER BY {order}
 LIMIT %(limit)s OFFSET %(offset)s
 """
 
-_LEAGUE_COUNT_SQL = _LEAGUE_CTE + "SELECT count(*) AS total FROM agg"
+_LEAGUE_COUNT_SQL = _LEAGUE_CTE + (
+    "SELECT count(*) AS total, count(*) FILTER (WHERE fleet_total > 0) AS with_fleet FROM agg"
+)
 
 
 @router.get("")
@@ -71,10 +80,10 @@ def league_table(
         raise HTTPException(status_code=422, detail=f"sort must be one of {sorted(_SORTS)}")
     with db.cursor() as cur:
         cur.execute(_LEAGUE_COUNT_SQL)
-        total = cur.fetchone()["total"]
+        counts = cur.fetchone()
         cur.execute(_LEAGUE_PAGE_SQL.format(order=order), {"limit": limit, "offset": offset})
         rows = cur.fetchall()
-    return {"rows": rows, "total": total}
+    return {"rows": rows, "total": counts["total"], "with_fleet": counts["with_fleet"]}
 
 
 @router.get("/{operator_id}")

@@ -172,7 +172,9 @@ export interface OperatorRow {
   fleet_active: number;
 }
 
-export type OperatorsResponse = Paginated<OperatorRow>;
+export interface OperatorsResponse extends Paginated<OperatorRow> {
+  with_fleet?: number; // operators holding a current fleet; total counts every operator
+}
 export type OperatorSort = "fleet" | "active" | "name";
 
 /* ---- GET /api/operators/{id} ---- */
