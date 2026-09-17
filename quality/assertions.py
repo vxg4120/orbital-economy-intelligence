@@ -162,8 +162,10 @@ def run(conn) -> list[str]:
     from api.routers.buses import leaderboard_rows
     from api.routers.operators import _LEAGUE_COUNT_SQL, _LEAGUE_CTE
 
+    # The API builders read columns by name, exactly as api.deps.get_db sets a request up.
+    conn.row_factory = dict_row
     violations: list[str] = []
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor() as cur:
         for view, key in BUS_VIEWS.items():
             cur.execute("SELECT to_regclass(%s) IS NOT NULL AS present", (view,))
             if not cur.fetchone()["present"]:
