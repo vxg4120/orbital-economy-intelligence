@@ -80,3 +80,62 @@ integration is deprecated. No dependencies were changed.
   snapshot guarantee is claimed. Parent notified for review/scope decision.
 - Parent will conduct local browser interaction checks and independent read-only
   Codex verification of the integrated changes before release consideration.
+
+## Local browser integration follow-up
+
+Completed after `bd6818b`, using Chromium build 1208 at desktop **1440×1000** and
+mobile **375×812**. No frontend source changes; `git diff ae3454e -- web` was empty.
+
+The unchanged release frontend was copied to a unique temporary directory and
+built with real API mode (`VITE_API_MOCK=0`). Existing source `web/node_modules`
+was referenced read-only through a symlink in that temporary copy. Both Vite
+production build and `tsc -b` passed. The shell's default Node architecture lacked
+Rollup's x64 optional binary; using the installed universal Node with
+`arch -arm64` matched existing dependencies without installing or modifying any.
+
+The test app served the actual fixed Operators and Conflicts routers against a
+new disposable PostgreSQL database: port **59618**, API port **59619**, data under
+`/var/folders/8l/k8h8vpt11x972r4nhgmvyd100000gn/T/orbital-followup-browser-ws91um1n`.
+Seed data included four operators with tied active counts and a zero-fleet
+operator, plus 65 valid status, decay-date, and stale-owner conflicts each.
+Unchanged shell dependencies `/api/stats`, `/api/congestion`, and
+`/api/buses/methodology` used existing repository fixture JSON; the stats fixture's
+conflict counts were replaced with the actual cached count helpers. This is
+therefore a local interface/API/SQL integration check, not production data or a
+full stats endpoint check. No query responses for the changed routes were mocked.
+
+Verified at **both widths**:
+
+- Clicking the **Active** column sent
+  `/api/operators?limit=100&offset=0&sort=active`, received 200, and rendered all
+  four operators ordered `(id, active) = (10,2), (20,2), (30,1), (40,0)`.
+  The active header reported descending order; no `SIGNAL LOST` state appeared.
+- Status, Decay dates, and Stale owners tabs each showed `1–50 of 65`.
+  Next requested `offset=50`, rendered 15 rows beginning at satellite 51,
+  displayed `51–65 of 65`, and disabled Next. Prev requested `offset=0` and
+  restored the same original 50 rows. All tab, first-page, and next-page totals
+  agreed with the fixture's 65 conflicts per class.
+- Instrumentation around the actual cache computes recorded exactly **one**
+  status computation, **one** stale-owner computation, and **one** decay
+  computation across both browser contexts and every page/tab request.
+- All **38** API responses observed by the browser returned 200. No uncaught
+  page JavaScript errors, external requests, or document-level horizontal
+  overflow. Dense tables retain their existing internal horizontal scrolling.
+- API and PostgreSQL processes were stopped in a finally block.
+
+Evidence, retained locally under `output/audit/orbital-followup/`:
+
+- `run_browser_check.py`: reproducible one-shot harness, creates and stops its own
+  uniquely addressed servers and blocks nonlocal browser traffic.
+- `summary.json`, `browser-1440.json`, `browser-375.json`: request URLs/statuses,
+  tab/page assertions, geometry, error inventory, and cache compute counters.
+- `operators-active-{1440,375}.png` and
+  `conflicts-{status,decay,stale}-page2-{1440,375}.png`: screenshots.
+- `fixture-seed.sql`, `local-api.log`: synthetic dataset and local server evidence.
+
+I visually inspected both Operators screenshots and the mobile stale-owner
+page-two screenshot. Evidence artifacts are gitignored; this follow-up commits
+only this report. Earlier test attempts stopped cleanly: one failed at build on
+the architecture mismatch above; another passed desktop interactions but found
+an omitted `/buses/methodology` fixture in the harness. The final run includes
+that unchanged shell dependency and passes all checks.
