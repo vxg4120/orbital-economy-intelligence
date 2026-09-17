@@ -267,9 +267,9 @@
   <!-- Visitor analytics. Each service activates only when its id below is filled in; while an
        id is empty nothing loads and no request leaves the page. Ids live here and nowhere else
        on this surface. GA4 wants a measurement id (G-XXXXXXXXXX), Clarity a project id,
-       Fingerprint the public API key from its free tier. For Search Console, paste the
-       verification token into the meta tag. -->
-  <meta name="google-site-verification" content="">
+       Fingerprint the public API key from its free tier. For Search Console, add
+       <meta name="google-site-verification" content="TOKEN"> here once there is a token; an
+       empty one is just noise in the head. -->
   <script>
     (function () {
       var ids = { ga4: "", clarity: "", fingerprint: "" };
