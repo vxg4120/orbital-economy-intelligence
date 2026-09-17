@@ -108,6 +108,10 @@ export function Review() {
             <span className="hint">All strata</span>
           )}
         </div>
+        <p className="hint" style={{ padding: "8px 14px 0" }}>
+          Researched: an AI dossier is attached, nothing decided. Labeled: a human verdict is
+          recorded. The stratum meters count labels only, so they stay at zero until you decide.
+        </p>
 
         <Async state={page} loadingLabel="Loading cases">
           {(data) =>

@@ -278,7 +278,13 @@ function CaseBody({
           </div>
         ))}
 
-        {trackData ? (
+        {track.loading && track.data === null && detail.satellite_id !== null ? (
+          // The orbit history arrives after the case itself; hold its slot with a skeleton so
+          // the panels below do not jump when it lands.
+          <Panel title="Life track" meta="resolving orbit history">
+            <div className="skeleton" style={{ height: 96 }} aria-hidden="true" />
+          </Panel>
+        ) : trackData ? (
           <Panel title="Life track" meta="daily orbit — physics vs the catalog">
             <LifeTrack data={trackData} variant="compact" />
           </Panel>

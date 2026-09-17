@@ -350,15 +350,38 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
                   </>
                 ) : null}{" "}
                 · <span className="num">{fmtDateTime(m.merged_at)}</span>
-                {m.details ? (
-                  <span className="muted"> · {JSON.stringify(m.details)}</span>
-                ) : null}
+                {m.details ? <MergeDetails details={m.details} /> : null}
               </div>
             ))}
           </div>
         )}
       </Panel>
     </div>
+  );
+}
+
+/** A merge event's structured details as a key/value list behind a toggle, rather than the
+    raw JSON string (escaped quotes and all) inline in the timeline. Nested values stay JSON,
+    pretty-printed, so nothing the resolver recorded is hidden, only folded. */
+function MergeDetails({ details }: { details: Record<string, unknown> }) {
+  const entries = Object.entries(details);
+  if (entries.length === 0) return null;
+  return (
+    <details className="merge-details">
+      <summary className="muted">
+        {entries.length} {entries.length === 1 ? "detail" : "details"}
+      </summary>
+      <dl className="kv-list">
+        {entries.map(([k, v]) => (
+          <div className="kv-list__row" key={k}>
+            <dt className="mono-hi">{k}</dt>
+            <dd className="num">
+              {v !== null && typeof v === "object" ? JSON.stringify(v, null, 1) : String(v)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }
 

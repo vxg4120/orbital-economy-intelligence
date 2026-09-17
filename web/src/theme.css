@@ -1174,6 +1174,38 @@ button {
   border-left: 2px solid var(--rule-2);
   padding: 4px 0 4px 12px;
 }
+.merge-details {
+  display: inline;
+  margin-left: 6px;
+}
+.merge-details > summary {
+  display: inline;
+  cursor: pointer;
+  list-style: none;
+}
+.merge-details > summary::before {
+  content: "· ";
+}
+.merge-details[open] > summary::after {
+  content: " ▾";
+}
+.merge-details > .kv-list {
+  margin: 6px 0 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+}
+.kv-list__row {
+  display: contents;
+}
+.kv-list dt,
+.kv-list dd {
+  margin: 0;
+}
+.kv-list dd {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* =============================================================================
    OwnershipTimeline
