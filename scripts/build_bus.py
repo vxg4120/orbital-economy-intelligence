@@ -42,6 +42,7 @@ def main() -> None:
     print(
         "parent rollups:          "
         f"{stats['rolled_up']} via gcat_orgs, {stats['rolled_up_override']} via override, "
+        f"{stats['curated_alias_rows']} via curated alias, "
         f"{stats['unresolved_codes']} unresolved codes"
     )
     print(

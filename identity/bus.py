@@ -17,6 +17,11 @@ attribution with explicit provenance, in one set-based rebuild:
   agencies (NPO PM stays NPO PM rather than becoming MOM). A tiny curated override map covers
   parent links GCAT leaves blank (SPXS -> SPX: SpaceX's Seattle satellite works is SpaceX).
   The traversed code path and whether an override fired are stored per row.
+* Curated aliases (identity/manufacturer_aliases.yml) then join sibling group codes that are
+  one company under several GCAT codes (NPOPM/NPOPMR/RESH), correct GCAT short names that are
+  typos or truncations, and fold successive names of one bus platform into one slug. Rows
+  rewritten this way carry rollup_source='curated_alias' and a rollup_path ending in the
+  surviving code; every retired slug is recorded in benchmark_slug_alias.
 
 Rows attach to canonical satellites by COSPAR piece designation first, falling back to the
 jcat crosswalk only when the piece has no cospar identifier: GCAT reshuffles provisional jcat
@@ -31,12 +36,18 @@ No commit here: the caller owns the transaction (same contract as the rest of id
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+
 # The benchmark methodology version. Bump whenever a metric definition, threshold, inclusion
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.8"
-METHODOLOGY_UPDATED = "2026-09-07"
+METHODOLOGY_VERSION = "1.9"
+METHODOLOGY_UPDATED = "2026-09-17"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
@@ -48,6 +59,93 @@ ROLLUP_OVERRIDES: dict[str, str] = {
 
 # Bus strings that mean "no bus recorded", dropped rather than benchmarked as a model.
 _BUS_PLACEHOLDERS = ("unk", "unknown", "tba", "none")
+
+ALIASES_PATH = Path(__file__).resolve().parent / "manufacturer_aliases.yml"
+
+
+def slugify_code(code: str) -> str:
+    """The manufacturer slug rule, mirrored from the build SQL so Python-side alias rows agree."""
+    return re.sub(r"[^a-z0-9]+", "-", code.lower()).strip("-")
+
+
+@dataclass(frozen=True)
+class CuratedAliases:
+    """The curated alias table, loaded and validated from identity/manufacturer_aliases.yml.
+
+    Every mapping is one hop and every source appears once, so resolution is a dictionary
+    lookup and a test can enumerate the whole contract."""
+
+    group_codes: dict[str, str]  # GCAT org code -> surviving group code
+    display: dict[str, tuple[str, str | None]]  # org code -> (display name, country or None)
+    bus_slugs: dict[str, str]  # retired bus slug -> surviving slug
+    bus_names: dict[str, str]  # surviving bus slug -> display name
+    reasons: dict[tuple[str, str], str]  # (kind, retired slug) -> why it was retired
+
+    def group_code(self, code: str) -> str:
+        return self.group_codes.get(code, code)
+
+    def display_name(self, code: str) -> str | None:
+        entry = self.display.get(code)
+        return entry[0] if entry else None
+
+    def bus_slug(self, slug: str) -> str:
+        return self.bus_slugs.get(slug, slug)
+
+    def slug_alias_rows(self) -> list[tuple[str, str, str, str]]:
+        """(kind, old_slug, new_slug, reason) for benchmark_slug_alias, one per retired slug."""
+        rows = [
+            ("manufacturer", slugify_code(code), slugify_code(group), self.reasons[("manufacturer", code)])
+            for code, group in self.group_codes.items()
+        ]
+        rows += [
+            ("bus", old, new, self.reasons[("bus", old)]) for old, new in self.bus_slugs.items()
+        ]
+        return rows
+
+
+def load_curated_aliases(path: Path = ALIASES_PATH) -> CuratedAliases:
+    """Read and validate the alias file. A malformed file fails the build loudly, never quietly
+    attributes a cohort to the wrong survivor."""
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    group_codes: dict[str, str] = {}
+    display: dict[str, tuple[str, str | None]] = {}
+    reasons: dict[tuple[str, str], str] = {}
+    for entry in doc.get("manufacturers") or []:
+        group = str(entry["group"]).strip()
+        for code in entry["codes"]:
+            code = str(code).strip()
+            if code == group:
+                raise ValueError(f"{path.name}: {code} aliases to itself")
+            if code in group_codes:
+                raise ValueError(f"{path.name}: {code} is aliased twice")
+            group_codes[code] = group
+            reasons[("manufacturer", code)] = f"curated alias: {entry.get('note', 'same company')}"
+        if entry.get("name"):
+            display[group] = (str(entry["name"]), entry.get("country"))
+    for entry in doc.get("display_names") or []:
+        code = str(entry["code"]).strip()
+        display.setdefault(code, (str(entry["name"]), entry.get("country")))
+    bus_slugs: dict[str, str] = {}
+    bus_names: dict[str, str] = {}
+    for entry in doc.get("buses") or []:
+        into = str(entry["into"]).strip()
+        for slug in entry["slugs"]:
+            slug = str(slug).strip()
+            if slug == into:
+                raise ValueError(f"{path.name}: bus {slug} aliases to itself")
+            if slug in bus_slugs:
+                raise ValueError(f"{path.name}: bus {slug} is aliased twice")
+            bus_slugs[slug] = into
+            reasons[("bus", slug)] = f"curated alias: {entry.get('note', 'same platform')}"
+        if entry.get("name"):
+            if bus_names.get(into, entry["name"]) != entry["name"]:
+                raise ValueError(f"{path.name}: bus {into} is given two display names")
+            bus_names[into] = str(entry["name"])
+    chained = sorted(set(group_codes) & set(group_codes.values()))
+    chained += sorted(set(bus_slugs) & set(bus_slugs.values()))
+    if chained:
+        raise ValueError(f"{path.name}: alias targets must not themselves be aliased: {chained}")
+    return CuratedAliases(group_codes, display, bus_slugs, bus_names, reasons)
 
 # The org rollup walk, shared verbatim by the headline attribution build and the
 # participation-credit build further down. Factored so the two can never drift: a co-builder
@@ -104,6 +202,11 @@ rollup AS (
     SELECT DISTINCT ON (leaf) leaf, cur AS group_code, path, used_override
     FROM chain
     ORDER BY leaf, depth DESC
+),
+group_alias AS (
+    -- Curated sibling-code joins, applied to the WALKED group code (never the leaf) so they
+    -- can join cohorts but, like the operator merge, structurally cannot split one.
+    SELECT * FROM unnest(%(alias_codes)s::text[], %(alias_targets)s::text[]) AS t(code, target)
 )"""
 
 _BUILD_SQL = """
@@ -150,35 +253,61 @@ parsed AS (
            ) AS all_codes
     FROM cleaned
 ),
-sluged AS (
+sluged_raw AS (
     -- Slug key: '+' is load-bearing in bus names (BSS-702MP+ is a different variant from
     -- BSS-702MP), so it becomes '-plus' rather than vanishing with the other punctuation.
     SELECT *,
            NULLIF(btrim(regexp_replace(regexp_replace(lower(COALESCE(bus_clean, '')),
                                                       '\\+', '-plus', 'g'),
-                                       '[^a-z0-9]+', '-', 'g'), '-'), '') AS bus_slug
+                                       '[^a-z0-9]+', '-', 'g'), '-'), '') AS bus_slug_raw
     FROM parsed
 ),
+bus_alias AS (
+    SELECT * FROM unnest(%(bus_alias_slugs)s::text[], %(bus_alias_targets)s::text[])
+        AS t(slug, target)
+),
+bus_alias_name AS (
+    SELECT * FROM unnest(%(bus_name_slugs)s::text[], %(bus_name_values)s::text[])
+        AS t(target, name)
+),
+sluged AS (
+    -- A curated family alias folds successive names of one platform into its surviving slug.
+    SELECT s.*, COALESCE(ba.target, s.bus_slug_raw) AS bus_slug
+    FROM sluged_raw s
+    LEFT JOIN bus_alias ba ON ba.slug = s.bus_slug_raw
+),
 bus_display AS (
-    -- One display spelling per slug key (the most common), so slug <-> model is one-to-one.
-    SELECT bus_slug AS bus_key,
-           mode() WITHIN GROUP (ORDER BY bus_clean) AS bus_model
-    FROM sluged
-    WHERE bus_slug IS NOT NULL
+    -- One display spelling per slug key (the most common), so slug <-> model is one-to-one;
+    -- a curated family carries its curated name, which records the rename history.
+    SELECT s.bus_slug AS bus_key,
+           COALESCE(min(bn.name), mode() WITHIN GROUP (ORDER BY s.bus_clean)) AS bus_model
+    FROM sluged s
+    LEFT JOIN bus_alias_name bn ON bn.target = s.bus_slug
+    WHERE s.bus_slug IS NOT NULL
     GROUP BY 1
 ),
+name_fix AS (
+    -- Curated display names (typos, truncations, the merged group's current name) by code.
+    SELECT * FROM unnest(%(name_codes)s::text[], %(name_values)s::text[],
+                         %(name_countries)s::text[]) AS t(code, name, country)
+),
 resolved AS (
+    -- The curated alias applies to the walked group code and takes the surviving org's
+    -- display values; a curated name or country for that code wins over the org row.
     SELECT p.jcat, p.ingest_run_id, p.norad_id, p.piece,
            p.bus_raw, p.bus_slug, bd.bus_model, p.bus_uncertain,
            p.manufacturer_raw, p.primary_code, p.all_codes, p.manufacturer_uncertain,
-           leaf_org.display_name AS manufacturer_org_name,
-           COALESCE(ru.group_code, p.primary_code) AS manufacturer_group_code,
-           COALESCE(grp_org.display_name, leaf_org.display_name,
+           COALESCE(nfl.name, leaf_org.display_name) AS manufacturer_org_name,
+           COALESCE(ga.target, ru.group_code, p.primary_code) AS manufacturer_group_code,
+           COALESCE(nf.name, grp_org.display_name, leaf_org.display_name,
                     p.primary_code) AS manufacturer_name,
-           grp_org.state_code AS manufacturer_country,
-           ru.path AS rollup_path,
+           COALESCE(nf.country, grp_org.state_code) AS manufacturer_country,
+           CASE WHEN ga.target IS NULL THEN ru.path
+                ELSE COALESCE(ru.path, ARRAY[p.primary_code]) || ga.target
+           END AS rollup_path,
            CASE
                WHEN p.primary_code IS NULL THEN NULL
+               WHEN ga.target IS NOT NULL THEN 'curated_alias'
                WHEN leaf_org.code IS NULL THEN 'unresolved'
                WHEN ru.group_code = p.primary_code THEN 'leaf'
                WHEN ru.used_override THEN 'gcat_orgs+override'
@@ -188,7 +317,10 @@ resolved AS (
     LEFT JOIN bus_display bd ON bd.bus_key = p.bus_slug
     LEFT JOIN orgs leaf_org ON leaf_org.code = p.primary_code
     LEFT JOIN rollup ru ON ru.leaf = p.primary_code
-    LEFT JOIN orgs grp_org ON grp_org.code = ru.group_code
+    LEFT JOIN group_alias ga ON ga.code = COALESCE(ru.group_code, p.primary_code)
+    LEFT JOIN orgs grp_org ON grp_org.code = COALESCE(ga.target, ru.group_code)
+    LEFT JOIN name_fix nf ON nf.code = COALESCE(ga.target, ru.group_code, p.primary_code)
+    LEFT JOIN name_fix nfl ON nfl.code = p.primary_code
     WHERE bd.bus_model IS NOT NULL OR p.primary_code IS NOT NULL
 ),
 rule1 AS (
@@ -408,9 +540,10 @@ kept AS (
     WHERE code IS NOT NULL AND (position = 1 OR NOT uncertain)
 ),
 walked AS (
-    SELECT k.code, COALESCE(ru.group_code, k.code) AS group_code
+    SELECT k.code, COALESCE(ga.target, ru.group_code, k.code) AS group_code
     FROM (SELECT DISTINCT code FROM kept) k
     LEFT JOIN rollup ru ON ru.leaf = k.code
+    LEFT JOIN group_alias ga ON ga.code = COALESCE(ru.group_code, k.code)
 ),
 rep AS (
     -- Post-merge satellite_bus is the authority for which slug an operator's cohort publishes
@@ -461,16 +594,28 @@ SELECT
     count(DISTINCT manufacturer_slug) AS manufacturers,
     count(*) FILTER (WHERE rollup_source = 'gcat_orgs') AS rolled_up,
     count(*) FILTER (WHERE rollup_source = 'gcat_orgs+override') AS rolled_up_override,
+    count(*) FILTER (WHERE rollup_source = 'curated_alias') AS curated_alias_rows,
     count(*) FILTER (WHERE rollup_source = 'unresolved') AS unresolved_codes
 FROM satellite_bus
+"""
+
+# Retired slugs from the curated table, recorded with the same permanence as the operator
+# merge's: once published and retired, a slug redirects forever.
+_CURATED_ALIAS_SQL = """
+INSERT INTO benchmark_slug_alias (kind, old_slug, new_slug, reason)
+SELECT * FROM unnest(%(kinds)s::text[], %(old_slugs)s::text[], %(new_slugs)s::text[],
+                     %(reasons)s::text[]) AS t(kind, old_slug, new_slug, reason)
+WHERE old_slug <> new_slug
+ON CONFLICT (kind, old_slug) DO NOTHING
 """
 
 
 def build(conn) -> dict:
     """Rebuild satellite_bus from the latest OK GCAT snapshot. Returns summary stats.
 
-    After the GCAT rollup, the operator graph is applied as a strictly merge-only identity
-    layer: group codes that resolve to the same operator collapse into one cohort under the
+    After the GCAT rollup, the curated aliases in identity/manufacturer_aliases.yml join
+    sibling codes that are one company (recording each retired slug), and then the operator
+    graph is applied as a strictly merge-only identity layer: group codes that resolve to the same operator collapse into one cohort under the
     fleet-max incumbent's slug, and every slug that retires gets a permanent redirect row in
     benchmark_slug_alias. The GCAT parent walk and ROLLUP_OVERRIDES stay authoritative for the
     rollup itself; the operator graph only decides which already-rolled-up cohorts are the same
@@ -478,29 +623,50 @@ def build(conn) -> dict:
     """
     override_codes = list(ROLLUP_OVERRIDES)
     override_parents = [ROLLUP_OVERRIDES[c] for c in override_codes]
+    curated = load_curated_aliases()
+    walk_params = {
+        "override_codes": override_codes,
+        "override_parents": override_parents,
+        "alias_codes": list(curated.group_codes),
+        "alias_targets": list(curated.group_codes.values()),
+    }
+    slug_aliases = curated.slug_alias_rows()
     with conn.cursor() as cur:
         cur.execute("DELETE FROM satellite_bus")
         cur.execute(
             _BUILD_SQL,
             {
-                "override_codes": override_codes,
-                "override_parents": override_parents,
+                **walk_params,
                 "bus_placeholders": list(_BUS_PLACEHOLDERS),
+                "bus_alias_slugs": list(curated.bus_slugs),
+                "bus_alias_targets": list(curated.bus_slugs.values()),
+                "bus_name_slugs": list(curated.bus_names),
+                "bus_name_values": list(curated.bus_names.values()),
+                "name_codes": list(curated.display),
+                "name_values": [name for name, _ in curated.display.values()],
+                "name_countries": [country for _, country in curated.display.values()],
             },
         )
+        cur.execute(
+            _CURATED_ALIAS_SQL,
+            {
+                "kinds": [r[0] for r in slug_aliases],
+                "old_slugs": [r[1] for r in slug_aliases],
+                "new_slugs": [r[2] for r in slug_aliases],
+                "reasons": [r[3] for r in slug_aliases],
+            },
+        )
+        curated_recorded = cur.rowcount
         cur.execute(_ANNOTATE_LEAF_SQL)
         cur.execute(_ANNOTATE_GROUP_SQL)
         cur.execute(_ALIAS_UPSERT_SQL)
-        aliases_recorded = cur.rowcount
+        aliases_recorded = cur.rowcount + curated_recorded
         cur.execute(_OPERATOR_MERGE_SQL)
         merged_rows = cur.rowcount
         # Participation credits rebuild AFTER the merge: the credit resolver inherits the
         # operator merge by reading post-merge satellite_bus (see _CREDIT_SQL's rep CTE).
         cur.execute("DELETE FROM satellite_manufacturer_credit")
-        cur.execute(
-            _CREDIT_SQL,
-            {"override_codes": override_codes, "override_parents": override_parents},
-        )
+        cur.execute(_CREDIT_SQL, walk_params)
         cur.execute(_STATS_SQL)
         columns = [d.name for d in cur.description]
         stats = dict(zip(columns, cur.fetchone()))

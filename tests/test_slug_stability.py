@@ -58,7 +58,9 @@ def test_every_frozen_manufacturer_slug_still_resolves(db_conn):
         )
         unresolvable, via_alias = cur.fetchone()
     assert unresolvable == 0, "a frozen series lost its cohort with no redirect"
-    assert via_alias == 3
+    # The three Planet redirects at minimum; the v1.9 curated aliases (npopmr, resh, lac) add
+    # theirs once those archived slugs stop resolving live.
+    assert via_alias >= 3
 
 
 @pytest.mark.db
@@ -214,15 +216,19 @@ def test_no_operator_relationship_traversal():
 def test_ungated_walk_tripwires(db_conn):
     """Outcome pins for the cohorts an operator_relationship walk would silently rewrite
     (NASA field centres into NASA, design bureaus into Roskosmos, SAST splitting 188 to 1)."""
-    expected = {"gsfc": 66, "jpl": 50, "sast": 188, "resh": 156, "cast": 414, "nrl": 100}
+    expected = {"gsfc": 66, "jpl": 50, "sast": 188, "cast": 414, "nrl": 100}
     with db_conn.cursor() as cur:
         cur.execute(
             "SELECT manufacturer_slug, fleet_total FROM v_bus_benchmarks_manufacturer "
             "WHERE manufacturer_slug = ANY(%s)",
-            (list(expected),),
+            (list(expected) + ["npopm"],),
         )
         got = dict(cur.fetchall())
+    npopm = got.pop("npopm", 0)
     assert got == expected
+    # The Zheleznogorsk bureau publishes as one curated cohort since v1.9 (NPOPM 579 + NPOPMR
+    # 101 + RESH 156 at merge time) and, like the rest, must never collapse into Roskosmos.
+    assert npopm >= 836
 
 
 @pytest.mark.db
@@ -322,8 +328,8 @@ def test_retired_slug_still_serves_via_api(db_conn):
 
 
 def test_methodology_version_matches_changelog():
-    assert bus_mod.METHODOLOGY_VERSION == "1.8"
+    assert bus_mod.METHODOLOGY_VERSION == "1.9"
     doc = (REPO_ROOT / "docs" / "BUS_BENCHMARKS_METHODOLOGY.md").read_text(encoding="utf-8")
     top = doc.split("## Changelog")[1].strip().splitlines()[0]
-    assert "v1.8" in top
+    assert "v1.9" in top
     assert "Planet" in doc.split("## Changelog")[1]

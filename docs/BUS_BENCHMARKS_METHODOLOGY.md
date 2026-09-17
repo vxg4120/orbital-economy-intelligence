@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.8, updated 2026-09-07.**
+**Version 1.9, updated 2026-09-17.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -148,6 +148,19 @@ Manufacturer leaderboard rows are grouped at the corporate-group level, resolved
   manufacturing works, which GCAT leaves unparented) rolls up to `SPX` (SpaceX). Satellites
   resolved through an override carry `rollup_source = 'gcat_orgs+override'`; the full traversal
   path from leaf code to group code is stored per satellite (`rollup_path`).
+* Curated aliases (since v1.9, `identity/manufacturer_aliases.yml`): after the walk, sibling
+  group codes that GCAT keeps separate by era or legal shell but that are one company join
+  under an explicitly named survivor. The walk cannot make these joins because the codes share
+  no business-class parent, and GCAT's own unified code column (`UCode`) is the evidence for
+  them. Current entries: `NPOPMR` (NPO PM, Russian era) and `RESH` (ISS Reshetnev, the same
+  Zheleznogorsk bureau since 2008) join `NPOPM`, displayed as "ISS Reshetnev (NPO PM)", RU;
+  `LAC` (Lockheed Aircraft, to 1995) joins `LM` (Lockheed Martin), the same works under the
+  undated current-state rule. Rows rewritten this way carry `rollup_source = 'curated_alias'`
+  and a `rollup_path` ending in the surviving code. Every retired slug is recorded in
+  `benchmark_slug_alias` at build time, so the URL contract of section 4.1 holds unchanged.
+  The same file corrects GCAT short names that are typos or truncations (`ONEWUS` "One Web"
+  reads OneWeb; `ISAC` "ISRO SAC/Banga" reads ISRO Satellite Centre, Bangalore; `RESH`
+  "Resehetnev ISS" reads ISS Reshetnev) at display only; the raw assertion is unchanged.
 * Display names prefer the orgs short name, then the English name, then the native name.
   Cycle-guarded, depth-capped at 10.
 
@@ -165,7 +178,11 @@ GCAT bus strings carry formatting variants; normalization is deliberately conser
   (`BSS-702MP+` is a different variant from `BSS-702MP`) and is preserved in the key as
   `-plus`.
 * Genuinely distinct variants are never merged: Starlink `V2M` and `V2MO` remain separate
-  models. No family-level grouping is imposed beyond what the source string states.
+  models. No family-level grouping is imposed beyond what the source string states, with one
+  curated exception class (since v1.9): successive names of one platform. `FS-1300` and
+  `LS-1300` fold into `SSL-1300`, displayed as "SSL-1300 (FS-1300 / LS-1300)", because they
+  are the Loral 1300 bus under its Ford, SS/L and MDA-era names; its variants (`SSL-1300E`,
+  `FS-1300HL`, ...) stay distinct. The retired slugs redirect via `benchmark_slug_alias`.
 
 ## 5. Metric definitions
 
@@ -362,6 +379,18 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.9 (2026-09-17).** Attribution rule addition: curated aliases (sections 4.2 and 4.3),
+  from the 2026-09-16 site audit, which found the "one cohort per company" promise broken on
+  the leaderboard. Three NPO PM rows (`NPOPM` SU, `NPOPMR` RU, `RESH` "Resehetnev ISS") are
+  one Zheleznogorsk bureau by GCAT's own unified code and now publish as `npopm`, "ISS
+  Reshetnev (NPO PM)"; `LAC` "Lockheed" and `LM` join as `lm`, "Lockheed Martin"; the
+  `FS-1300` / `SSL-1300` / `LS-1300` bus rows are one Loral platform and publish as
+  `ssl-1300`. Display-name corrections for `ONEWUS`, `ISAC` and `RESH` fix a typo and two
+  truncations at display only. Retired slugs (`npopmr`, `resh`, `lac`, `fs-1300`,
+  `ls-1300`) redirect permanently with `aliased_from` set, and their frozen series name
+  their continuation. Rows resolved through an alias carry `rollup_source = 'curated_alias'`.
+  No metric definitions changed.
 
 * **v1.8 (2026-09-07).** Retired cohorts (section 7.1). A published slug that no longer resolves
   and did not merge is now served from its last archived snapshot with an explicit `retired`

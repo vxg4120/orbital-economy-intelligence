@@ -1,0 +1,61 @@
+# Curated aliases for the Bus Benchmarks attribution layer (identity/bus.py).
+#
+# GCAT keys organizations by era and legal shell, so one company can hold several org codes,
+# and it records a product under each name it was sold as. The parent walk collapses
+# subsidiaries into their corporate group, but it cannot join sibling codes that share no
+# business-class parent, and it cannot see a product rename. This file records the small set of
+# joins the scoreboard's "one cohort per company, one cohort per product" promise requires,
+# each with the evidence for it, plus the GCAT short names that are typos or truncations.
+#
+# Rules, pinned by tests/test_manufacturer_aliases.py:
+#   * An alias is one hop: a target is never itself a source, so resolution is a lookup.
+#   * A source code or slug appears at most once.
+#   * The survivor is named explicitly (the code of the current corporate identity, or the most
+#     widely used product name) and is a published-URL commitment: the build records every
+#     retired slug in benchmark_slug_alias, so /buses/{old} keeps serving the surviving cohort
+#     with aliased_from set, exactly as the operator merge does.
+#   * Display-name entries change what a cohort is called, never what it contains; the raw
+#     GCAT assertion stays queryable in source_assertion. Keep them to typos and truncations.
+#
+# Applied after the GCAT parent walk and before the operator-identity merge, so a curated
+# group is one cohort by construction and the merge layer sees it as such. Participation
+# credits resolve through the same table, so a co-builder credit lands on the same cohort as a
+# prime attribution would.
+
+manufacturers:
+  # NPO PM under its Soviet-era code, its post-1994 Russian code, and its 2008 renaming to
+  # ISS Reshetnev are one design bureau in Zheleznogorsk; GCAT's own orgs table ties all three
+  # to unified code NPOPM. Survivor: NPOPM, the largest cohort and the URL already published.
+  # The 2026-09-16 audit saw them as three rows ("NPO PM: SU", "NPO PM: RU", "Resehetnev ISS").
+  - codes: [NPOPMR, RESH]
+    group: NPOPM
+    name: "ISS Reshetnev (NPO PM)"
+    country: RU
+    note: "one design bureau: GCAT UCode NPOPM for all three codes; renamed ISS Reshetnev in 2008"
+  # Lockheed Aircraft Corporation (LAC, GCAT TStop 1995 Mar 15) and Lockheed Martin (LM, TStart
+  # the same day): the same Sunnyvale works, credited under the undated current-state rule to
+  # the group that owns them. The audit saw "LM: US" (205) and "Lockheed: US" (316).
+  - codes: [LAC]
+    group: LM
+    name: "Lockheed Martin"
+    note: "Lockheed Aircraft became Lockheed Martin on 1995-03-15; LMSC and LMSS are one plant"
+
+display_names:
+  - code: ONEWUS
+    name: "OneWeb"
+    replaces: "One Web"
+  - code: ISAC
+    name: "ISRO Satellite Centre, Bangalore"
+    replaces: "ISRO SAC/Banga"
+  - code: RESH
+    name: "ISS Reshetnev"
+    replaces: "Resehetnev ISS"
+
+buses:
+  # Space Systems/Loral's 1300 platform, sold as FS-1300 (Ford Aerospace and early Loral),
+  # SSL-1300 (Space Systems/Loral) and LS-1300 (after MDA): one bus under three successive
+  # names. Variants such as SSL-1300E or FS-1300HL stay distinct, as section 4.3 promises.
+  - slugs: [fs-1300, ls-1300]
+    into: ssl-1300
+    name: "SSL-1300 (FS-1300 / LS-1300)"
+    note: "one Loral 1300 platform under three successive names; the largest cohort keeps the URL"

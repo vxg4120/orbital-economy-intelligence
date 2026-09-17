@@ -151,6 +151,12 @@ METHODOLOGY = {
         "state design bureaus do not collapse into ministries or space agencies.",
         "One curated override: SPXS (SpaceX Seattle) rolls up to SPX (SpaceX); rows using it "
         "carry rollup_source 'gcat_orgs+override'.",
+        "Curated aliases (identity/manufacturer_aliases.yml) join sibling GCAT codes that are "
+        "one company (NPOPM, NPOPMR and RESH publish as one ISS Reshetnev / NPO PM cohort; "
+        "LAC joins LM as Lockheed Martin), fold successive names of one bus platform "
+        "(FS-1300 and LS-1300 into SSL-1300), and correct GCAT short-name typos and "
+        "truncations at display only. Rows resolved this way carry rollup_source "
+        "'curated_alias'; retired slugs redirect permanently.",
         "Bus strings are normalized: whitespace collapsed, GCAT's trailing '?' uncertainty "
         "marker stripped and recorded, placeholder values dropped, casing variants collapsed "
         "to the most common spelling. Distinct variants (Starlink V2M vs V2MO) stay distinct.",
