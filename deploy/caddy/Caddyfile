@@ -28,21 +28,24 @@
 	# Vite names every bundle by its content hash (index-vraI7x54.js), so a changed file is a new
 	# URL and a year of caching can never serve a stale one; index.html lives outside /assets/
 	# and revalidates. A bundle that is not there (an old tab asking for the last deploy's chunk)
-	# comes back as the SPA shell with a 200: that becomes the 404 it is and is never cached,
-	# because pinned under a hashed name, the shell would break a rollback that brings the name
-	# back. Only a 200 is marked immutable; a 304 passes through as the app sent it.
+	# comes back as the SPA shell with a 200: that becomes the 404 it is, marked no-store,
+	# because a cached copy of either would outlive a rollback that brings the name back. Only a
+	# real 200 bundle is marked immutable, and the deferred set replaces any Cache-Control the
+	# app sends (copy_response already copies the upstream headers; copying them again would
+	# duplicate them). A 304 or an error passes through as the app sent it.
 	handle /assets/* {
 		reverse_proxy {args[0]} {
-			@shell header Content-Type text/html*
+			@shell {
+				status 200
+				header Content-Type text/html*
+			}
 			handle_response @shell {
+				header Cache-Control "no-store"
 				respond 404
 			}
 			@bundle status 200
 			handle_response @bundle {
-				copy_response_headers {
-					exclude Cache-Control
-				}
-				header Cache-Control "public, max-age=31536000, immutable"
+				header >Cache-Control "public, max-age=31536000, immutable"
 				copy_response
 			}
 		}

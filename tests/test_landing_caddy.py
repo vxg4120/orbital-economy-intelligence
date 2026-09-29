@@ -42,6 +42,8 @@ def landing(tmp_path):
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("ETag", '"stub"')
+            # Starlette sends none today; one it adds later must not survive on a bundle.
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(body)
 
@@ -174,15 +176,15 @@ def test_only_a_real_bundle_is_cached_for_a_year(landing):
     _, _, orbital, _ = landing
     status, body, headers = _get(orbital + BUNDLE)
     assert (status, body) == (200, b"export {};")
-    assert headers["Cache-Control"] == "public, max-age=31536000, immutable"
-    assert headers["Content-Type"].startswith("text/javascript")
-    assert headers["ETag"] == '"stub"'
+    # get_all: a single-value lookup would hide a header sent twice.
+    assert headers.get_all("Cache-Control") == ["public, max-age=31536000, immutable"]
+    assert headers.get_all("Content-Type") == ["text/javascript; charset=utf-8"]
+    assert headers.get_all("ETag") == ['"stub"']
 
     status, body, headers = _get(orbital + "/assets/index-DEADBEEF.js")
-    assert status == 404
-    assert body != SHELL
-    assert "immutable" not in (headers["Cache-Control"] or "")
+    assert (status, body) == (404, b"")
+    assert headers.get_all("Cache-Control") == ["no-store"]
 
     status, _, headers = _get(orbital + "/")
     assert status == 200
-    assert "immutable" not in (headers["Cache-Control"] or "")
+    assert headers.get_all("Cache-Control") == ["no-cache"]  # the shell, as the app sent it
