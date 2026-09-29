@@ -36,6 +36,11 @@ fi
   # Runs after the document harvest, since it consumes what that just inventoried.
   $DC exec -T oei-api python scripts/extract_filing_specs.py --if-stale \
                                                     || echo "!! oei schedule S specs failed"
+  # Last on purpose: every step above has read tonight's runs. Each ingest lands a full copy of
+  # its source, and without this the copies filled the disk to 93% by 2026-09-28. Keeps the
+  # newest 3 OK runs per source plus each month's first (docs/specs/raw-retention.md).
+  $DC exec -T oei-api python scripts/prune_snapshots.py --apply \
+                                                    || echo "!! oei prune_snapshots failed"
   echo "--- exodossier (exo) ---"
   $DC exec -T exo-api python scripts/ingest_all.py  || echo "!! exo ingest_all failed"
   $DC exec -T exo-api python scripts/build_graph.py || echo "!! exo build_graph failed"

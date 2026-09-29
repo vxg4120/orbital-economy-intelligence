@@ -143,6 +143,29 @@ cd ~/apps/space/deploy && docker compose up -d --build
 
 **Logs:** `docker compose logs -f oei-api` (or `exo-api`, `caddy`, `db`).
 
+### Disk and snapshot retention
+
+Every ingest run lands a full copy of its source in the `raw_*` tables and a full set of
+`source_assertion` rows. The nightly's last oei step, `scripts/prune_snapshots.py --apply`,
+keeps the newest 3 OK runs per source plus the first run of each month and deletes the rest,
+so the tables stop growing. The policy and its reasons are in
+[docs/specs/raw-retention.md](../docs/specs/raw-retention.md).
+
+Deleting rows does not shrink the files. To return the space of a backlog to the OS, run the
+one-time rewrite, outside the 07:10 and 19:10 UTC windows. Each table is locked while it is
+rewritten; a local rehearsal at 1/8 of production's `source_assertion` took 12 seconds, so
+expect a minute or two there:
+
+```bash
+df -h /                                                                  # before
+docker compose exec -T oei-api python scripts/prune_snapshots.py            # dry run: the plan
+docker compose exec -T oei-api python scripts/prune_snapshots.py --compact  # rewrite
+df -h /                                                                  # after
+```
+
+Never run an ad-hoc `count(DISTINCT ...)` or a large sort against `source_assertion` on the
+box: Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
+
 ### Caddy configuration updates
 
 Run these operator steps from `space/deploy`, outside the 07:10 and 19:10 UTC
