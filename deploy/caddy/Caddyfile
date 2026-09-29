@@ -6,6 +6,51 @@
 	email {$ACME_EMAIL}
 }
 
+# The two SPA hosts, orbital and exo; {args[0]} is the app's upstream. The app serves its built
+# SPA and answers every path it does not know with index.html and a 200 (api/main.py): right for
+# a deep link like /satellites/25544, wrong for everything below, so Caddy answers those first.
+(spa) {
+	# A scanner's /.env, /.git/config or /wp-login.php gets a real 404, not a page that reads as
+	# found. No SPA route has a segment that starts with a dot or ends in .php. ACME's HTTP-01
+	# path is exempt, though Caddy solves challenges before any route runs.
+	@probe {
+		path_regexp /\.|\.php$
+		not path /.well-known/acme-challenge/*
+	}
+	respond @probe 404
+
+	# Crawlers asking for robots.txt were handed the SPA shell.
+	respond /robots.txt <<TXT
+		User-agent: *
+		Allow: /
+		TXT 200
+
+	# Vite names every bundle by its content hash (index-vraI7x54.js), so a changed file is a new
+	# URL and a year of caching can never serve a stale one; index.html lives outside /assets/
+	# and revalidates. A bundle that is not there (an old tab asking for the last deploy's chunk)
+	# comes back as the SPA shell with a 200: that becomes the 404 it is and is never cached,
+	# because pinned under a hashed name, the shell would break a rollback that brings the name
+	# back. Only a 200 is marked immutable; a 304 passes through as the app sent it.
+	handle /assets/* {
+		reverse_proxy {args[0]} {
+			@shell header Content-Type text/html*
+			handle_response @shell {
+				respond 404
+			}
+			@bundle status 200
+			handle_response @bundle {
+				copy_response_headers {
+					exclude Cache-Control
+				}
+				header Cache-Control "public, max-age=31536000, immutable"
+				copy_response
+			}
+		}
+	}
+
+	reverse_proxy {args[0]}
+}
+
 # Root landing page (portfolio; /live/* proxies let the page query the apps
 # same-origin so its metrics are real, no CORS needed)
 {$BASE_DOMAIN} {
@@ -80,7 +125,7 @@ orbital.{$BASE_DOMAIN} {
 		Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 	}
 
-	reverse_proxy oei-api:8600
+	import spa oei-api:8600
 }
 
 # ExoDossier — exoplanet candidate vetting
@@ -101,5 +146,5 @@ exo.{$BASE_DOMAIN} {
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
-	reverse_proxy exo-api:8700
+	import spa exo-api:8700
 }
