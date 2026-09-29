@@ -184,7 +184,7 @@ validation does not establish that visitors receive the recovery page.
 `landing/index.html` carries hardcoded copies of the numbers its own script fetches from
 `/live/orbital` and `/live/exo`. They are what the first paint, scrapers and a no-JS reader
 see, and what a tile keeps when its platform is down. Nothing refreshes them automatically,
-so re-bake them before any landing deploy and commit the result:
+so re-bake them before any landing deploy and commit the result, from the repository root:
 
 ```bash
 deploy/landing-snapshot.sh            # against https://$BASE_DOMAIN, or https://vibcreates.com

@@ -271,6 +271,31 @@ button {
   border-left: 1px solid var(--rule);
   text-align: right;
 }
+/* The tour's "?" trigger. It lives with the rest of the top bar, before the responsive
+   overrides: declared after them (it used to sit with the tour styles at the end of the file),
+   it silently won every phone-width margin rule, since equal specificity goes to the later rule. */
+.topbar__help {
+  align-self: center;
+  flex: none;
+  margin: 0 14px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-dim);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.topbar__help:hover {
+  color: var(--signal);
+  border-color: var(--signal-dim);
+}
 
 /* ---- rail ---- */
 .rail {
@@ -2792,28 +2817,6 @@ button {
    palette (its defaults are a light-mode white card that would clash). All
    overrides are scoped to .oei-tour, the popoverClass set in lib/tour.ts.
    ============================================================================= */
-.topbar__help {
-  align-self: center;
-  flex: none;
-  margin: 0 14px;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--rule-2);
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--ink-dim);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-.topbar__help:hover {
-  color: var(--signal);
-  border-color: var(--signal-dim);
-}
 
 .driver-popover.oei-tour {
   --driver-popover-font-family: var(--font-mono);
