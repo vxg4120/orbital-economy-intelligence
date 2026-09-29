@@ -4,8 +4,8 @@ SQL against the schema (it reads only the tables the identity engine populated, 
 engine) + string formatting, no plotting deps. The identity/ imports are pure and stdlib-only:
 the ``parse_date_loose`` helper, reused so the decay-date conflict section compares *dates* rather
 than raw strings (GCAT's "1957 Dec 1 1000?" and SATCAT's "1957-12-01" are the same date in
-different clothes and must not read as a conflict), and the SQL naming each source's newest run of
-assertions, so that counts are of claims rather than of per-run copies. Safe to re-run: it always overwrites the file from
+different clothes and must not read as a conflict), and the SQL selecting the claims currently
+made, so that counts are of claims rather than of per-run copies. Safe to re-run: it always overwrites the file from
 scratch.
 
 Determinism: every query below has an explicit ORDER BY so that, given the same underlying data,
@@ -28,7 +28,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from identity.assertions import LATEST_RUN_PER_SOURCE
+from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import parse_date_loose
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -261,18 +261,13 @@ def _section_match_merge_stats(cur):
         "SELECT rule_fired, count(*) AS merges FROM merge_log "
         "GROUP BY rule_fired ORDER BY rule_fired",
     )
-    # Unmatched in each source's newest run. Across all runs this counted every key that was
-    # ever unmatched, including ones matched since: satellite_id is set at insert and never
+    # Unmatched among the current claims. Across all runs this counted every key that was ever
+    # unmatched, including ones matched since: satellite_id is set at insert and never
     # backfilled, so an old run's NULL stays NULL.
     unmatched_cols, unmatched_rows = _rows(
         cur,
-        f"""
-        SELECT a.source, count(DISTINCT a.source_key) AS unmatched_objects
-        FROM source_assertion a
-        JOIN ({LATEST_RUN_PER_SOURCE}) l ON l.source = a.source AND l.run = a.ingest_run_id
-        WHERE a.satellite_id IS NULL
-        GROUP BY a.source ORDER BY a.source
-        """,
+        f"SELECT source, count(DISTINCT source_key) AS unmatched_objects "
+        f"FROM {CURRENT_ASSERTIONS} c WHERE satellite_id IS NULL GROUP BY source ORDER BY source",
     )
     review_queue_size = _review_queue_size()
     return {

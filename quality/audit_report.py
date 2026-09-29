@@ -27,7 +27,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from identity.assertions import LATEST_RUN_PER_SOURCE
+from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import canonical_object_type, parse_date_loose
 from quality.report import (
     _md_table,
@@ -111,12 +111,8 @@ def _data_basis(cur):
     # counts each claim once per retained run (the 2026-09 report would have printed ~32.8M).
     assert_cols, assert_rows = _q(
         cur,
-        f"""
-        SELECT a.source, count(*) AS assertions
-        FROM source_assertion a
-        JOIN ({LATEST_RUN_PER_SOURCE}) l ON l.source = a.source AND l.run = a.ingest_run_id
-        GROUP BY a.source ORDER BY assertions DESC
-        """,
+        f"SELECT source, count(*) AS assertions FROM {CURRENT_ASSERTIONS} c "
+        "GROUP BY source ORDER BY assertions DESC",
     )
     totals = {
         "satellites": _scalar(cur, "SELECT count(*) FROM satellite"),

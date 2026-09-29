@@ -287,3 +287,31 @@ def test_assertion_evidence_is_the_newest_claim_per_source(gold_txn):
     assert [(e["attribute"], e["source"], e["value"]) for e in evidence] == [
         ("owner", "satcat", "ZZ NEW OWNER")
     ]
+
+
+@pytest.mark.db
+def test_assertion_evidence_breaks_ties_like_the_api(gold_txn):
+    """Two GCAT keys can resolve to one satellite and claim different values in the same run.
+    The evidence must pick the claim the satellite page shows (the lowest source_key), not
+    whichever row the scan happens to meet first."""
+    with gold_txn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GOLD TIE') "
+            "RETURNING satellite_id",
+            (NORAD_BASE + 901,),
+        )
+        sat = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO ingest_run (source, endpoint, started_at, status) "
+            "VALUES ('gcat', 'zz-test', now(), 'ok') RETURNING ingest_run_id"
+        )
+        run = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO source_assertion "
+            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
+            "VALUES (%s, 'S99999', 'owner', 'ZZ SECOND KEY', 'gcat', now(), %s), "
+            "       (%s, 'S00001', 'owner', 'ZZ FIRST KEY', 'gcat', now(), %s)",
+            (sat, run, sat, run),
+        )
+        evidence = _assertions(cur, sat)
+    assert [e["value"] for e in evidence] == ["ZZ FIRST KEY"]

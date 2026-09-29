@@ -135,11 +135,9 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         identifiers = dict(cur.fetchall())
         cur.execute("SELECT count(*) FROM merge_log")
         merge_rows = cur.fetchone()[0]
-        # The newest run per source: older runs are copies of the same claims.
+        # Claims, not per-run copies of them.
         cur.execute(
-            "SELECT a.source, count(*) FROM source_assertion a "
-            f"JOIN ({assertions.LATEST_RUN_PER_SOURCE}) l "
-            "ON l.source = a.source AND l.run = a.ingest_run_id GROUP BY a.source"
+            f"SELECT source, count(*) FROM {assertions.CURRENT_ASSERTIONS} c GROUP BY source"
         )
         assertions_by_source = dict(cur.fetchall())
         cur.execute("SELECT count(*) FROM operator")

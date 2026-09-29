@@ -1,18 +1,16 @@
-"""Prune old per-run snapshots from the raw_* landing tables and source_assertion.
+"""Prune old per-run snapshots from the raw_* landing tables.
 
-Every ingest run lands a FULL copy of its source in raw_*, and identity/assertions.py writes a
-full set of assertions for every run. Nothing ever deleted one, yet every reader wants only the
-newest OK run (identity/churn.py wants the newest two). By 2026-09-28 the older copies were
-8.8 of the 10.5 GB these tables held and the disk was at 93%. See docs/specs/raw-retention.md.
+Every ingest run lands a FULL copy of its source in raw_*. Nothing ever deleted one, yet every
+reader of these tables wants only the newest OK run (identity/churn.py wants the newest two). By
+2026-09-28 the older copies filled the disk to 93%. See docs/specs/raw-retention.md, which also
+explains why source_assertion, the other table that grows this way, is not pruned here.
 
-The policy, per stream (one feed's runs in one table; see SNAPSHOT_TABLES):
+The policy, per table:
   * keep the newest KEEP_LATEST OK runs;
-  * keep the first OK run of every calendar month (UTC), so that a month's published numbers
-    can still be traced to the inputs that produced them;
-  * keep every run newer than the newest OK run: an ingest still in flight, which no reader
-    sees yet and which this must never touch;
-  * drop everything else, including failed runs older than the newest OK run, since no reader
-    ever selects a failed run.
+  * keep the first OK run of every calendar month (UTC), a monthly sample of history;
+  * drop the other runs that FINISHED ('ok' or 'error') before the newest OK run. A run with any
+    other status, or none, is kept whatever its id: it may be an ingest still in flight, which
+    commits its rows before it records 'ok'.
 
 Modes:
   (default)  dry run: print the plan and change nothing.
@@ -40,134 +38,94 @@ from common.db import get_autocommit_conn  # noqa: E402
 # silently blind key-churn detection. Three leaves a run of slack.
 KEEP_LATEST = 3
 
-# Every table whose rows are per-run snapshots, in the order that --compact rewrites them: the
-# raw tables first, so each rewrite frees space before the next one needs any, and
-# source_assertion (the largest) last, when the disk has the most room for its temporary copy.
-# Each maps to how its runs split into streams, and the policy applies per stream:
-#   None                 every run in the table is one feed's snapshot: one stream.
-#   (column, streams)    the column that tells the table's feeds apart, and the feeds that
-#                        re-assert everything on every run. Only those are pruned; any other
-#                        source_assertion source (a one-off operator correction, say) is kept
-#                        whole, because nothing would ever re-assert it.
-# Never split on ingest_run.source: SATCAT runs are logged as 'celestrak', a label that GP, space
-# weather and SupGP share. tests/test_prune_snapshots.py fails when a migration adds a raw_*
-# table that is missing here, because a table left off this list grows forever.
-SNAPSHOT_TABLES: dict[str, tuple[str, tuple[str, ...]] | None] = {
-    "raw_gcat_satcat": None,
-    "raw_ibfs_frequencies": None,
-    "raw_ibfs_filings": None,
-    "raw_gcat_psatcat": None,
-    "raw_satcat": None,
-    "raw_celestrak_sw": None,
-    "raw_ibfs_space_stations": None,
-    "raw_ibfs_addresses": None,
-    "raw_satnogs_transmitters": None,
-    "raw_gcat_orgs": None,
-    "raw_fcc_ssal": None,
-    "raw_supgp_status": None,
-    "raw_ucs": None,
-    "source_assertion": ("source", ("satcat", "gcat", "ucs")),
-}
+# The ledger statuses that are final: runlog.finish_run writes one of them once and nothing
+# changes it after. Only a finished run can be judged safe to drop.
+FINISHED = ("ok", "error")
+
+# Every raw_* table, in the order that --compact rewrites them: largest first, so each rewrite
+# frees space before the next one needs any. tests/test_prune_snapshots.py fails when a migration
+# adds a raw_* table that is missing here, because a table left off this list grows forever.
+SNAPSHOT_TABLES = [
+    "raw_gcat_satcat",
+    "raw_ibfs_frequencies",
+    "raw_ibfs_filings",
+    "raw_gcat_psatcat",
+    "raw_satcat",
+    "raw_celestrak_sw",
+    "raw_ibfs_space_stations",
+    "raw_ibfs_addresses",
+    "raw_satnogs_transmitters",
+    "raw_gcat_orgs",
+    "raw_fcc_ssal",
+    "raw_supgp_status",
+    "raw_ucs",
+]
 
 
 @dataclass(frozen=True)
 class Run:
-    """One ingest run's rows in one stream of one table, with its ledger entry (status and
-    started_at are None when the ledger row is missing)."""
+    """One ingest run's rows in one table, with its ledger entry (status and started_at are None
+    when the ledger row is missing)."""
 
-    stream: str | None
     run_id: int
     status: str | None
     started_at: datetime | None
     rows: int
 
 
-def runs_to_drop(
-    runs: list[Run], prunable: tuple[str, ...] | None = None, keep_latest: int = KEEP_LATEST
-) -> list[Run]:
-    """The runs that the policy drops. Everything not returned is kept, so every doubt keeps.
-
-    prunable: for a split table, the streams that may be pruned; None prunes every stream."""
+def runs_to_drop(runs: list[Run], keep_latest: int = KEEP_LATEST) -> list[Run]:
+    """The runs that the policy drops, from the runs present in one table. Everything not
+    returned is kept, so every doubt keeps."""
     if keep_latest < 2:
         raise ValueError("keep_latest must be at least 2: identity/churn.py compares two runs")
-    by_stream: dict[str | None, list[Run]] = {}
-    for run in runs:
-        by_stream.setdefault(run.stream, []).append(run)
-    drop: list[Run] = []
-    for stream, group in by_stream.items():
-        if prunable is not None and stream not in prunable:
-            continue
-        ok = sorted((r for r in group if r.status == "ok"), key=lambda r: r.run_id)
-        if not ok:
-            continue  # no reader sees any of these, and nothing says which are safe to drop
-        keep = {r.run_id for r in ok[-keep_latest:]}
-        first_of_month: dict[str, int] = {}
-        for r in ok:
-            if r.started_at is not None:
-                first_of_month.setdefault(r.started_at.astimezone(UTC).strftime("%Y-%m"), r.run_id)
-        keep |= set(first_of_month.values())
-        # Only runs OLDER than the newest OK one: a newer run is an ingest still in flight, which
-        # no reader sees yet and which is not ours to judge.
-        newest_ok = ok[-1].run_id
-        drop += [r for r in group if r.run_id < newest_ok and r.run_id not in keep]
-    return drop
+    ok = sorted((r for r in runs if r.status == "ok"), key=lambda r: r.run_id)
+    if not ok:
+        return []  # no reader sees any of these, and nothing says which are safe to drop
+    keep = {r.run_id for r in ok[-keep_latest:]}
+    first_of_month: dict[str, int] = {}
+    for r in ok:
+        if r.started_at is not None:
+            first_of_month.setdefault(r.started_at.astimezone(UTC).strftime("%Y-%m"), r.run_id)
+    keep |= set(first_of_month.values())
+    newest_ok = ok[-1].run_id
+    return [
+        r
+        for r in runs
+        if r.status in FINISHED and r.run_id < newest_ok and r.run_id not in keep
+    ]
 
 
-def runs_in(conn, table: str, split: tuple[str, tuple[str, ...]] | None = None) -> list[Run]:
-    """Every (stream, run) present in the table, with its row count and ledger entry."""
-    stream = split[0] if split else "NULL::text"
+def runs_in(conn, table: str) -> list[Run]:
+    """Every run present in the table, with its row count and ledger entry."""
     with conn.cursor() as cur:
         cur.execute(
             f"""
-            SELECT t.stream, t.ingest_run_id, i.status, i.started_at, t.n
-            FROM (SELECT {stream} AS stream, ingest_run_id, count(*) AS n
-                  FROM {table} GROUP BY 1, 2) t
+            SELECT t.ingest_run_id, i.status, i.started_at, t.n
+            FROM (SELECT ingest_run_id, count(*) AS n FROM {table} GROUP BY 1) t
             LEFT JOIN ingest_run i USING (ingest_run_id)
-            ORDER BY 1, 2
+            ORDER BY 1
             """
         )
         return [Run(*row) for row in cur.fetchall()]
 
 
-def _dropped(split: tuple[str, tuple[str, ...]] | None, drop: list[Run]) -> tuple[str, dict]:
-    """A predicate that is true for exactly the dropped rows, with its parameters. A split table
-    matches (stream, run) pairs, so a run id that one stream drops and another keeps is exact."""
-    params = {"runs": [r.run_id for r in drop], "streams": [r.stream for r in drop]}
-    if split is None:
-        return "ingest_run_id = ANY(%(runs)s)", params
-    return (
-        f"({split[0]}, ingest_run_id) IN "
-        "(SELECT * FROM unnest(%(streams)s::text[], %(runs)s::bigint[]))",
-        params,
-    )
-
-
-def delete_runs(
-    conn, table: str, drop: list[Run], split: tuple[str, tuple[str, ...]] | None = None
-) -> int:
+def delete_runs(conn, table: str, drop: list[Run]) -> int:
     """DELETE the dropped runs' rows. The caller owns the transaction."""
     planned = sum(r.rows for r in drop)
-    where, params = _dropped(split, drop)
     with conn.cursor() as cur:
-        cur.execute(f"DELETE FROM {table} WHERE {where}", params)
+        cur.execute(
+            f"DELETE FROM {table} WHERE ingest_run_id = ANY(%s)", ([r.run_id for r in drop],)
+        )
         if cur.rowcount != planned:
             raise RuntimeError(f"{table}: deleted {cur.rowcount} rows, planned {planned}")
     return planned
 
 
-def compact(
-    conn,
-    table: str,
-    runs: list[Run],
-    drop: list[Run],
-    split: tuple[str, tuple[str, ...]] | None = None,
-) -> int:
+def compact(conn, table: str, runs: list[Run], drop: list[Run]) -> int:
     """Rewrite the table without the dropped runs' rows, so their space goes back to the
-    operating system when the transaction commits. The caller owns the transaction and must hold
-    an ACCESS EXCLUSIVE lock on the table from BEFORE it read `runs`: a row that landed between
-    that read and the TRUNCATE would otherwise be lost."""
+    operating system when the transaction commits. The caller owns the transaction and must have
+    locked the table before reading `runs` (prune_table does)."""
     planned = sum(r.rows for r in runs) - sum(r.rows for r in drop)
-    where, params = _dropped(split, drop)
     with conn.cursor() as cur:
         # Name the columns, skipping generated ones, which cannot be inserted.
         cur.execute(
@@ -178,21 +136,22 @@ def compact(
         )
         cols = cur.fetchone()[0]
         # Created empty and filled by INSERT, because a CREATE TABLE AS cannot take a bound
-        # parameter. IS NOT TRUE keeps a row whose predicate is NULL: only a match is dropped.
+        # parameter. IS NOT TRUE keeps a row whose run id is NULL: only a match is dropped.
         cur.execute(
             f"CREATE TEMP TABLE _prune_keep ON COMMIT DROP AS SELECT {cols} FROM {table} "
             "WITH NO DATA"
         )
         cur.execute(
-            f"INSERT INTO _prune_keep SELECT {cols} FROM {table} WHERE ({where}) IS NOT TRUE",
-            params,
+            f"INSERT INTO _prune_keep SELECT {cols} FROM {table} "
+            "WHERE (ingest_run_id = ANY(%s)) IS NOT TRUE",
+            ([r.run_id for r in drop],),
         )
         kept = cur.rowcount
         if kept != planned:
             raise RuntimeError(f"{table}: would keep {kept} rows, planned {planned}")
         cur.execute(f"TRUNCATE {table}")
-        # OVERRIDING SYSTEM VALUE: source_assertion.assertion_id and raw_supgp_status's id are
-        # GENERATED ALWAYS identities, and a kept row keeps the id that it already has.
+        # OVERRIDING SYSTEM VALUE: raw_supgp_status's id is a GENERATED ALWAYS identity, and a
+        # kept row keeps the id that it already has.
         cur.execute(
             f"INSERT INTO {table} ({cols}) OVERRIDING SYSTEM VALUE SELECT {cols} FROM _prune_keep"
         )
@@ -200,6 +159,28 @@ def compact(
             raise RuntimeError(f"{table}: reinserted {cur.rowcount} rows of {kept}")
         cur.execute("DROP TABLE _prune_keep")
     return kept
+
+
+def prune_table(conn, table: str, mode: str) -> tuple[list[Run], list[Run]]:
+    """Apply the policy to one table inside the caller's transaction; return (runs, dropped).
+
+    mode is 'plan' (change nothing), 'delete' (the nightly) or 'compact' (the one-time rewrite).
+    Compacting takes its lock BEFORE reading the runs. Read first, and a row committed while the
+    TRUNCATE waited for its lock would be truncated with the rest but missing from the copy of
+    kept rows (tests/test_prune_snapshots.py races exactly that)."""
+    with conn.cursor() as cur:
+        # Fail fast rather than queue behind a long transaction, and block everything that
+        # queues behind this one.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
+        if mode == "compact":
+            cur.execute(f"LOCK TABLE {table} IN ACCESS EXCLUSIVE MODE")
+    runs = runs_in(conn, table)
+    drop = runs_to_drop(runs)
+    if drop and mode == "compact":
+        compact(conn, table, runs, drop)
+    elif drop and mode == "delete":
+        delete_runs(conn, table, drop)
+    return runs, drop
 
 
 def _mb(conn, table: str) -> float:
@@ -218,26 +199,22 @@ def main() -> int:
         "--compact", action="store_true", help="rewrite each table to its kept rows (one-time)"
     )
     args = ap.parse_args()
+    how = "compact" if args.compact else "delete" if args.apply else "plan"
 
     # Autocommit, so that each table gets its own explicit transaction below and VACUUM, which
     # cannot run inside one, can run after them.
     conn = get_autocommit_conn()
     touched: list[str] = []
     try:
-        for table, split in SNAPSHOT_TABLES.items():
-            with conn.transaction(), conn.cursor() as cur:
-                cur.execute("SELECT to_regclass(%s) IS NOT NULL", (table,))
-                if not cur.fetchone()[0]:
-                    print(f"{table}: absent (migration not applied); skipped")
-                    continue
-                # Fail fast rather than queue behind a long transaction, and block everything
-                # that queues behind this one.
-                cur.execute("SET LOCAL lock_timeout = '10s'")
-                if args.compact:
-                    cur.execute(f"LOCK TABLE {table} IN ACCESS EXCLUSIVE MODE")
+        for table in SNAPSHOT_TABLES:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT to_regclass(%s) IS NOT NULL", (table,))
+                    if not cur.fetchone()[0]:
+                        print(f"{table}: absent (migration not applied); skipped")
+                        continue
                 before = _mb(conn, table)
-                runs = runs_in(conn, table, split)
-                drop = runs_to_drop(runs, split[1] if split else None)
+                runs, drop = prune_table(conn, table, how)
                 dropped_rows = sum(r.rows for r in drop)
                 total_rows = sum(r.rows for r in runs)
                 plan = (
@@ -246,13 +223,10 @@ def main() -> int:
                 )
                 if not drop:
                     print(f"{plan}; nothing to drop")
-                    continue
-                if args.compact:
-                    compact(conn, table, runs, drop, split)
+                elif how == "compact":
                     touched.append(table)
                     print(f"{plan}; compacted, {before:,.0f} MB -> {_mb(conn, table):,.0f} MB")
-                elif args.apply:
-                    delete_runs(conn, table, drop, split)
+                elif how == "delete":
                     touched.append(table)
                     print(f"{plan}; deleted")
                 else:

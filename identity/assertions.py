@@ -35,12 +35,17 @@ _UCS_ATTRS = [
     ("status", "'operational'"),
 ]
 
-# Each source's newest run of assertions. extract() writes one complete set of a feed's claims
-# per run, so every older run is a copy (scripts/prune_snapshots.py keeps a few). A reader that
-# counts claims joins on this; counting the whole table counts copies.
-LATEST_RUN_PER_SOURCE = (
-    "SELECT source, max(ingest_run_id) AS run FROM source_assertion GROUP BY source"
-)
+# The claims currently made, as a table expression to select FROM. extract() below re-asserts
+# satcat, gcat and ucs in full on every run, so only a feed's newest run counts and each older
+# run is a copy of the same claims. Any other source's rows all count: a one-off claim (the
+# 'operator_confirmed' correction channel) is never re-asserted. Counting source_assertion
+# itself counts copies.
+CURRENT_ASSERTIONS = """(
+    SELECT a.* FROM source_assertion a
+    LEFT JOIN (SELECT source, max(ingest_run_id) AS run FROM source_assertion
+               WHERE source IN ('satcat', 'gcat', 'ucs') GROUP BY source) l USING (source)
+    WHERE l.run IS NULL OR a.ingest_run_id = l.run
+)"""
 
 
 def _latest_run(conn, table: str) -> int | None:

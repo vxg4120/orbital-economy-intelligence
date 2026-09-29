@@ -125,10 +125,11 @@ def test_months_before_is_calendar_correct_and_clamps():
 
 @pytest.mark.db
 def test_data_basis_counts_claims_not_copies(db_conn):
-    """Every run re-asserts a feed's full set of claims; the basis counts each claim once."""
+    """A snapshot feed re-asserts its full set every run, so the basis counts its newest run
+    once. A one-off source's claims are never re-asserted, so every one of them counts."""
     try:
         with db_conn.cursor() as cur:
-            for _ in range(2):
+            for night, one_off in enumerate(("ZZ ONE-OFF A", "ZZ ONE-OFF B")):
                 cur.execute(
                     "INSERT INTO ingest_run (source, endpoint, started_at, status) "
                     "VALUES ('zz_copies', 'test', now(), 'ok') RETURNING ingest_run_id"
@@ -137,13 +138,20 @@ def test_data_basis_counts_claims_not_copies(db_conn):
                 cur.execute(
                     "INSERT INTO source_assertion "
                     "(satellite_id, source_key, attribute, value, source, observed_at, "
-                    "ingest_run_id) SELECT NULL, 'zz-' || g, 'name', 'ZZ', 'zz_copies', now(), %s "
+                    "ingest_run_id) SELECT NULL, 'zz-' || g, 'name', 'ZZ', 'ucs', now(), %s "
                     "FROM generate_series(1, 3) g",
                     (run,),
                 )
+                cur.execute(
+                    "INSERT INTO source_assertion "
+                    "(satellite_id, source_key, attribute, value, source, observed_at, "
+                    "ingest_run_id) VALUES (NULL, %s, 'owner', %s, 'operator_confirmed', now(), %s)",
+                    (f"zz-fix-{night}", one_off, run),
+                )
             basis = ar._data_basis(cur)
         _, rows = basis["assertions"]
-        assert dict(rows)["zz_copies"] == 3
+        assert dict(rows)["ucs"] == 3
+        assert dict(rows)["operator_confirmed"] == 2
         assert basis["totals"]["assertions"] == sum(n for _, n in rows)
     finally:
         db_conn.rollback()

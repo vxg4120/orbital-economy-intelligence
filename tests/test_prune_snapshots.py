@@ -1,22 +1,26 @@
-"""Retention for the per-run snapshot tables (scripts/prune_snapshots.py).
+"""Retention for the raw_* snapshot tables (scripts/prune_snapshots.py).
 
 The policy is a pure function over the runs present in one table, so most of it is pinned here
 without a database. The db-marked tests drive the two write paths, the nightly DELETE and the
-one-time TRUNCATE-and-reinsert, against a scratch table inside a transaction that is rolled back.
+one-time TRUNCATE-and-reinsert, against scratch tables, and race a concurrent writer against the
+rewrite.
 """
 
 import re
+import threading
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from common.db import get_autocommit_conn, get_conn
 from scripts.prune_snapshots import (
     KEEP_LATEST,
     SNAPSHOT_TABLES,
     Run,
     compact,
-    delete_runs,
+    prune_table,
     runs_in,
     runs_to_drop,
 )
@@ -24,8 +28,8 @@ from scripts.prune_snapshots import (
 MIGRATIONS = Path(__file__).resolve().parent.parent / "db" / "migrations"
 
 
-def _run(run_id, month, day, status="ok", stream=None, rows=10):
-    return Run(stream, run_id, status, datetime(2026, month, day, 7, 10, tzinfo=UTC), rows)
+def _run(run_id, month, day, status="ok", rows=10):
+    return Run(run_id, status, datetime(2026, month, day, 7, 10, tzinfo=UTC), rows)
 
 
 def _ids(runs):
@@ -41,39 +45,39 @@ def test_keeps_the_newest_three_ok_runs_and_each_months_first():
 
 def test_a_month_is_a_utc_month():
     # 23:30 on Aug 31 in Los Angeles is already September in UTC, so this run opens September.
-    late = Run(None, 2, "ok", datetime.fromisoformat("2026-08-31T23:30:00-07:00"), 10)
+    late = Run(2, "ok", datetime.fromisoformat("2026-08-31T23:30:00-07:00"), 10)
     runs = [_run(1, 8, 1), late] + [_run(i, 9, i) for i in range(3, 7)]
     assert _ids(runs_to_drop(runs)) == [3]
 
 
 def test_a_run_newer_than_the_newest_ok_run_is_never_touched():
-    # Run 7 is an ingest still in flight (no status yet): no reader sees it, and it is not ours
-    # to judge. Run 2 failed long ago, and no reader ever selects a failed run.
+    # Run 7 is an ingest still in flight: no reader sees it, and it is not ours to judge. Run 2
+    # failed long ago, and no reader ever selects a failed run.
     runs = [_run(1, 9, 1), _run(2, 9, 2, status="error"), _run(3, 9, 3), _run(4, 9, 4),
             _run(5, 9, 5), _run(6, 9, 6), _run(7, 9, 7, status=None)]
     assert _ids(runs_to_drop(runs)) == [2, 3]
 
 
-def test_each_stream_keeps_its_own_runs():
-    # source_assertion interleaves the satcat and gcat runs; counting the newest three across
-    # both would leave one of them with a single run and blind churn detection.
-    runs = [_run(i, 9, i, stream="satcat" if i % 2 else "gcat") for i in range(1, 13)]
-    dropped = {(r.stream, r.run_id) for r in runs_to_drop(runs, prunable=("satcat", "gcat"))}
-    kept = {(r.stream, r.run_id) for r in runs} - dropped
-    # Each keeps its own newest three and its own first of the month.
-    assert kept == {("satcat", 1), ("satcat", 7), ("satcat", 9), ("satcat", 11),
-                    ("gcat", 2), ("gcat", 8), ("gcat", 10), ("gcat", 12)}
+def test_an_older_run_still_in_flight_is_kept():
+    """Codex verify, 2026-09-29: two ingests overlap and the newer one finishes first. The older
+    one has committed its rows but not yet recorded 'ok', so its id is below the newest OK run.
+    Dropping it would delete a run that is about to become the second-newest, the one churn
+    detection compares against."""
+    runs = [_run(1, 9, 1), _run(2, 9, 2), _run(3, 9, 3), _run(4, 9, 4, status=None),
+            _run(5, 9, 5)]
+    assert 4 not in _ids(runs_to_drop(runs))
 
 
-def test_a_stream_outside_the_prunable_ones_is_kept_whole():
-    # An operator correction is asserted once and never again; ageing it out would lose it.
-    runs = [_run(i, 9, i, stream="operator_confirmed") for i in range(1, 8)]
-    assert runs_to_drop(runs, prunable=("satcat", "gcat", "ucs")) == []
+def test_only_a_finished_run_is_ever_dropped():
+    # A missing ledger row, an empty status or an unknown one: none of them says finished.
+    runs = [_run(1, 9, 1), Run(2, None, None, 10), _run(3, 9, 3, status=""),
+            _run(4, 9, 4, status="running"), _run(5, 9, 5, status="error"),
+            _run(6, 9, 6), _run(7, 9, 7), _run(8, 9, 8)]
+    assert _ids(runs_to_drop(runs)) == [5]
 
 
-def test_a_stream_with_no_ok_run_keeps_everything():
-    runs = [_run(1, 9, 1, status="error"), _run(2, 9, 2, status=None),
-            Run(None, 3, None, None, 10)]
+def test_a_table_with_no_ok_run_keeps_everything():
+    runs = [_run(1, 9, 1, status="error"), _run(2, 9, 2, status=None)]
     assert runs_to_drop(runs) == []
 
 
@@ -94,103 +98,110 @@ def test_every_raw_table_in_the_migrations_is_pruned():
     assert created <= set(SNAPSHOT_TABLES), f"not pruned: {sorted(created - set(SNAPSHOT_TABLES))}"
 
 
-def test_source_assertion_prunes_only_the_feeds_that_reassert_every_run():
-    # identity/assertions.py re-asserts these three on every run; nothing else re-asserts.
-    assert SNAPSHOT_TABLES["source_assertion"] == ("source", ("satcat", "gcat", "ucs"))
+def test_source_assertion_is_not_pruned_by_run():
+    """Its readers take the newest claim per key and 'any claim ever' across all runs, so
+    dropping whole runs can revert a value or erase a claim. That needs its own design
+    (docs/specs/raw-retention.md, Phase 2), not this policy."""
+    assert "source_assertion" not in SNAPSHOT_TABLES
 
 
-SPLIT = ("source", ("satcat", "gcat"))
+LABELS = [("aug1", "2026-08-01", "ok"), ("aug2", "2026-08-02", "ok"),
+          ("sep1", "2026-09-01", "ok"), ("sep2", "2026-09-02", "ok"),
+          ("sep3", "2026-09-03", "ok"), ("flight", "2026-09-04", None)]
 
 
-def _scratch(conn):
-    """A scratch snapshot table shaped like source_assertion: a GENERATED ALWAYS identity, a
-    source column, and a generated column the rewrite must skip. satcat has rows in five OK runs
-    across two months and one run in flight; gcat only in aug2 and sep3; an operator correction
-    in aug2. Returns {run label: ingest_run_id}."""
+def _seed(cur, table, source):
+    """Five OK runs across two months and one in flight, three rows each, in a table with a
+    GENERATED ALWAYS identity and a generated column. Returns {label: ingest_run_id}."""
+    cur.execute(
+        f"CREATE {'TEMP ' if table.startswith('raw_prune_scratch') else ''}TABLE {table} ("
+        " row_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,"
+        " ingest_run_id BIGINT NOT NULL, payload TEXT,"
+        " payload_len INT GENERATED ALWAYS AS (length(payload)) STORED)"
+    )
     ids = {}
-    with conn.cursor() as cur:
+    for label, started, status in LABELS:
         cur.execute(
-            "CREATE TEMP TABLE raw_prune_scratch ("
-            " row_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,"
-            " source TEXT NOT NULL, ingest_run_id BIGINT NOT NULL, payload TEXT,"
-            " payload_len INT GENERATED ALWAYS AS (length(payload)) STORED)"
+            "INSERT INTO ingest_run (source, endpoint, started_at, status) "
+            "VALUES (%s, 'scratch', %s, %s) RETURNING ingest_run_id",
+            (source, started, status),
         )
-        for label, started, status in [
-            ("aug1", "2026-08-01", "ok"), ("aug2", "2026-08-02", "ok"),
-            ("sep1", "2026-09-01", "ok"), ("sep2", "2026-09-02", "ok"),
-            ("sep3", "2026-09-03", "ok"), ("flight", "2026-09-04", None),
-        ]:
-            cur.execute(
-                "INSERT INTO ingest_run (source, endpoint, started_at, status) "
-                "VALUES ('prune_test', 'scratch', %s, %s) RETURNING ingest_run_id",
-                (started, status),
-            )
-            ids[label] = cur.fetchone()[0]
-        for source, labels in [("satcat", list(ids)), ("gcat", ["aug2", "sep3"]),
-                               ("operator_confirmed", ["aug2"])]:
-            for label in labels:
-                cur.execute(
-                    "INSERT INTO raw_prune_scratch (source, ingest_run_id, payload) "
-                    "SELECT %s, %s, %s || '-' || g FROM generate_series(1, 3) g",
-                    (source, ids[label], label),
-                )
+        ids[label] = cur.fetchone()[0]
+        cur.execute(
+            f"INSERT INTO {table} (ingest_run_id, payload) "
+            "SELECT %s, %s || '-' || g FROM generate_series(1, 3) g",
+            (ids[label], label),
+        )
     return ids
 
 
-def _rows(conn):
+def _rows(conn, table="raw_prune_scratch"):
     with conn.cursor() as cur:
-        cur.execute("SELECT row_id, source, ingest_run_id, payload, payload_len "
-                    "FROM raw_prune_scratch ORDER BY row_id")
+        cur.execute(f"SELECT row_id, ingest_run_id, payload, payload_len FROM {table} "
+                    "ORDER BY row_id")
         return cur.fetchall()
 
 
 @pytest.mark.db
-def test_compact_drops_exactly_the_dropped_pairs_and_keeps_ids(db_conn):
-    ids = _scratch(db_conn)
+def test_compact_keeps_exactly_the_kept_rows_with_their_ids(db_conn):
+    with db_conn.cursor() as cur:
+        ids = _seed(cur, "raw_prune_scratch", "prune_test")
     before = _rows(db_conn)
-    runs = runs_in(db_conn, "raw_prune_scratch", SPLIT)
-    drop = runs_to_drop(runs, SPLIT[1])
-    # aug2 is dropped for satcat but is one of gcat's newest runs, and the operator correction
-    # in the same run is not prunable at all: the rewrite must tell the three apart.
-    assert [(r.stream, r.run_id) for r in drop] == [("satcat", ids["aug2"])]
+    runs = runs_in(db_conn, "raw_prune_scratch")
+    assert [r.rows for r in runs] == [3] * 6
+    drop = runs_to_drop(runs)
+    assert [r.run_id for r in drop] == [ids["aug2"]]
 
-    assert compact(db_conn, "raw_prune_scratch", runs, drop, SPLIT) == len(before) - 3
-    # Byte-identical rows, identities included, for everything but the dropped pair.
-    assert _rows(db_conn) == [
-        row for row in before if (row[1], row[2]) != ("satcat", ids["aug2"])
-    ]
+    assert compact(db_conn, "raw_prune_scratch", runs, drop) == 15
+    # Byte-identical rows, identities and generated values included, minus the dropped run.
+    assert _rows(db_conn) == [row for row in before if row[1] != ids["aug2"]]
     # The identity sequence was not reset, so a new row cannot collide with a kept one.
     with db_conn.cursor() as cur:
-        cur.execute("INSERT INTO raw_prune_scratch (source, ingest_run_id, payload) "
-                    "VALUES ('satcat', %s, 'new') RETURNING row_id", (ids["sep3"],))
+        cur.execute("INSERT INTO raw_prune_scratch (ingest_run_id, payload) "
+                    "VALUES (%s, 'new') RETURNING row_id", (ids["sep3"],))
         assert cur.fetchone()[0] > max(row[0] for row in before)
     db_conn.rollback()
 
 
 @pytest.mark.db
-def test_delete_drops_exactly_the_dropped_pairs(db_conn):
-    ids = _scratch(db_conn)
+def test_delete_drops_exactly_the_dropped_runs(db_conn):
+    with db_conn.cursor() as cur:
+        ids = _seed(cur, "raw_prune_scratch", "prune_test")
     before = _rows(db_conn)
-    runs = runs_in(db_conn, "raw_prune_scratch", SPLIT)
-    drop = runs_to_drop(runs, SPLIT[1])
-
-    assert delete_runs(db_conn, "raw_prune_scratch", drop, SPLIT) == 3
-    assert _rows(db_conn) == [
-        row for row in before if (row[1], row[2]) != ("satcat", ids["aug2"])
-    ]
+    runs, drop = prune_table(db_conn, "raw_prune_scratch", "delete")
+    assert [r.run_id for r in drop] == [ids["aug2"]]
+    assert _rows(db_conn) == [row for row in before if row[1] != ids["aug2"]]
     db_conn.rollback()
 
 
 @pytest.mark.db
-def test_an_unsplit_table_is_one_stream(db_conn):
-    ids = _scratch(db_conn)
-    before = _rows(db_conn)
-    runs = runs_in(db_conn, "raw_prune_scratch")
-    assert {r.stream for r in runs} == {None}
-    drop = runs_to_drop(runs)
-    assert [r.run_id for r in drop] == [ids["aug2"]]
+def test_compaction_never_loses_a_row_committed_while_it_waits(db_conn):
+    """A writer holds an uncommitted insert into the newest run when the compaction starts. The
+    compaction must wait for it and keep its row. Reading the runs before locking would copy the
+    kept rows without it, wait at the TRUNCATE, and then truncate it away."""
+    table = f"raw_prune_race_{uuid.uuid4().hex[:8]}"
+    source = f"prune_race_{uuid.uuid4().hex[:8]}"
+    setup = get_autocommit_conn()
+    writer = get_conn()
+    try:
+        with setup.cursor() as cur:
+            ids = _seed(cur, table, source)
+        with writer.cursor() as cur:
+            cur.execute(f"INSERT INTO {table} (ingest_run_id, payload) VALUES (%s, 'late')",
+                        (ids["sep3"],))
+        threading.Timer(0.5, writer.commit).start()
 
-    # Unsplit, every row of the dropped run goes, whatever its source column says.
-    assert compact(db_conn, "raw_prune_scratch", runs, drop) == len(before) - 9
-    assert _rows(db_conn) == [row for row in before if row[2] != ids["aug2"]]
-    db_conn.rollback()
+        runs, drop = prune_table(db_conn, table, "compact")
+        db_conn.commit()
+
+        payloads = [row[2] for row in _rows(db_conn, table)]
+        assert "late" in payloads
+        assert not any(p.startswith("aug2") for p in payloads)
+        assert len(payloads) == 16  # 18 seeded + the late row - aug2's three
+    finally:
+        writer.close()
+        db_conn.rollback()
+        with setup.cursor() as cur:
+            cur.execute(f"DROP TABLE IF EXISTS {table}")
+            cur.execute("DELETE FROM ingest_run WHERE source = %s", (source,))
+        setup.close()
