@@ -70,7 +70,9 @@
   --fs-hero: 42px;
 
   /* ---- geometry ---- */
-  --rail-w: 210px;
+  /* wide enough for the full product name on one line at --fs-md; at 210px it wrapped
+     and overflowed the 46px top bar */
+  --rail-w: 244px;
   --topbar-h: 46px;
   --pad: 20px;
 
@@ -209,6 +211,7 @@ button {
   display: flex;
   align-items: center;
   gap: 7px;
+  white-space: nowrap;
 }
 .topbar__mark .dot {
   width: 7px;
@@ -1630,6 +1633,14 @@ button {
   .topbar__help {
     margin: 0 8px;
   }
+  /* the full name holds one line only at the base size, and the clock drops its
+     label so the date and time can stack inside the bar instead of clipping it */
+  .topbar__mark {
+    font-size: var(--fs-base);
+  }
+  .topbar__clock .tele__k {
+    display: none;
+  }
   /* review queue rows: stratum tag stacks above the subject */
   .case-row {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1651,6 +1662,21 @@ button {
 }
 
 /* comfortable touch targets on touch-first devices */
+@media (max-width: 360px) {
+  /* smallest phones: every pixel of the top bar is spoken for */
+  .topbar__mark {
+    font-size: var(--fs-sm);
+  }
+  .topbar__brand {
+    padding: 0 10px;
+  }
+  .topbar__clock {
+    padding: 0 6px;
+  }
+  .topbar__help {
+    margin: 0 6px;
+  }
+}
 @media (pointer: coarse) {
   .btn {
     padding: 8px 12px;
