@@ -205,6 +205,7 @@ def main() -> int:
     # cannot run inside one, can run after them.
     conn = get_autocommit_conn()
     touched: list[str] = []
+    dropped_runs = dropped_total = 0
     try:
         for table in SNAPSHOT_TABLES:
             with conn.transaction():
@@ -217,6 +218,8 @@ def main() -> int:
                 runs, drop = prune_table(conn, table, how)
                 dropped_rows = sum(r.rows for r in drop)
                 total_rows = sum(r.rows for r in runs)
+                dropped_runs += len(drop)
+                dropped_total += dropped_rows
                 plan = (
                     f"{table}: {len(runs)} runs, drop {len(drop)} "
                     f"({dropped_rows:,} of {total_rows:,} rows)"
@@ -237,6 +240,11 @@ def main() -> int:
                 cur.execute(f"VACUUM (ANALYZE) {table}")
     finally:
         conn.close()
+    # Named, so that a successful night is greppable in deploy/refresh.log; the nightly itself
+    # only prints the script's name when it fails.
+    verb = {"plan": "would drop", "delete": "deleted", "compact": "compacted away"}[how]
+    print(f"prune_snapshots: {verb} {dropped_runs} runs ({dropped_total:,} rows) "
+          f"across {len(SNAPSHOT_TABLES)} tables")
     return 0
 
 

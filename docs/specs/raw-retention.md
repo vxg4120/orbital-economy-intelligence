@@ -13,8 +13,10 @@ deleted a copy. On 2026-09-28 the box reached 93% disk. After emergency cleanup 
 with 4.6 GB free, and the growth was about 260 MB a day. The two table families held 10.5 GB,
 nearly all of it copies.
 
-- **Phase 1** bounds the `raw_*` tables with a retention policy that none of their readers can
-  observe. Every one of those readers selects the newest OK run (churn selects the newest two).
+- **Phase 1** bounds the `raw_*` tables with a retention policy that no snapshot reader can
+  observe. Every reader that selects a whole run takes the newest OK one (churn takes the
+  newest two). The exception is two per-object lookups in the manual gold-queue tool, listed
+  under Edge cases.
   It frees 5.18 GiB now and stops about 150 MB a day of growth. It also fixes the readers that
   were counting `source_assertion` copies as claims.
 - **Phase 2** is `source_assertion` (4.3 GB, about 88 MB a day). Its readers pick the newest
@@ -85,11 +87,14 @@ nearly all of it copies.
   `quality/report.py`, `quality/audit_report.py` and `scripts/build_graph.py` select from.
 
 ## Edge cases
-- **Keys that vanish from a feed.** Two per-object readers take a key's newest raw row across
-  runs rather than from the newest run (`scripts/build_gold_queue.py` for perigee/apogee and
-  RCS). Once a key's last runs are dropped, they fall back to its newest kept run, or to
-  nothing. SATCAT keeps decayed objects, so this touches only keys GCAT renames. The gold
-  queue is a manual labelling tool.
+- **Keys that vanish from a feed (the one observable change).** Two per-object readers take a
+  key's newest raw row across runs rather than from the newest run: `scripts/build_gold_queue.py`
+  for perigee/apogee (lines 75 and 84) and for RCS (line 394), which also orders case selection.
+  Once a key's last runs are dropped, they fall back to its newest kept run, or to nothing.
+  SATCAT keeps decayed objects by convention, not by constraint, so in practice this touches
+  keys that GCAT renames. The gold queue is a manual labelling tool; approving Phase 1 approves
+  this. The laptop-era `scripts/daily_ingest.sh` also reads the all-history max NORAD id for a
+  log line, which would only change if the highest id ever left SATCAT.
 - **A check that lands zero rows** (SupGP with no anomalies) counts as a check. The report
   scopes on the ledger, so a clean check reads as zero, not as the previous check's list.
 - **Identity and generated columns.** `raw_supgp_status`'s identity is reinserted with
@@ -108,7 +113,8 @@ nearly all of it copies.
 
 ## Acceptance criteria
 - [x] `pytest -q -W error tests/test_prune_snapshots.py` passes against a migrated database:
-  12 tests, 3 of them database-backed, including the two-connection race. Mutating the code to
+  13 tests, 4 of them database-backed, including the two-connection race and a dry run of
+  `main()`. Mutating the code to
   read before locking, or to drop unfinished runs, fails the suite.
 - [x] Against the same clean database, the full suite's failures on this branch are identical
   to `origin/release/audit-20260917`'s, with more passes. The recorded run is below in the
@@ -121,10 +127,16 @@ nearly all of it copies.
   plans about 5.2 GB of drops, and every table keeps its newest OK run.
 - [ ] After `--compact` on production, `df -h /` shows at least 5 GB more free than before,
   and orbital, exo and the landing all return 200.
-- [ ] After three nightlies, `grep prune_snapshots deploy/refresh.log` shows three runs, none
-  failed, and each raw table is within one run of its post-compaction size.
+- [ ] After three nightlies, `grep -c "prune_snapshots: deleted" deploy/refresh.log` is at
+  least 3, `grep -c "!! oei prune_snapshots failed" deploy/refresh.log` is 0, and each raw table
+  is within one run of its post-compaction size.
 - [ ] The next audit report prints roughly 700k assertions (one run per snapshot feed), not
   ~33M.
+- [x] `CURRENT_ASSERTIONS` is affordable on production's 33.5M rows. `EXPLAIN (ANALYZE, BUFFERS)`
+  on 2026-09-29: 20.0 s and no temp files, against 6.0 s for the old whole-table count, which
+  counted 33.5M copies. It returns 703,968 current claims. Each parallel worker re-scans for the
+  per-feed max, hence about 3x; that's acceptable for the nightly and monthly batch readers, and
+  Phase 2 shrinks it.
 
 ## Open questions
 - (Vib) Approve Phase 1: the policy (the newest 3 plus each month's first) and a window for the
@@ -167,6 +179,11 @@ nearly all of it copies.
   evidence; (3) scoped counts to the newest run for every source, hiding one-off claims; and
   (4) lacked the API's `source_key` tie-breaker in gold evidence. Each was reproduced against
   the code before being fixed, and each fix has a test that fails without it.
+- 2026-09-29 (Codex verify, second pass on c2ff261): all four earlier defects confirmed fixed,
+  and no row-loss path found in compaction. Two more, both confirmed: the nightly-log acceptance
+  check could never see a successful night, because the script never printed its own name (it
+  now ends with a `prune_snapshots:` summary line, pinned by a test); and the goal overclaimed
+  reader invisibility, now narrowed to the gold-queue exception.
 - 2026-09-29 (Claude): a 3% sample of `source_assertion` on production (2,100 satellites,
   19,634 claim keys) found no claim whose newest row predates its feed's latest run. That is
   sample evidence that option 1 of Phase 2 would change nothing visible today, not a

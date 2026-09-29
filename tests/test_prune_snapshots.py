@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from common.db import get_autocommit_conn, get_conn
+from scripts import prune_snapshots
 from scripts.prune_snapshots import (
     KEEP_LATEST,
     SNAPSHOT_TABLES,
@@ -205,3 +206,15 @@ def test_compaction_never_loses_a_row_committed_while_it_waits(db_conn):
             cur.execute(f"DROP TABLE IF EXISTS {table}")
             cur.execute("DELETE FROM ingest_run WHERE source = %s", (source,))
         setup.close()
+
+
+@pytest.mark.db
+def test_a_dry_run_changes_nothing_and_names_itself(monkeypatch, capsys):
+    """The default is a dry run, safe against any database. Its last line carries the script's
+    name, which is what makes a successful night greppable in deploy/refresh.log."""
+    monkeypatch.setattr("sys.argv", ["prune_snapshots.py"])
+    assert prune_snapshots.main() == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[-1].startswith("prune_snapshots: would drop ")
+    assert not any("deleted" in line or "compacted" in line for line in out)
+
