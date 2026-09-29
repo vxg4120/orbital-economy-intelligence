@@ -35,6 +35,13 @@ _UCS_ATTRS = [
     ("status", "'operational'"),
 ]
 
+# Each source's newest run of assertions. extract() writes one complete set of a feed's claims
+# per run, so every older run is a copy (scripts/prune_snapshots.py keeps a few). A reader that
+# counts claims joins on this; counting the whole table counts copies.
+LATEST_RUN_PER_SOURCE = (
+    "SELECT source, max(ingest_run_id) AS run FROM source_assertion GROUP BY source"
+)
+
 
 def _latest_run(conn, table: str) -> int | None:
     with conn.cursor() as cur:

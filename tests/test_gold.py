@@ -11,7 +11,7 @@ import json
 import psycopg
 import pytest
 
-from scripts.build_gold_queue import upsert_case
+from scripts.build_gold_queue import _assertions, upsert_case
 from scripts.review import (
     append_jsonl,
     record_verdict,
@@ -258,3 +258,32 @@ def test_compute_scores_math_on_planted_stratum(gold_txn):
     # The planted stratum flows into the overall aggregate too.
     assert scores["overall"]["labeled"] >= 5
     assert scores["overall"]["accuracy"] is not None
+
+
+@pytest.mark.db
+def test_assertion_evidence_is_the_newest_claim_per_source(gold_txn):
+    """Every run re-asserts, so evidence must carry one claim per (attribute, source), the
+    newest: the review table keeps the last entry it sees, which used to be the oldest."""
+    with gold_txn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GOLD EVIDENCE') "
+            "RETURNING satellite_id",
+            (NORAD_BASE + 900,),
+        )
+        sat = cur.fetchone()[0]
+        for value in ("ZZ OLD OWNER", "ZZ NEW OWNER"):
+            cur.execute(
+                "INSERT INTO ingest_run (source, endpoint, started_at, status) "
+                "VALUES ('celestrak', 'zz-test', now(), 'ok') RETURNING ingest_run_id"
+            )
+            run = cur.fetchone()[0]
+            cur.execute(
+                "INSERT INTO source_assertion "
+                "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
+                "VALUES (%s, 'zz', 'owner', %s, 'satcat', now(), %s)",
+                (sat, value, run),
+            )
+        evidence = _assertions(cur, sat)
+    assert [(e["attribute"], e["source"], e["value"]) for e in evidence] == [
+        ("owner", "satcat", "ZZ NEW OWNER")
+    ]
