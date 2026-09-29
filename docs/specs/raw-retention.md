@@ -158,9 +158,17 @@ nearly all of it copies.
 - (Claude) `satellite_status_history` gains a row per satellite per run even when nothing
   changed: 259 MB and 2.2M rows today, and the Resolver timeline lists about 49
   near-identical entries per object. It belongs with Phase 2 option 3.
-- (Claude) The reader audit flagged that `identity/assertions.py` joins `satellite_identifier`
-  without `valid_to IS NULL`. If so, links retired by churn keep receiving fresh claims. That
-  is unverified and an identity-semantics change, so it is out of this branch.
+- (Vib) **Verified on production 2026-09-29: 105 GCAT keys (jcats) are each linked to two or
+  three satellites, every link current (212 links; NORAD links have no duplicates).** They are
+  deployment siblings whose provisional identifications GCAT swapped, for example `S65730` on
+  both NORAD 65729 and 65730. `identity/assertions.py` joins the crosswalk per link, so each
+  sibling receives the other's GCAT claims (owner, status, name, decay date), and the
+  Resolver and conflicts pages show them. The bus build is immune: its anchored join rules
+  attribute each satellite from its own GCAT row. The audit's suggested `valid_to IS NULL`
+  filter would not help, since both links are current. Deciding which link survives is
+  identity resolution for about 210 satellites, so it is out of this branch. The same swap is
+  why six 2-satellite manufacturer cohorts (asc24, kansai, munf, rhodes, unbrun, wiss) retired
+  on 2026-09-28: anchoring now attributes both satellites of each pair elsewhere.
 - (Vib) The CI `db` job runs on an empty database, where 91 data-dependent tests fail on the
   base branch too (for example `tests/test_api_buses.py` expects published buses). Seed a
   fixture, or mark those tests as needing a populated graph.
