@@ -133,6 +133,16 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
 
 ## Open questions
 
+- **The pending list stopped updating in mid-2025 (measured 2026-09-28).** The newest filing in
+  `/api/filings/pending` is dated 2025-06-18 (four filings that day, nothing after), the total is
+  still 667 as on 2026-09-16, and the IBFS bulk download has returned the same 815,438 rows since at
+  least 2026-08-18, so the nightly "ok" ingest is re-reading a frozen file. The FCC has moved
+  satellite filings to the upgraded ICFS, and space-station applications from later in 2025 exist
+  there that this pipeline never sees. So the page presents a mid-2025 snapshot as the live pending
+  docket, some of those 667 may have been decided since, and newest-first shows nothing from the
+  last fifteen months. Options: re-source pending filings from ICFS (the document harvest already
+  talks to it), or relabel the view as a dated snapshot until then. Assign: Vib (scope), then
+  Claude.
 - **Blob bytes are not retained.** The store holds sha256 + page counts, so a reissued attachment
   is detectable on refetch but not replayable; re-verification depends on continued FCC
   availability. Disclosed in the methodology 2026-08-24; actual byte storage is open. Assign: Vib

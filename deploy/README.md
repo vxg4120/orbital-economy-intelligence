@@ -43,6 +43,7 @@ stable option; splitting across serverless services wouldn't remove that DB cost
 | `seed/dump-local.sh` | **on laptop** — dump oei + exo to `seed/*.dump` |
 | `seed/restore-remote.sh` | **on box** — restore the dumps into the cluster |
 | `nightly-refresh.sh` | cron job: refresh both catalogs nightly |
+| `landing-snapshot.sh` | **before a landing deploy**: re-bake the landing's cached numbers from `/live/*`, then commit |
 
 The two app images are built from `../Dockerfile` (space) and `../../exodossier/Dockerfile`,
 so **both repos must be cloned as siblings** (`bootstrap.sh` does this):
@@ -177,6 +178,22 @@ single-file mount. Do not hide command failures behind unchecked `tail` pipeline
 The read-only smoke check requires an unknown URL to return both HTTP 404 and the
 styled recovery page. HTTP status alone, a direct `/404.html` request, or Caddyfile
 validation does not establish that visitors receive the recovery page.
+
+### Landing snapshot numbers
+
+`landing/index.html` carries hardcoded copies of the numbers its own script fetches from
+`/live/orbital` and `/live/exo`. They are what the first paint, scrapers and a no-JS reader
+see, and what a tile keeps when its platform is down. Nothing refreshes them automatically,
+so re-bake them before any landing deploy and commit the result, from the repository root:
+
+```bash
+deploy/landing-snapshot.sh            # against https://$BASE_DOMAIN, or https://vibcreates.com
+git add deploy/landing/index.html && git commit -m "Landing: snapshot $(date -u +%F)"
+```
+
+It bakes whatever the live endpoints serve at that moment, so a deploy that itself changes
+the data (a graph rebuild, a dedupe) ships numbers from before the change. When that
+happens, run it once more after the deploy has settled and pull again.
 
 **Backups:** re-run `seed/dump-local.sh`-style dumps on the box against the `db` service,
 or snapshot the Hetzner volume. The `pgdata` volume holds all state.

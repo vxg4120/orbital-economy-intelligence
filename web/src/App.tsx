@@ -21,6 +21,7 @@ const Reachability = lazy(() =>
 const Review = lazy(() => import("./views/Review").then((m) => ({ default: m.Review })));
 const ReviewCase = lazy(() => import("./views/ReviewCase").then((m) => ({ default: m.ReviewCase })));
 const Filings = lazy(() => import("./views/Filings").then((m) => ({ default: m.Filings })));
+const NotFound = lazy(() => import("./views/NotFound").then((m) => ({ default: m.NotFound })));
 
 const NAV = [
   { to: "/", idx: "00", name: "Overview", end: true },
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="/buses/:slug" element={<Buses />} />
             <Route path="/reachability" element={<Reachability />} />
             <Route path="/filings" element={<Filings />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
         <Colophon />
