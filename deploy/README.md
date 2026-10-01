@@ -163,6 +163,13 @@ docker compose exec -T oei-api python scripts/prune_snapshots.py --compact  # re
 df -h /                                                                  # after
 ```
 
+`--compact` only rewrites tables that still have droppable runs. If the nightly's `--apply`
+has already deleted the backlog (it happened on 2026-10-01: 64 minutes of DELETE and VACUUM),
+the dead space is inside the files and `--compact` reports nothing to drop. Then run
+`VACUUM (FULL, ANALYZE) <table>` per table, largest first, under `nohup` with a log so a
+dropped SSH session cannot interrupt it; each needs only its kept size as headroom and frees
+its old file when it finishes (2026-10-01: all 13 tables in 35 s, 2.6 GB to 8.1 GB free).
+
 Never run an ad-hoc `count(DISTINCT ...)` or a large sort against `source_assertion` on the
 box: Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
 

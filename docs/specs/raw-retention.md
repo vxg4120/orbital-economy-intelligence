@@ -1,10 +1,11 @@
 # Spec: snapshot retention for raw_* (Phase 1) and source_assertion (Phase 2)
 
-**Status:** draft. Phase 1 code is ready, and running it on production is Vib's decision.
+**Status:** active. Phase 1 shipped on 2026-10-01 (approved by Vib, "let's do it");
+Phase 2 is still a design question for Vib.
 Phase 2 is a design question for Vib.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-09-29
+**Last updated:** 2026-10-01
 
 ## Goal
 Every ingest run lands a full copy of its source in the `raw_*` tables, and
@@ -123,10 +124,15 @@ nearly all of it copies.
   nightly runs goes from 1,127 MB to 116 MB under `--compact` in 3.7 s end to end. It keeps
   July's first run, August's first and the newest three, and a following `--apply` drops
   nothing.
-- [ ] Production dry run (`docker compose exec -T oei-api python scripts/prune_snapshots.py`)
-  plans about 5.2 GB of drops, and every table keeps its newest OK run.
-- [ ] After `--compact` on production, `df -h /` shows at least 5 GB more free than before,
-  and orbital, exo and the landing all return 200.
+- [x] Production: the backlog went through the DELETE path, not `--compact` (see the decision
+  log for 2026-10-01). The 19:10 nightly's first `--apply` deleted 455 runs (21,987,391
+  rows) across 13 tables, both gates passed afterwards, and the run took 64 minutes instead of
+  about 13 with WAL held at `max_wal_size`. A `VACUUM (FULL, ANALYZE)` per table then returned
+  the space in 35 seconds: 2.6 GB free (93%) to 8.1 GB free (78%), `oei` 14 GB to 9.4 GB,
+  `raw_gcat_satcat` 2,096 MB to 242 MB. Afterwards the dry run reports "would drop 0 runs",
+  each daily table keeps 6 runs (the newest 3 plus the July, August, September and October
+  firsts), the newest OK GCAT run is intact, and the landing, orbital, exo,
+  `/api/filings/pending`, `/api/environment` and `/api/reachability/passes` all return 200.
 - [ ] After three nightlies, `grep -c "prune_snapshots: deleted" deploy/refresh.log` is at
   least 3, `grep -c "!! oei prune_snapshots failed" deploy/refresh.log` is 0, and each raw table
   is within one run of its post-compaction size.
@@ -139,8 +145,6 @@ nearly all of it copies.
   Phase 2 shrinks it.
 
 ## Open questions
-- (Vib) Approve Phase 1: the policy (the newest 3 plus each month's first) and a window for the
-  one-time `--compact`.
 - (Vib) **Phase 2: how should `source_assertion` stop growing?** Measured 2026-09-29: 32.8M
   rows, 4.3 GB, about 88 MB a day. After Phase 1 the disk has roughly 3.5 months of runway
   for it. Options:
@@ -196,6 +200,19 @@ nearly all of it copies.
   19,634 claim keys) found no claim whose newest row predates its feed's latest run. That is
   sample evidence that option 1 of Phase 2 would change nothing visible today, not a
   guarantee.
+- 2026-10-01 (Claude): shipped, with a lesson. The one-time `--compact` was scheduled for the
+  afternoon, but the path from the laptop to the box dropped for 30 minutes (17:12 to 17:42 UTC;
+  production itself stayed up and served other visitors throughout, per the Caddy and sshd
+  logs), the window was lost, and the 19:10 nightly ran the new `--apply` step on the whole
+  backlog first. That path works, but it is the slow one: 64 minutes of DELETE and VACUUM, with
+  WAL held at `max_wal_size`. Afterwards `--compact` is a no-op, because it only rewrites tables
+  that still have droppable runs, so the space came back through `VACUUM (FULL, ANALYZE)` per
+  table (35 s, scripted in deploy/README.md). Lessons: (1) deploy the nightly step and run the
+  compaction in the same sitting, or deploy the step only after the compaction, so the nightly
+  never meets a backlog; (2) a one-off on the box runs under `nohup` with a log, never through a
+  live SSH session; (3) the laptop backup of the old snapshots
+  (`~/Backups/vibcreates/oei-raw-snapshots-20261001.dump`, 675 MB, all 13 tables) was taken
+  first and covers every deleted row.
 - 2026-09-29 (Claude): the full suite ran on a clean `timescale/timescaledb:latest-pg17` (as
   CI does) for both the base and this branch. The failure sets were identical (91 failed and 5
   errors, all data-dependent tests on an empty database), and the branch passed 390 tests
