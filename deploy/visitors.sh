@@ -31,13 +31,19 @@ docker compose exec -T caddy sh -c '
 import collections
 import datetime as dt
 import json
+import re
 import sys
+import urllib.parse
 
 days = int(sys.argv[1])
 cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
 
 BOT_TOKENS = ("bot", "crawl", "spider", "slurp", "curl", "wget", "python-requests", "headless",
               "preview", "monitor", "probe", "scan", "gpt", "claude", "lighthouse")
+# Paths no visitor to these sites ever asks for: a scanner hunting for secrets (/.env,
+# /.git/config) or a WordPress or router admin page. Scanners send the user agent of a
+# browser, so the path is the tell. No page on the three sites has a segment starting with a dot.
+PROBE = re.compile(r"/\.|\.php$|^/wp-|^/cgi-bin|^/phpmyadmin", re.IGNORECASE)
 
 per_host = collections.defaultdict(lambda: {
     "hits": 0, "ips": collections.Counter(), "paths": collections.Counter(),
@@ -73,11 +79,12 @@ for line in sys.stdin.buffer:
     ip = req.get("client_ip") or req.get("remote_ip") or "?"
     h = per_host[host]
     h["hits"] += 1
-    if any(t in ua.lower() for t in BOT_TOKENS):
+    path = req.get("uri", "?").split("?")[0]
+    # Decoded first, as Caddy matches it: /%2eenv is /.env.
+    if any(t in ua.lower() for t in BOT_TOKENS) or PROBE.search(urllib.parse.unquote(path)):
         h["bots"] += 1
         continue
     h["ips"][ip] += 1
-    path = req.get("uri", "?").split("?")[0]
     if not path.startswith(("/assets", "/fonts", "/favicon")):
         h["paths"][path] += 1
     if ref and host not in ref:
