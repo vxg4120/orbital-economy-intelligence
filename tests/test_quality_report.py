@@ -11,7 +11,10 @@ import re
 import pytest
 
 from quality.report import (
+    SUPGP_ENDPOINT,
+    SUPGP_SOURCE,
     _section_decay_date_conflicts,
+    _section_match_merge_stats,
     _section_stale_post_ma_owners,
     _section_status_disagreements,
     _section_supgp_cross_tags,
@@ -61,6 +64,7 @@ def seeded(db_conn):
             cur, "gcat", "https://planet4589.org/space/gcat/tsv/cat/satcat.tsv"
         )
         _insert_ingest_run(cur, "gp", "https://celestrak.org/NORAD/elements/gp.php", "skipped_fresh")
+        run_supgp = _insert_ingest_run(cur, SUPGP_SOURCE, SUPGP_ENDPOINT)
 
         # --- Section: status disagreements (SATCAT vs GCAT) ---
         # The section compares each source's *asserted* status, mapped to canonical via
@@ -135,7 +139,7 @@ def seeded(db_conn):
             "INSERT INTO raw_supgp_status "
             "(norad_id, object_name, file_tag, flag, detail, ingest_run_id) "
             "VALUES (%s, 'ZZ TEST SUPGP OBJ', 'starlink', 'NO_MATCH', 'test anomaly', %s)",
-            (NORAD_STATUS_DISAGREE, run_satcat),
+            (NORAD_STATUS_DISAGREE, run_supgp),
         )
 
         # --- Section: match/merge stats ---
@@ -276,3 +280,45 @@ def test_report_match_merge_stats_and_coverage_percentages_parse_as_numbers(seed
 
     # The decayed satellite must not be counted as on-orbit.
     assert str(NORAD_DECAYED) not in coverage_section
+
+
+def test_supgp_ledger_labels_match_the_ingest():
+    from ingest import supgp_crosstags
+
+    assert (SUPGP_SOURCE, SUPGP_ENDPOINT) == (supgp_crosstags.SOURCE, supgp_crosstags.ENDPOINT)
+
+
+@pytest.mark.db
+def test_supgp_section_reports_only_the_newest_check(seeded):
+    """raw_supgp_status appends every check's anomalies, and the report is about the newest
+    check. A later check that finds nothing reads as zero, not as the previous check's list."""
+    with seeded.cursor() as cur:
+        newer = _insert_ingest_run(cur, SUPGP_SOURCE, SUPGP_ENDPOINT)
+        cur.execute(
+            "INSERT INTO raw_supgp_status "
+            "(norad_id, object_name, file_tag, flag, detail, ingest_run_id) "
+            "VALUES (%s, 'ZZ TEST SUPGP NEWER', 'oneweb', 'NO_MATCH', 'newer anomaly', %s)",
+            (NORAD_DECAY_CONFLICT, newer),
+        )
+        total, _, rows = _section_supgp_cross_tags(cur)
+        assert (total, [r[0] for r in rows]) == (1, [NORAD_DECAY_CONFLICT])
+
+        _insert_ingest_run(cur, SUPGP_SOURCE, SUPGP_ENDPOINT)  # a clean check: no anomalies
+        total, _, rows = _section_supgp_cross_tags(cur)
+        assert (total, rows) == (0, [])
+
+
+@pytest.mark.db
+def test_unmatched_counts_only_each_sources_newest_run(seeded):
+    """A key that was unmatched in an older run is not unmatched now: satellite_id is set at
+    insert and never backfilled, so counting every run counted every key ever unmatched."""
+    with seeded.cursor() as cur:
+        newer = _insert_ingest_run(cur, "ucs", "zz-test-newer")
+        cur.execute(
+            "INSERT INTO source_assertion "
+            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
+            "VALUES (NULL, 'zz-test-unmatched-2', 'name', 'ZZ Newer Unmatched', 'ucs', now(), %s)",
+            (newer,),
+        )
+        _, rows = _section_match_merge_stats(cur)["unmatched"]
+    assert dict(rows)["ucs"] == 1

@@ -27,6 +27,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import canonical_object_type, parse_date_loose
 from quality.report import (
     _md_table,
@@ -106,14 +107,16 @@ def _data_basis(cur):
         GROUP BY source ORDER BY source
         """,
     )
+    # Claims, not copies: every run re-asserts a feed's full set, so counting the whole table
+    # counts each claim once per retained run (the 2026-09 report would have printed ~32.8M).
     assert_cols, assert_rows = _q(
         cur,
-        "SELECT source, count(*) AS assertions FROM source_assertion "
+        f"SELECT source, count(*) AS assertions FROM {CURRENT_ASSERTIONS} c "
         "GROUP BY source ORDER BY assertions DESC",
     )
     totals = {
         "satellites": _scalar(cur, "SELECT count(*) FROM satellite"),
-        "assertions": _scalar(cur, "SELECT count(*) FROM source_assertion"),
+        "assertions": sum(row[1] for row in assert_rows),
         "identifiers": _scalar(cur, "SELECT count(*) FROM satellite_identifier"),
         "operators": _scalar(cur, "SELECT count(*) FROM operator"),
         "operator_relationships": _scalar(cur, "SELECT count(*) FROM operator_relationship"),

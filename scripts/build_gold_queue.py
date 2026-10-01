@@ -105,8 +105,13 @@ def _identifiers(cur, satellite_id):
 
 def _assertions(cur, satellite_id):
     cur.execute(
-        "SELECT attribute, value, source, observed_at FROM source_assertion "
-        "WHERE satellite_id = %s ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC",
+        # The newest claim per (attribute, source) with api/routers/satellites.py's tie-breakers
+        # verbatim, so a reviewer judges the claim the site shows. Every run re-asserts, so
+        # without DISTINCT ON the evidence carried ~49 copies, and the review table, which keeps
+        # the last entry it sees, showed the OLDEST claim.
+        "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_at "
+        "FROM source_assertion WHERE satellite_id = %s "
+        "ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC, source_key",
         (satellite_id,),
     )
     return [

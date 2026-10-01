@@ -1,10 +1,11 @@
 """Generates docs/reports/dq_report.md -- the Data Quality & Conflict Report. SPEC.md §8.
 
 SQL against the schema (it reads only the tables the identity engine populated, never invokes the
-engine) + string formatting, no plotting deps. The one identity/ import is the pure, stdlib-only
-``parse_date_loose`` helper, reused so the decay-date conflict section compares *dates* rather than
-raw strings (GCAT's "1957 Dec 1 1000?" and SATCAT's "1957-12-01" are the same date in different
-clothes and must not read as a conflict). Safe to re-run: it always overwrites the file from
+engine) + string formatting, no plotting deps. The identity/ imports are pure and stdlib-only:
+the ``parse_date_loose`` helper, reused so the decay-date conflict section compares *dates* rather
+than raw strings (GCAT's "1957 Dec 1 1000?" and SATCAT's "1957-12-01" are the same date in
+different clothes and must not read as a conflict), and the SQL selecting the claims currently
+made, so that counts are of claims rather than of per-run copies. Safe to re-run: it always overwrites the file from
 scratch.
 
 Determinism: every query below has an explicit ORDER BY so that, given the same underlying data,
@@ -27,6 +28,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import parse_date_loose
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -219,16 +221,31 @@ def _section_stale_post_ma_owners(cur):
     return cols, rows
 
 
+# The ledger labels ingest/supgp_crosstags.py writes (tests/test_quality_report.py pins them).
+SUPGP_SOURCE, SUPGP_ENDPOINT = "celestrak", "supgp_index"
+
+
 def _section_supgp_cross_tags(cur):
-    cur.execute("SELECT count(*) FROM raw_supgp_status")
+    """Anomalies from the newest SupGP check only. raw_supgp_status appends every check's rows,
+    so reading all of it reported every anomaly ever seen (250 rows over 48 checks, when the
+    newest had 8). The scope comes from the ledger, not the table, because a check that finds
+    nothing lands no rows and must read as zero, not as the previous check's list."""
+    latest = (
+        "(SELECT max(ingest_run_id) FROM ingest_run "
+        "WHERE source = %(source)s AND endpoint = %(endpoint)s AND status = 'ok')"
+    )
+    params = {"source": SUPGP_SOURCE, "endpoint": SUPGP_ENDPOINT}
+    cur.execute(f"SELECT count(*) FROM raw_supgp_status WHERE ingest_run_id = {latest}", params)
     total = cur.fetchone()[0]
     cols, rows = _rows(
         cur,
-        """
+        f"""
         SELECT norad_id, object_name, file_tag, flag, detail
         FROM raw_supgp_status
+        WHERE ingest_run_id = {latest}
         ORDER BY raw_supgp_status_id
         """,
+        params,
     )
     return total, cols, rows
 
@@ -244,10 +261,13 @@ def _section_match_merge_stats(cur):
         "SELECT rule_fired, count(*) AS merges FROM merge_log "
         "GROUP BY rule_fired ORDER BY rule_fired",
     )
+    # Unmatched among the current claims. Across all runs this counted every key that was ever
+    # unmatched, including ones matched since: satellite_id is set at insert and never
+    # backfilled, so an old run's NULL stays NULL.
     unmatched_cols, unmatched_rows = _rows(
         cur,
-        "SELECT source, count(DISTINCT source_key) AS unmatched_objects FROM source_assertion "
-        "WHERE satellite_id IS NULL GROUP BY source ORDER BY source",
+        f"SELECT source, count(DISTINCT source_key) AS unmatched_objects "
+        f"FROM {CURRENT_ASSERTIONS} c WHERE satellite_id IS NULL GROUP BY source ORDER BY source",
     )
     review_queue_size = _review_queue_size()
     return {
