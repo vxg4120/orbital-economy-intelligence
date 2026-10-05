@@ -26,22 +26,45 @@ def load_precedence(path=None) -> dict:
 
 
 def _assertions(conn, attribute):
-    """Return {satellite_id: {source: (value, observed_at)}} for one attribute (latest per src)."""
+    """Return {satellite_id: {source: (value, observed_at)}} for one attribute (latest per src).
+
+    The newest claim per (satellite, source) is picked in SQL. Every run re-asserts, so the
+    table holds one copy of each claim per retained run, and fetching them all to keep the last
+    by dict overwrite (how this read until 2026-10-05) streamed 7.4M rows per attribute, about
+    33M per nightly, into Python: over a gigabyte at a time on the 3.8 GB box. That was the
+    nightly's swap storm (13 to 90 minutes from 2026-09-29) and the 2026-09-17 OOM kill.
+
+    The winner is unchanged: the max of (observed_at, ingest_run_id, source_key) per
+    (satellite, source). A run's assertions carry its load time as observed_at, so within one
+    source the newest run is the newest observed_at, and a hash aggregate finds it without
+    sorting the attribute's 7M rows (a DISTINCT ON over them spills a 400 MB sort to disk;
+    measured on production 2026-10-05, 13 s against 15 s, 15 MB against 411 MB of temp).
+    Among that run's rows, which share observed_at (= loaded_at), source_key breaks the tie
+    stably, as before.
+    """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
-        # Ascending order with deterministic tiebreakers: within one source, all assertions of a
-        # snapshot share observed_at (= loaded_at), so ordering by observed_at alone leaves the
-        # dict-overwrite winner up to physical row order (non-deterministic across VACUUM/re-runs).
-        # (ingest_run_id, source_key) breaks the tie stably; the last row iterated (the max tuple)
-        # is the kept winner.
         cur.execute(
-            "SELECT satellite_id, source, value, observed_at FROM source_assertion "
-            "WHERE attribute = %s AND satellite_id IS NOT NULL "
-            "ORDER BY observed_at, ingest_run_id, source_key",
-            (attribute,),
+            """
+            WITH latest AS (
+                SELECT satellite_id, source, max(ingest_run_id) AS run
+                FROM source_assertion
+                WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
+                GROUP BY 1, 2
+            )
+            SELECT DISTINCT ON (a.satellite_id, a.source)
+                   a.satellite_id, a.source, a.value, a.observed_at
+            FROM source_assertion a
+            JOIN latest l ON l.satellite_id = a.satellite_id AND l.source = a.source
+                         AND l.run = a.ingest_run_id
+            WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
+            ORDER BY a.satellite_id, a.source, a.observed_at DESC, a.ingest_run_id DESC,
+                     a.source_key DESC
+            """,
+            {"attribute": attribute},
         )
         for sat_id, source, value, observed_at in cur.fetchall():
-            out[sat_id][source] = (value, observed_at)  # later observed_at overwrites (kept last)
+            out[sat_id][source] = (value, observed_at)
     return out
 
 

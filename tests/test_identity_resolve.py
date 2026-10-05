@@ -261,3 +261,33 @@ def test_famous_objects_carry_curated_display_names(db_conn):
     assert names.get(25544) == "ISS (Zarya)"
     assert names.get(33591) == "NOAA-19"
     assert names.get(28654) == "NOAA-18"
+
+
+@pytest.mark.db
+def test_latest_claim_per_source_is_the_max_tuple_not_every_copy(db_conn):
+    """Every run re-asserts, so one attribute holds a copy per retained run. The resolver must
+    keep, per (satellite, source), the max of (observed_at, ingest_run_id, source_key), picked in
+    SQL rather than by fetching every copy (which brought ~7M rows per attribute into Python
+    and swapped the box). Pinned: a newer run wins; within one run the greatest source_key wins;
+    a source that stopped asserting keeps its last claim."""
+    try:
+        with db_conn.cursor() as cur:
+            old_run, new_run = _run(cur), _run(cur)
+            sat = _sat(cur, 970000101)
+            cur.execute(
+                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
+                "source, observed_at, ingest_run_id) VALUES "
+                "(%(s)s, 'k1', 'owner', 'OLD', 'satcat', %(t0)s, %(r0)s), "
+                "(%(s)s, 'k1', 'owner', 'NEW', 'satcat', %(t1)s, %(r1)s), "
+                "(%(s)s, 'k1', 'owner', 'FROM-K1', 'gcat', %(t1)s, %(r1)s), "
+                "(%(s)s, 'k2', 'owner', 'FROM-K2', 'gcat', %(t1)s, %(r1)s), "
+                "(%(s)s, 'k1', 'owner', 'STALE', 'ucs', %(t0)s, %(r0)s)",
+                {"s": sat, "t0": OBS, "t1": OBS + dt.timedelta(days=1), "r0": old_run,
+                 "r1": new_run},
+            )
+            by_source = resolve._assertions(db_conn, "owner")[sat]
+        assert by_source["satcat"] == ("NEW", OBS + dt.timedelta(days=1))
+        assert by_source["gcat"][0] == "FROM-K2"
+        assert by_source["ucs"] == ("STALE", OBS)
+    finally:
+        db_conn.rollback()
