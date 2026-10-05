@@ -291,3 +291,49 @@ def test_latest_claim_per_source_is_the_max_tuple_not_every_copy(db_conn):
         assert by_source["ucs"] == ("STALE", OBS)
     finally:
         db_conn.rollback()
+
+
+@pytest.mark.db
+def test_a_later_timestamp_beats_a_higher_run_id(db_conn):
+    """Codex verify, 2026-10-05: a run id is allocated before its download and observed_at is
+    the load time, so two overlapping ingests can land in inverted order (run 11 loads at
+    10:02, run 10 at 10:03). The winner is the max of (observed_at, ingest_run_id, source_key),
+    timestamp first, exactly as the resolver has always picked it; selecting the highest run id
+    first would return the other row."""
+    try:
+        with db_conn.cursor() as cur:
+            low_run, high_run = _run(cur), _run(cur)
+            sat = _sat(cur, 970000102)
+            cur.execute(
+                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
+                "source, observed_at, ingest_run_id) VALUES "
+                "(%(s)s, 'k1', 'owner', 'LOADED-LAST', 'satcat', %(later)s, %(low)s), "
+                "(%(s)s, 'k2', 'owner', 'LOADED-FIRST', 'satcat', %(earlier)s, %(high)s)",
+                {"s": sat, "later": OBS + dt.timedelta(minutes=1), "earlier": OBS,
+                 "low": low_run, "high": high_run},
+            )
+            by_source = resolve._assertions(db_conn, "owner")[sat]
+        assert by_source["satcat"] == ("LOADED-LAST", OBS + dt.timedelta(minutes=1))
+    finally:
+        db_conn.rollback()
+
+
+@pytest.mark.db
+def test_with_equal_timestamps_the_higher_run_beats_the_higher_key(db_conn):
+    """The old ordering was (observed_at, ingest_run_id, source_key): with the timestamp tied,
+    the run decides before the key. Pinned so the SQL keeps that order, not just the timestamp."""
+    try:
+        with db_conn.cursor() as cur:
+            low_run, high_run = _run(cur), _run(cur)
+            sat = _sat(cur, 970000103)
+            cur.execute(
+                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
+                "source, observed_at, ingest_run_id) VALUES "
+                "(%(s)s, 'k9', 'owner', 'LOW-RUN-HIGH-KEY', 'satcat', %(t)s, %(low)s), "
+                "(%(s)s, 'k1', 'owner', 'HIGH-RUN-LOW-KEY', 'satcat', %(t)s, %(high)s)",
+                {"s": sat, "t": OBS, "low": low_run, "high": high_run},
+            )
+            by_source = resolve._assertions(db_conn, "owner")[sat]
+        assert by_source["satcat"][0] == "HIGH-RUN-LOW-KEY"
+    finally:
+        db_conn.rollback()

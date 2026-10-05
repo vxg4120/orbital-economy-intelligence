@@ -32,22 +32,23 @@ def _assertions(conn, attribute):
     table holds one copy of each claim per retained run, and fetching them all to keep the last
     by dict overwrite (how this read until 2026-10-05) streamed 7.4M rows per attribute, about
     33M per nightly, into Python: over a gigabyte at a time on the 3.8 GB box. That was the
-    nightly's swap storm (13 to 90 minutes from 2026-09-29) and the 2026-09-17 OOM kill.
+    nightly's swap burst and the 2026-09-17 OOM kill of a nightly python at 2 GB.
 
     The winner is unchanged: the max of (observed_at, ingest_run_id, source_key) per
-    (satellite, source). A run's assertions carry its load time as observed_at, so within one
-    source the newest run is the newest observed_at, and a hash aggregate finds it without
-    sorting the attribute's 7M rows (a DISTINCT ON over them spills a 400 MB sort to disk;
-    measured on production 2026-10-05, 13 s against 15 s, 15 MB against 411 MB of temp).
-    Among that run's rows, which share observed_at (= loaded_at), source_key breaks the tie
-    stably, as before.
+    (satellite, source), timestamp first. A hash aggregate finds each group's newest observed_at
+    without sorting the attribute's 7M rows (a DISTINCT ON over them spills a 400 MB sort to
+    disk; measured on production 2026-10-05, 13 s against 15 s, 15 MB against 411 MB of temp),
+    and among the rows that carry it, which share a load time, (ingest_run_id, source_key)
+    breaks the tie stably, as before. The aggregate is on observed_at, not ingest_run_id: a run
+    id is allocated before its download and observed_at is the load time, so two overlapping
+    ingests can land in inverted order (Codex verify, 2026-10-05).
     """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
         cur.execute(
             """
-            WITH latest AS (
-                SELECT satellite_id, source, max(ingest_run_id) AS run
+            WITH newest AS (
+                SELECT satellite_id, source, max(observed_at) AS observed_at
                 FROM source_assertion
                 WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
                 GROUP BY 1, 2
@@ -55,11 +56,10 @@ def _assertions(conn, attribute):
             SELECT DISTINCT ON (a.satellite_id, a.source)
                    a.satellite_id, a.source, a.value, a.observed_at
             FROM source_assertion a
-            JOIN latest l ON l.satellite_id = a.satellite_id AND l.source = a.source
-                         AND l.run = a.ingest_run_id
+            JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
+                         AND n.observed_at = a.observed_at
             WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.source, a.observed_at DESC, a.ingest_run_id DESC,
-                     a.source_key DESC
+            ORDER BY a.satellite_id, a.source, a.ingest_run_id DESC, a.source_key DESC
             """,
             {"attribute": attribute},
         )
