@@ -11,6 +11,7 @@ import pytest
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_every_row_carries_a_valid_join_rule(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
@@ -96,6 +97,7 @@ def test_anchored_view_excludes_exactly_the_provisional_rows(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_state_filter_contract(db_conn):
     import warnings
 
@@ -120,6 +122,7 @@ def test_state_filter_contract(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_v_bus_sat_exposes_join_provenance(db_conn):
     with db_conn.cursor() as cur:
         cur.execute("SELECT join_rule, key_churn_observed FROM v_bus_sat LIMIT 1")

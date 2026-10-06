@@ -86,6 +86,7 @@ def test_a_filing_appears_in_exactly_one_docket_row(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_pending_list_carries_docket_summaries(db_conn):
     body = _client().get("/api/filings/pending?limit=200").json()
     docketed = [r for r in body["rows"] if r.get("docket_filings_total")]
@@ -99,6 +100,7 @@ def test_pending_list_carries_docket_summaries(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_docket_endpoint_serves_a_dated_timeline(db_conn):
     """Self-selects a docket that has both granted and pending filings rather than hardcoding a
     callsign, so the test survives the FCC deciding things. The properties pinned are structural:

@@ -39,6 +39,7 @@ def test_notifications_and_unknown_methods():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_bus_benchmarks_tool(db_conn):
     result = tools.bus_benchmarks(limit=5, min_n=5)
     assert result["total"] > 0
@@ -53,6 +54,7 @@ def test_bus_benchmarks_tool(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_bus_detail_tool_and_call_roundtrip(db_conn):
     top = tools.bus_benchmarks(limit=1)["rows"][0]
     detail = tools.bus_detail(slug=top["slug"])
@@ -85,6 +87,7 @@ def test_tool_error_maps_to_mcp_tool_error(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_bus_benchmarks_tool_search(db_conn):
     result = tools.bus_benchmarks(q="apex", min_n=1)
     assert "apex" in [row["slug"] for row in result["rows"]]

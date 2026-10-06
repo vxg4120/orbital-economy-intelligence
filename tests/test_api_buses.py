@@ -25,6 +25,7 @@ def client(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_leaderboard_shape_ordering_and_cohort_floor(client):
     r = client.get("/api/buses?limit=10&sort=fleet&min_n=5")
     assert r.status_code == 200
@@ -67,6 +68,7 @@ def test_whole_board_never_serves_on_orbit_above_fleet(client, group):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_leaderboard_bus_group_and_min_n(client):
     r = client.get("/api/buses?group=bus&limit=10&min_n=50")
     assert r.status_code == 200
@@ -87,6 +89,7 @@ def test_leaderboard_rejects_bad_params(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_leaderboard_direction_can_be_reversed(client):
     """A column header click on the active column reverses the board (audit minor 11); the
     API contract behind it is an explicit dir that flips the key's natural order."""
@@ -118,6 +121,7 @@ def test_methodology_is_versioned_and_complete(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_of_top_manufacturer(client):
     top = client.get("/api/buses?limit=1&sort=fleet").json()["rows"][0]
     r = client.get(f"/api/buses/{top['slug']}")
@@ -140,6 +144,7 @@ def test_detail_of_top_manufacturer(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_of_top_bus_model(client):
     top = client.get("/api/buses?group=bus&limit=1&sort=fleet").json()["rows"][0]
     r = client.get(f"/api/buses/{top['slug']}?kind=bus")
@@ -155,6 +160,7 @@ def test_detail_unknown_slug_is_404(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_provenance_receipts_reconcile_with_headline(client):
     top = client.get("/api/buses?limit=1&sort=fleet").json()["rows"][0]
     r = client.get(f"/api/buses/{top['slug']}/provenance?metric=fleet&limit=5")
@@ -176,6 +182,7 @@ def test_provenance_receipts_reconcile_with_headline(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_history_returns_snapshots(client):
     top = client.get("/api/buses?limit=1&sort=fleet").json()["rows"][0]
     r = client.get(f"/api/buses/history/{top['slug']}")
@@ -189,6 +196,7 @@ def test_history_returns_snapshots(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_view_has_manufacturer_cohorts_of_5_plus(db_conn):
     """The benchmark view itself (not just the API) yields real cohorts at the default floor."""
     with db_conn.cursor() as cur:
@@ -202,6 +210,7 @@ def test_view_has_manufacturer_cohorts_of_5_plus(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_leaderboard_search_finds_small_fleets(client):
     """q matches name or slug case-insensitively and pairs with min_n=1 to surface small fleets."""
     r = client.get("/api/buses?q=Apex&min_n=1")
@@ -218,6 +227,7 @@ def test_leaderboard_search_finds_small_fleets(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_leaderboard_search_bus_group(client):
     r = client.get("/api/buses?group=bus&q=aries&min_n=1")
     assert r.status_code == 200
@@ -237,6 +247,7 @@ def test_leaderboard_search_escapes_like_wildcards(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_shadowed_cohort_is_discoverable_from_the_page_that_shadows_it(client):
     """Manufacturers and bus models share one /buses/{slug} namespace and manufacturers win.
 
@@ -261,6 +272,7 @@ def test_shadowed_cohort_is_discoverable_from_the_page_that_shadows_it(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_every_colliding_slug_advertises_its_twin(client, db_conn):
     """No cohort may be unreachable. Checked across the whole collision set, not one example."""
     with db_conn.cursor() as cur:
@@ -277,5 +289,6 @@ def test_every_colliding_slug_advertises_its_twin(client, db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_non_colliding_slug_advertises_nothing(client):
     assert client.get("/api/buses/apex").json()["also_exists_as"] is None

@@ -35,6 +35,7 @@ def client(db_conn):  # db_conn: skips the whole module when the dev DB is unrea
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_stats_shape(client):
     r = client.get("/api/review/stats")
     assert r.status_code == 200
@@ -57,6 +58,7 @@ def test_stats_shape(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_cases_list_and_filters(client):
     # Unlabeled default, filtered to one stratum: rows carry only the list-shape keys.
     r = client.get("/api/review/cases", params={"type": "status_conflict", "only": "unlabeled"})
@@ -84,6 +86,7 @@ def test_cases_list_and_filters(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_case_detail_has_evidence(client):
     first = client.get("/api/review/cases", params={"only": "all", "limit": 1}).json()["rows"][0]
     r = client.get(f"/api/review/cases/{first['case_id']}")

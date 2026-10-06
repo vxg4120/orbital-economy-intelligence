@@ -183,6 +183,7 @@ def test_harvested_inventory_and_documents_endpoint_agree(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_pending_rows_carry_document_counts_and_cohort_slug(db_conn):
     client = _client()
     r = client.get("/api/filings/pending?applicant_slug=spx&limit=50").json()

@@ -47,6 +47,7 @@ def test_kuiper_milestone_internally_consistent(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_lingering_leaderboard_nonempty_and_shaped(client):
     rows = client.get("/api/audit/summary").json()["lingering_leaderboard"]
     assert rows, "the lingering leaderboard should have at least one benchmark operator"
@@ -63,6 +64,7 @@ def test_lingering_leaderboard_nonempty_and_shaped(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_active_but_decaying_positive(client):
     n = client.get("/api/audit/summary").json()["active_but_decaying"]
     assert isinstance(n, int)

@@ -25,6 +25,7 @@ def client(db_conn):  # db_conn: skips the whole module when the dev DB is unrea
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_stats_shape_and_spot_checks(client):
     r = client.get("/api/stats")
     assert r.status_code == 200

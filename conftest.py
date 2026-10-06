@@ -7,6 +7,10 @@ from common.db import get_conn
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "db: test requires a reachable DATABASE_URL")
+    config.addinivalue_line(
+        "markers",
+        "graph: test asserts on the populated identity graph; skipped when the database is empty",
+    )
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -38,6 +42,24 @@ def _database_reachable():
     return True
 
 
+@pytest.fixture(scope="session")
+def _graph_populated(_database_reachable):
+    """Whether the identity graph holds any satellite, probed once and let go.
+
+    About ninety tests assert on what the real graph contains (published buses, the ISS track,
+    pending filings). On a migrated but empty database, which is what CI has, they could only
+    fail, and the db job had never been green because of it."""
+    if not _database_reachable:
+        return False
+    conn = get_conn()
+    try:
+        return conn.execute("SELECT EXISTS (SELECT 1 FROM satellite)").fetchone()[0]
+    except psycopg.Error:
+        return False  # not migrated: no graph either
+    finally:
+        conn.close()
+
+
 @pytest.fixture(autouse=True)
 def _skip_db_marked_without_a_database(request):
     """A db-marked test skips when there is no database, whether or not it takes db_conn.
@@ -54,6 +76,12 @@ def _skip_db_marked_without_a_database(request):
         return
     if not request.getfixturevalue("_database_reachable"):
         pytest.skip("database not reachable at DATABASE_URL")
+    # A graph test is always a db test too (tests/test_marker_hygiene.py enforces it), so this
+    # probe is reached only by tests that were going to connect anyway.
+    if request.node.get_closest_marker("graph") and not request.getfixturevalue(
+        "_graph_populated"
+    ):
+        pytest.skip("the identity graph at DATABASE_URL is empty")
 
 
 @pytest.fixture

@@ -20,6 +20,7 @@ def client(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_league_table_shape_and_ordering(client):
     r = client.get("/api/operators?limit=10&sort=fleet")
     assert r.status_code == 200
@@ -52,6 +53,7 @@ def test_whole_league_never_serves_on_orbit_above_fleet(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_league_total_equals_the_header_operator_count(client, db_conn):
     """The header's OPERATORS counter is count(*) of the operator table; the league used to
     count only operators holding a current fleet, so the two disagreed on every page (audit
@@ -78,6 +80,7 @@ def test_sort_by_name_and_bad_sort(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_of_top_operator(client):
     top = client.get("/api/operators?limit=1&sort=fleet").json()["rows"][0]
     r = client.get(f"/api/operators/{top['operator_id']}")
@@ -125,6 +128,7 @@ def test_detail_unknown_id_is_404(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_total_is_stable_past_last_row(client):
     # Regression: an offset beyond the last operator must still report the true total (not 0) and
     # return an empty page -- the windowed count(*) OVER() used to collapse once the page emptied.

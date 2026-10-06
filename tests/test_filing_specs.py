@@ -210,6 +210,7 @@ def _client():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_spec_endpoint_shape_and_citations(db_conn):
     """Every served plane must carry a resolvable page citation. A row without one is exactly the
     thing the validator exists to keep off the wire."""
@@ -227,6 +228,7 @@ def test_spec_endpoint_shape_and_citations(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_spec_endpoint_reports_the_source_document_hash(db_conn):
     """The citation is only checkable if the reader knows which bytes it refers to."""
     body = _client().get("/api/filings/SATAMD2022063000067/spec").json()
@@ -235,6 +237,7 @@ def test_spec_endpoint_reports_the_source_document_hash(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_spec_endpoint_flags_as_filed_sentinels_rather_than_correcting_them(db_conn):
     """Astrobotic files apogee 99999 because Schedule S cannot express a lunar trajectory. The
     number must be served as filed and flagged, never silently repaired, or the citation would
@@ -254,6 +257,7 @@ def test_spec_endpoint_is_empty_not_404_for_a_filing_with_no_schedule_s(db_conn)
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_pending_list_carries_the_spec_summary(db_conn):
     """The list has to answer "what shape is this constellation" without the client fetching every
     filing's spec separately, so the summary rides along on the row."""
@@ -267,6 +271,7 @@ def test_pending_list_carries_the_spec_summary(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_lunar_sentinels_are_excluded_from_the_altitude_range_and_counted(db_conn):
     """A filing with apogee 99999 must not report an altitude range spanning to 99,999 km. The
     sentinel is excluded and surfaced as a count, so the exclusion is visible rather than silent."""
@@ -312,6 +317,7 @@ def test_lunar_sentinels_do_not_drag_the_inclination_range(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_spec_response_is_one_receipt_identity(db_conn):
     """Summary, planes, bands and source document must all come from the same underlying
     document: a filing can carry more than one Schedule S attachment, and citations into a

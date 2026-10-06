@@ -24,6 +24,7 @@ def client(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_search_by_norad_returns_iss(client):
     r = client.get(f"/api/satellites/search?q={ISS_NORAD}")
     assert r.status_code == 200
@@ -36,6 +37,7 @@ def test_search_by_norad_returns_iss(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_search_by_cospar_is_case_insensitive(client):
     r = client.get(f"/api/satellites/search?q={ISS_COSPAR.lower()}")
     assert r.status_code == 200
@@ -44,6 +46,7 @@ def test_search_by_cospar_is_case_insensitive(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_search_by_name_returns_shaped_rows(client):
     r = client.get("/api/satellites/search?q=Starlink")
     assert r.status_code == 200
@@ -61,6 +64,7 @@ def test_search_missing_query_is_422(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_deep_object(client):
     # Resolve the ISS satellite_id via search, then fetch its identity card.
     sat_id = client.get(f"/api/satellites/search?q={ISS_NORAD}").json()["results"][0]["satellite_id"]
@@ -88,6 +92,7 @@ def test_detail_deep_object(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_scd2_two_segment_ownership(client):
     # A stale-owner satellite carries an acquisition split: one closed segment (valid_to set) and
     # one current segment (valid_to NULL) -- the SCD2 temporal-ownership mechanic, made visible.
@@ -190,6 +195,7 @@ def test_unmapped_status_codes_still_surface():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_known_real_status_conflict_still_flags(client):
     """Enhanced CRYSTAL 2105 (satellite_id 23728) is the repo's canonical real status conflict,
     referenced as such in the Resolver view's example list. The canonicalized badge must keep

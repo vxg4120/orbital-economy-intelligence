@@ -32,13 +32,17 @@ _APP_IMPORT_MARKERS = ("api.main", "TestClient")
 _DB_FIXTURES = {"db_conn", "seeded"}
 
 
-def _has_db_marker(node: ast.FunctionDef) -> bool:
+def _has_marker(node: ast.FunctionDef, name: str) -> bool:
     for dec in node.decorator_list:
         # @pytest.mark.db  ->  Attribute(attr='db')
         target = dec.func if isinstance(dec, ast.Call) else dec
-        if isinstance(target, ast.Attribute) and target.attr == "db":
+        if isinstance(target, ast.Attribute) and target.attr == name:
             return True
     return False
+
+
+def _has_db_marker(node: ast.FunctionDef) -> bool:
+    return _has_marker(node, "db")
 
 
 def _calls_db_touching(node: ast.FunctionDef) -> bool:
@@ -98,6 +102,25 @@ def test_db_touching_tests_carry_the_db_marker():
     )
 
 
+def test_graph_tests_are_db_tests():
+    """A graph test asserts on what the real identity graph holds, so it needs a database, and
+    conftest's skip for an empty graph is only reached through the db marker. Marked graph
+    alone, a test would run in CI's network-free job and fail on connection refused."""
+    offenders = []
+    for path in sorted(TESTS_DIR.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        if _module_is_marked(tree):
+            continue
+        offenders += [
+            f"{path.name}::{node.name}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and _has_marker(node, "graph")
+            and not _has_db_marker(node)
+        ]
+    assert not offenders, "marked graph but not db:\n  " + "\n  ".join(offenders)
+
+
 def test_the_hygiene_check_can_actually_detect_an_offender(tmp_path):
     """Anti-vacuity: a static check that silently matches nothing is worse than no check, so
     prove the detector fires on a known-bad shape."""
@@ -123,3 +146,4 @@ def test_marker_itself_is_registered():
     a PytestUnknownMarkWarning and the whole suite fails on a typo."""
     pyproject = (TESTS_DIR.parent / "pyproject.toml").read_text(encoding="utf-8")
     assert '"db:' in pyproject or "'db:" in pyproject
+    assert '"graph:' in pyproject

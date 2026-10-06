@@ -189,6 +189,7 @@ def test_v_sat_operator_daily_transition_day_attributes_single_owner(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_v_congestion_exposure_returns_bins(db_conn):
     """Real-data invariants rather than the old synthetic fixture: since migration 0019 the
     view reads mv_latest_gp_element, and a materialization structurally cannot see an

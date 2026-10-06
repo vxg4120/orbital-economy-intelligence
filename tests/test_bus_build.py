@@ -12,6 +12,7 @@ from identity import bus
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_attribution_populated_with_provenance(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
@@ -32,6 +33,7 @@ def test_attribution_populated_with_provenance(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_bus_normalization_rules_hold(db_conn):
     with db_conn.cursor() as cur:
         # The '?' uncertainty marker never leaks into the normalized model name...
@@ -54,6 +56,7 @@ def test_bus_normalization_rules_hold(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_manufacturer_rollup_rules_hold(db_conn):
     with db_conn.cursor() as cur:
         # Outcome pins rather than provenance strings: the earlier assertion pinned
@@ -106,6 +109,7 @@ def test_manufacturer_rollup_rules_hold(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_build_is_idempotent_full_rebuild(db_conn):
     """Re-running the build inside a rolled-back transaction reproduces the same row count."""
     with db_conn.cursor() as cur:
@@ -165,6 +169,7 @@ def test_attribution_agrees_with_piece_crosswalk(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_apex_fleet_fully_attributed(db_conn):
     """Known-data regression for the jcat-reshuffle bug: GCAT credits Apex Space with five
     spacecraft (Aries 1 plus four Transporter-17 payloads); jcat-only matching surfaced four."""

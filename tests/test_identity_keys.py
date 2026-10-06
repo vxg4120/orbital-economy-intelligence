@@ -29,6 +29,7 @@ def test_oei_launch_key_forms(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_oei_name_key_matches_norm_name_over_the_full_corpus(db_conn):
     """Every payload name in the latest OK GCAT snapshot, both implementations, zero mismatches."""
     with db_conn.cursor() as cur:

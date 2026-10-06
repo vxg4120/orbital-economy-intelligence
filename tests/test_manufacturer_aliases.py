@@ -104,6 +104,7 @@ def test_malformed_alias_tables_fail_the_build_loudly(tmp_path):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_curated_manufacturer_cohorts_are_one_group_each(db_conn):
     """Outcome pin on the live build: every leaf code the table aliases lands on its survivor's
     group code and slug, and no retired group code survives anywhere."""
@@ -132,6 +133,7 @@ def test_curated_manufacturer_cohorts_are_one_group_each(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_retired_slugs_redirect_and_never_resolve_live(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
@@ -150,6 +152,7 @@ def test_retired_slugs_redirect_and_never_resolve_live(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_no_banned_gcat_short_name_reaches_a_cohort_name(db_conn):
     with db_conn.cursor() as cur:
         for bad in BANNED_NAMES:

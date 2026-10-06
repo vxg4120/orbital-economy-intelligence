@@ -33,8 +33,14 @@ SECTION_HEADERS = [
 
 
 @pytest.fixture(scope="module")
-def report():
-    """(connection, rendered_markdown) generated once against the live DB; skip if unreachable."""
+def report(_graph_populated):
+    """(connection, rendered_markdown) generated once against the live DB; skip if unreachable.
+
+    Module-scoped, so it is built before conftest's per-test skip for an empty graph can run;
+    it has to make that check itself, or the report generator meets a database with no data
+    and every test here errors at setup."""
+    if not _graph_populated:
+        pytest.skip("the identity graph at DATABASE_URL is empty")
     try:
         conn = get_conn()
     except psycopg.OperationalError:
@@ -53,6 +59,7 @@ def _strip_generated_at(md: str) -> str:
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_report_has_all_seven_section_headers_and_cover(report):
     _, md = report
     assert md.startswith("# Orbital Behavior Report")
@@ -63,6 +70,7 @@ def test_report_has_all_seven_section_headers_and_cover(report):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_kuiper_partition_reconciles(report):
     conn, _ = report
     with conn.cursor() as cur:
@@ -92,6 +100,7 @@ def test_kuiper_partition_reconciles(report):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_report_is_byte_identical_across_runs_modulo_timestamp(report):
     conn, first = report
     second = ar.generate_report(conn)
@@ -99,6 +108,7 @@ def test_report_is_byte_identical_across_runs_modulo_timestamp(report):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_catalog_integrity_conflicts_never_exceed_denominators(report):
     conn, _ = report
     with conn.cursor() as cur:
@@ -109,6 +119,7 @@ def test_catalog_integrity_conflicts_never_exceed_denominators(report):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_period_derivation_defaults_to_latest_data(report):
     conn, md = report
     with conn.cursor() as cur:

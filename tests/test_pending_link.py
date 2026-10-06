@@ -27,6 +27,7 @@ def _client():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_pending_view_carries_applicant_identity(db_conn):
     """Every pending application resolves an applicant name and FRN. A drop below full
     coverage means the address join regressed (wrong key column, missed run pairing), which
@@ -43,6 +44,7 @@ def test_pending_view_carries_applicant_identity(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_link_table_matches_the_yml_and_only_live_cohorts(db_conn):
     """fcc_applicant_link is exactly the yml (FRN set equality) and every slug it stores is a
     live leaderboard cohort. The build-time alias resolution means retired slugs may be
@@ -61,6 +63,7 @@ def test_link_table_matches_the_yml_and_only_live_cohorts(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_forward_signal_fires_and_incumbent_operators_stay_dark(db_conn):
     """Anti-vacuity plus the honesty boundary: curated builder cohorts match a real share of
     the queue, while the largest applicants (incumbent GEO operators who buy their
@@ -82,6 +85,7 @@ def test_forward_signal_fires_and_incumbent_operators_stay_dark(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_count_reconciles_with_receipts(db_conn):
     """pending_applications.pending_n == the applicant_slug receipt endpoint's total, on the
     cohort with the deepest pending queue (spx: SpaceX files continuously)."""
@@ -103,6 +107,7 @@ def test_detail_count_reconciles_with_receipts(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_signal_is_detail_only_and_null_where_it_should_be(db_conn):
     """No leaderboard column, no snapshot key, null on bus models and on cohorts with no
     curated filings."""
@@ -128,6 +133,7 @@ def test_signal_is_detail_only_and_null_where_it_should_be(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_filings_q_searches_applicant_name():
     client = _client()
     r = client.get("/api/filings/pending?q=intuitive").json()

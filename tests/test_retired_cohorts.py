@@ -112,6 +112,7 @@ def test_retired_payload_keeps_the_correction_channel():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_a_live_cohort_is_never_shadowed_by_its_own_archive(db_conn):
     """spx is both live and archived three times over. Direct hits win, so the archive fallback
     must never fire for it: serving stale figures for a live cohort is the one way this feature

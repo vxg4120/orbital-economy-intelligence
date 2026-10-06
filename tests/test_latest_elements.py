@@ -27,6 +27,7 @@ def _client():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_view_is_exactly_one_latest_row_per_satellite(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(

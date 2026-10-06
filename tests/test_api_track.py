@@ -27,6 +27,7 @@ def client(db_conn):  # db_conn: skips the whole module when the dev DB is unrea
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_track_iss_returns_points(client):
     sat_id = client.get(f"/api/satellites/search?q={ISS_NORAD}").json()["results"][0]["satellite_id"]
     r = client.get(f"/api/satellites/{sat_id}/track")

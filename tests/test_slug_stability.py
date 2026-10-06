@@ -21,6 +21,7 @@ EXPECTED_ALIASES = {("plabs", "plan"), ("cosmog", "plan"), ("skybox", "plan")}
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_alias_table_holds_the_planet_merge(db_conn):
     """Rule-pin, not outcome-pin: the alias table is append-only by design (a published,
     retired slug's redirect is a permanent contract), so a future legitimate merge ADDS rows
@@ -38,6 +39,7 @@ def test_alias_table_holds_the_planet_merge(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_every_frozen_manufacturer_slug_still_resolves(db_conn):
     """The frozen archive must never orphan: every snapshotted slug resolves to a live cohort
     directly or through exactly one alias hop."""
@@ -84,6 +86,7 @@ def test_frozen_bus_rows_embedded_manufacturer_slugs_resolve(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_planet_merge_outcome(db_conn):
     """Identity pins stay exact (name, group code: a change means the URL serves a different
     entity); magnitude pins are floors (Planet launches routinely, and a fleet that GROWS is
@@ -111,6 +114,7 @@ def test_retired_slugs_return_no_view_row(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_representative_is_fleet_max_not_alphabetical(db_conn):
     """The surviving slug is a published-URL decision: fleet-max keeps /buses/plan, where an
     alphabetical ORDER BY would hand the 661-satellite cohort to /buses/cosmog (fleet 2). This
@@ -151,6 +155,7 @@ def test_view_cardinality_one_row_per_slug(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_alias_source_restriction_blocks_country_codes(db_conn):
     """GCAT org codes and SATCAT country codes share a namespace: without the source restriction
     POL (Polyot, 95 satellites) resolves to Poland, unambiguously and wrongly.
@@ -213,6 +218,7 @@ def test_no_operator_relationship_traversal():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_ungated_walk_tripwires(db_conn):
     """Outcome pins for the cohorts an operator_relationship walk would silently rewrite
     (NASA field centres into NASA, design bureaus into Roskosmos, SAST splitting 188 to 1)."""
@@ -232,6 +238,7 @@ def test_ungated_walk_tripwires(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_unresolved_group_codes_keep_incumbent_slug(db_conn):
     """The fallback for the ~317 group codes the operator graph does not know is structural:
     no operator match means no rewrite, so the slug is still the slugified group code."""
@@ -252,6 +259,7 @@ def test_unresolved_group_codes_keep_incumbent_slug(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_sum_identity_holds(db_conn):
     """A reader summing the leaderboard must land exactly on the attributed satellite count:
     merge-only rewrites move satellites between cohorts but never mint or double-count one."""
@@ -265,6 +273,7 @@ def test_sum_identity_holds(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_cross_kind_collision_set_is_stable(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
@@ -294,6 +303,7 @@ def test_snapshot_month_frozen_once(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_retired_slug_still_serves_via_api(db_conn):
     """The URL contract end to end: /buses/plabs serves the surviving Planet cohort and says so."""
     import warnings

@@ -20,6 +20,7 @@ def client(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_status_conflicts(client):
     r = client.get("/api/conflicts/status?limit=50")
     assert r.status_code == 200
@@ -33,6 +34,7 @@ def test_status_conflicts(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_decay_conflicts_show_dated_provenance(client):
     r = client.get("/api/conflicts/decay?limit=5")
     assert r.status_code == 200
@@ -46,6 +48,7 @@ def test_decay_conflicts_show_dated_provenance(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_stale_owners_expose_ma_lag(client):
     r = client.get("/api/conflicts/stale-owners?limit=50")
     assert r.status_code == 200
@@ -59,6 +62,7 @@ def test_stale_owners_expose_ma_lag(client):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_pagination_is_bounded_and_offsets(client):
     # limit above the 200 cap is rejected.
     assert client.get("/api/conflicts/status?limit=201").status_code == 422
@@ -73,6 +77,7 @@ def test_pagination_is_bounded_and_offsets(client):
 
 @pytest.mark.db
 @pytest.mark.parametrize("path", ["/api/conflicts/status", "/api/conflicts/stale-owners"])
+@pytest.mark.graph
 def test_total_is_stable_past_last_row(client, path):
     # Regression: an offset beyond the last row must still report the true total (not 0) and
     # return an empty page -- a windowed count(*) OVER() used to vanish once the page was empty.

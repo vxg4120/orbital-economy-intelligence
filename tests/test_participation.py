@@ -65,6 +65,7 @@ def test_uncertain_nonfirst_positions_are_never_credited(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_joint_builds_actually_exist(db_conn):
     """Anti-vacuity: the catalog carries hundreds of joint builds, so the co-credit rules must
     fire on a real population rather than passing on an empty one."""
@@ -80,6 +81,7 @@ def test_joint_builds_actually_exist(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_participated_never_undercounts_the_fleet(db_conn):
     """participated_total >= fleet_total for every cohort (prime credits are a subset), with
     strict inequality somewhere (the metric must add something, or it is dead weight)."""
@@ -137,6 +139,7 @@ def test_v_bus_sat_stays_one_row_per_satellite(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_detail_payload_reconciles_with_receipts(db_conn):
     """participated_total on the detail payload == role=participated receipt total, and the
     default role=prime receipts still reconcile to fleet_total, on a cohort with real
@@ -162,6 +165,7 @@ def test_detail_payload_reconciles_with_receipts(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_participated_role_contract(db_conn):
     """422 walls: participated receipts are a manufacturer fleet-membership claim only."""
     client = _client()

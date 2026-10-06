@@ -245,11 +245,13 @@ def test_run_backfill_counts_rows(tmp_path):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_verify_operators_all_benchmark_present(db_conn):
     bf.verify_operators(db_conn, bf.BENCHMARK_OPERATORS)  # raises if any missing
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_fleet_selection_resolves_all_benchmark_operators(db_conn):
     for name in bf.BENCHMARK_OPERATORS:
         ids = bf.fleet_ids(db_conn, name)
@@ -258,11 +260,13 @@ def test_fleet_selection_resolves_all_benchmark_operators(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_fleet_selection_spacex_exceeds_5000(db_conn):
     assert len(bf.fleet_ids(db_conn, "SpaceX")) > 5000
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_eutelsat_fleet_includes_oneweb_children(db_conn):
     # Eutelsat's fleet (via the OneWeb merged_into child) is far larger than a lone GEO operator's.
     assert len(bf.fleet_ids(db_conn, "Eutelsat")) > 100

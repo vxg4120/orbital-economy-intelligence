@@ -64,6 +64,7 @@ def test_parse_degrades_malformed_cells_to_null():
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_daily_view_is_one_row_per_day_with_consistent_derivations(db_conn):
     with db_conn.cursor() as cur:
         cur.execute("SELECT count(*), count(DISTINCT day) FROM v_space_weather_daily")
@@ -95,6 +96,7 @@ def test_daily_view_is_one_row_per_day_with_consistent_derivations(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_known_storm_days_pin_exactly(db_conn):
     """Historical index values are frozen: the 2026-08-02 G1 (Kp 5.7, 3-hourly Ap peak 67)
     and the 2026-01-20 G3 (Ap daily average 144) are facts of record in the landed file."""
@@ -113,6 +115,7 @@ def test_known_storm_days_pin_exactly(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_drag_view_publishes_no_thin_days(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
@@ -125,6 +128,7 @@ def test_drag_view_publishes_no_thin_days(db_conn):
 
 
 @pytest.mark.db
+@pytest.mark.graph
 def test_environment_api_contract(db_conn):
     client = _client()
     r = client.get("/api/environment?days=30").json()

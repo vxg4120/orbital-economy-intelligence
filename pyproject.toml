@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 markers = [
     "db: test requires a reachable DATABASE_URL",
+    "graph: test asserts on the populated identity graph; skipped when the database is empty",
 ]
 testpaths = ["tests"]
 
