@@ -54,8 +54,8 @@ def _graph_populated(_database_reachable):
     conn = get_conn()
     try:
         return conn.execute("SELECT EXISTS (SELECT 1 FROM satellite)").fetchone()[0]
-    except psycopg.Error:
-        return False  # not migrated: no graph either
+    except psycopg.errors.UndefinedTable:
+        return False  # not migrated: no graph either. Any other error is a real failure.
     finally:
         conn.close()
 
