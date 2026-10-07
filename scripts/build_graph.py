@@ -18,7 +18,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, churn, claims, enrich_operators, match, reconcile, resolve  # noqa: E402
+from identity import (  # noqa: E402
+    assertions,
+    churn,
+    claims,
+    enrich_operators,
+    match,
+    reconcile,
+    resolve,
+)
 
 _OPERATOR_SEED = REPO_ROOT / "identity" / "operator_seed.yml"
 _STATUS_MAP = REPO_ROOT / "identity" / "status_map.yml"
