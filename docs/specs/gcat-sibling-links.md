@@ -61,13 +61,30 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   before any piece lookup. Without it the ISS rows would be re-linked to the neighbour by piece
   every morning and retired by churn every night.
 - 2026-10-06 (after Codex verify) — **A current claim is a claim through a current key.** The
-  resolver, the satellite page and the conflicts page read `v_linked_assertion` (migration
-  0022): `source_assertion` rows whose (source, source_key) still identify the satellite.
-  History stays in the table; a sibling's leftover claim stops counting the moment its link is
-  retired, including for an attribute the satellite's own key never asserts, and a satellite
-  that loses its only GCAT key shows no GCAT claims rather than stale ones. Rejected: relying
-  on the writer's `valid_to` filter alone. Because: newest-per-key readers would keep showing
-  the sibling's row wherever the own key is silent (Codex verify).
+  resolver, the satellite page and the conflicts page keep only claims for which
+  `claim_is_current(satellite_id, source, source_key)` (migration 0022) holds: the key still
+  identifies the satellite, or the source has no crosswalk key type (a correction channel such
+  as `operator_confirmed` is always current). History stays in the table; a sibling's leftover
+  claim stops counting the moment its link is retired, including for an attribute the
+  satellite's own key never asserts, and a satellite that loses its only GCAT key shows no
+  GCAT claims rather than stale ones. Rejected: relying on the writer's `valid_to` filter
+  alone. Because: newest-per-key readers would keep showing the sibling's row wherever the
+  own key is silent (Codex verify). Rejected: a view joining the crosswalk onto
+  `source_assertion` for the whole-table readers. Because: the planner estimated that join at
+  one row and drove a nested loop from the crosswalk into the 35M-row table (a 300 s timeout on
+  production against 19 s when the check runs on the newest-claim winners). The two orders
+  agree, since the writer only writes through current keys, so a stale key's rows are never
+  newer than the current key's.
+- 2026-10-06 (after Codex verify, second pass) — **A projection with no current claim is
+  retracted**: the resolver clears `satellite.decay_date` for a satellite with no decay claim
+  left (one satellite on production whose only decay claim came through a sibling key). Owner
+  and status projections are left as they are: on production every affected satellite still
+  holds own-key claims for them (measured 2026-10-06: 0 of 129 for each attribute except that
+  one decay date).
+- 2026-10-06 (after Codex verify, second pass) — **The key-number rule applies to every
+  NORAD-less row**, with or without a usable piece, and the fuzzy-name probe skips rows the
+  rule handled; a row with no piece used to fall to fuzzy matching, which could re-link the
+  sibling for churn to retire again.
 - 2026-10-06 (after Codex verify) — **Revival is audited**: both resurrection paths write an
   `identifier_revived` event (migration 0022 extends the event vocabulary).
 - 2026-10-06 — **`name_gcat` links are not judged**: co-deployed siblings legitimately share
@@ -83,9 +100,15 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   lowest current anchored cospar link, so retiring a sibling's cospar link can move an
   attribution to the key's own satellite; that is the convention applied, measured after the
   first nightly against the saved before-state (`zz_bus_before` on the box).
-- Historical `source_assertion` rows written under the wrong sibling are left in place; the
-  newest-per-key readers heal on the first extraction after the change, since the sibling's
-  own key then holds the newest claim. The assertion-model spec removes them for good.
+- Historical `source_assertion` rows written under the wrong sibling are left in place and
+  stop counting as current claims the moment the link is retired (`claim_is_current`). The
+  assertion-model spec removes them for good.
+- `identity/bus.py` is not changed: for NORAD-less rows its rule 2 takes the lowest current
+  anchored cospar link rather than the key's own satellite, and the churn pass leaves a piece
+  shared by two anchors alone, so a corrected `gcat_id` does not by itself correct that
+  attribution. Aligning rule 2 with the key number is a methodology change (a version bump in
+  docs/BUS_BENCHMARKS_METHODOLOGY.md), decided after the first nightly's before/after
+  comparison shows how many rows it would move.
 
 ## Interfaces & dependencies
 - `identity/churn.py` (new pass, `run_all`), `identity/match.py` (`_bulk_link_by_norad`
@@ -118,12 +141,17 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - [ ] The bus build's `satellite_bus` rows for the 129 affected satellites, compared with the
   before-state: unchanged for NORAD-carrying rows; every change on a NORAD-less row moves the
   attribution to the key's own satellite.
-- [x] Tests (tests/test_gcat_sibling_links.py, 9 of them): a moved key is retired with its
+- [x] Resolver timing on production, read-only, 2026-10-06: `EXPLAIN (ANALYZE, BUFFERS)` of the
+  newest-then-current-key shape for `owner`: 19.1 s, hash aggregate in memory, 140,881
+  winners, against 13.9 s without the check and a 300 s timeout for the join-first view.
+- [x] Tests (tests/test_gcat_sibling_links.py, 11 of them: the two added by the second pass
+  cover a numbered row with no piece and the decay-date retraction): a moved key is retired with its
   event; the key-number fallback; nothing retired when the anchor lacks the key; a shared piece
   judges nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
   with its three events; a retired link receives no claim; a claim through a retired link is
   not current. Mutants of the direction, the guard, the fallback, the unique-anchor rule, the
-  matcher authority and the writer filter each fail the suite. Full suite 408 passed.
+  matcher authority, the probe skip, the retraction and the writer filter each fail the
+  suite. Full suite 410 passed.
 - [ ] Both nightly gates pass on the first run after deployment.
 
 ## Open questions

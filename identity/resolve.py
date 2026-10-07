@@ -44,12 +44,12 @@ def _assertions(conn, attribute):
     ingests can land in inverted order (Codex verify, 2026-10-05).
 
     A claim counts only while the key it came through still identifies the satellite
-    (v_current_source_key, migration 0022), so a co-deployed sibling's claims stop being this
+    (claim_is_current, migration 0022), so a co-deployed sibling's claims stop being this
     satellite's the moment the crosswalk retires the link (docs/specs/gcat-sibling-links.md).
-    The key check joins AFTER the newest-per-group step, on the ~140k winners: joined first,
-    the planner drives a nested loop from the crosswalk into the whole table (a 300 s timeout
-    against 19 s on production). The two orders agree because the writer only writes through
-    current keys, so a stale key's rows are never newer than the current key's.
+    The check runs AFTER the newest-per-group pick, on the ~140k winners: as a join on the
+    scan, the planner drove a nested loop from the crosswalk into the whole table (a 300 s
+    timeout against 19 s on production). The two orders agree because the writer only writes
+    through current keys, so a stale key's rows are never newer than the current key's.
     """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
@@ -61,15 +61,17 @@ def _assertions(conn, attribute):
                 WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
                 GROUP BY 1, 2
             )
-            SELECT DISTINCT ON (a.satellite_id, a.source)
-                   a.satellite_id, a.source, a.value, a.observed_at
-            FROM source_assertion a
-            JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
-                         AND n.observed_at = a.observed_at
-            JOIN v_current_source_key k ON k.satellite_id = a.satellite_id
-                                       AND k.source = a.source AND k.source_key = a.source_key
-            WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.source, a.ingest_run_id DESC, a.source_key DESC
+            SELECT satellite_id, source, value, observed_at
+            FROM (
+                SELECT DISTINCT ON (a.satellite_id, a.source)
+                       a.satellite_id, a.source, a.source_key, a.value, a.observed_at
+                FROM source_assertion a
+                JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
+                             AND n.observed_at = a.observed_at
+                WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
+                ORDER BY a.satellite_id, a.source, a.ingest_run_id DESC, a.source_key DESC
+            ) w
+            WHERE claim_is_current(satellite_id, source, source_key)
             """,
             {"attribute": attribute},
         )
@@ -153,6 +155,14 @@ def _resolve_decay_date(conn, order) -> None:
                     "WHERE satellite_id = %s",
                     (d, sat_id),
                 )
+        # Retraction: a date resolved earlier from a claim no source currently makes for this
+        # satellite (its only decay claim came through a since-retired sibling key: one case on
+        # production, 2026-10-06) would otherwise stay on the card forever.
+        cur.execute(
+            "UPDATE satellite SET decay_date = NULL, updated_at = now() "
+            "WHERE decay_date IS NOT NULL AND NOT (satellite_id = ANY(%s))",
+            (list(data.keys()),),
+        )
 
 
 # --- status -------------------------------------------------------------------

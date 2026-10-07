@@ -24,7 +24,7 @@ router = APIRouter(prefix="/conflicts", tags=["conflicts"])
 _STATUS_SQL = """
 WITH satcat AS (
     -- The newest mapped claim per satellite, kept only if its key still identifies the
-    -- satellite (v_current_source_key, migration 0022); the key join comes after the pick, see
+    -- satellite (claim_is_current, migration 0022); the check comes after the pick, see
     -- identity/resolve.py for why.
     SELECT w.satellite_id, w.canonical_status
     FROM (SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.source, a.source_key,
@@ -33,7 +33,7 @@ WITH satcat AS (
           JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
           WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
           ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key) w
-    JOIN v_current_source_key k USING (satellite_id, source, source_key)
+    WHERE claim_is_current(w.satellite_id, w.source, w.source_key)
 ),
 gcat AS (
     SELECT w.satellite_id, w.canonical_status
@@ -43,7 +43,7 @@ gcat AS (
           JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
           WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
           ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key) w
-    JOIN v_current_source_key k USING (satellite_id, source, source_key)
+    WHERE claim_is_current(w.satellite_id, w.source, w.source_key)
 ),
 disagree AS (
     SELECT
@@ -70,7 +70,7 @@ WITH latest_satcat_owner AS (
           FROM source_assertion
           WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
           ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key) w
-    JOIN v_current_source_key k USING (satellite_id, source, source_key)
+    WHERE claim_is_current(w.satellite_id, w.source, w.source_key)
 ),
 owner_operator AS (
     SELECT lso.satellite_id, lso.owner_raw, oa.operator_id
@@ -110,7 +110,7 @@ FROM (
           FROM source_assertion
           WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
           ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key) w
-    JOIN v_current_source_key k USING (satellite_id, source, source_key)
+    WHERE claim_is_current(w.satellite_id, w.source, w.source_key)
 ) l
 JOIN satellite s ON s.satellite_id = l.satellite_id
 ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source

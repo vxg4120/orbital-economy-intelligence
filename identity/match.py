@@ -318,24 +318,26 @@ def _cospar_pass(conn) -> int:
             rows = cur.fetchall()
         for jcat, piece, obj_type, name, pl_name, launch in rows:
             cospar, standard = norm_cospar(piece)
-            if not (cospar and standard):
-                continue
             with conn.cursor() as cur:
-                # The key's own number first: S<n> is catalog number n, and for the ISS-deployed
-                # cubesats GCAT's piece letter is off by one from SATCAT's, so a piece lookup
-                # lands on the neighbour. churn.expire_moved_gcat_keys anchors by the same
-                # number; linking by it here keeps the two from undoing each other nightly.
+                # The key's own number first, whatever the piece says: S<n> is catalog number
+                # n, and for the ISS-deployed cubesats GCAT's piece letter is off by one from
+                # SATCAT's, so a piece lookup lands on the neighbour. churn.expire_moved_gcat_keys
+                # anchors by the same number; linking by it here keeps the two from undoing
+                # each other nightly, and _probes leaves these rows to this pass.
                 sat_id, rule = _find_by_norad(cur, gcat_catalog_number(jcat)), "jcat_number"
                 is_ambiguous = False
                 if sat_id is None:
+                    if not (cospar and standard):
+                        continue
                     sat_id, is_ambiguous = _find_by_cospar(cur, cospar)
                     rule = "cospar_exact"
                 if sat_id is None:
                     sat_id = _create_satellite(cur, cospar, pl_name or name,
                                                obj_type, parse_date_loose(launch))
             ambiguous += is_ambiguous
-            merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
-                                      "source": "gcat"}, rule, 1.000)
+            if cospar and standard:
+                merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
+                                          "source": "gcat"}, rule, 1.000)
             merge.link(conn, sat_id, {"id_type": "gcat_id", "id_value": jcat,
                                       "source": "gcat"}, rule, 1.000)
 
@@ -416,6 +418,8 @@ def _probes(conn) -> list[dict]:
                 cospar, standard = norm_cospar(piece)
                 if cospar and standard:
                     continue  # handled by the COSPAR pass
+                if _find_by_norad(cur, gcat_catalog_number(jcat)) is not None:
+                    continue  # handled by the COSPAR pass's key-number rule
                 nm = pl_name or name
                 probes.append(
                     {

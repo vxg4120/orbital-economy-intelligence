@@ -230,7 +230,8 @@ def detail(satellite_id: int, db=Depends(get_db)):
         # the keys that currently identify the satellite (migration 0022).
         cur.execute(
             "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_at "
-            "FROM v_linked_assertion WHERE satellite_id = %s "
+            "FROM source_assertion WHERE satellite_id = %s "
+            "AND claim_is_current(satellite_id, source, source_key) "
             "ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC, source_key",
             (satellite_id,),
         )

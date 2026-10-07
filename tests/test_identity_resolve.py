@@ -47,7 +47,7 @@ def _key(cur, sat_id, source, key):
 
 def _assert_row(cur, sat_id, attribute, value, source, run):
     # The claim arrives through a key that identifies the satellite, as it does in production;
-    # the resolver reads only such claims (v_linked_assertion, migration 0022).
+    # the resolver reads only such claims (claim_is_current, migration 0022).
     cur.execute(
         "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
         "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",

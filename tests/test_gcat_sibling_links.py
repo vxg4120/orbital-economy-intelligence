@@ -236,7 +236,7 @@ def test_a_key_moved_and_moved_back_leaves_a_full_audit_trail(db_conn):
 
 
 def test_a_claim_through_a_retired_link_is_not_a_current_claim(db_conn):
-    """v_linked_assertion: the resolver, the satellite page and the conflicts page read claims
+    """claim_is_current: the resolver, the satellite page and the conflicts page keep claims
     only through keys that currently identify the satellite, so a sibling's leftover claim
     stops counting the moment its link is retired, even for an attribute the satellite's own
     key never asserts."""
@@ -254,8 +254,52 @@ def test_a_claim_through_a_retired_link_is_not_a_current_claim(db_conn):
                 {"a": a, "r": run},
             )
             cur.execute(
-                "SELECT attribute, value FROM v_linked_assertion WHERE satellite_id = %s", (a,)
+                "SELECT attribute, value FROM source_assertion WHERE satellite_id = %s "
+                "AND claim_is_current(satellite_id, source, source_key)",
+                (a,),
             )
             assert cur.fetchall() == [("owner", "OWN")]
+            # A source with no crosswalk key type (a correction channel) is always current.
+            cur.execute("SELECT claim_is_current(%s, 'operator_confirmed', 'fix-1')", (a,))
+            assert cur.fetchone()[0] is True
+    finally:
+        db_conn.rollback()
+
+
+def test_the_cospar_pass_links_a_numbered_key_even_without_a_piece(db_conn):
+    """A NORAD-less row with no usable piece used to skip this pass and fall to fuzzy name
+    matching, which could re-link the sibling for churn to retire again (Codex verify)."""
+    try:
+        with db_conn.cursor() as cur:
+            b = _sat(cur, 970001082, "2026-008B", "ZZ NOPIECE B")
+            run = _run(cur)
+            _gcat_row(cur, run, "S970001082", None, None, name="ZZ NOPIECE B")
+        match._cospar_pass(db_conn)
+        with db_conn.cursor() as cur:
+            assert _current(cur, "gcat_id", "S970001082") == [b]
+            assert all(p["id_value"] != "S970001082" for p in match._probes(db_conn))
+    finally:
+        db_conn.rollback()
+
+
+def test_a_decay_date_with_no_current_claim_is_retracted(db_conn):
+    try:
+        with db_conn.cursor() as cur:
+            a = _sat(cur, 970001091, "2026-009A", "ZZ DECAY A")
+            cur.execute("UPDATE satellite SET decay_date = '2026-01-01' WHERE satellite_id = %s",
+                        (a,))
+            _link(cur, a, "gcat_id", "S970001092", valid_to="2026-10-01")  # the sibling's key
+            run = _run(cur)
+            cur.execute(
+                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
+                "source, observed_at, ingest_run_id) VALUES "
+                "(%s, 'S970001092', 'decay_date', '2026-01-01', 'gcat', now(), %s)",
+                (a, run),
+            )
+        from identity import resolve
+        resolve._resolve_decay_date(db_conn, ["spacetrack_decay", "satcat", "gcat"])
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT decay_date FROM satellite WHERE satellite_id = %s", (a,))
+            assert cur.fetchone()[0] is None
     finally:
         db_conn.rollback()
