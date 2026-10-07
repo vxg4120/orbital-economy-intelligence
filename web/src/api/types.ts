@@ -747,6 +747,7 @@ export interface DocketResponse {
 export interface PendingFilingsResponse {
   rows: PendingFiling[];
   total: number;
+  newest_filed: string | null;
   note: string;
 }
 
