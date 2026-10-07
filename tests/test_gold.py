@@ -18,6 +18,7 @@ from scripts.review import (
     verdict_record,
 )
 from scripts.score_gold import _score, compute_scores
+from tests.claimfix import seed_claim
 
 NORAD_BASE = 940000001
 TEST_CASE_TYPE = "zz_test_stratum"
@@ -262,8 +263,8 @@ def test_compute_scores_math_on_planted_stratum(gold_txn):
 
 @pytest.mark.db
 def test_assertion_evidence_is_the_newest_claim_per_source(gold_txn):
-    """Every run re-asserts, so evidence must carry one claim per (attribute, source), the
-    newest: the review table keeps the last entry it sees, which used to be the oldest."""
+    """Evidence carries one claim per (attribute, source), the open one: a closed claim (the
+    value the feed used to make) is history, not evidence."""
     with gold_txn.cursor() as cur:
         cur.execute(
             "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GOLD EVIDENCE') "
@@ -271,18 +272,17 @@ def test_assertion_evidence_is_the_newest_claim_per_source(gold_txn):
             (NORAD_BASE + 900,),
         )
         sat = cur.fetchone()[0]
-        for value in ("ZZ OLD OWNER", "ZZ NEW OWNER"):
+        runs = []
+        for _ in range(2):
             cur.execute(
                 "INSERT INTO ingest_run (source, endpoint, started_at, status) "
                 "VALUES ('celestrak', 'zz-test', now(), 'ok') RETURNING ingest_run_id"
             )
-            run = cur.fetchone()[0]
-            cur.execute(
-                "INSERT INTO source_assertion "
-                "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-                "VALUES (%s, 'zz', 'owner', %s, 'satcat', now(), %s)",
-                (sat, value, run),
-            )
+            runs.append(cur.fetchone()[0])
+        seed_claim(cur, sat, "satcat", "owner", "ZZ OLD OWNER", runs[0], key="zz")
+        cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                    "WHERE source_key = 'zz' AND value = 'ZZ OLD OWNER'", (runs[1],))
+        seed_claim(cur, sat, "satcat", "owner", "ZZ NEW OWNER", runs[1], key="zz")
         evidence = _assertions(cur, sat)
     assert [(e["attribute"], e["source"], e["value"]) for e in evidence] == [
         ("owner", "satcat", "ZZ NEW OWNER")
@@ -306,12 +306,7 @@ def test_assertion_evidence_breaks_ties_like_the_api(gold_txn):
             "VALUES ('gcat', 'zz-test', now(), 'ok') RETURNING ingest_run_id"
         )
         run = cur.fetchone()[0]
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES (%s, 'S99999', 'owner', 'ZZ SECOND KEY', 'gcat', now(), %s), "
-            "       (%s, 'S00001', 'owner', 'ZZ FIRST KEY', 'gcat', now(), %s)",
-            (sat, run, sat, run),
-        )
+        seed_claim(cur, sat, "gcat", "owner", "ZZ SECOND KEY", run, key="S99999")
+        seed_claim(cur, sat, "gcat", "owner", "ZZ FIRST KEY", run, key="S00001")
         evidence = _assertions(cur, sat)
     assert [e["value"] for e in evidence] == ["ZZ FIRST KEY"]

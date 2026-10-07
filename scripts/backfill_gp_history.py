@@ -100,10 +100,10 @@ WHERE so.role = 'owner'
   AND (
     s.object_type = 'PAYLOAD'
     OR EXISTS (
-        SELECT 1 FROM source_assertion sa
-        WHERE sa.satellite_id = s.satellite_id
-          AND sa.attribute = 'object_type'
-          AND upper(sa.value) LIKE 'PAY%%'
+        SELECT 1 FROM v_current_claim c
+        WHERE c.satellite_id = s.satellite_id
+          AND c.attribute = 'object_type'
+          AND upper(c.value) LIKE 'PAY%%'
     )
   )
 ORDER BY s.norad_id

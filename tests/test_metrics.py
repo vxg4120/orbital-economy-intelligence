@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.claimfix import seed_claim
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPLY_SCRIPT = REPO_ROOT / "scripts" / "apply_metrics.py"
 
@@ -252,12 +254,7 @@ def _seed_killer_fixture(cur):
         "INSERT INTO operator_alias (operator_id, alias, source) VALUES (%s, 'ZZOWNCODE', 'satcat')",
         (op[OP_ALPHA],),
     )
-    cur.execute(
-        "INSERT INTO source_assertion "
-        "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-        "VALUES (%s, %s, 'owner', 'ZZOWNCODE', 'satcat', now(), %s)",
-        (sat_id, str(SAT_KILLER), run_id),
-    )
+    seed_claim(cur, sat_id, "satcat", "owner", "ZZOWNCODE", run_id, key=str(SAT_KILLER))
     cur.execute(
         "INSERT INTO gp_elements (norad_id, epoch, mean_motion, eccentricity, inclination, source) "
         "VALUES (%s, %s, 15.5, 0.0004, 53.0, 'test'), (%s, %s, 15.5, 0.0004, 53.0, 'test')",

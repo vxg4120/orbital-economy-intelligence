@@ -105,13 +105,12 @@ def _identifiers(cur, satellite_id):
 
 def _assertions(cur, satellite_id):
     cur.execute(
-        # The newest claim per (attribute, source) with api/routers/satellites.py's tie-breakers
-        # verbatim, so a reviewer judges the claim the site shows. Every run re-asserts, so
-        # without DISTINCT ON the evidence carried ~49 copies, and the review table, which keeps
-        # the last entry it sees, showed the OLDEST claim.
-        "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_at "
-        "FROM source_assertion WHERE satellite_id = %s "
-        "ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC, source_key",
+        # The current claim per (attribute, source) with api/routers/satellites.py's tie-breaker
+        # (the lesser key, for a satellite holding two keys of one source), so a reviewer judges
+        # the claim the site shows.
+        "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_to "
+        "FROM v_current_claim WHERE satellite_id = %s "
+        "ORDER BY attribute, source, source_key",
         (satellite_id,),
     )
     return [
@@ -240,7 +239,7 @@ def stratum_rideshare_orphan(cur):
     cur.execute(
         "SELECT s.satellite_id, s.canonical_name, s.cospar_id FROM satellite s "
         "WHERE s.norad_id IS NULL AND s.object_type = 'PAYLOAD' "
-        "AND NOT EXISTS (SELECT 1 FROM source_assertion a "
+        "AND NOT EXISTS (SELECT 1 FROM v_current_claim a "
         "                WHERE a.satellite_id = s.satellite_id AND a.source = 'satcat') "
         "ORDER BY s.cospar_id, s.satellite_id"
     )
@@ -361,15 +360,15 @@ def stratum_owner_dispute(cur):
         ),
         satcat_owner AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS owner_raw
-            FROM source_assertion a
-            WHERE a.source = 'satcat' AND a.attribute = 'owner' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'satcat' AND a.attribute = 'owner'
+            ORDER BY a.satellite_id, a.source_key
         ),
         gcat_owner AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS owner_raw
-            FROM source_assertion a
-            WHERE a.source = 'gcat' AND a.attribute = 'owner' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'gcat' AND a.attribute = 'owner'
+            ORDER BY a.satellite_id, a.source_key
         ),
         sat_op AS (
             SELECT so.satellite_id, so.owner_raw, min(aa.operator_id) AS op
@@ -440,17 +439,17 @@ def _status_conflict_rows(cur):
         """
         WITH satcat AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS raw, m.canonical_status
-            FROM source_assertion a
+            FROM v_current_claim a
             JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
-            WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            WHERE a.source = 'satcat' AND a.attribute = 'status'
+            ORDER BY a.satellite_id, a.source_key
         ),
         gcat AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS raw, m.canonical_status
-            FROM source_assertion a
+            FROM v_current_claim a
             JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
-            WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            WHERE a.source = 'gcat' AND a.attribute = 'status'
+            ORDER BY a.satellite_id, a.source_key
         )
         SELECT s.satellite_id, s.norad_id, s.canonical_name,
                sc.raw, sc.canonical_status, gc.raw, gc.canonical_status
@@ -501,15 +500,15 @@ def stratum_decay_conflict(cur):
         """
         WITH sd AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM source_assertion a
-            WHERE a.source = 'satcat' AND a.attribute = 'decay_date' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'satcat' AND a.attribute = 'decay_date'
+            ORDER BY a.satellite_id, a.source_key
         ),
         gd AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM source_assertion a
-            WHERE a.source = 'gcat' AND a.attribute = 'decay_date' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'gcat' AND a.attribute = 'decay_date'
+            ORDER BY a.satellite_id, a.source_key
         )
         SELECT s.satellite_id, s.norad_id, s.canonical_name, sd.v, gd.v
         FROM sd JOIN gd ON gd.satellite_id = sd.satellite_id
@@ -561,15 +560,15 @@ def stratum_type_conflict(cur):
         """
         WITH st AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM source_assertion a
-            WHERE a.source = 'satcat' AND a.attribute = 'object_type' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'satcat' AND a.attribute = 'object_type'
+            ORDER BY a.satellite_id, a.source_key
         ),
         gt AS (
             SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM source_assertion a
-            WHERE a.source = 'gcat' AND a.attribute = 'object_type' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            FROM v_current_claim a
+            WHERE a.source = 'gcat' AND a.attribute = 'object_type'
+            ORDER BY a.satellite_id, a.source_key
         )
         SELECT s.satellite_id, s.norad_id, s.canonical_name, s.launch_date, st.v, gt.v
         FROM st JOIN gt ON gt.satellite_id = st.satellite_id
