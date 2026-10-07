@@ -18,6 +18,7 @@ section is reported, not judged.
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -25,20 +26,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common.db import get_conn  # noqa: E402
 from identity import claims  # noqa: E402
 
-OLD = """
-    SELECT a.satellite_id, a.source, a.source_key, a.attribute, a.value
-    FROM source_assertion a
-    JOIN (SELECT source, max(ingest_run_id) AS run FROM source_assertion
-          WHERE source = ANY(%(sources)s) GROUP BY source) l USING (source)
-    WHERE a.ingest_run_id = l.run AND a.satellite_id IS NOT NULL
-      AND claim_is_current(a.satellite_id, a.source, a.source_key)
+# The ledger's current rows, scanned once into a temp table: each feed's newest run (the
+# readers' CURRENT_ASSERTIONS), then the current-link check on those rows only. Applied to the
+# scan instead, the planner calls claim_is_current on every one of 37M rows (15 minutes and
+# counting on 2026-10-07, against 2 minutes this way), and the comparison needs it three times.
+LEDGER = """
+    CREATE TEMP TABLE _ledger AS
+    WITH l AS MATERIALIZED (
+        SELECT source, max(ingest_run_id) AS run FROM source_assertion
+        WHERE source = ANY(%(sources)s) GROUP BY source
+    ),
+    cur AS MATERIALIZED (
+        SELECT a.satellite_id, a.source, a.source_key, a.attribute, a.value
+        FROM source_assertion a JOIN l ON l.source = a.source AND l.run = a.ingest_run_id
+        WHERE a.satellite_id IS NOT NULL
+    )
+    SELECT * FROM cur WHERE claim_is_current(satellite_id, source, source_key)
 """
+OLD = "SELECT satellite_id, source, source_key, attribute, value FROM _ledger"
 NEW = """
     SELECT satellite_id, source, source_key, attribute, value
     FROM v_current_claim WHERE source = ANY(%(sources)s)
 """
 # identity/resolve.py::_assertions as it read the ledger (newest observed_at per (satellite,
-# source) over every retained run, current keys only) against the claim model's winner.
+# source) over every retained run, current keys only) against the claim model's winner. This
+# one has to scan the attribute's rows over every run: that is what the resolver did nightly.
 RESOLVER = """
     WITH newest AS (
         SELECT satellite_id, source, max(observed_at) AS observed_at
@@ -73,13 +85,16 @@ def main() -> int:
     with conn.cursor() as cur:
         cur.execute("SET temp_file_limit = '2GB'")
         cur.execute("SET statement_timeout = '30min'")
+        started = time.time()
+        cur.execute(LEDGER, params)
+        print(f"ledger scanned in {time.time() - started:.0f}s", flush=True)
         for label, sql in (("ledger (newest run, current links)", OLD), ("v_current_claim", NEW)):
             cur.execute(f"SELECT count(*) FROM ({sql}) x", params)
-            print(f"{label}: {cur.fetchone()[0]:,} rows")
+            print(f"{label}: {cur.fetchone()[0]:,} rows", flush=True)
         for label, left, right in (("ledger - claims", OLD, NEW), ("claims - ledger", NEW, OLD)):
             cur.execute(f"SELECT count(*) FROM (({left}) EXCEPT ({right})) x", params)
             n = cur.fetchone()[0]
-            print(f"{label}: {n:,}")
+            print(f"{label}: {n:,}", flush=True)
             if n:
                 ok = False
                 cur.execute(f"({left}) EXCEPT ({right}) ORDER BY 2, 4, 1 LIMIT 20", params)
@@ -89,7 +104,7 @@ def main() -> int:
             cur.execute(RESOLVER, {"attribute": attribute, **params})
             lost, changed, same = cur.fetchone()
             print(f"resolver {attribute}: {same:,} same, {changed:,} changed, "
-                  f"{lost:,} no longer claimed")
+                  f"{lost:,} no longer claimed", flush=True)
         cur.execute(
             "SELECT p.source, p.last_run, l.run FROM claim_progress p "
             "LEFT JOIN (SELECT source, max(ingest_run_id) AS run FROM source_assertion "
