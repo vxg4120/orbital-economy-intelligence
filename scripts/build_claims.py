@@ -104,10 +104,14 @@ def main() -> int:
                 cur.execute(f"DROP INDEX CONCURRENTLY {INDEX}")
                 state = "absent"
             if state == "absent":
+                # The build sorts 35M (source, run) pairs on disk: more than the replay's 2 GB
+                # allowance, still a bound (the 2026-09-29 disk fill was an unbounded sort).
                 print(f"creating {INDEX} concurrently", flush=True)
+                cur.execute("SET temp_file_limit = '5GB'")
                 cur.execute(
                     f"CREATE INDEX CONCURRENTLY {INDEX} ON source_assertion (source, ingest_run_id)"
                 )
+                cur.execute("SET temp_file_limit = '2GB'")
         for source, runs in todo.items():
             with conn.cursor() as cur:
                 cur.execute("SELECT pg_advisory_lock(hashtext('claim:' || %s))", (source,))

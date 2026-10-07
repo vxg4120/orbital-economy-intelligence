@@ -112,7 +112,16 @@ def test_the_nightly_records_nothing_for_a_feed_whose_history_is_not_replayed(db
         with db_conn.cursor() as cur:
             r1 = _run(cur)
         assert claims.record(db_conn, "satcat", r1, T0, [("1", "owner", "NASA")]) == (0, 0)
+        # The nightly path, before the fetch: a feed without progress records nothing, and the
+        # run already recorded is not fetched again.
+        with db_conn.cursor() as cur:
+            cur.execute("INSERT INTO raw_satcat (norad_cat_id, object_name, ingest_run_id) "
+                        "VALUES (1, 'ONE', %s)", (r1,))
+        assert claims.record_feed(db_conn, "raw_satcat", "satcat", "norad_cat_id",
+                                  assertions._SATCAT_ATTRS) == (0, 0)
         assert _record(db_conn, r1, T0, [("1", "owner", "NASA")]) == (0, 1)
+        assert claims.record_feed(db_conn, "raw_satcat", "satcat", "norad_cat_id",
+                                  assertions._SATCAT_ATTRS) == (0, 0)
     finally:
         db_conn.rollback()
 

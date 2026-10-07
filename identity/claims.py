@@ -117,6 +117,12 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
     if run is None:
         return 0, 0
     with conn.cursor() as cur:
+        # The bootstrap gate, checked before the snapshot is fetched: record() refuses the run
+        # anyway, but a feed whose history is not replayed yet should not cost the nightly a
+        # 100 MB fetch to find that out.
+        before = progress(cur, source)
+        if before is None or run <= before[0]:
+            return 0, 0
         cur.execute(f"SELECT max(loaded_at) FROM {table} WHERE ingest_run_id = %s", (run,))
         observed_at = cur.fetchone()[0]
         rows = list(_raw_rows(cur, table, key_expr, attrs, run))
