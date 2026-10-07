@@ -38,6 +38,9 @@ if [ -f ./refresh.log ] && [ "$(wc -c < ./refresh.log)" -gt 10485760 ]; then   #
   mv ./refresh.log ./refresh.log.1
 fi
 
+# The line this run starts at, so the alert below reads only this run (0 lines after a rotation).
+start_line=$(( $( { wc -l < ./refresh.log; } 2>/dev/null || echo 0) + 1 ))
+
 {
   echo "===== refresh $(date -u +%FT%TZ) ====="
   echo "--- satellite (oei) ---"
@@ -70,3 +73,21 @@ fi
   step exo_report $DC exec -T exo-api python quality/report.py      || echo "!! exo report failed"
   echo "===== done $(date -u +%FT%TZ) ====="
 } >> ./refresh.log 2>&1
+
+# Every failure above is a "!!" line in refresh.log, which nobody reads until something looks
+# wrong on the site. If this run printed any, post them as plain text to ALERT_URL (set in
+# deploy/.env, never in git); an ntfy.sh topic URL works as is and pushes to a phone. Unset, the
+# failures stay in the log and the log says nothing was sent.
+failures=$(tail -n +"$start_line" ./refresh.log | grep '^!!' || true)
+if [ -n "$failures" ]; then
+  if [ -n "${ALERT_URL:-}" ]; then
+    if curl -fsS -m 20 -H "Title: vibcreates nightly: $(printf '%s\n' "$failures" | wc -l | tr -d ' ') failure(s)" \
+        --data-binary "$failures" "$ALERT_URL" > /dev/null 2>&1; then
+      echo "alert sent for this run's failures" >> ./refresh.log
+    else
+      echo "!! alert could not be sent to ALERT_URL" >> ./refresh.log
+    fi
+  else
+    echo "ALERT_URL is unset, so this run's failures were not sent anywhere" >> ./refresh.log
+  fi
+fi
