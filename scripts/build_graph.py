@@ -18,7 +18,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, churn, enrich_operators, match, reconcile, resolve  # noqa: E402
+from identity import (  # noqa: E402
+    assertions,
+    churn,
+    claims,
+    enrich_operators,
+    match,
+    reconcile,
+    resolve,
+)
 
 _OPERATOR_SEED = REPO_ROOT / "identity" / "operator_seed.yml"
 _STATUS_MAP = REPO_ROOT / "identity" / "status_map.yml"
@@ -115,6 +123,9 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # promotion so freshly promoted satellites are anchored before expiry considers them.
     churn_stats = churn.run_all(conn)
     assertions.extract(conn)
+    # Claims, not copies (docs/specs/assertion-model.md): the same snapshots recorded once each,
+    # with a validity range. Both writers run until the readers have moved to the claim table.
+    claim_stats = claims.record_all(conn)
     # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
     # psycopg pipeline mode batches those thousands of statements into far fewer round-trips,
     # turning the resolve phase from minutes into seconds on the full ~70k-object catalog. The SQL
@@ -124,6 +135,7 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     summary = summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats)
     summary["promotion"] = promote_stats
     summary["churn"] = churn_stats
+    summary["claims"] = claim_stats
     return summary
 
 
@@ -207,6 +219,9 @@ def _print_summary(s: dict) -> None:
     print(f"unmatched owner values:  {len(s['unmatched_owners'])}")
     for val in s["unmatched_owners"][:20]:
         print(f"  {val!r}")
+    if "claims" in s:
+        changed = ", ".join(f"{src} closed {c} opened {o}" for src, (c, o) in s["claims"].items())
+        print(f"claims:                  {changed}")
 
 
 def main() -> None:
