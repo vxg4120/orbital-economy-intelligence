@@ -218,7 +218,8 @@ def _print_summary(s: dict) -> None:
     for val in s["unmatched_owners"][:20]:
         print(f"  {val!r}")
     if "claims" in s:
-        changed = ", ".join(f"{src} closed {c} opened {o}" for src, (c, o) in s["claims"].items())
+        changed = ", ".join(f"{src} closed {r[0]} opened {r[1]}" if r else f"{src} not replayed"
+                            for src, r in s["claims"].items())
         print(f"claims:                  {changed}")
 
 

@@ -111,8 +111,10 @@ def _raw_rows(cur, table, key_expr, attrs, run):
         yield from cur.fetchall()
 
 
-def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
-    """Record the feed's newest OK snapshot. Returns (closed, opened), (0, 0) with no snapshot."""
+def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int] | None:
+    """Record the feed's newest OK snapshot. Returns (closed, opened): (0, 0) with no snapshot
+    or nothing new, None for a feed whose history is not replayed yet (the nightly summary
+    says so, since such a feed records nothing until scripts/build_claims.py runs)."""
     run = _latest_run(conn, table)
     if run is None:
         return 0, 0
@@ -121,7 +123,9 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
         # anyway, but a feed whose history is not replayed yet should not cost the nightly a
         # 100 MB fetch to find that out.
         before = progress(cur, source)
-        if before is None or run <= before[0]:
+        if before is None:
+            return None
+        if run <= before[0]:
             return 0, 0
         cur.execute(f"SELECT max(loaded_at) FROM {table} WHERE ingest_run_id = %s", (run,))
         observed_at = cur.fetchone()[0]
@@ -129,7 +133,7 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
     return record(conn, source, run, observed_at, rows)
 
 
-def record_all(conn) -> dict[str, tuple[int, int]]:
-    """The nightly: every feed's newest snapshot (feeds not yet bootstrapped record nothing)."""
+def record_all(conn) -> dict[str, tuple[int, int] | None]:
+    """The nightly: every feed's newest snapshot (None for a feed not yet bootstrapped)."""
     return {source: record_feed(conn, table, source, key_expr, attrs)
             for table, source, key_expr, attrs in FEEDS}
