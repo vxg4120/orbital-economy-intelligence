@@ -112,7 +112,7 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   (satellite, source) pairs per attribute across five attributes; a claim is per attribute,
   and GCAT and SATCAT make about 350k each.) The replay took 10 minutes: the index build about
   3, then 106 runs at 1.2 to 2 s each.
-- [ ] For every reader in the inventory, the before/after comparison script
+- [x] For every reader in the inventory, the before/after comparison script
   (scripts/compare_claims.py: ledger vs view both ways, resolver winners per attribute,
   progress per feed) reports identical output, or a difference the spec names: the resolver's
   "no longer claimed" count per attribute is that difference, recorded in the log with its
@@ -120,6 +120,12 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   withdrawn; status 124,357 same, 1 withdrawn; decay_date 72,189 same, 4 withdrawn (STARLINK-
   38308's SATCAT decay 2026-09-07 dropped by run 4283, Electron Stage 2's GCAT "2025 Apr 4
   0620?" dropped by run 3263, Briz-M 88520, Zhixing 2A, and OBJECT B's SATCAT status "+").
+  The readers themselves, 2026-10-07 05:15 UTC: quality/report.py, quality/audit_report.py,
+  the conflicts counts and v_killer_chart run read-only from both trees against production.
+  The dq report and the counts are byte-identical (bar timestamps and the unmatched heading);
+  the audit report's data basis counts claims (703,661; gcat 401,000) where it counted claims
+  times links (704,323; 401,662: GCAT keys still linked to two satellites until the first
+  retirement nightly), and decay-date coverage is 35,601 against 35,602 (one withdrawn date).
 - [ ] A nightly on the new model adds rows only for changed or new claims; the table's growth
   over a week is under 5 MB.
 - [ ] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
