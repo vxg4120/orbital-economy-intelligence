@@ -102,29 +102,31 @@ export function Filings() {
 
       <Panel title="Applications" meta="newest first" flush>
         <Async state={filings} loadingLabel="Loading pending applications">
-          {(f) =>
-            f.rows.length === 0 ? (
-              <EmptyState title="No pending applications match" />
-            ) : (
-              <>
-                <p className="hint" style={{ padding: "8px 14px 0" }}>
-                  {fmtInt(f.total)} pending
-                  {f.newest_filed ? ` · newest filing ${f.newest_filed}` : ""}
-                </p>
-                <p className="hint" style={{ padding: "2px 14px 0" }}>
-                  This list is a snapshot. The FCC now takes new satellite applications through
-                  ICFS, which this pipeline does not read yet, so nothing filed after the date
-                  above appears here, and some of these filings may have been decided since.
-                </p>
-                <ul className="results">
-                  {f.rows.map((r) => (
-                    <FilingRow key={r.filing_key} filing={r} />
-                  ))}
-                </ul>
-                <Pager offset={offset} limit={LIMIT} total={f.total} onOffset={setOffset} />
-              </>
-            )
-          }
+          {(f) => (
+            <>
+              <p className="hint" style={{ padding: "8px 14px 0" }}>
+                {fmtInt(f.total)} pending
+                {f.newest_filed ? ` · newest filing ${f.newest_filed}` : ""}
+              </p>
+              <p className="hint" style={{ padding: "2px 14px 0" }}>
+                This list is a snapshot. The FCC now takes new satellite applications through
+                ICFS, which this pipeline does not read yet, so nothing filed after the date
+                above appears here, and some of these filings may have been decided since.
+              </p>
+              {f.rows.length === 0 ? (
+                <EmptyState title="No pending applications match" />
+              ) : (
+                <>
+                  <ul className="results">
+                    {f.rows.map((r) => (
+                      <FilingRow key={r.filing_key} filing={r} />
+                    ))}
+                  </ul>
+                  <Pager offset={offset} limit={LIMIT} total={f.total} onOffset={setOffset} />
+                </>
+              )}
+            </>
+          )}
         </Async>
       </Panel>
 
