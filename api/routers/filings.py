@@ -60,6 +60,11 @@ def pending(
     with db.cursor() as cur:
         cur.execute(f"SELECT count(*) AS total FROM v_fcc_pending_applications {where}", params)
         total = cur.fetchone()["total"]
+        # Unfiltered on purpose: this dates the whole list, not the search result. The IBFS bulk
+        # download stopped gaining filings in mid-2025 once the FCC moved satellite applications
+        # to the upgraded ICFS, so the newest date is the honest age of what "pending" means here.
+        cur.execute("SELECT max(date_filed) AS newest_filed FROM v_fcc_pending_applications")
+        newest_filed = cur.fetchone()["newest_filed"]
         cur.execute(
             f"""
             SELECT p.*,
@@ -129,10 +134,14 @@ def pending(
     return {
         "rows": rows,
         "total": total,
+        "newest_filed": newest_filed,
         "note": (
             "Applications filed with the FCC and not yet decided: a forward view of satellites "
             "months to years before they reach any tracking catalog. Source: FCC IBFS bulk "
-            "data, public domain. documents_n counts harvested ICFS attachments; "
+            "data, public domain. The list is a snapshot: the IBFS bulk download stopped gaining "
+            "new filings in mid-2025, when the FCC moved satellite applications to ICFS, which "
+            "this pipeline does not read yet, so newest_filed dates the list and some filings "
+            "shown here may have been decided since. documents_n counts harvested ICFS attachments; "
             "/api/filings/{file_number}/documents lists them with direct FCC download links. "
             "spec_* fields are parsed deterministically from the filing's own Schedule S Tech "
             "Report and served only after each value was re-checked against the page it cites; "

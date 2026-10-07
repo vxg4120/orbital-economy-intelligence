@@ -109,6 +109,12 @@ export function Filings() {
               <>
                 <p className="hint" style={{ padding: "8px 14px 0" }}>
                   {fmtInt(f.total)} pending
+                  {f.newest_filed ? ` · newest filing ${f.newest_filed}` : ""}
+                </p>
+                <p className="hint" style={{ padding: "2px 14px 0" }}>
+                  This list is a snapshot. The FCC now takes new satellite applications through
+                  ICFS, which this pipeline does not read yet, so nothing filed after the date
+                  above appears here, and some of these filings may have been decided since.
                 </p>
                 <ul className="results">
                   {f.rows.map((r) => (
