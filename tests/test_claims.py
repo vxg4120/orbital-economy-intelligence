@@ -160,3 +160,41 @@ def test_the_current_view_reaches_satellites_through_current_links_only(db_conn)
             assert cur.fetchall() == [(b, "OWN")]  # a's link is retired; S970002003 has none
     finally:
         db_conn.rollback()
+
+
+def test_replaying_history_gives_the_same_claims_as_recording_it_live(db_conn):
+    """scripts/build_claims.py replays source_assertion run by run through the same writer, so a
+    history replayed later equals the claims a nightly would have recorded as it happened."""
+    from scripts import build_claims
+
+    try:
+        with db_conn.cursor() as cur:
+            runs = [_run(cur) for _ in range(3)]
+            history = {
+                runs[0]: [("1", "owner", "NASA"), ("2", "owner", "ESA")],
+                runs[1]: [("1", "owner", "NASA/GSFC"), ("2", "owner", "ESA")],
+                runs[2]: [("1", "owner", "NASA/GSFC")],
+            }
+            for i, (run, rows) in enumerate(history.items()):
+                for key, attribute, value in rows:
+                    cur.execute(
+                        "INSERT INTO source_assertion (satellite_id, source_key, attribute, "
+                        "value, source, observed_at, ingest_run_id) VALUES (NULL, %s, %s, %s, "
+                        "'satcat', %s, %s)",
+                        (key, attribute, value, T0 + dt.timedelta(days=i), run),
+                    )
+            cur.execute("DELETE FROM claim WHERE source = 'satcat'")
+        todo = [(s, r) for s, r in build_claims.runs_to_replay(db_conn) if r in runs]
+        assert [r for _, r in todo] == runs
+        results = [build_claims.replay(db_conn, s, r) for s, r in todo]
+        assert results == [(0, 2), (1, 1), (1, 0)]
+        with db_conn.cursor() as cur:
+            assert _open(cur) == [("1", "owner", "NASA/GSFC", runs[1])]
+            assert len(_all(cur)) == 3
+        # Resumable: nothing left to replay, and replaying the last run again writes nothing.
+        assert [(s, r) for s, r in build_claims.runs_to_replay(db_conn) if r in runs] == [
+            ("satcat", runs[2])
+        ]
+        assert build_claims.replay(db_conn, "satcat", runs[2]) == (0, 0)
+    finally:
+        db_conn.rollback()
