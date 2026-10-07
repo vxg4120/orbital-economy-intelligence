@@ -147,10 +147,8 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         identifiers = dict(cur.fetchall())
         cur.execute("SELECT count(*) FROM merge_log")
         merge_rows = cur.fetchone()[0]
-        # Claims, not per-run copies of them.
-        cur.execute(
-            f"SELECT source, count(*) FROM {assertions.CURRENT_ASSERTIONS} c GROUP BY source"
-        )
+        # Current claims per source (claim table), not per-run copies of them.
+        cur.execute("SELECT source, count(*) FROM claim WHERE closed_run IS NULL GROUP BY source")
         assertions_by_source = dict(cur.fetchall())
         cur.execute("SELECT count(*) FROM operator")
         operators = cur.fetchone()[0]

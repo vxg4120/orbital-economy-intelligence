@@ -1,7 +1,7 @@
 """Assertion -> dimension resolver. Precedence is config (precedence.yml), not code.
 
 For each satellite and attribute the resolver applies the per-attribute source precedence and
-writes the winner to the dimension tables; losing assertions stay queryable in source_assertion
+writes the winner to the dimension tables; losing claims stay queryable in the claim table
 ("disagreements are data, not errors"). Status resolves through the status_mapping table with a
 fall-through on UNKNOWN, and owners resolve to operators with SCD2 temporal ownership (the
 OneWeb->Eutelsat split). No commit — the caller owns the transaction.
@@ -26,57 +26,25 @@ def load_precedence(path=None) -> dict:
 
 
 def _assertions(conn, attribute):
-    """Return {satellite_id: {source: (value, observed_at)}} for one attribute (latest per src).
+    """Return {satellite_id: {source: (value, observed_to)}} for one attribute: each source's
+    current claim per satellite (v_current_claim, migration 0023), the claim reached through a
+    key that currently identifies the satellite, last observed when the feed was.
 
-    The newest claim per (satellite, source) is picked in SQL. Every run re-asserts, so the
-    table holds one copy of each claim per retained run, and fetching them all to keep the last
-    by dict overwrite (how this read until 2026-10-05) streamed 7.4M rows per attribute, about
-    33M per nightly, into Python: over a gigabyte at a time on the 3.8 GB box. That was the
-    nightly's swap burst and the 2026-09-17 OOM kill of a nightly python at 2 GB.
-
-    The winner is unchanged: the max of (observed_at, ingest_run_id, source_key) per
-    (satellite, source), timestamp first. A hash aggregate finds each group's newest observed_at
-    without sorting the attribute's 7M rows (a DISTINCT ON over them spills a 400 MB sort to
-    disk; measured on production 2026-10-05, 13 s against 15 s, 15 MB against 411 MB of temp),
-    and among the rows that carry it, which share a load time, (ingest_run_id, source_key)
-    breaks the tie stably, as before. The aggregate is on observed_at, not ingest_run_id: a run
-    id is allocated before its download and observed_at is the load time, so two overlapping
-    ingests can land in inverted order (Codex verify, 2026-10-05).
-
-    A claim counts only while the key it came through still identifies the satellite
-    (claim_is_current, migration 0022), so a co-deployed sibling's claims stop being this
-    satellite's the moment the crosswalk retires the link (docs/specs/gcat-sibling-links.md).
-    The check runs AFTER the newest-per-group pick, on the ~140k winners: as a join on the
-    scan, the planner drove a nested loop from the crosswalk into the whole table (a 300 s
-    timeout against 19 s on production). The two orders agree because the writer only writes
-    through current keys, so a stale key's rows are never newer than the current key's.
+    Until 2026-10-05 this fetched every retained run's copy of every claim (7.4M rows per
+    attribute) and kept the last by dict overwrite: the nightly's swap storm. A satellite with
+    two keys for one source (merged objects) has two current claims; the greater key wins, as
+    the old tie-break had it.
     """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
         cur.execute(
-            """
-            WITH newest AS (
-                SELECT satellite_id, source, max(observed_at) AS observed_at
-                FROM source_assertion
-                WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
-                GROUP BY 1, 2
-            )
-            SELECT satellite_id, source, value, observed_at
-            FROM (
-                SELECT DISTINCT ON (a.satellite_id, a.source)
-                       a.satellite_id, a.source, a.source_key, a.value, a.observed_at
-                FROM source_assertion a
-                JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
-                             AND n.observed_at = a.observed_at
-                WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
-                ORDER BY a.satellite_id, a.source, a.ingest_run_id DESC, a.source_key DESC
-            ) w
-            WHERE claim_is_current(satellite_id, source, source_key)
-            """,
-            {"attribute": attribute},
+            "SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_to "
+            "FROM v_current_claim WHERE attribute = %s "
+            "ORDER BY satellite_id, source, source_key DESC",
+            (attribute,),
         )
-        for sat_id, source, value, observed_at in cur.fetchall():
-            out[sat_id][source] = (value, observed_at)
+        for sat_id, source, value, observed_to in cur.fetchall():
+            out[sat_id][source] = (value, observed_to)
     return out
 
 

@@ -21,6 +21,7 @@ from quality.report import (
     generate_report,
     write_report,
 )
+from tests.claimfix import seed_claim
 
 # Reserved synthetic norad-id range for this task's db tests (distinct from test_metrics.py's
 # range so the two test modules' fixtures never collide within a shared dev DB).
@@ -76,17 +77,8 @@ def seeded(db_conn):
             "('satcat', 'ZZACT', 'ACTIVE'), ('gcat', 'ZZDEC', 'DECAYED') "
             "ON CONFLICT (source, source_value) DO NOTHING"
         )
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES "
-            "(%s, %s, 'status', 'ZZACT', 'satcat', now(), %s), "
-            "(%s, %s, 'status', 'ZZDEC', 'gcat', now(), %s)",
-            (
-                sat_disagree, str(NORAD_STATUS_DISAGREE), run_satcat,
-                sat_disagree, str(NORAD_STATUS_DISAGREE), run_gcat,
-            ),
-        )
+        seed_claim(cur, sat_disagree, "satcat", "status", "ZZACT", run_satcat)
+        seed_claim(cur, sat_disagree, "gcat", "status", "ZZDEC", run_gcat)
         # A resolved on-orbit status keeps this object in the coverage denominator too.
         cur.execute(
             "INSERT INTO satellite_status_history "
@@ -97,17 +89,8 @@ def seeded(db_conn):
 
         # --- Section: decay-date conflicts ---
         sat_decay = _insert_satellite(cur, NORAD_DECAY_CONFLICT, "ZZ TEST DECAY CONFLICT")
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES "
-            "(%s, %s, 'decay_date', '2024-01-15', 'satcat', now(), %s), "
-            "(%s, %s, 'decay_date', '2024-02-20', 'gcat', now(), %s)",
-            (
-                sat_decay, str(NORAD_DECAY_CONFLICT), run_satcat,
-                sat_decay, str(NORAD_DECAY_CONFLICT), run_gcat,
-            ),
-        )
+        seed_claim(cur, sat_decay, "satcat", "decay_date", "2024-01-15", run_satcat)
+        seed_claim(cur, sat_decay, "gcat", "decay_date", "2024-02-20", run_gcat)
 
         # --- Section: stale post-M&A owners ---
         sat_stale = _insert_satellite(cur, NORAD_STALE_OWNER, "ZZ TEST STALE OWNER SAT")
@@ -127,12 +110,7 @@ def seeded(db_conn):
             "VALUES (%s, %s, 'acquired_by', '2023-01-01', 'test')",
             (child_id, parent_id),
         )
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES (%s, %s, 'owner', 'ZZTESTCHILD', 'satcat', now(), %s)",
-            (sat_stale, str(NORAD_STALE_OWNER), run_satcat),
-        )
+        seed_claim(cur, sat_stale, "satcat", "owner", "ZZTESTCHILD", run_satcat)
 
         # --- Section: SupGP cross-tag anomalies ---
         cur.execute(
@@ -148,12 +126,8 @@ def seeded(db_conn):
             "VALUES (%s, %s, 'norad_exact', 1.0, '{}')",
             (sat_disagree, sat_decay),
         )
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES (NULL, 'zz-test-unmatched-1', 'name', 'ZZ Unmatched Object', 'ucs', now(), %s)",
-            (run_satcat,),
-        )
+        seed_claim(cur, None, "ucs", "name", "ZZ Unmatched Object", run_satcat,
+                   key="zz-test-unmatched-1")
 
         # --- Section: coverage ---
         sat_rich = _insert_satellite(cur, NORAD_ON_ORBIT_RICH, "ZZ TEST ON ORBIT RICH")
@@ -309,16 +283,12 @@ def test_supgp_section_reports_only_the_newest_check(seeded):
 
 
 @pytest.mark.db
-def test_unmatched_counts_only_each_sources_newest_run(seeded):
-    """A key that was unmatched in an older run is not unmatched now: satellite_id is set at
-    insert and never backfilled, so counting every run counted every key ever unmatched."""
+def test_unmatched_counts_open_claims_whose_key_identifies_nothing(seeded):
+    """A closed claim is not unmatched now, and a key that gained a link since is matched."""
     with seeded.cursor() as cur:
         newer = _insert_ingest_run(cur, "ucs", "zz-test-newer")
-        cur.execute(
-            "INSERT INTO source_assertion "
-            "(satellite_id, source_key, attribute, value, source, observed_at, ingest_run_id) "
-            "VALUES (NULL, 'zz-test-unmatched-2', 'name', 'ZZ Newer Unmatched', 'ucs', now(), %s)",
-            (newer,),
-        )
+        seed_claim(cur, None, "ucs", "name", "ZZ Closed", newer, key="zz-test-unmatched-2")
+        cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                    "WHERE source_key = 'zz-test-unmatched-2'", (newer,))
         _, rows = _section_match_merge_stats(cur)["unmatched"]
-    assert dict(rows)["ucs"] == 1
+    assert dict(rows)["ucs"] == 1  # zz-test-unmatched-1 from the fixture

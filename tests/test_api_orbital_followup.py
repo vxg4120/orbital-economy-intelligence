@@ -302,11 +302,11 @@ def test_conflict_sql_keeps_order_provenance_and_counts(db_conn):
             CREATE TEMP TABLE source_assertion (
                 satellite_id int, source text, attribute text, value text,
                 observed_at timestamptz, ingest_run_id int, source_key text);
-            -- The router keeps only claims through a current key (claim_is_current, migration
-            -- 0022, which reads satellite_identifier); the temp table shadows the real one
-            -- with every seeded key current.
-            CREATE TEMP TABLE satellite_identifier (
-                satellite_id int, id_type text, id_value text, source text, valid_to date);
+            -- The router reads v_current_claim (migration 0023); a temp view of the same name
+            -- shadows it and serves the seeded assertions as every satellite's current claims.
+            CREATE TEMP VIEW v_current_claim AS
+                SELECT satellite_id, source, source_key, attribute, value,
+                       observed_at AS observed_to FROM source_assertion;
             CREATE TEMP TABLE status_mapping (source text, source_value text, canonical_status text);
             CREATE TEMP TABLE satellite (satellite_id int PRIMARY KEY, norad_id int, canonical_name text);
             CREATE TEMP TABLE operator (operator_id int PRIMARY KEY, canonical_name text);
@@ -324,9 +324,6 @@ def test_conflict_sql_keeps_order_provenance_and_counts(db_conn):
             INSERT INTO source_assertion
             SELECT satellite_id, 'gcat', 'status', CASE WHEN satellite_id = 5 THEN '+' ELSE 'D' END,
                 now(), 1, satellite_id::text FROM satellite;
-            INSERT INTO satellite_identifier
-            SELECT satellite_id, 'norad', satellite_id::text, 'satcat', NULL::date FROM satellite
-            UNION ALL SELECT satellite_id, 'gcat_id', satellite_id::text, 'gcat', NULL::date FROM satellite;
             INSERT INTO operator VALUES (1, 'Original'), (2, 'Acquirer');
             INSERT INTO operator_alias VALUES (1, 'satcat', 'old');
             INSERT INTO operator_relationship VALUES

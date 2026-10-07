@@ -35,19 +35,6 @@ _UCS_ATTRS = [
     ("status", "'operational'"),
 ]
 
-# The claims currently made, as a table expression to select FROM. extract() below re-asserts
-# satcat, gcat and ucs in full on every run, so only a feed's newest run counts and each older
-# run is a copy of the same claims. Any other source's rows all count: a one-off claim (the
-# 'operator_confirmed' correction channel) is never re-asserted. Counting source_assertion
-# itself counts copies.
-CURRENT_ASSERTIONS = """(
-    SELECT a.* FROM source_assertion a
-    LEFT JOIN (SELECT source, max(ingest_run_id) AS run FROM source_assertion
-               WHERE source IN ('satcat', 'gcat', 'ucs') GROUP BY source) l USING (source)
-    WHERE l.run IS NULL OR a.ingest_run_id = l.run
-)"""
-
-
 def _latest_run(conn, table: str) -> int | None:
     with conn.cursor() as cur:
         cur.execute(
