@@ -24,14 +24,14 @@ router = APIRouter(prefix="/conflicts", tags=["conflicts"])
 _STATUS_SQL = """
 WITH satcat AS (
     SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-    FROM source_assertion a
+    FROM v_linked_assertion a
     JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
     WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
     ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
 ),
 gcat AS (
     SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-    FROM source_assertion a
+    FROM v_linked_assertion a
     JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
     WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
     ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
@@ -57,7 +57,7 @@ disagree AS (
 _STALE_SQL = """
 WITH latest_satcat_owner AS (
     SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw
-    FROM source_assertion
+    FROM v_linked_assertion
     WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
     ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
 ),
@@ -94,7 +94,7 @@ _DECAY_CLAIMS_SQL = """
 SELECT s.satellite_id, s.norad_id, s.canonical_name, l.source, l.value
 FROM (
     SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_at
-    FROM source_assertion
+    FROM v_linked_assertion
     WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
     ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key
 ) l

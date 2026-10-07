@@ -33,7 +33,26 @@ def _sat(cur, norad, launch=None):
     return cur.fetchone()[0]
 
 
+_ID_TYPE = {"satcat": "norad", "gcat": "gcat_id", "ucs": "ucs_row"}
+
+
+def _key(cur, sat_id, source, key):
+    """A source key that currently identifies the satellite."""
+    cur.execute(
+        "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (sat_id, _ID_TYPE[source], key, source),
+    )
+
+
 def _assert_row(cur, sat_id, attribute, value, source, run):
+    # The claim arrives through a key that identifies the satellite, as it does in production;
+    # the resolver reads only such claims (v_linked_assertion, migration 0022).
+    cur.execute(
+        "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (sat_id, _ID_TYPE[source], str(sat_id), source),
+    )
     cur.execute(
         "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, source, "
         "observed_at, ingest_run_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -274,6 +293,8 @@ def test_latest_claim_per_source_is_the_max_tuple_not_every_copy(db_conn):
         with db_conn.cursor() as cur:
             old_run, new_run = _run(cur), _run(cur)
             sat = _sat(cur, 970000101)
+            for source, key in [("satcat", "k1"), ("gcat", "k1"), ("gcat", "k2"), ("ucs", "k1")]:
+                _key(cur, sat, source, key)
             cur.execute(
                 "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
                 "source, observed_at, ingest_run_id) VALUES "
@@ -304,6 +325,8 @@ def test_a_later_timestamp_beats_a_higher_run_id(db_conn):
         with db_conn.cursor() as cur:
             low_run, high_run = _run(cur), _run(cur)
             sat = _sat(cur, 970000102)
+            _key(cur, sat, "satcat", "k1")
+            _key(cur, sat, "satcat", "k2")
             cur.execute(
                 "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
                 "source, observed_at, ingest_run_id) VALUES "
@@ -326,6 +349,8 @@ def test_with_equal_timestamps_the_higher_run_beats_the_higher_key(db_conn):
         with db_conn.cursor() as cur:
             low_run, high_run = _run(cur), _run(cur)
             sat = _sat(cur, 970000103)
+            _key(cur, sat, "satcat", "k1")
+            _key(cur, sat, "satcat", "k9")
             cur.execute(
                 "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
                 "source, observed_at, ingest_run_id) VALUES "

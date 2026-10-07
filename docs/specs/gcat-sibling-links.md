@@ -1,6 +1,7 @@
 # Spec: one GCAT key, one satellite (the double-linked jcats)
 
-**Status:** draft, for Vib's decision on the surviving-link rule
+**Status:** active. Vib: "go for it, do what you think is best quality" (2026-10-06); the open
+questions below are decided as recorded.
 **Owner:** Vib
 **Repos touched:** space
 **Last updated:** 2026-10-06
@@ -52,14 +53,36 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   promotion and before assertion extraction, set-based, one statement per key type. Not in
   `match.py`: prevention there is additive-only by design and would not fix the 105 existing
   rows.
+- 2026-10-06 (after Codex verify) — **A key is judged only when GCAT gives it exactly one
+  anchor.** Two rows with different NORADs and the same piece would otherwise retire each
+  other's cospar links and leave none, revived nightly by the matcher.
+- 2026-10-06 (after Codex verify) — **The COSPAR matcher applies the same authority**: a
+  NORAD-less row whose key is `S<n>` links to the satellite with NORAD n (rule `jcat_number`)
+  before any piece lookup. Without it the ISS rows would be re-linked to the neighbour by piece
+  every morning and retired by churn every night.
+- 2026-10-06 (after Codex verify) — **A current claim is a claim through a current key.** The
+  resolver, the satellite page and the conflicts page read `v_linked_assertion` (migration
+  0022): `source_assertion` rows whose (source, source_key) still identify the satellite.
+  History stays in the table; a sibling's leftover claim stops counting the moment its link is
+  retired, including for an attribute the satellite's own key never asserts, and a satellite
+  that loses its only GCAT key shows no GCAT claims rather than stale ones. Rejected: relying
+  on the writer's `valid_to` filter alone. Because: newest-per-key readers would keep showing
+  the sibling's row wherever the own key is silent (Codex verify).
+- 2026-10-06 (after Codex verify) — **Revival is audited**: both resurrection paths write an
+  `identifier_revived` event (migration 0022 extends the event vocabulary).
+- 2026-10-06 — **`name_gcat` links are not judged**: co-deployed siblings legitimately share
+  names, so a name is not a key.
 
 ## Constraints
 - No deletion from `satellite_identifier`; every change sets `valid_to` and writes an
   `identity_event`.
 - The rule never touches a key whose GCAT row has no NORAD and whose number matches none of
   its satellites (0 today); such keys stay with `expire_contested`.
-- The nightly after the change must pass both gates, and the bus build must attribute exactly
-  the same satellites as before (its anchoring already encodes the rule).
+- The nightly after the change must pass both gates. For rows that carry a NORAD the bus build
+  is unchanged (rule 1 bypasses the crosswalk). For NORAD-less rows its rule 2 takes the
+  lowest current anchored cospar link, so retiring a sibling's cospar link can move an
+  attribution to the key's own satellite; that is the convention applied, measured after the
+  first nightly against the saved before-state (`zz_bus_before` on the box).
 - Historical `source_assertion` rows written under the wrong sibling are left in place; the
   newest-per-key readers heal on the first extraction after the change, since the sibling's
   own key then holds the newest claim. The assertion-model spec removes them for good.
@@ -88,26 +111,33 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 ## Acceptance criteria
 - [ ] After the pass on a production snapshot, `SELECT id_value FROM satellite_identifier WHERE
   id_type = 'gcat_id' AND valid_to IS NULL GROUP BY 1 HAVING count(DISTINCT satellite_id) > 1`
-  returns 0 rows (105 today), and 105 `identity_event` rows with reason `gcat_anchor_moved`.
+  returns 0 rows (105 today), with one `identity_event` per retired link (107 losing `gcat_id`
+  links, plus whichever cospar twins the anchor holds).
 - [ ] For NORAD 65729 and 65730, `/api/satellites/<id>` shows GCAT claims only from the
   satellite's own key after the next nightly (today each shows the sibling's).
-- [ ] The bus build's `satellite_bus` rows for the ~210 satellites are byte-identical before and
-  after (its anchoring already encodes the rule).
-- [ ] A test seeds a key moved between two anchored satellites across two runs and asserts the
-  older link is retired, the event is written, and moving it back revives it.
-- [ ] `identity/assertions.py` with `valid_to IS NULL`: the pipeline test's assertion counts are
-  unchanged on its single-run fixture, and a new test shows a retired link receives no claim.
+- [ ] The bus build's `satellite_bus` rows for the 129 affected satellites, compared with the
+  before-state: unchanged for NORAD-carrying rows; every change on a NORAD-less row moves the
+  attribution to the key's own satellite.
+- [x] Tests (tests/test_gcat_sibling_links.py, 9 of them): a moved key is retired with its
+  event; the key-number fallback; nothing retired when the anchor lacks the key; a shared piece
+  judges nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
+  with its three events; a retired link receives no claim; a claim through a retired link is
+  not current. Mutants of the direction, the guard, the fallback, the unique-anchor rule, the
+  matcher authority and the writer filter each fail the suite. Full suite 408 passed.
 - [ ] Both nightly gates pass on the first run after deployment.
 
 ## Open questions
-- (Vib) Confirm the convention that `S<n>` is catalog number n is authoritative for the 23
-  NORAD-less keys, or leave those 23 to retire only when GCAT publishes a NORAD.
-- (Vib) Whether the six retired manufacturer cohorts (asc24, kansai, munf, rhodes, unbrun,
-  wiss) should come back live if the corrected links restore them, or stay archived.
-- (Claude) Whether `name_gcat` links carry enough value to keep at all once `gcat_id` is
-  unambiguous.
+- Decided 2026-10-06 (Claude, under Vib's "best quality"): the `S<n>` convention is
+  authoritative, it agrees with the data for all 23 NORAD-less keys and is how GCAT defines
+  S-numbers; cohorts that the corrected links restore come back live, the structural gate
+  already handles live against archived; `name_gcat` links stay as they are and are not judged.
 
 ## Decision log & lessons learned
+- 2026-10-06 (Codex verify, confirmed by Claude) — the first implementation could retire every
+  link of a piece shared by two anchors, fought the COSPAR matcher nightly on the ISS rows,
+  revived links without an event, and left a sibling's leftover claim visible wherever the
+  satellite's own key was silent. Each was reproduced in a test before the fix, and the "current
+  claim through a current key" view came out of it.
 - 2026-10-06 (Claude) — Spec drafted from a code trace of the three `gcat_id` writers, churn's
   retirement rule and bus.py's anchoring, plus read-only measurements on production. The core
   lesson: an additive crosswalk needs a retirement rule from day one, or every catalog revision

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from psycopg.types.json import Jsonb
 
-from identity.normalize import norm_cospar
+from identity.normalize import gcat_catalog_number, norm_cospar
 
 # The two most recent OK GCAT snapshot runs, plus each run's payload projection with the
 # normalized name key. Shared prefix for detection and measurement so they cannot disagree.
@@ -157,13 +157,19 @@ def expire_contested(conn) -> int:
 
 
 _MOVED_SELECT_SQL = """
-WITH keyed AS (
+WITH anchored AS (
     SELECT 'gcat_id' AS id_type, a.jcat AS id_value, s.satellite_id AS anchor
     FROM _gcat_anchor a JOIN satellite s ON s.norad_id = a.norad
     UNION ALL
     SELECT 'cospar', a.cospar, s.satellite_id
     FROM _gcat_anchor a JOIN satellite s ON s.norad_id = a.norad
     WHERE a.cospar IS NOT NULL
+),
+keyed AS (
+    -- A key is judged only when GCAT gives it exactly one anchor. Two rows with different
+    -- NORADs and the same piece would otherwise retire each other's links and leave none.
+    SELECT id_type, id_value, min(anchor) AS anchor
+    FROM anchored GROUP BY id_type, id_value HAVING count(DISTINCT anchor) = 1
 )
 SELECT si.identifier_id, si.satellite_id, si.id_type, si.id_value, k.anchor
 FROM satellite_identifier si
@@ -174,11 +180,6 @@ WHERE si.source = 'gcat' AND si.valid_to IS NULL AND si.satellite_id <> k.anchor
                 AND h.satellite_id = k.anchor AND h.valid_to IS NULL)
 ORDER BY si.identifier_id
 """
-
-
-def _catalog_number(jcat: str) -> int | None:
-    """GCAT's S<n> is Satcat (NORAD) number n; other jcat families carry no number."""
-    return int(jcat[1:]) if jcat[:1] == "S" and jcat[1:].isdigit() else None
 
 
 def expire_moved_gcat_keys(conn) -> int:
@@ -209,7 +210,7 @@ def expire_moved_gcat_keys(conn) -> int:
         )
         staged = []
         for jcat, norad, piece in cur.fetchall():
-            anchor = norad if norad is not None else _catalog_number(jcat)
+            anchor = norad if norad is not None else gcat_catalog_number(jcat)
             if anchor is not None:
                 staged.append((jcat, anchor, norm_cospar(piece)[0]))
         # Staged like the matcher, so the cospar key is normalized by the same function.

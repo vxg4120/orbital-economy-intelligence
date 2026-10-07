@@ -226,10 +226,11 @@ def detail(satellite_id: int, db=Depends(get_db)):
         )
         status_history = cur.fetchall()
 
-        # Latest assertion per (attribute, source), deterministic tiebreakers verbatim.
+        # Latest assertion per (attribute, source), deterministic tiebreakers verbatim, through
+        # the keys that currently identify the satellite (migration 0022).
         cur.execute(
             "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_at "
-            "FROM source_assertion WHERE satellite_id = %s "
+            "FROM v_linked_assertion WHERE satellite_id = %s "
             "ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC, source_key",
             (satellite_id,),
         )

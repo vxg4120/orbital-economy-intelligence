@@ -42,6 +42,10 @@ def _assertions(conn, attribute):
     breaks the tie stably, as before. The aggregate is on observed_at, not ingest_run_id: a run
     id is allocated before its download and observed_at is the load time, so two overlapping
     ingests can land in inverted order (Codex verify, 2026-10-05).
+
+    Read through v_linked_assertion (migration 0022): a claim counts only while the key it came
+    through still identifies the satellite, so a co-deployed sibling's claims stop being this
+    satellite's the moment the crosswalk retires the link (docs/specs/gcat-sibling-links.md).
     """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
@@ -49,13 +53,13 @@ def _assertions(conn, attribute):
             """
             WITH newest AS (
                 SELECT satellite_id, source, max(observed_at) AS observed_at
-                FROM source_assertion
+                FROM v_linked_assertion
                 WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
                 GROUP BY 1, 2
             )
             SELECT DISTINCT ON (a.satellite_id, a.source)
                    a.satellite_id, a.source, a.value, a.observed_at
-            FROM source_assertion a
+            FROM v_linked_assertion a
             JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
                          AND n.observed_at = a.observed_at
             WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL

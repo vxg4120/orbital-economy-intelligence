@@ -53,6 +53,14 @@ def link(conn, satellite_id, raw_ref, rule, score, details=None) -> bool:
                 """,
                 (satellite_id, raw_ref["id_type"], raw_ref["id_value"], raw_ref["source"]),
             )
+            if cur.rowcount:
+                cur.execute(
+                    "INSERT INTO identity_event (satellite_id, event, rule_fired, details) "
+                    "VALUES (%s, 'identifier_revived', %s, %s)",
+                    (satellite_id, rule, Jsonb({"id_type": raw_ref["id_type"],
+                                                "id_value": raw_ref["id_value"],
+                                                "source": raw_ref["source"]})),
+                )
             return False
         payload = dict(details or {})
         payload.setdefault("id_type", raw_ref["id_type"])

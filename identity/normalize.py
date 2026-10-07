@@ -40,6 +40,13 @@ def norm_name(s: str | None) -> str:
 _COSPAR = re.compile(r"^\s*(\d{4})[-\s]?(\d{1,3})\s*([A-Za-z]{1,3})\s*$")
 
 
+def gcat_catalog_number(jcat: str | None) -> int | None:
+    """GCAT's S<n> is Satcat (NORAD) number n; other jcat families carry no number."""
+    if not jcat or jcat[:1] != "S" or not jcat[1:].isdigit():
+        return None
+    return int(jcat[1:])
+
+
 def norm_cospar(s: str | None) -> tuple[str | None, bool]:
     """Normalize a COSPAR/international designator to canonical ``YYYY-NNNP``.
 

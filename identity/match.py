@@ -15,7 +15,13 @@ from pathlib import Path
 import yaml
 
 from identity import merge
-from identity.normalize import norm_cospar, norm_name, orbital_regime, parse_date_loose
+from identity.normalize import (
+    gcat_catalog_number,
+    norm_cospar,
+    norm_name,
+    orbital_regime,
+    parse_date_loose,
+)
 
 _CONFIG_DEFAULT = Path(__file__).with_name("match_config.yml")
 _REVIEW_DEFAULT = Path("data/review/match_review.csv")
@@ -86,6 +92,14 @@ def _create_satellite(cur, cospar, name, obj_type, launch) -> int:
         (cospar, name or cospar or "UNKNOWN", obj_type or "UNKNOWN", launch),
     )
     return cur.fetchone()[0]
+
+
+def _find_by_norad(cur, norad: int | None) -> int | None:
+    if norad is None:
+        return None
+    cur.execute("SELECT satellite_id FROM satellite WHERE norad_id = %s", (norad,))
+    row = cur.fetchone()
+    return row[0] if row else None
 
 
 def _find_by_cospar(cur, cospar: str) -> tuple[int | None, bool]:
@@ -179,14 +193,21 @@ def _bulk_link_by_norad(cur, stage_table, id_type, value_expr, source, rule) -> 
     # again, otherwise ON CONFLICT DO NOTHING would leave the right link retired for good.
     cur.execute(
         f"""
-        UPDATE satellite_identifier si SET valid_to = NULL
-        FROM {stage_table} st
-        JOIN satellite s ON s.norad_id = st.norad
-        WHERE si.satellite_id = s.satellite_id AND si.id_type = %(id_type)s
-          AND si.id_value = ({value_expr}) AND si.source = %(source)s
-          AND si.valid_to IS NOT NULL
+        WITH revived AS (
+            UPDATE satellite_identifier si SET valid_to = NULL
+            FROM {stage_table} st
+            JOIN satellite s ON s.norad_id = st.norad
+            WHERE si.satellite_id = s.satellite_id AND si.id_type = %(id_type)s
+              AND si.id_value = ({value_expr}) AND si.source = %(source)s
+              AND si.valid_to IS NOT NULL
+            RETURNING si.satellite_id, si.id_type, si.id_value, si.source
+        )
+        INSERT INTO identity_event (satellite_id, event, rule_fired, details)
+        SELECT satellite_id, 'identifier_revived', %(rule)s,
+               jsonb_build_object('id_type', id_type, 'id_value', id_value, 'source', source)
+        FROM revived
         """,
-        {"id_type": id_type, "source": source},
+        {"id_type": id_type, "source": source, "rule": rule},
     )
 
 
@@ -300,15 +321,23 @@ def _cospar_pass(conn) -> int:
             if not (cospar and standard):
                 continue
             with conn.cursor() as cur:
-                sat_id, is_ambiguous = _find_by_cospar(cur, cospar)
+                # The key's own number first: S<n> is catalog number n, and for the ISS-deployed
+                # cubesats GCAT's piece letter is off by one from SATCAT's, so a piece lookup
+                # lands on the neighbour. churn.expire_moved_gcat_keys anchors by the same
+                # number; linking by it here keeps the two from undoing each other nightly.
+                sat_id, rule = _find_by_norad(cur, gcat_catalog_number(jcat)), "jcat_number"
+                is_ambiguous = False
+                if sat_id is None:
+                    sat_id, is_ambiguous = _find_by_cospar(cur, cospar)
+                    rule = "cospar_exact"
                 if sat_id is None:
                     sat_id = _create_satellite(cur, cospar, pl_name or name,
                                                obj_type, parse_date_loose(launch))
             ambiguous += is_ambiguous
             merge.link(conn, sat_id, {"id_type": "cospar", "id_value": cospar,
-                                      "source": "gcat"}, "cospar_exact", 1.000)
+                                      "source": "gcat"}, rule, 1.000)
             merge.link(conn, sat_id, {"id_type": "gcat_id", "id_value": jcat,
-                                      "source": "gcat"}, "cospar_exact", 1.000)
+                                      "source": "gcat"}, rule, 1.000)
 
     urun = _latest_run(conn, "raw_ucs")
     if urun is not None:

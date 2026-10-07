@@ -160,3 +160,102 @@ def test_a_retired_link_receives_no_claims(db_conn):
             assert [r[0] for r in cur.fetchall()] == [b]
     finally:
         db_conn.rollback()
+
+
+def test_a_piece_shared_by_two_anchors_judges_nothing(db_conn):
+    """Two GCAT rows with different NORADs and the same piece give the cospar key two anchors.
+    Judging it would retire both satellites' links and leave none; the key is skipped."""
+    try:
+        with db_conn.cursor() as cur:
+            a = _sat(cur, 970001041, "2026-005A", "ZZ SHARE A")
+            b = _sat(cur, 970001042, "2026-005B", "ZZ SHARE B")
+            _link(cur, a, "cospar", "2026-005A")
+            _link(cur, b, "cospar", "2026-005A")
+            run = _run(cur)
+            _gcat_row(cur, run, "S970001041", 970001041, "2026-005A")
+            _gcat_row(cur, run, "S970001042", 970001042, "2026-005A")
+            assert churn.expire_moved_gcat_keys(db_conn) == 0
+            assert _current(cur, "cospar", "2026-005A") == [a, b]
+    finally:
+        db_conn.rollback()
+
+
+def test_the_cospar_pass_links_a_numbered_key_by_its_number(db_conn):
+    """Without this the NORAD-less ISS rows would be re-linked to the neighbour by piece every
+    morning and retired by churn every night, forever."""
+    try:
+        with db_conn.cursor() as cur:
+            a = _sat(cur, 970001051, "1998-067AA", "ZZ ISS A")
+            b = _sat(cur, 970001052, "1998-067AB", "ZZ ISS B")
+            _link(cur, a, "cospar", "1998-067AB")  # SATCAT's piece for a is GCAT's for b
+            run = _run(cur)
+            _gcat_row(cur, run, "S970001052", None, "1998-067AB", name="ZZ ISS B")
+        match._cospar_pass(db_conn)
+        with db_conn.cursor() as cur:
+            assert _current(cur, "gcat_id", "S970001052") == [b]
+            cur.execute(
+                "SELECT rule_fired FROM merge_log WHERE surviving_id = %s "
+                "AND details->>'id_value' = 'S970001052'",
+                (b,),
+            )
+            assert cur.fetchall() == [("jcat_number",)]
+    finally:
+        db_conn.rollback()
+
+
+def test_a_key_moved_and_moved_back_leaves_a_full_audit_trail(db_conn):
+    try:
+        with db_conn.cursor() as cur:
+            a = _sat(cur, 970001061, "2026-006A", "ZZ TRIP A")
+            b = _sat(cur, 970001062, "2026-006B", "ZZ TRIP B")
+            _link(cur, a, "gcat_id", "S970001062")
+            _link(cur, b, "gcat_id", "S970001062")
+            run1 = _run(cur)
+            _gcat_row(cur, run1, "S970001062", 970001062, "2026-006B")
+            assert churn.expire_moved_gcat_keys(db_conn) == 1
+            assert _current(cur, "gcat_id", "S970001062") == [b]
+            # GCAT moves the key back to a: the NORAD pass revives a's link, churn retires b's.
+            run2 = _run(cur)
+            _gcat_row(cur, run2, "S970001062", 970001061, "2026-006A")
+        match._deterministic_gcat_norad(db_conn)
+        with db_conn.cursor() as cur:
+            assert sorted(_current(cur, "gcat_id", "S970001062")) == [a, b]
+            assert churn.expire_moved_gcat_keys(db_conn) == 1
+            assert _current(cur, "gcat_id", "S970001062") == [a]
+            cur.execute(
+                "SELECT satellite_id, event, rule_fired FROM identity_event "
+                "WHERE details->>'id_value' = 'S970001062' ORDER BY identity_event_id"
+            )
+            assert cur.fetchall() == [
+                (a, "identifier_expired", "gcat_anchor_moved"),
+                (a, "identifier_revived", "norad_exact"),
+                (b, "identifier_expired", "gcat_anchor_moved"),
+            ]
+    finally:
+        db_conn.rollback()
+
+
+def test_a_claim_through_a_retired_link_is_not_a_current_claim(db_conn):
+    """v_linked_assertion: the resolver, the satellite page and the conflicts page read claims
+    only through keys that currently identify the satellite, so a sibling's leftover claim
+    stops counting the moment its link is retired, even for an attribute the satellite's own
+    key never asserts."""
+    try:
+        with db_conn.cursor() as cur:
+            a = _sat(cur, 970001071, "2026-007A", "ZZ VIEW A")
+            _link(cur, a, "gcat_id", "S970001071")
+            _link(cur, a, "gcat_id", "S970001072", valid_to="2026-10-01")
+            run = _run(cur)
+            cur.execute(
+                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
+                "source, observed_at, ingest_run_id) VALUES "
+                "(%(a)s, 'S970001071', 'owner', 'OWN', 'gcat', now(), %(r)s), "
+                "(%(a)s, 'S970001072', 'manufacturer', 'SIBLING', 'gcat', now(), %(r)s)",
+                {"a": a, "r": run},
+            )
+            cur.execute(
+                "SELECT attribute, value FROM v_linked_assertion WHERE satellite_id = %s", (a,)
+            )
+            assert cur.fetchall() == [("owner", "OWN")]
+    finally:
+        db_conn.rollback()
