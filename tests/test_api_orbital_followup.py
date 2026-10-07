@@ -4,6 +4,7 @@ The db-marked tests use TEMP tables and run against a disposable local server.
 All other cases use the real routes/cache with a recording database stand-in.
 """
 
+import datetime as dt
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -14,7 +15,8 @@ from psycopg.rows import dict_row
 
 from api import cache
 from api.deps import get_db
-from api.routers import conflicts, operators
+from api.routers import conflicts, operators, satellites
+from tests.claimfix import seed_claim
 
 
 class RecordingDB:
@@ -347,3 +349,22 @@ def test_conflict_sql_keeps_order_provenance_and_counts(db_conn):
         else:
             assert all(row["catalog_owner"] == "OLD" and row["resolved_operator"] == "Original"
                        and row["acquired_by"] == "Acquirer" for row in rows)
+
+
+@pytest.mark.db
+def test_detail_assertions_keep_the_observed_at_field_the_resolver_page_reads(db_conn):
+    """The claim model calls the last observation observed_to; the response field stays
+    observed_at (web/src/views/Resolver.tsx), with that value."""
+    db_conn.row_factory = dict_row
+    at = dt.datetime(2026, 9, 30, 7, 10, tzinfo=dt.UTC)
+    with db_conn.cursor() as cur:
+        cur.execute("INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
+                    "VALUES ('satcat', 'zz-test', now(), now(), 'ok') RETURNING ingest_run_id")
+        run = cur.fetchone()["ingest_run_id"]
+        cur.execute("INSERT INTO satellite (norad_id, canonical_name) VALUES (970000401, 'ZZ') "
+                    "RETURNING satellite_id")
+        sat = cur.fetchone()["satellite_id"]
+        seed_claim(cur, sat, "satcat", "owner", "ZZ OWNER", run, at=at)
+    body = client_for(satellites.router, db_conn).get(f"/api/satellites/{sat}").json()
+    assert [(a["attribute"], a["source"], a["value"], a["observed_at"]) for a in body["assertions"]] \
+        == [("owner", "satcat", "ZZ OWNER", "2026-09-30T07:10:00+00:00")]

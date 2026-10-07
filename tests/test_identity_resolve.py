@@ -266,18 +266,32 @@ def test_famous_objects_carry_curated_display_names(db_conn):
 def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_tie(db_conn):
     """One open claim per (source, key, attribute); a satellite holding two keys for a source
     (merged objects) has two, and the greater key wins, as the old tie-break had it. A claim
-    through a retired key is not the satellite's. observed_to is when the feed last ran."""
+    through a retired key is not the satellite's, and neither is a claim the feed no longer
+    makes, even through a current key (the ledger kept its newest copy; the claim model does
+    not: what a source currently says is the question). "Last observed" is when the feed last
+    ran and still made the claim, not when the claim was first made."""
+    later = OBS + dt.timedelta(days=400)
     try:
         with db_conn.cursor() as cur:
-            run = _run(cur)
+            first, run = _run(cur), _run(cur)
             sat = _sat(cur, 970000101)
+            seed_claim(cur, sat, "satcat", "owner", "WAS", first, key="k1", at=OBS)
+            cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                        "WHERE source = 'satcat' AND value = 'WAS'", (run,))
             seed_claim(cur, sat, "satcat", "owner", "NEW", run, key="k1", at=OBS)
-            seed_claim(cur, sat, "gcat", "owner", "FROM-K1", run, key="k1", at=OBS)
-            seed_claim(cur, sat, "gcat", "owner", "FROM-K2", run, key="k2", at=OBS)
+            seed_claim(cur, sat, "gcat", "owner", "FROM-K1", first, key="k1", at=OBS)
+            seed_claim(cur, sat, "gcat", "owner", "FROM-K2", first, key="k2", at=OBS)
+            seed_claim(cur, sat, "gcat", "status", "GONE", first, key="k2", at=OBS)
+            cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                        "WHERE source = 'gcat' AND value = 'GONE'", (run,))
+            # GCAT ran again later and still made the owner claims: last observed moves on.
+            seed_claim(cur, sat, "gcat", "name", "N", run, key="k2", at=later)
             seed_claim(cur, sat, "ucs", "owner", "STALE", run, key="k1", at=OBS)
             cur.execute("UPDATE satellite_identifier SET valid_to = '2026-10-01' "
                         "WHERE satellite_id = %s AND source = 'ucs'", (sat,))
-            by_source = resolve._assertions(db_conn, "owner")[sat]
-        assert by_source == {"satcat": ("NEW", OBS), "gcat": ("FROM-K2", OBS)}
+            owners = resolve._assertions(db_conn, "owner")[sat]
+            statuses = resolve._assertions(db_conn, "status").get(sat, {})
+        assert owners == {"satcat": ("NEW", OBS), "gcat": ("FROM-K2", later)}
+        assert statuses == {}
     finally:
         db_conn.rollback()

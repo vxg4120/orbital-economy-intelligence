@@ -1,5 +1,9 @@
 """Seed a feed's claim for a test (claim table, migration 0023): the crosswalk link that makes
-it the satellite's, the open claim, and the feed's progress row."""
+it the satellite's, the open claim, and the feed's progress row.
+
+The progress row is set to (run, at) outright, whatever the database holds: a test owns the
+feed's progress inside its transaction (an earlier row on a populated dev DB would otherwise
+decide what "last observed" is), so seed the newest run last."""
 
 import datetime as dt
 
@@ -22,7 +26,7 @@ def seed_claim(cur, sat_id, source, attribute, value, run, key=None, at=T0):
     )
     cur.execute(
         "INSERT INTO claim_progress (source, last_run, observed_at) VALUES (%s, %s, %s) "
-        "ON CONFLICT (source) DO UPDATE SET last_run = greatest(claim_progress.last_run, "
-        "EXCLUDED.last_run), observed_at = greatest(claim_progress.observed_at, EXCLUDED.observed_at)",
+        "ON CONFLICT (source) DO UPDATE SET last_run = EXCLUDED.last_run, "
+        "observed_at = EXCLUDED.observed_at",
         (source, run, at),
     )

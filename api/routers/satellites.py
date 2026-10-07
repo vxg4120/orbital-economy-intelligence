@@ -227,10 +227,11 @@ def detail(satellite_id: int, db=Depends(get_db)):
         status_history = cur.fetchall()
 
         # Each source's current claim per attribute, through the keys that currently identify
-        # the satellite (v_current_claim, migration 0023); observed_to is when the feed last
-        # made it.
+        # the satellite (v_current_claim, migration 0023). The response field stays observed_at
+        # (the Resolver page's "last observed"): when the feed last made the claim.
         cur.execute(
-            "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_to "
+            "SELECT DISTINCT ON (attribute, source) attribute, value, source, "
+            "observed_to AS observed_at "
             "FROM v_current_claim WHERE satellite_id = %s "
             "ORDER BY attribute, source, source_key",
             (satellite_id,),

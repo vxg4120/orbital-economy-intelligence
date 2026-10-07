@@ -239,7 +239,7 @@ def stratum_rideshare_orphan(cur):
     cur.execute(
         "SELECT s.satellite_id, s.canonical_name, s.cospar_id FROM satellite s "
         "WHERE s.norad_id IS NULL AND s.object_type = 'PAYLOAD' "
-        "AND NOT EXISTS (SELECT 1 FROM v_current_claim a "
+        "AND NOT EXISTS (SELECT 1 FROM v_claim a "  # never had a SATCAT claim, open or closed
         "                WHERE a.satellite_id = s.satellite_id AND a.source = 'satcat') "
         "ORDER BY s.cospar_id, s.satellite_id"
     )

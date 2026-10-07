@@ -290,5 +290,12 @@ def test_unmatched_counts_open_claims_whose_key_identifies_nothing(seeded):
         seed_claim(cur, None, "ucs", "name", "ZZ Closed", newer, key="zz-test-unmatched-2")
         cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
                     "WHERE source_key = 'zz-test-unmatched-2'", (newer,))
+        seed_claim(cur, None, "ucs", "name", "ZZ Linked since", newer, key="zz-test-unmatched-3")
         _, rows = _section_match_merge_stats(cur)["unmatched"]
-    assert dict(rows)["ucs"] == 1  # zz-test-unmatched-1 from the fixture
+        assert dict(rows)["ucs"] == 2  # zz-test-unmatched-1 from the fixture, and -3
+        cur.execute("INSERT INTO satellite (norad_id, canonical_name) VALUES (970000301, 'ZZ') "
+                    "RETURNING satellite_id")
+        cur.execute("INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
+                    "VALUES (%s, 'ucs_row', 'zz-test-unmatched-3', 'ucs')", (cur.fetchone()[0],))
+        _, rows = _section_match_merge_stats(cur)["unmatched"]
+    assert dict(rows)["ucs"] == 1
