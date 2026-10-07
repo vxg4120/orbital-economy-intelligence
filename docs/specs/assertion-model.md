@@ -1,6 +1,7 @@
 # Spec: claims, not copies (source_assertion Phase 2)
 
-**Status:** draft, for Vib's decision on the architecture choice below
+**Status:** active. Vib: "go for it, do what you think is best quality" (2026-10-06); option 3 chosen.
+Step 1 (table, writer, replay, nightly dual-write) built 2026-10-07; readers not yet moved.
 **Owner:** Vib
 **Repos touched:** space
 **Last updated:** 2026-10-06
@@ -15,11 +16,35 @@ whose size is the number of claims, where "what does each source currently say" 
 it say on a date" are both one cheap query, with no reader able to tell the difference.
 
 ## Architecture decisions
-- 2026-10-06 — **Recommended: store each claim once with a validity range (option 3).** A row
-  is (satellite_id, source, source_key, attribute, value, first_run, last_run, observed_from,
-  observed_to); the writer opens a row when a (source, key, attribute, value) first appears and
-  closes it when the value changes or the key stops being asserted. Current claims are rows
-  with `last_run` = the feed's newest run; history is a range query. Rejected: run-level
+- 2026-10-06 — **Chosen: store each claim once with a validity range (option 3).** A row is
+  (source, source_key, attribute, value, first_run, observed_from, closed_run, observed_to);
+  the writer opens a row when a (source, key, attribute, value) first appears and closes it at
+  the first run that no longer makes it. Current claims are rows with `closed_run` NULL;
+  history is a range query.
+- 2026-10-07 — **Claims are about source keys, not satellites.** Which satellite a claim is
+  about is the crosswalk's business, joined at read time (`v_current_claim`), so retiring a
+  link removes a sibling's claims on the spot, identity merges never touch claims, and an
+  unmatched object is an open claim whose key identifies no satellite. Rejected: a
+  satellite_id column repointed by merges, as source_assertion has. Because: that is how the
+  double-linked GCAT keys put one object's claims on two satellites.
+- 2026-10-07 (after Codex verify) — **Runs are recorded strictly in order, once each, one
+  writer per feed at a time.** `claim_progress` holds each feed's last recorded run and its
+  observation time, advanced on every recorded run, changes or not; a run at or before it is
+  refused; a transaction-scoped advisory lock on the feed serializes the nightly and the
+  replay. Rejected: deriving the watermark from the claims themselves. Because: an unchanged
+  run would leave it behind and a late run could slip in and contradict a processed one.
+- 2026-10-07 (after Codex verify) — **Bootstrap is the replay's job.** The nightly records a
+  feed only once its progress row exists, and the replay holds the feed's lock for its whole
+  pass, so a nightly cannot record its newer run first and leave the history refused.
+- 2026-10-07 (after Codex verify) — **An empty snapshot is not evidence that every claim
+  ended**; it is refused. Completeness of a snapshot is the ingest ledger's business.
+- 2026-10-07 (after Codex verify) — **`observed_to` is the last observation, not the first
+  absence**: closing at run R stamps the previous recorded run's time; `closed_run` is R. For
+  open claims the last observation is the feed's progress time, which `v_current_claim`
+  exposes as `observed_to`, so the Resolver's "last observed" survives.
+- 2026-10-07 (after Codex verify) — **Only the three snapshot feeds** (satcat, gcat, ucs) are
+  recorded or replayed. A correction channel is additive, not a snapshot; it gets its own
+  path when it exists. Rejected: run-level
   retention like raw_* (option 1), because newest-per-key readers revert to older values and
   "ever claimed" readers lose superseded values (Codex verify, 2026-09-29), and because it
   leaves the copies in place for the kept runs. Rejected: deleting only exact copies of the
@@ -36,6 +61,9 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
 ## Constraints
 - No deletion from `source_assertion` on production before the new table is built, verified
   against it, and backed up (the raw_* precedent: a laptop dump first).
+- The history replay runs under nohup, outside the nightly windows, with `temp_file_limit`
+  set (the script sets 2 GB), after the laptop backup; it holds each feed's advisory lock for
+  its pass, so a nightly that fires meanwhile waits on the claims step.
 - The cutover is reversible for at least one week: the old table is renamed, not dropped.
 - Never a large sort on production `source_assertion` outside a planned window with
   `temp_file_limit` set; the one-time build streams per source and attribute.
@@ -65,8 +93,14 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   the same change.
 
 ## Acceptance criteria
-- [ ] `v_current_assertion` on the old table equals `CURRENT_ASSERTIONS` row for row on a
-  production snapshot (`EXCEPT` both ways returns nothing).
+- [x] Writer and replay (tests/test_claims.py, 8 tests): open/close/unchanged, same-or-older
+  run refused with progress advancing on unchanged runs, empty snapshot refused, the bootstrap
+  gate, A->B->A as three rows, row-for-row agreement with the assertion writer on a seeded
+  snapshot, the view through current links only, and a replayed history equal to one recorded
+  live. Mutants of each guard fail the suite. Full suite 420 passed.
+- [ ] After the production replay, `v_current_claim` equals the current readers' output
+  (`claim_is_current` over `CURRENT_ASSERTIONS`) row for row (`EXCEPT` both ways returns
+  nothing), and `claim_progress.last_run` per feed equals the feed's newest run.
 - [ ] The new table built from production has one row per claim: about 1.4M rows against 35M
   (measured 2026-10-05: 140,881 current (satellite, source) pairs per attribute).
 - [ ] For every reader in the inventory, the before/after comparison script reports identical

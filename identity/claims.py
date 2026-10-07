@@ -3,9 +3,15 @@
 A claim is (source, source_key, attribute, value). `record` takes one run's full set of a
 feed's claims and reconciles it with the open claims: anything the run no longer makes is
 closed at that run, anything new is opened at it, and anything unchanged is left alone, so a
-nightly that changes nothing writes nothing. Re-recording the same run is a no-op. The feed's
-rows come from the raw landing tables through the same (attribute, column) lists as
+nightly that changes nothing writes nothing but the feed's progress row. The feed's rows come
+from the raw landing tables through the same (attribute, column) lists as
 identity/assertions.py, so the two agree row for row.
+
+Runs are recorded strictly in order, once each, one writer per feed at a time: claim_progress
+holds the last run recorded (changes or not) and a transaction-scoped advisory lock on the feed
+serializes the nightly and the history replay. A feed with no progress row is not recorded by
+the nightly: scripts/build_claims.py creates it as it replays the history, so history is never
+skipped.
 
 No commit: the caller owns the transaction.
 """
@@ -14,30 +20,44 @@ from __future__ import annotations
 
 from identity.assertions import _GCAT_ATTRS, _SATCAT_ATTRS, _UCS_ATTRS, _latest_run
 
-# The feeds: (raw table, source, key expression, attribute lists).
+# The feeds: (raw table, source, key expression, attribute lists). Only these are snapshot
+# feeds; a correction channel (operator_confirmed) is additive and is not recorded here.
 FEEDS = [
     ("raw_satcat", "satcat", "norad_cat_id", _SATCAT_ATTRS),
     ("raw_gcat_satcat", "gcat", "jcat", _GCAT_ATTRS),
     ("raw_ucs", "ucs", "row_key", _UCS_ATTRS),
 ]
+SOURCES = tuple(source for _, source, _, _ in FEEDS)
 
 
-def _last_recorded_run(cur, source) -> int | None:
-    cur.execute(
-        "SELECT greatest(max(first_run), max(closed_run)) FROM claim WHERE source = %s", (source,)
-    )
-    return cur.fetchone()[0]
+def lock(cur, source: str) -> None:
+    """One writer per feed per transaction (nightly or replay); the other waits."""
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext('claim:' || %s))", (source,))
 
 
-def record(conn, source: str, run: int, observed_at, rows) -> tuple[int, int]:
+def progress(cur, source: str):
+    """(last_run, observed_at) for the feed, or None before its history is replayed."""
+    cur.execute("SELECT last_run, observed_at FROM claim_progress WHERE source = %s", (source,))
+    return cur.fetchone()
+
+
+def record(conn, source: str, run: int, observed_at, rows, *, bootstrap: bool = False):
     """Reconcile the open claims of `source` with `rows`, the (key, attribute, value) triples
     its run `run` asserts, observed at `observed_at`. Returns (closed, opened).
 
-    A run older than the last one recorded is refused (returns (0, 0)): recording runs out of
-    order would close every claim the newer run makes, since the older one lacks them."""
+    Refused, returning (0, 0): a run at or before the feed's last recorded one (recording out
+    of order would close everything a newer run makes; recording twice must change nothing); an
+    empty run (a snapshot asserting nothing is not evidence that every claim ended); and a feed
+    with no progress row unless `bootstrap`, which only the history replay passes."""
+    rows = list(rows)
+    if not rows:
+        return 0, 0
     with conn.cursor() as cur:
-        last = _last_recorded_run(cur, source)
-        if last is not None and run < last:
+        lock(cur, source)
+        before = progress(cur, source)
+        if before is None and not bootstrap:
+            return 0, 0
+        if before is not None and run <= before[0]:
             return 0, 0
         cur.execute(
             "CREATE TEMP TABLE _claims_run (source_key text, attribute text, value text) "
@@ -46,15 +66,16 @@ def record(conn, source: str, run: int, observed_at, rows) -> tuple[int, int]:
         with cur.copy("COPY _claims_run (source_key, attribute, value) FROM STDIN") as cp:
             for key, attribute, value in rows:
                 cp.write_row((key, attribute, value))
+        # Close what the run no longer makes: closed at this run, last observed at the previous.
         cur.execute(
             """
-            UPDATE claim c SET closed_run = %(run)s, observed_to = %(at)s
+            UPDATE claim c SET closed_run = %(run)s, observed_to = %(seen)s
             WHERE c.source = %(source)s AND c.closed_run IS NULL
               AND NOT EXISTS (SELECT 1 FROM _claims_run r
                               WHERE r.source_key = c.source_key AND r.attribute = c.attribute
                                 AND r.value = c.value)
             """,
-            {"run": run, "at": observed_at, "source": source},
+            {"run": run, "seen": before[1] if before else observed_at, "source": source},
         )
         closed = cur.rowcount
         cur.execute(
@@ -70,6 +91,12 @@ def record(conn, source: str, run: int, observed_at, rows) -> tuple[int, int]:
         )
         opened = cur.rowcount
         cur.execute("DROP TABLE _claims_run")
+        cur.execute(
+            "INSERT INTO claim_progress (source, last_run, observed_at) VALUES (%s, %s, %s) "
+            "ON CONFLICT (source) DO UPDATE SET last_run = EXCLUDED.last_run, "
+            "observed_at = EXCLUDED.observed_at",
+            (source, run, observed_at),
+        )
     return closed, opened
 
 
@@ -97,6 +124,6 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
 
 
 def record_all(conn) -> dict[str, tuple[int, int]]:
-    """The nightly: every feed's newest snapshot."""
+    """The nightly: every feed's newest snapshot (feeds not yet bootstrapped record nothing)."""
     return {source: record_feed(conn, table, source, key_expr, attrs)
             for table, source, key_expr, attrs in FEEDS}

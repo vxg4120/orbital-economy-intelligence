@@ -21,20 +21,34 @@ CREATE TABLE claim (
     value          TEXT NOT NULL,
     first_run      BIGINT NOT NULL REFERENCES ingest_run,
     observed_from  TIMESTAMPTZ NOT NULL,
-    closed_run     BIGINT REFERENCES ingest_run,   -- NULL: still asserted
-    observed_to    TIMESTAMPTZ,
-    CONSTRAINT claim_closed_both CHECK ((closed_run IS NULL) = (observed_to IS NULL))
+    closed_run     BIGINT REFERENCES ingest_run,   -- the first run that no longer made it; NULL: still asserted
+    observed_to    TIMESTAMPTZ,                     -- the last observation (the run before closed_run)
+    CONSTRAINT claim_closed_both CHECK ((closed_run IS NULL) = (observed_to IS NULL)),
+    CONSTRAINT claim_range CHECK (observed_to IS NULL OR observed_to >= observed_from)
 );
 -- One open claim per (source, key, attribute): the writer's whole contract in one constraint.
 CREATE UNIQUE INDEX claim_open_uq ON claim (source, source_key, attribute) WHERE closed_run IS NULL;
 CREATE INDEX claim_key_idx ON claim (source, source_key, attribute);
 CREATE INDEX claim_attr_idx ON claim (attribute) WHERE closed_run IS NULL;
 
--- The current claims per satellite: open claims through the keys that currently identify it.
+-- Progress per feed: the last run recorded and when it was observed, advanced on every
+-- recorded run, changes or not. It is the same-or-older-run guard, the bootstrap gate (the
+-- nightly records a feed only once the history replay has created its row), and "last
+-- observed" for every open claim of the feed. A closed claim's observed_to is the previous
+-- recorded run's time: the last observation, not the first absence (that is closed_run).
+CREATE TABLE claim_progress (
+    source       TEXT PRIMARY KEY,
+    last_run     BIGINT NOT NULL REFERENCES ingest_run,
+    observed_at  TIMESTAMPTZ NOT NULL
+);
+
+-- The current claims per satellite: open claims through the keys that currently identify it,
+-- last observed when the feed was (claim_progress).
 CREATE OR REPLACE VIEW v_current_claim AS
 SELECT si.satellite_id, c.claim_id, c.source, c.source_key, c.attribute, c.value,
-       c.first_run, c.observed_from
+       c.first_run, c.observed_from, p.observed_at AS observed_to
 FROM claim c
+JOIN claim_progress p ON p.source = c.source
 JOIN satellite_identifier si
   ON si.source = c.source AND si.id_value = c.source_key AND si.valid_to IS NULL
  AND si.id_type = CASE c.source WHEN 'satcat' THEN 'norad' WHEN 'gcat' THEN 'gcat_id'

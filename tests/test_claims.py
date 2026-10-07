@@ -12,6 +12,7 @@ from identity import assertions, claims
 pytestmark = pytest.mark.db
 
 T0 = dt.datetime(2026, 10, 1, 7, 10, tzinfo=dt.UTC)
+DAY = dt.timedelta(days=1)
 
 
 def _run(cur, source="celestrak"):
@@ -41,16 +42,19 @@ def _all(cur, source="satcat"):
     return cur.fetchall()
 
 
+def _record(conn, run, at, rows, source="satcat"):
+    return claims.record(conn, source, run, at, rows, bootstrap=True)
+
+
 def test_a_run_opens_closes_and_leaves_unchanged_claims_alone(db_conn):
     try:
         with db_conn.cursor() as cur:
             r1, r2 = _run(cur), _run(cur)
-        day = dt.timedelta(days=1)
-        assert claims.record(db_conn, "satcat", r1, T0, [
+        assert _record(db_conn, r1, T0, [
             ("1", "owner", "NASA"), ("1", "status", "+"), ("2", "owner", "ESA"),
         ]) == (0, 3)
         # Run 2: 1's owner changes, 1's status is unchanged, 2 vanishes, 3 appears.
-        assert claims.record(db_conn, "satcat", r2, T0 + day, [
+        assert _record(db_conn, r2, T0 + DAY, [
             ("1", "owner", "NASA/GSFC"), ("1", "status", "+"), ("3", "owner", "JAXA"),
         ]) == (2, 2)
         with db_conn.cursor() as cur:
@@ -60,35 +64,55 @@ def test_a_run_opens_closes_and_leaves_unchanged_claims_alone(db_conn):
                 ("1", "owner", "NASA", r1, r2), ("1", "status", "+", r1, None),
                 ("2", "owner", "ESA", r1, r2), ("1", "owner", "NASA/GSFC", r2, None),
                 ("3", "owner", "JAXA", r2, None),
-            ]  # ordered by (first_run, key, attribute, value)
+            ]
+            # Closed at run 2, last observed when run 1 was: the observation, not the absence.
             cur.execute("SELECT observed_to FROM claim WHERE source_key = '2'")
-            assert cur.fetchone()[0] == T0 + day
+            assert cur.fetchone()[0] == T0
+            cur.execute("SELECT last_run, observed_at FROM claim_progress WHERE source = 'satcat'")
+            assert cur.fetchone() == (r2, T0 + DAY)
     finally:
         db_conn.rollback()
 
 
-def test_recording_the_same_run_twice_writes_nothing(db_conn):
+def test_a_run_at_or_before_the_last_recorded_is_refused(db_conn):
+    """Twice the same run changes nothing even with different rows, and an older run would
+    close everything the newer one makes. An unchanged run still advances the progress row,
+    so a late run cannot slip in behind it."""
     try:
         with db_conn.cursor() as cur:
-            r1 = _run(cur)
-        rows = [("1", "owner", "NASA"), ("1", "status", "+")]
-        assert claims.record(db_conn, "satcat", r1, T0, rows) == (0, 2)
-        assert claims.record(db_conn, "satcat", r1, T0, rows) == (0, 0)
+            r1, r2, r3 = _run(cur), _run(cur), _run(cur)
+        assert _record(db_conn, r1, T0, [("1", "owner", "NASA")]) == (0, 1)
+        assert _record(db_conn, r1, T0, [("1", "owner", "CHANGED")]) == (0, 0)
+        assert _record(db_conn, r3, T0 + 2 * DAY, [("1", "owner", "NASA")]) == (0, 0)
+        assert _record(db_conn, r2, T0 + DAY, [("1", "owner", "LATE")]) == (0, 0)
         with db_conn.cursor() as cur:
-            assert len(_all(cur)) == 2
+            assert _open(cur) == [("1", "owner", "NASA", r1)]
+            cur.execute("SELECT last_run FROM claim_progress WHERE source = 'satcat'")
+            assert cur.fetchone()[0] == r3
     finally:
         db_conn.rollback()
 
 
-def test_a_run_older_than_the_last_recorded_is_refused(db_conn):
-    """Recording out of order would close everything the newer run makes."""
+def test_an_empty_snapshot_is_not_evidence_that_every_claim_ended(db_conn):
     try:
         with db_conn.cursor() as cur:
             r1, r2 = _run(cur), _run(cur)
-        claims.record(db_conn, "satcat", r2, T0, [("1", "owner", "NASA")])
-        assert claims.record(db_conn, "satcat", r1, T0, [("9", "owner", "X")]) == (0, 0)
+        _record(db_conn, r1, T0, [("1", "owner", "NASA")])
+        assert _record(db_conn, r2, T0 + DAY, []) == (0, 0)
         with db_conn.cursor() as cur:
-            assert _open(cur) == [("1", "owner", "NASA", r2)]
+            assert _open(cur) == [("1", "owner", "NASA", r1)]
+    finally:
+        db_conn.rollback()
+
+
+def test_the_nightly_records_nothing_for_a_feed_whose_history_is_not_replayed(db_conn):
+    """The replay creates the progress row; until then a nightly run would be recorded first
+    and every older run refused, and the history lost."""
+    try:
+        with db_conn.cursor() as cur:
+            r1 = _run(cur)
+        assert claims.record(db_conn, "satcat", r1, T0, [("1", "owner", "NASA")]) == (0, 0)
+        assert _record(db_conn, r1, T0, [("1", "owner", "NASA")]) == (0, 1)
     finally:
         db_conn.rollback()
 
@@ -97,8 +121,8 @@ def test_a_value_that_flips_back_is_three_rows(db_conn):
     try:
         with db_conn.cursor() as cur:
             runs = [_run(cur) for _ in range(3)]
-        for run, value in zip(runs, ("A", "B", "A")):
-            claims.record(db_conn, "satcat", run, T0, [("1", "status", value)])
+        for i, (run, value) in enumerate(zip(runs, ("A", "B", "A"))):
+            _record(db_conn, run, T0 + i * DAY, [("1", "status", value)])
         with db_conn.cursor() as cur:
             assert [(r[2], r[3], r[4]) for r in _all(cur)] == [
                 ("A", runs[0], runs[1]), ("B", runs[1], runs[2]), ("A", runs[2], None),
@@ -112,7 +136,7 @@ def test_feeds_record_the_same_rows_the_assertion_writer_extracts(db_conn):
     seeded GCAT snapshot their outputs agree row for row, NULLs and '-' placeholders included."""
     try:
         with db_conn.cursor() as cur:
-            run = _run(cur, "gcat")
+            earlier, run = _run(cur, "gcat"), _run(cur, "gcat")
             cur.execute(
                 "INSERT INTO raw_gcat_satcat (jcat, norad_id, piece, name, pl_name, owner, "
                 "status, bus, manufacturer, decay_date, object_type, ingest_run_id) VALUES "
@@ -120,6 +144,7 @@ def test_feeds_record_the_same_rows_the_assertion_writer_extracts(db_conn):
                 "('S2', 2, '2026-001B', 'TWO', NULL, NULL, 'D', 'X-BUS', '', '2026-01-02', 'P', %(r)s)",
                 {"r": run},
             )
+            cur.execute("INSERT INTO claim_progress VALUES ('gcat', %s, %s)", (earlier, T0))
         assertions._extract(db_conn, "raw_gcat_satcat", "gcat", "jcat", "gcat_id",
                             assertions._GCAT_ATTRS, run)
         assert claims.record_feed(db_conn, "raw_gcat_satcat", "gcat", "jcat",
@@ -152,12 +177,12 @@ def test_the_current_view_reaches_satellites_through_current_links_only(db_conn)
                 "(%s, 'gcat_id', 'S970002002', 'gcat', '2026-10-01')",
                 (b, a),
             )
-        claims.record(db_conn, "gcat", run, T0, [("S970002002", "owner", "OWN"),
-                                                ("S970002003", "owner", "NOBODY")])
+        _record(db_conn, run, T0, [("S970002002", "owner", "OWN"),
+                                   ("S970002003", "owner", "NOBODY")], source="gcat")
         with db_conn.cursor() as cur:
-            cur.execute("SELECT satellite_id, value FROM v_current_claim WHERE source = 'gcat' "
-                        "AND source_key LIKE 'S97000200%'")
-            assert cur.fetchall() == [(b, "OWN")]  # a's link is retired; S970002003 has none
+            cur.execute("SELECT satellite_id, value, observed_to FROM v_current_claim "
+                        "WHERE source = 'gcat' AND source_key LIKE 'S97000200%'")
+            assert cur.fetchall() == [(b, "OWN", T0)]  # a's link is retired; S970002003 has none
     finally:
         db_conn.rollback()
 
@@ -181,20 +206,20 @@ def test_replaying_history_gives_the_same_claims_as_recording_it_live(db_conn):
                         "INSERT INTO source_assertion (satellite_id, source_key, attribute, "
                         "value, source, observed_at, ingest_run_id) VALUES (NULL, %s, %s, %s, "
                         "'satcat', %s, %s)",
-                        (key, attribute, value, T0 + dt.timedelta(days=i), run),
+                        (key, attribute, value, T0 + i * DAY, run),
                     )
             cur.execute("DELETE FROM claim WHERE source = 'satcat'")
-        todo = [(s, r) for s, r in build_claims.runs_to_replay(db_conn) if r in runs]
-        assert [r for _, r in todo] == runs
-        results = [build_claims.replay(db_conn, s, r) for s, r in todo]
-        assert results == [(0, 2), (1, 1), (1, 0)]
+            cur.execute("DELETE FROM claim_progress WHERE source = 'satcat'")
+        todo = [r for r in build_claims.runs_to_replay(db_conn, "satcat") if r in runs]
+        assert todo == runs
+        assert [build_claims.replay(db_conn, "satcat", r) for r in todo] == [(0, 2), (1, 1), (1, 0)]
         with db_conn.cursor() as cur:
             assert _open(cur) == [("1", "owner", "NASA/GSFC", runs[1])]
             assert len(_all(cur)) == 3
-        # Resumable: nothing left to replay, and replaying the last run again writes nothing.
-        assert [(s, r) for s, r in build_claims.runs_to_replay(db_conn) if r in runs] == [
-            ("satcat", runs[2])
-        ]
+            cur.execute("SELECT observed_to FROM claim WHERE source_key = '2'")
+            assert cur.fetchone()[0] == T0 + DAY  # last seen in run 2, absent from run 3
+        # Resumable: nothing left, and the last run again is refused.
+        assert [r for r in build_claims.runs_to_replay(db_conn, "satcat") if r in runs] == []
         assert build_claims.replay(db_conn, "satcat", runs[2]) == (0, 0)
     finally:
         db_conn.rollback()
