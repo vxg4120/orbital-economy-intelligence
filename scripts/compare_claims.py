@@ -115,10 +115,15 @@ def main() -> int:
             flag = "" if last == newest else "   <- behind"
             print(f"progress {source}: last_run {last}, newest ledger run {newest}{flag}")
             ok = ok and last == newest
-        missing = set(claims.SOURCES) - {r[0] for r in rows}
-        if missing:
-            print(f"no progress row: {sorted(missing)}")
-            ok = False
+        # A feed with ledger rows but no progress row was never replayed; a feed with neither
+        # (UCS on production, 2026-10-07) has no history to replay and is noted, not failed.
+        cur.execute("SELECT DISTINCT source FROM _ledger")
+        in_ledger = {r[0] for r in cur.fetchall()}
+        recorded = {r[0] for r in rows}
+        for source in sorted(set(claims.SOURCES) - recorded):
+            print(f"{source}: " + ("in the ledger but not replayed" if source in in_ledger
+                                   else "no history on this database"))
+            ok = ok and source not in in_ledger
         cur.execute("SELECT count(*), count(*) FILTER (WHERE closed_run IS NULL), "
                     "pg_size_pretty(pg_total_relation_size('claim')) FROM claim")
         total, open_, size = cur.fetchone()

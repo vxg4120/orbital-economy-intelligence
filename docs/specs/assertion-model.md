@@ -102,16 +102,24 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   gate, A->B->A as three rows, row-for-row agreement with the assertion writer on a seeded
   snapshot, the view through current links only, and a replayed history equal to one recorded
   live. Mutants of each guard fail the suite. Full suite 420 passed.
-- [ ] After the production replay, `v_current_claim` equals the current readers' output
+- [x] After the production replay, `v_current_claim` equals the current readers' output
   (`claim_is_current` over `CURRENT_ASSERTIONS`) row for row (`EXCEPT` both ways returns
-  nothing), and `claim_progress.last_run` per feed equals the feed's newest run.
-- [ ] The new table built from production has one row per claim: about 1.4M rows against 35M
-  (measured 2026-10-05: 140,881 current (satellite, source) pairs per attribute).
+  nothing), and `claim_progress.last_run` per feed equals the feed's newest run. Measured
+  2026-10-07 05:05 UTC: 704,323 rows each way, both EXCEPTs 0; satcat at run 4557, gcat at
+  4558; UCS has no history on production (never ingested), so no progress row.
+- [x] The new table built from production has one row per claim: 728,766 claims (703,661
+  open) against 37.0M ledger rows, 161 MB against 4.7 GB. (The spec's 1.4M estimate counted
+  (satellite, source) pairs per attribute across five attributes; a claim is per attribute,
+  and GCAT and SATCAT make about 350k each.) The replay took 10 minutes: the index build about
+  3, then 106 runs at 1.2 to 2 s each.
 - [ ] For every reader in the inventory, the before/after comparison script
   (scripts/compare_claims.py: ledger vs view both ways, resolver winners per attribute,
   progress per feed) reports identical output, or a difference the spec names: the resolver's
   "no longer claimed" count per attribute is that difference, recorded in the log with its
-  production numbers.
+  production numbers: 2026-10-07, name/object_type/owner 140,881 winners each, 0 changed, 0
+  withdrawn; status 124,357 same, 1 withdrawn; decay_date 72,189 same, 4 withdrawn (STARLINK-
+  38308's SATCAT decay 2026-09-07 dropped by run 4283, Electron Stage 2's GCAT "2025 Apr 4
+  0620?" dropped by run 3263, Briz-M 88520, Zhixing 2A, and OBJECT B's SATCAT status "+").
 - [ ] A nightly on the new model adds rows only for changed or new claims; the table's growth
   over a week is under 5 MB.
 - [ ] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
