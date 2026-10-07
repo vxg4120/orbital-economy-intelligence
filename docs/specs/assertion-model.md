@@ -167,3 +167,16 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   transaction (tests/claimfix.py overwrites it), so "last observed" is the test's, not the
   database's; the resolver test moves progress past a claim's first observation and closes a
   claim on a current key, and a mutant returning observed_from fails it.
+- 2026-10-07 (Claude) — **GCAT's DDate is a decay date only under a decayed phase.** Found on
+  the first nightly check: the ISS card said decay 1998-12-06, which is Zarya's grapple by
+  Unity (GCAT status GRP). GCAT's DDate is the time a phase ended and Status names the event
+  that ended it (planet4589 phases doc), so the resolver now keeps a GCAT decay claim only
+  when status_map.yml maps the GCAT status on the same key to DECAYED, and retracts dates
+  resolved from phase dates earlier. Known limit, unchanged here: status_map.yml maps a
+  collision (C) to DECAYED although GCAT allows the object to survive one; 23 objects, the
+  status map's call. Measured on
+  production: 36,531 GCAT dates, 35,669 under decayed phases; about 750 cards lose a date that
+  was a departure to deep space (DSO, 321), a renaming (N, 334), a docking, grapple or
+  attachment. GCAT's "?" suffix marks an uncertain phase (R?, 13 objects), the same phase: the
+  mapping lookup retries without it, for status as well as decay. Pre-existing in the ledger;
+  not a claim-model regression (the production comparison showed 0 changed decay winners).

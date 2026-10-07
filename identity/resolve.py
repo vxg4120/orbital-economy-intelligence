@@ -109,8 +109,42 @@ def _resolve_object_type(conn, order) -> None:
                 )
 
 
+def _gcat_ddate_is_decay(conn) -> dict[int, bool]:
+    """Per satellite, whether GCAT's DDate on its decay claim is an end of life. GCAT's DDate
+    is the time a phase ended and Status names the event that ended it: for a reentry or
+    landing (status_map.yml maps it to DECAYED) that is the decay date, but for a grapple,
+    docking, attachment or renaming it is that event's date, and resolving it as a decay put
+    1998-12-06 (Zarya's grapple by Unity, GCAT status GRP) on the ISS card until 2026-10-07.
+    The status is the one on the same GCAT key as the decay claim _assertions picks (the
+    greatest key with one), since a satellite holding two GCAT keys can hold two phases."""
+    mapping = _status_mapping(conn)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (si.satellite_id) si.satellite_id, st.value
+            FROM claim d
+            JOIN claim st ON st.source = 'gcat' AND st.source_key = d.source_key
+                         AND st.attribute = 'status' AND st.closed_run IS NULL
+            JOIN satellite_identifier si
+              ON si.source = 'gcat' AND si.id_type = 'gcat_id' AND si.id_value = d.source_key
+             AND si.valid_to IS NULL
+            WHERE d.source = 'gcat' AND d.attribute = 'decay_date' AND d.closed_run IS NULL
+            ORDER BY si.satellite_id, d.source_key DESC
+            """
+        )
+        return {sat: _canonical(mapping, "gcat", status) == "DECAYED"
+                for sat, status in cur.fetchall()}
+
+
 def _resolve_decay_date(conn, order) -> None:
     data = _assertions(conn, "decay_date")
+    is_decay = _gcat_ddate_is_decay(conn)
+    phase_dates = [sat for sat, by_source in data.items()
+                   if "gcat" in by_source and not is_decay.get(sat, False)]
+    for sat in phase_dates:
+        del data[sat]["gcat"]
+        if not data[sat]:
+            del data[sat]
     with conn.cursor() as cur:
         for sat_id, by_source in data.items():
             picked = _pick(by_source, order)
@@ -125,7 +159,8 @@ def _resolve_decay_date(conn, order) -> None:
                 )
         # Retraction: a date resolved earlier from a claim no source currently makes for this
         # satellite (its only decay claim came through a since-retired sibling key: one case on
-        # production, 2026-10-06) would otherwise stay on the card forever.
+        # production, 2026-10-06; or a GCAT phase date that is not a decay) would otherwise
+        # stay on the card forever.
         cur.execute(
             "UPDATE satellite SET decay_date = NULL, updated_at = now() "
             "WHERE decay_date IS NOT NULL AND NOT (satellite_id = ANY(%s))",
@@ -142,6 +177,16 @@ def _status_mapping(conn) -> dict[tuple[str, str], str]:
         return {(s, v): c for s, v, c in cur.fetchall()}
 
 
+def _canonical(mapping: dict, src: str, value: str) -> str | None:
+    """The canonical status for a source value, or None when unmapped. GCAT marks an uncertain
+    phase with a trailing "?" (R? = reentered, probably; 13 objects on 2026-10-07): the phase
+    is the same, so the lookup retries without it."""
+    canonical = mapping.get((src, value))
+    if canonical is None and src == "gcat" and value.endswith("?"):
+        canonical = mapping.get((src, value.rstrip("?").strip()))
+    return canonical
+
+
 def _resolve_status(conn, order, stats) -> None:
     """Resolve canonical status, falling through UNKNOWN so GCAT's physical phase yields to
     SATCAT's operational code; unmapped source values resolve to UNKNOWN and are counted."""
@@ -156,10 +201,10 @@ def _resolve_status(conn, order, stats) -> None:
                 if src not in by_source:
                     continue
                 value, observed = by_source[src]
-                if (src, value) not in mapping:
+                canonical = _canonical(mapping, src, value)
+                if canonical is None:
                     unmapped.add((src, value))
                     continue  # unmapped -> UNKNOWN, keep looking
-                canonical = mapping[(src, value)]
                 if canonical == "UNKNOWN":
                     continue  # fall through to the next source
                 winner = (canonical, src, observed)
