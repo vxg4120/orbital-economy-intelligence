@@ -94,7 +94,7 @@ def _perigee_apogee(cur, norad_id, jcat):
 def _identifiers(cur, satellite_id):
     cur.execute(
         "SELECT id_type, id_value, source, confidence FROM satellite_identifier "
-        "WHERE satellite_id = %s ORDER BY id_type, source, id_value",
+        "WHERE satellite_id = %s AND valid_to IS NULL ORDER BY id_type, source, id_value",
         (satellite_id,),
     )
     return [

@@ -74,7 +74,7 @@ def _extract(conn, table, source, key_expr, id_type, attrs, run) -> None:
                 FROM {table} r
                 LEFT JOIN satellite_identifier si
                        ON si.id_type = %(id_type)s AND si.source = %(src)s
-                      AND si.id_value = ({key_expr})::text
+                      AND si.id_value = ({key_expr})::text AND si.valid_to IS NULL
                 WHERE r.ingest_run_id = %(run)s
                   AND ({col}) IS NOT NULL
                   AND NOT EXISTS (

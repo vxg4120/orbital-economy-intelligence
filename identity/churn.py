@@ -30,6 +30,8 @@ from __future__ import annotations
 
 from psycopg.types.json import Jsonb
 
+from identity.normalize import norm_cospar
+
 # The two most recent OK GCAT snapshot runs, plus each run's payload projection with the
 # normalized name key. Shared prefix for detection and measurement so they cannot disagree.
 _RUNS_CTE = """
@@ -154,6 +156,91 @@ def expire_contested(conn) -> int:
     return expired
 
 
+_MOVED_SELECT_SQL = """
+WITH keyed AS (
+    SELECT 'gcat_id' AS id_type, a.jcat AS id_value, s.satellite_id AS anchor
+    FROM _gcat_anchor a JOIN satellite s ON s.norad_id = a.norad
+    UNION ALL
+    SELECT 'cospar', a.cospar, s.satellite_id
+    FROM _gcat_anchor a JOIN satellite s ON s.norad_id = a.norad
+    WHERE a.cospar IS NOT NULL
+)
+SELECT si.identifier_id, si.satellite_id, si.id_type, si.id_value, k.anchor
+FROM satellite_identifier si
+JOIN keyed k ON k.id_type = si.id_type AND k.id_value = si.id_value
+WHERE si.source = 'gcat' AND si.valid_to IS NULL AND si.satellite_id <> k.anchor
+  AND EXISTS (SELECT 1 FROM satellite_identifier h
+              WHERE h.id_type = si.id_type AND h.id_value = si.id_value AND h.source = 'gcat'
+                AND h.satellite_id = k.anchor AND h.valid_to IS NULL)
+ORDER BY si.identifier_id
+"""
+
+
+def _catalog_number(jcat: str) -> int | None:
+    """GCAT's S<n> is Satcat (NORAD) number n; other jcat families carry no number."""
+    return int(jcat[1:]) if jcat[:1] == "S" and jcat[1:].isdigit() else None
+
+
+def expire_moved_gcat_keys(conn) -> int:
+    """Retire every current GCAT link that sits on a satellite other than the one GCAT's newest
+    row anchors the key to.
+
+    The NORAD pass in identity/match.py is additive and never retires, so when GCAT revises
+    which of two co-deployed objects a key belongs to (105 keys on production, 2026-10-06, all
+    on anchored satellites that expire_contested is right to leave alone) the old link stays,
+    current, at confidence 1.00, and the sibling receives the other's claims. The anchor is
+    identity/bus.py's rule 1: the satellite whose NORAD the row carries, or, when GCAT
+    publishes none, the key's own number. Only gcat_id and cospar keys: sibling names repeat.
+
+    A link is retired only when the anchor already holds the same key, so a key is never left
+    with no current link; the matcher links the anchor and the next run retires the other.
+    Retired, never deleted, with an identity_event per link, like expire_contested.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT max(r.ingest_run_id) FROM raw_gcat_satcat r "
+            "JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id WHERE i.status = 'ok'"
+        )
+        run = cur.fetchone()[0]
+        if run is None:
+            return 0
+        cur.execute(
+            "SELECT jcat, norad_id, piece FROM raw_gcat_satcat WHERE ingest_run_id = %s", (run,)
+        )
+        staged = []
+        for jcat, norad, piece in cur.fetchall():
+            anchor = norad if norad is not None else _catalog_number(jcat)
+            if anchor is not None:
+                staged.append((jcat, anchor, norm_cospar(piece)[0]))
+        # Staged like the matcher, so the cospar key is normalized by the same function.
+        cur.execute(
+            "CREATE TEMP TABLE _gcat_anchor (jcat text, norad bigint, cospar text) ON COMMIT DROP"
+        )
+        with cur.copy("COPY _gcat_anchor (jcat, norad, cospar) FROM STDIN") as cp:
+            for rec in staged:
+                cp.write_row(rec)
+        cur.execute(_MOVED_SELECT_SQL)
+        victims = cur.fetchall()
+        cur.execute("DROP TABLE _gcat_anchor")
+        if not victims:
+            return 0
+        cur.execute(
+            "UPDATE satellite_identifier SET valid_to = "
+            "(SELECT max(started_at)::date FROM ingest_run WHERE status = 'ok') "
+            "WHERE identifier_id = ANY(%s)",
+            ([v[0] for v in victims],),
+        )
+        expired = cur.rowcount
+        for _identifier_id, sat_id, id_type, id_value, anchor in victims:
+            cur.execute(
+                "INSERT INTO identity_event (satellite_id, event, rule_fired, ingest_run_id, "
+                "details) VALUES (%s, 'identifier_expired', 'gcat_anchor_moved', %s, %s)",
+                (sat_id, run, Jsonb({"id_type": id_type, "id_value": id_value,
+                                     "source": "gcat", "moved_to": anchor})),
+            )
+    return expired
+
+
 def run_all(conn) -> dict:
     """The nightly sequence: observe, measure, re-anchor, then expire what the observations
     justify. Ordering matters: expiry reads the churn rows detect just wrote, and promotion
@@ -163,5 +250,6 @@ def run_all(conn) -> dict:
         "churn_rows": detect(conn),
         "stability_rows": measure_stability(conn),
         "anchor_refreshed": refresh_anchor_state(conn),
+        "identifiers_moved": expire_moved_gcat_keys(conn),
         "identifiers_expired": expire_contested(conn),
     }

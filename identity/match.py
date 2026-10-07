@@ -174,6 +174,20 @@ def _bulk_link_by_norad(cur, stage_table, id_type, value_expr, source, rule) -> 
         """,
         {"id_type": id_type, "source": source, "rule": rule},
     )
+    # Resurrection, as merge.link does one row at a time: a link retired because the catalog
+    # moved the key (churn.expire_moved_gcat_keys) comes back when the snapshot anchors it here
+    # again, otherwise ON CONFLICT DO NOTHING would leave the right link retired for good.
+    cur.execute(
+        f"""
+        UPDATE satellite_identifier si SET valid_to = NULL
+        FROM {stage_table} st
+        JOIN satellite s ON s.norad_id = st.norad
+        WHERE si.satellite_id = s.satellite_id AND si.id_type = %(id_type)s
+          AND si.id_value = ({value_expr}) AND si.source = %(source)s
+          AND si.valid_to IS NOT NULL
+        """,
+        {"id_type": id_type, "source": source},
+    )
 
 
 def _deterministic_satcat(conn) -> None:
