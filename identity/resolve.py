@@ -110,14 +110,30 @@ def _resolve_object_type(conn, order) -> None:
 
 
 def _gcat_ddate_is_decay(conn) -> dict[int, bool]:
-    """Per satellite, whether GCAT's DDate is an end of life. GCAT's Status is a physical phase
-    and DDate is the date that phase began: for a reentry or landing phase (status_map.yml
-    maps it to DECAYED) that is the decay date, but for an attached, grappled, docked or
-    renamed object it is the attachment or renaming date, and resolving it as a decay put
-    1998-12-06 (Zarya's grapple by Unity, GCAT status GRP) on the ISS card until 2026-10-07."""
+    """Per satellite, whether GCAT's DDate on its decay claim is an end of life. GCAT's DDate
+    is the time a phase ended and Status names the event that ended it: for a reentry or
+    landing (status_map.yml maps it to DECAYED) that is the decay date, but for a grapple,
+    docking, attachment or renaming it is that event's date, and resolving it as a decay put
+    1998-12-06 (Zarya's grapple by Unity, GCAT status GRP) on the ISS card until 2026-10-07.
+    The status is the one on the same GCAT key as the decay claim _assertions picks (the
+    greatest key with one), since a satellite holding two GCAT keys can hold two phases."""
     mapping = _status_mapping(conn)
-    return {sat: _canonical(mapping, "gcat", by_source["gcat"][0]) == "DECAYED"
-            for sat, by_source in _assertions(conn, "status").items() if "gcat" in by_source}
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (si.satellite_id) si.satellite_id, st.value
+            FROM claim d
+            JOIN claim st ON st.source = 'gcat' AND st.source_key = d.source_key
+                         AND st.attribute = 'status' AND st.closed_run IS NULL
+            JOIN satellite_identifier si
+              ON si.source = 'gcat' AND si.id_type = 'gcat_id' AND si.id_value = d.source_key
+             AND si.valid_to IS NULL
+            WHERE d.source = 'gcat' AND d.attribute = 'decay_date' AND d.closed_run IS NULL
+            ORDER BY si.satellite_id, d.source_key DESC
+            """
+        )
+        return {sat: _canonical(mapping, "gcat", status) == "DECAYED"
+                for sat, status in cur.fetchall()}
 
 
 def _resolve_decay_date(conn, order) -> None:

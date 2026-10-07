@@ -299,18 +299,20 @@ def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_ti
 
 @pytest.mark.db
 def test_a_gcat_phase_date_is_a_decay_only_under_a_decayed_phase(db_conn):
-    """GCAT's DDate is the date its Status phase began: a reentry (R) date is a decay, so is a
-    probable one (R?: GCAT's uncertainty mark, the phase unchanged), a grapple (GRP) date is
-    not, and SATCAT's own decay date is taken as before. An object whose card was given a
-    grapple date earlier (the ISS, 1998-12-06) has it retracted."""
+    """GCAT's DDate is the time a phase ended and Status the event that ended it: a reentry
+    (R) date is a decay, so is a probable one (R?: GCAT's uncertainty mark, the phase
+    unchanged), a grapple (GRP) date is not, and SATCAT's own decay date is taken as before.
+    An object whose card was given a grapple date earlier (the ISS, 1998-12-06) has it
+    retracted. The status is read on the same key as the date: a merged object whose greater
+    key reentered keeps no date from its lesser, grappled key."""
     try:
         with db_conn.cursor() as cur:
             cur.execute("INSERT INTO status_mapping (source, source_value, canonical_status) "
                         "VALUES ('gcat', 'R', 'DECAYED'), ('gcat', 'GRP', 'UNKNOWN') "
                         "ON CONFLICT DO NOTHING")
             run = _run(cur)
-            grappled, reentered, both, probably = (
-                _sat(cur, n) for n in (970000111, 970000112, 970000113, 970000114))
+            grappled, reentered, both, probably, merged = (
+                _sat(cur, n) for n in (970000111, 970000112, 970000113, 970000114, 970000115))
             cur.execute("UPDATE satellite SET decay_date = '1998-12-06' WHERE satellite_id = %s",
                         (grappled,))
             seed_claim(cur, grappled, "gcat", "status", "GRP", run, key="S970000111")
@@ -323,14 +325,20 @@ def test_a_gcat_phase_date_is_a_decay_only_under_a_decayed_phase(db_conn):
             seed_claim(cur, both, "satcat", "decay_date", "2025-05-05", run)
             seed_claim(cur, probably, "gcat", "status", "R?", run, key="S970000114")
             seed_claim(cur, probably, "gcat", "decay_date", "2023 Jul  1?", run, key="S970000114")
+            # Two keys on one satellite: the greater key reentered with no date on it, the
+            # lesser key (the only one with a date, so the one _assertions picks) was grappled.
+            seed_claim(cur, merged, "gcat", "status", "GRP", run, key="S970000115")
+            seed_claim(cur, merged, "gcat", "decay_date", "2019 May  5", run, key="S970000115")
+            seed_claim(cur, merged, "gcat", "status", "R", run, key="S970000116")
         resolve._resolve_decay_date(db_conn, ["spacetrack_decay", "satcat", "gcat"])
         stats = {}
         resolve._resolve_status(db_conn, ["satcat", "gcat"], stats)
         with db_conn.cursor() as cur:
             cur.execute("SELECT satellite_id, decay_date FROM satellite WHERE satellite_id = ANY(%s) "
-                        "ORDER BY 1", ([grappled, reentered, both, probably],))
+                        "ORDER BY 1", ([grappled, reentered, both, probably, merged],))
             assert cur.fetchall() == [(grappled, None), (reentered, dt.date(2024, 3, 3)),
-                                      (both, dt.date(2025, 5, 5)), (probably, dt.date(2023, 7, 1))]
+                                      (both, dt.date(2025, 5, 5)), (probably, dt.date(2023, 7, 1)),
+                                      (merged, None)]
             cur.execute("SELECT canonical_status FROM satellite_status_history WHERE satellite_id = %s",
                         (probably,))
             assert cur.fetchall() == [("DECAYED",)]
