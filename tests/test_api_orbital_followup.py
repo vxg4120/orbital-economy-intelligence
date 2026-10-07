@@ -302,9 +302,11 @@ def test_conflict_sql_keeps_order_provenance_and_counts(db_conn):
             CREATE TEMP TABLE source_assertion (
                 satellite_id int, source text, attribute text, value text,
                 observed_at timestamptz, ingest_run_id int, source_key text);
-            -- The router reads v_linked_assertion (migration 0022), a view bound to the real
-            -- table; a temp view of the same name shadows it and reads the temp table above.
-            CREATE TEMP VIEW v_linked_assertion AS SELECT * FROM source_assertion;
+            -- The router keeps only claims through a current key (v_current_source_key,
+            -- migration 0022), a view bound to the real crosswalk; a temp view of the same
+            -- name shadows it and treats every seeded key as current.
+            CREATE TEMP VIEW v_current_source_key AS
+                SELECT DISTINCT satellite_id, source, source_key FROM source_assertion;
             CREATE TEMP TABLE status_mapping (source text, source_value text, canonical_status text);
             CREATE TEMP TABLE satellite (satellite_id int PRIMARY KEY, norad_id int, canonical_name text);
             CREATE TEMP TABLE operator (operator_id int PRIMARY KEY, canonical_name text);

@@ -43,9 +43,13 @@ def _assertions(conn, attribute):
     id is allocated before its download and observed_at is the load time, so two overlapping
     ingests can land in inverted order (Codex verify, 2026-10-05).
 
-    Read through v_linked_assertion (migration 0022): a claim counts only while the key it came
-    through still identifies the satellite, so a co-deployed sibling's claims stop being this
+    A claim counts only while the key it came through still identifies the satellite
+    (v_current_source_key, migration 0022), so a co-deployed sibling's claims stop being this
     satellite's the moment the crosswalk retires the link (docs/specs/gcat-sibling-links.md).
+    The key check joins AFTER the newest-per-group step, on the ~140k winners: joined first,
+    the planner drives a nested loop from the crosswalk into the whole table (a 300 s timeout
+    against 19 s on production). The two orders agree because the writer only writes through
+    current keys, so a stale key's rows are never newer than the current key's.
     """
     out: dict[int, dict[str, tuple]] = defaultdict(dict)
     with conn.cursor() as cur:
@@ -53,15 +57,17 @@ def _assertions(conn, attribute):
             """
             WITH newest AS (
                 SELECT satellite_id, source, max(observed_at) AS observed_at
-                FROM v_linked_assertion
+                FROM source_assertion
                 WHERE attribute = %(attribute)s AND satellite_id IS NOT NULL
                 GROUP BY 1, 2
             )
             SELECT DISTINCT ON (a.satellite_id, a.source)
                    a.satellite_id, a.source, a.value, a.observed_at
-            FROM v_linked_assertion a
+            FROM source_assertion a
             JOIN newest n ON n.satellite_id = a.satellite_id AND n.source = a.source
                          AND n.observed_at = a.observed_at
+            JOIN v_current_source_key k ON k.satellite_id = a.satellite_id
+                                       AND k.source = a.source AND k.source_key = a.source_key
             WHERE a.attribute = %(attribute)s AND a.satellite_id IS NOT NULL
             ORDER BY a.satellite_id, a.source, a.ingest_run_id DESC, a.source_key DESC
             """,

@@ -23,18 +23,27 @@ router = APIRouter(prefix="/conflicts", tags=["conflicts"])
 # --- status disagreements (report.py _section_status_disagreements + satellite_id) -----------
 _STATUS_SQL = """
 WITH satcat AS (
-    SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-    FROM v_linked_assertion a
-    JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
-    WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-    ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+    -- The newest mapped claim per satellite, kept only if its key still identifies the
+    -- satellite (v_current_source_key, migration 0022); the key join comes after the pick, see
+    -- identity/resolve.py for why.
+    SELECT w.satellite_id, w.canonical_status
+    FROM (SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.source, a.source_key,
+                 m.canonical_status
+          FROM source_assertion a
+          JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
+          WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
+          ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key) w
+    JOIN v_current_source_key k USING (satellite_id, source, source_key)
 ),
 gcat AS (
-    SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-    FROM v_linked_assertion a
-    JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
-    WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-    ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+    SELECT w.satellite_id, w.canonical_status
+    FROM (SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.source, a.source_key,
+                 m.canonical_status
+          FROM source_assertion a
+          JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
+          WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
+          ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key) w
+    JOIN v_current_source_key k USING (satellite_id, source, source_key)
 ),
 disagree AS (
     SELECT
@@ -56,10 +65,12 @@ disagree AS (
 # --- stale post-M&A owners (report.py _section_stale_post_ma_owners + satellite_id) ----------
 _STALE_SQL = """
 WITH latest_satcat_owner AS (
-    SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw
-    FROM v_linked_assertion
-    WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
-    ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
+    SELECT w.satellite_id, w.owner_raw
+    FROM (SELECT DISTINCT ON (satellite_id) satellite_id, source, source_key, value AS owner_raw
+          FROM source_assertion
+          WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
+          ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key) w
+    JOIN v_current_source_key k USING (satellite_id, source, source_key)
 ),
 owner_operator AS (
     SELECT lso.satellite_id, lso.owner_raw, oa.operator_id
@@ -93,10 +104,13 @@ stale AS (
 _DECAY_CLAIMS_SQL = """
 SELECT s.satellite_id, s.norad_id, s.canonical_name, l.source, l.value
 FROM (
-    SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_at
-    FROM v_linked_assertion
-    WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
-    ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key
+    SELECT w.satellite_id, w.source, w.value, w.observed_at
+    FROM (SELECT DISTINCT ON (satellite_id, source) satellite_id, source, source_key, value,
+                 observed_at
+          FROM source_assertion
+          WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
+          ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key) w
+    JOIN v_current_source_key k USING (satellite_id, source, source_key)
 ) l
 JOIN satellite s ON s.satellite_id = l.satellite_id
 ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source

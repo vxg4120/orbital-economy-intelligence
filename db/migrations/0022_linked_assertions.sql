@@ -15,16 +15,25 @@ ALTER TABLE identity_event ADD CONSTRAINT identity_event_event_ck CHECK (event I
 --    The resolver, the satellite page and the conflicts page read through this view; the
 --    writer (identity/assertions.py) joins the same current links, so the two agree from the
 --    first extraction after a retirement.
+--    v_current_source_key is the definition: the (satellite, source, source_key) triples that
+--    currently identify a satellite. Readers over the whole table (identity/resolve.py,
+--    api/routers/conflicts.py) pick their newest claim first and join this AFTER, on the
+--    ~140k winners: joining it first makes the planner drive a nested loop from the crosswalk
+--    into the 35M-row table (measured 2026-10-06: a 300 s timeout against 19 s). The two orders
+--    agree, because the writer only writes through current keys, so a stale key's rows are
+--    never newer than the current key's. v_linked_assertion is the joined form for reads of one
+--    satellite (api/routers/satellites.py), where the index on satellite_id makes it cheap.
+CREATE OR REPLACE VIEW v_current_source_key AS
+SELECT satellite_id, source, id_value AS source_key
+FROM satellite_identifier
+WHERE valid_to IS NULL
+  AND id_type = CASE source
+                  WHEN 'satcat' THEN 'norad'
+                  WHEN 'gcat' THEN 'gcat_id'
+                  WHEN 'ucs' THEN 'ucs_row'
+                END;
+
 CREATE OR REPLACE VIEW v_linked_assertion AS
 SELECT a.*
 FROM source_assertion a
-JOIN satellite_identifier si
-  ON si.satellite_id = a.satellite_id
- AND si.source = a.source
- AND si.id_value = a.source_key
- AND si.id_type = CASE a.source
-                    WHEN 'satcat' THEN 'norad'
-                    WHEN 'gcat' THEN 'gcat_id'
-                    WHEN 'ucs' THEN 'ucs_row'
-                  END
- AND si.valid_to IS NULL;
+JOIN v_current_source_key k USING (satellite_id, source, source_key);
