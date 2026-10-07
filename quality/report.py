@@ -28,7 +28,6 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import parse_date_loose
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -107,7 +106,7 @@ def _section_header(cur):
 
 
 def _section_status_disagreements(cur):
-    # Cross-source disagreement lives in source_assertion (what each source *claimed*), not in
+    # Cross-source disagreement lives in the claim table (what each source *claims*), not in
     # satellite_status_history (which only holds the resolver's single winning status per object).
     # Each source's raw status is mapped to the canonical taxonomy via status_mapping; a
     # disagreement is two *concrete* (non-UNKNOWN) statuses that differ -- e.g. SATCAT still says
@@ -117,18 +116,18 @@ def _section_status_disagreements(cur):
         cur,
         """
         WITH satcat AS (
-            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-            FROM source_assertion a
-            JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = a.value
-            WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            SELECT DISTINCT ON (c.satellite_id) c.satellite_id, m.canonical_status
+            FROM v_current_claim c
+            JOIN status_mapping m ON m.source = 'satcat' AND m.source_value = c.value
+            WHERE c.source = 'satcat' AND c.attribute = 'status'
+            ORDER BY c.satellite_id, c.source_key
         ),
         gcat AS (
-            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-            FROM source_assertion a
-            JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = a.value
-            WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC, a.ingest_run_id DESC, a.source_key
+            SELECT DISTINCT ON (c.satellite_id) c.satellite_id, m.canonical_status
+            FROM v_current_claim c
+            JOIN status_mapping m ON m.source = 'gcat' AND m.source_value = c.value
+            WHERE c.source = 'gcat' AND c.attribute = 'status'
+            ORDER BY c.satellite_id, c.source_key
         )
         SELECT
             s.norad_id,
@@ -157,10 +156,11 @@ def _section_decay_date_conflicts(cur):
         """
         SELECT s.norad_id, s.canonical_name, l.satellite_id, l.source, l.value
         FROM (
-            SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value, observed_at
-            FROM source_assertion
-            WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, source, observed_at DESC, ingest_run_id DESC, source_key
+            SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value,
+                   observed_to AS observed_at
+            FROM v_current_claim
+            WHERE attribute = 'decay_date'
+            ORDER BY satellite_id, source, source_key
         ) l
         JOIN satellite s ON s.satellite_id = l.satellite_id
         ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source
@@ -187,10 +187,11 @@ def _section_stale_post_ma_owners(cur):
         cur,
         """
         WITH latest_satcat_owner AS (
-            SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw, observed_at
-            FROM source_assertion
-            WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
+            SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw,
+                   observed_to AS observed_at
+            FROM v_current_claim
+            WHERE attribute = 'owner' AND source = 'satcat'
+            ORDER BY satellite_id, source_key
         ),
         owner_operator AS (
             SELECT lso.satellite_id, lso.owner_raw, oa.operator_id
@@ -261,13 +262,16 @@ def _section_match_merge_stats(cur):
         "SELECT rule_fired, count(*) AS merges FROM merge_log "
         "GROUP BY rule_fired ORDER BY rule_fired",
     )
-    # Unmatched among the current claims. Across all runs this counted every key that was ever
-    # unmatched, including ones matched since: satellite_id is set at insert and never
-    # backfilled, so an old run's NULL stays NULL.
+    # Unmatched: an open claim whose key currently identifies no satellite.
     unmatched_cols, unmatched_rows = _rows(
         cur,
-        f"SELECT source, count(DISTINCT source_key) AS unmatched_objects "
-        f"FROM {CURRENT_ASSERTIONS} c WHERE satellite_id IS NULL GROUP BY source ORDER BY source",
+        """
+        SELECT c.source, count(DISTINCT c.source_key) AS unmatched_objects
+        FROM claim c
+        WHERE c.closed_run IS NULL
+          AND NOT EXISTS (SELECT 1 FROM v_current_claim v WHERE v.claim_id = c.claim_id)
+        GROUP BY c.source ORDER BY c.source
+        """,
     )
     review_queue_size = _review_queue_size()
     return {
@@ -609,7 +613,7 @@ def generate_report(conn) -> str:
     out.append("\n### merge_log by rule_fired\n")
     out.append(_md_table(*match_merge["by_rule"]))
     out.append(f"\n### Review-queue size: **{match_merge['review_queue_size']}**\n")
-    out.append("\n### Unmatched objects by source (source_assertion.satellite_id IS NULL)\n")
+    out.append("\n### Unmatched objects by source (open claims whose key identifies no satellite)\n")
     out.append(_md_table(*match_merge["unmatched"]))
 
     out.append("\n## 6. Catalog key stability and churn\n")

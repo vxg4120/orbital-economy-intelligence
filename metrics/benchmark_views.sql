@@ -359,9 +359,9 @@ WITH temporal AS (
 ),
 satcat_owner AS (
     SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_code
-    FROM source_assertion
-    WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
-    ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
+    FROM v_current_claim
+    WHERE attribute = 'owner' AND source = 'satcat'
+    ORDER BY satellite_id, source_key
 ),
 naive_map AS (
     -- norad -> operator strictly via the SATCAT owner code (country/agency string -> operator_alias)

@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import build_graph  # noqa: E402
 
 from identity import resolve  # noqa: E402
+from tests.claimfix import seed_claim  # noqa: E402
 
 pytestmark = pytest.mark.db
 
@@ -33,31 +34,10 @@ def _sat(cur, norad, launch=None):
     return cur.fetchone()[0]
 
 
-_ID_TYPE = {"satcat": "norad", "gcat": "gcat_id", "ucs": "ucs_row"}
-
-
-def _key(cur, sat_id, source, key):
-    """A source key that currently identifies the satellite."""
-    cur.execute(
-        "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
-        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-        (sat_id, _ID_TYPE[source], key, source),
-    )
-
-
 def _assert_row(cur, sat_id, attribute, value, source, run):
-    # The claim arrives through a key that identifies the satellite, as it does in production;
-    # the resolver reads only such claims (claim_is_current, migration 0022).
-    cur.execute(
-        "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
-        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-        (sat_id, _ID_TYPE[source], str(sat_id), source),
-    )
-    cur.execute(
-        "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, source, "
-        "observed_at, ingest_run_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-        (sat_id, str(sat_id), attribute, value, source, OBS, run),
-    )
+    # The resolver reads each source's current claim through a key that identifies the
+    # satellite (v_current_claim, migration 0023).
+    seed_claim(cur, sat_id, source, attribute, value, run, at=OBS)
 
 
 def _operator_id(cur, name):
@@ -283,82 +263,35 @@ def test_famous_objects_carry_curated_display_names(db_conn):
 
 
 @pytest.mark.db
-def test_latest_claim_per_source_is_the_max_tuple_not_every_copy(db_conn):
-    """Every run re-asserts, so one attribute holds a copy per retained run. The resolver must
-    keep, per (satellite, source), the max of (observed_at, ingest_run_id, source_key), picked in
-    SQL rather than by fetching every copy (which brought ~7M rows per attribute into Python
-    and swapped the box). Pinned: a newer run wins; within one run the greatest source_key wins;
-    a source that stopped asserting keeps its last claim."""
+def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_tie(db_conn):
+    """One open claim per (source, key, attribute); a satellite holding two keys for a source
+    (merged objects) has two, and the greater key wins, as the old tie-break had it. A claim
+    through a retired key is not the satellite's, and neither is a claim the feed no longer
+    makes, even through a current key (the ledger kept its newest copy; the claim model does
+    not: what a source currently says is the question). "Last observed" is when the feed last
+    ran and still made the claim, not when the claim was first made."""
+    later = OBS + dt.timedelta(days=400)
     try:
         with db_conn.cursor() as cur:
-            old_run, new_run = _run(cur), _run(cur)
+            first, run = _run(cur), _run(cur)
             sat = _sat(cur, 970000101)
-            for source, key in [("satcat", "k1"), ("gcat", "k1"), ("gcat", "k2"), ("ucs", "k1")]:
-                _key(cur, sat, source, key)
-            cur.execute(
-                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
-                "source, observed_at, ingest_run_id) VALUES "
-                "(%(s)s, 'k1', 'owner', 'OLD', 'satcat', %(t0)s, %(r0)s), "
-                "(%(s)s, 'k1', 'owner', 'NEW', 'satcat', %(t1)s, %(r1)s), "
-                "(%(s)s, 'k1', 'owner', 'FROM-K1', 'gcat', %(t1)s, %(r1)s), "
-                "(%(s)s, 'k2', 'owner', 'FROM-K2', 'gcat', %(t1)s, %(r1)s), "
-                "(%(s)s, 'k1', 'owner', 'STALE', 'ucs', %(t0)s, %(r0)s)",
-                {"s": sat, "t0": OBS, "t1": OBS + dt.timedelta(days=1), "r0": old_run,
-                 "r1": new_run},
-            )
-            by_source = resolve._assertions(db_conn, "owner")[sat]
-        assert by_source["satcat"] == ("NEW", OBS + dt.timedelta(days=1))
-        assert by_source["gcat"][0] == "FROM-K2"
-        assert by_source["ucs"] == ("STALE", OBS)
-    finally:
-        db_conn.rollback()
-
-
-@pytest.mark.db
-def test_a_later_timestamp_beats_a_higher_run_id(db_conn):
-    """Codex verify, 2026-10-05: a run id is allocated before its download and observed_at is
-    the load time, so two overlapping ingests can land in inverted order (run 11 loads at
-    10:02, run 10 at 10:03). The winner is the max of (observed_at, ingest_run_id, source_key),
-    timestamp first, exactly as the resolver has always picked it; selecting the highest run id
-    first would return the other row."""
-    try:
-        with db_conn.cursor() as cur:
-            low_run, high_run = _run(cur), _run(cur)
-            sat = _sat(cur, 970000102)
-            _key(cur, sat, "satcat", "k1")
-            _key(cur, sat, "satcat", "k2")
-            cur.execute(
-                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
-                "source, observed_at, ingest_run_id) VALUES "
-                "(%(s)s, 'k1', 'owner', 'LOADED-LAST', 'satcat', %(later)s, %(low)s), "
-                "(%(s)s, 'k2', 'owner', 'LOADED-FIRST', 'satcat', %(earlier)s, %(high)s)",
-                {"s": sat, "later": OBS + dt.timedelta(minutes=1), "earlier": OBS,
-                 "low": low_run, "high": high_run},
-            )
-            by_source = resolve._assertions(db_conn, "owner")[sat]
-        assert by_source["satcat"] == ("LOADED-LAST", OBS + dt.timedelta(minutes=1))
-    finally:
-        db_conn.rollback()
-
-
-@pytest.mark.db
-def test_with_equal_timestamps_the_higher_run_beats_the_higher_key(db_conn):
-    """The old ordering was (observed_at, ingest_run_id, source_key): with the timestamp tied,
-    the run decides before the key. Pinned so the SQL keeps that order, not just the timestamp."""
-    try:
-        with db_conn.cursor() as cur:
-            low_run, high_run = _run(cur), _run(cur)
-            sat = _sat(cur, 970000103)
-            _key(cur, sat, "satcat", "k1")
-            _key(cur, sat, "satcat", "k9")
-            cur.execute(
-                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
-                "source, observed_at, ingest_run_id) VALUES "
-                "(%(s)s, 'k9', 'owner', 'LOW-RUN-HIGH-KEY', 'satcat', %(t)s, %(low)s), "
-                "(%(s)s, 'k1', 'owner', 'HIGH-RUN-LOW-KEY', 'satcat', %(t)s, %(high)s)",
-                {"s": sat, "t": OBS, "low": low_run, "high": high_run},
-            )
-            by_source = resolve._assertions(db_conn, "owner")[sat]
-        assert by_source["satcat"][0] == "HIGH-RUN-LOW-KEY"
+            seed_claim(cur, sat, "satcat", "owner", "WAS", first, key="k1", at=OBS)
+            cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                        "WHERE source = 'satcat' AND value = 'WAS'", (run,))
+            seed_claim(cur, sat, "satcat", "owner", "NEW", run, key="k1", at=OBS)
+            seed_claim(cur, sat, "gcat", "owner", "FROM-K1", first, key="k1", at=OBS)
+            seed_claim(cur, sat, "gcat", "owner", "FROM-K2", first, key="k2", at=OBS)
+            seed_claim(cur, sat, "gcat", "status", "GONE", first, key="k2", at=OBS)
+            cur.execute("UPDATE claim SET closed_run = %s, observed_to = observed_from "
+                        "WHERE source = 'gcat' AND value = 'GONE'", (run,))
+            # GCAT ran again later and still made the owner claims: last observed moves on.
+            seed_claim(cur, sat, "gcat", "name", "N", run, key="k2", at=later)
+            seed_claim(cur, sat, "ucs", "owner", "STALE", run, key="k1", at=OBS)
+            cur.execute("UPDATE satellite_identifier SET valid_to = '2026-10-01' "
+                        "WHERE satellite_id = %s AND source = 'ucs'", (sat,))
+            owners = resolve._assertions(db_conn, "owner")[sat]
+            statuses = resolve._assertions(db_conn, "status").get(sat, {})
+        assert owners == {"satcat": ("NEW", OBS), "gcat": ("FROM-K2", later)}
+        assert statuses == {}
     finally:
         db_conn.rollback()

@@ -46,6 +46,15 @@ def _gcat(cur, run, jcat, norad, piece, name, launch, status, owner=None):
 def test_full_pipeline_on_synthetic_fixture(db_conn, tmp_path):
     review = tmp_path / "review.csv"
     with db_conn.cursor() as cur:
+        # The nightly records a feed's claims only once its history is replayed (a
+        # claim_progress row at an earlier run); production is past that, so the fixture
+        # stands in for it with an empty earlier run per feed.
+        for source in ("satcat", "gcat"):
+            cur.execute(
+                "INSERT INTO claim_progress (source, last_run, observed_at) VALUES (%s, %s, now()) "
+                "ON CONFLICT (source) DO NOTHING",
+                (source, _new_run(cur, source)),
+            )
         srun = _new_run(cur, "satcat")
         # obj A/B/C: matched by NORAD. A carries a status disagreement (SATCAT + vs GCAT D).
         _satcat(cur, srun, 910000201, "STARLINK-201", "2023-101A", "2023-03-01", "+")

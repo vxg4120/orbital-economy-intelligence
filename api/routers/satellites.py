@@ -226,13 +226,14 @@ def detail(satellite_id: int, db=Depends(get_db)):
         )
         status_history = cur.fetchall()
 
-        # Latest assertion per (attribute, source), deterministic tiebreakers verbatim, through
-        # the keys that currently identify the satellite (migration 0022).
+        # Each source's current claim per attribute, through the keys that currently identify
+        # the satellite (v_current_claim, migration 0023). The response field stays observed_at
+        # (the Resolver page's "last observed"): when the feed last made the claim.
         cur.execute(
-            "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_at "
-            "FROM source_assertion WHERE satellite_id = %s "
-            "AND claim_is_current(satellite_id, source, source_key) "
-            "ORDER BY attribute, source, observed_at DESC, ingest_run_id DESC, source_key",
+            "SELECT DISTINCT ON (attribute, source) attribute, value, source, "
+            "observed_to AS observed_at "
+            "FROM v_current_claim WHERE satellite_id = %s "
+            "ORDER BY attribute, source, source_key",
             (satellite_id,),
         )
         assertions = cur.fetchall()

@@ -27,7 +27,6 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
-from identity.assertions import CURRENT_ASSERTIONS
 from identity.normalize import canonical_object_type, parse_date_loose
 from quality.report import (
     _md_table,
@@ -107,11 +106,11 @@ def _data_basis(cur):
         GROUP BY source ORDER BY source
         """,
     )
-    # Claims, not copies: every run re-asserts a feed's full set, so counting the whole table
-    # counts each claim once per retained run (the 2026-09 report would have printed ~32.8M).
+    # Current claims per source (claim table, migration 0023): one row per claim, not one per
+    # retained run of it (the 2026-09 report would otherwise have printed ~32.8M).
     assert_cols, assert_rows = _q(
         cur,
-        f"SELECT source, count(*) AS assertions FROM {CURRENT_ASSERTIONS} c "
+        "SELECT source, count(*) AS assertions FROM claim WHERE closed_run IS NULL "
         "GROUP BY source ORDER BY assertions DESC",
     )
     totals = {
@@ -526,9 +525,9 @@ def _accountability(cur, period_start, period_end):
         """
         WITH latest_satcat_owner AS (
             SELECT DISTINCT ON (satellite_id) satellite_id, value AS owner_raw
-            FROM source_assertion
-            WHERE attribute = 'owner' AND source = 'satcat' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, observed_at DESC, ingest_run_id DESC, source_key
+            FROM v_current_claim
+            WHERE attribute = 'owner' AND source = 'satcat'
+            ORDER BY satellite_id, source_key
         ),
         ls AS (
             SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
@@ -598,15 +597,15 @@ def _catalog_integrity(cur):
         cur,
         """
         WITH sc AS (SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-            FROM source_assertion a JOIN status_mapping m
+            FROM v_current_claim a JOIN status_mapping m
                 ON m.source = 'satcat' AND m.source_value = a.value
-            WHERE a.source = 'satcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC),
+            WHERE a.source = 'satcat' AND a.attribute = 'status'
+            ORDER BY a.satellite_id, a.source_key),
         gc AS (SELECT DISTINCT ON (a.satellite_id) a.satellite_id, m.canonical_status
-            FROM source_assertion a JOIN status_mapping m
+            FROM v_current_claim a JOIN status_mapping m
                 ON m.source = 'gcat' AND m.source_value = a.value
-            WHERE a.source = 'gcat' AND a.attribute = 'status' AND a.satellite_id IS NOT NULL
-            ORDER BY a.satellite_id, a.observed_at DESC)
+            WHERE a.source = 'gcat' AND a.attribute = 'status'
+            ORDER BY a.satellite_id, a.source_key)
         SELECT count(*) FROM sc JOIN gc USING (satellite_id)
         WHERE sc.canonical_status <> 'UNKNOWN' AND gc.canonical_status <> 'UNKNOWN'
         """,
@@ -617,8 +616,8 @@ def _catalog_integrity(cur):
         cur,
         """
         SELECT count(*) FROM (
-            SELECT satellite_id FROM source_assertion
-            WHERE attribute = 'decay_date' AND satellite_id IS NOT NULL
+            SELECT satellite_id FROM v_current_claim
+            WHERE attribute = 'decay_date'
             GROUP BY satellite_id HAVING count(DISTINCT source) >= 2
         ) x
         """,
@@ -629,13 +628,13 @@ def _catalog_integrity(cur):
         cur,
         """
         WITH satcat AS (SELECT DISTINCT ON (satellite_id) satellite_id, value
-            FROM source_assertion
-            WHERE source = 'satcat' AND attribute = 'object_type' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, observed_at DESC),
+            FROM v_current_claim
+            WHERE source = 'satcat' AND attribute = 'object_type'
+            ORDER BY satellite_id, source_key),
         gcat AS (SELECT DISTINCT ON (satellite_id) satellite_id, value
-            FROM source_assertion
-            WHERE source = 'gcat' AND attribute = 'object_type' AND satellite_id IS NOT NULL
-            ORDER BY satellite_id, observed_at DESC)
+            FROM v_current_claim
+            WHERE source = 'gcat' AND attribute = 'object_type'
+            ORDER BY satellite_id, source_key)
         SELECT s.value, g.value FROM satcat s JOIN gcat g USING (satellite_id)
         """,
     )
@@ -910,9 +909,10 @@ def generate_report(conn, period_end: dt.date | None = None, period_months: int 
     g = method["gold"]
     out.append("\n## 7. Methodology & limitations annex\n")
     out.append(
-        "\n**Provenance model.** Every value in this report traces to a source assertion. Ingestion "
-        "writes an append-only `source_assertion` ledger (attribute, value, source, observed-at, "
-        "ingest run) that never overwrites; a per-attribute precedence resolver "
+        "\n**Provenance model.** Every value in this report traces to a source claim. Ingestion "
+        "records each feed's (key, attribute, value) claim once, with the ingest runs it was "
+        "first and last made in (`claim`), so a changed value closes one claim and opens another "
+        "and nothing is overwritten; a per-attribute precedence resolver "
         "(`identity/precedence.yml`) selects the canonical value for each dimension while every "
         "losing assertion stays queryable. Object merges are never silent — each is written to "
         "`merge_log` with the rule that fired:\n\n"

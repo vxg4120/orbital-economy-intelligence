@@ -11,6 +11,7 @@ current keys only. Every test seeds its own rows and rolls back.
 import pytest
 
 from identity import assertions, churn, match
+from tests.claimfix import seed_claim
 
 pytestmark = pytest.mark.db
 
@@ -290,12 +291,7 @@ def test_a_decay_date_with_no_current_claim_is_retracted(db_conn):
                         (a,))
             _link(cur, a, "gcat_id", "S970001092", valid_to="2026-10-01")  # the sibling's key
             run = _run(cur)
-            cur.execute(
-                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
-                "source, observed_at, ingest_run_id) VALUES "
-                "(%s, 'S970001092', 'decay_date', '2026-01-01', 'gcat', now(), %s)",
-                (a, run),
-            )
+            seed_claim(cur, None, "gcat", "decay_date", "2026-01-01", run, key="S970001092")
         from identity import resolve
         resolve._resolve_decay_date(db_conn, ["spacetrack_decay", "satcat", "gcat"])
         with db_conn.cursor() as cur:
