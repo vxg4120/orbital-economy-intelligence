@@ -42,15 +42,23 @@ CREATE TABLE claim_progress (
     observed_at  TIMESTAMPTZ NOT NULL
 );
 
--- The current claims per satellite: open claims through the keys that currently identify it,
--- last observed when the feed was (claim_progress).
-CREATE OR REPLACE VIEW v_current_claim AS
+-- Every claim per satellite, open or closed, through the keys that currently identify it: a
+-- closed claim's observed_to is its own, an open claim's is when the feed was last observed
+-- (claim_progress). For "ever claimed" readers (a cohort that was ever a payload).
+CREATE OR REPLACE VIEW v_claim AS
 SELECT si.satellite_id, c.claim_id, c.source, c.source_key, c.attribute, c.value,
-       c.first_run, c.observed_from, p.observed_at AS observed_to
+       c.first_run, c.observed_from, c.closed_run, coalesce(c.observed_to, p.observed_at) AS observed_to
 FROM claim c
 JOIN claim_progress p ON p.source = c.source
 JOIN satellite_identifier si
   ON si.source = c.source AND si.id_value = c.source_key AND si.valid_to IS NULL
  AND si.id_type = CASE c.source WHEN 'satcat' THEN 'norad' WHEN 'gcat' THEN 'gcat_id'
-                                WHEN 'ucs' THEN 'ucs_row' END
-WHERE c.closed_run IS NULL;
+                                WHEN 'ucs' THEN 'ucs_row' END;
+
+-- The current claims per satellite: what each feed says now, through current links. A claim
+-- the feed no longer makes is not current, even through a current key: "what does the
+-- source currently say" is the question every reader of this view asks.
+CREATE OR REPLACE VIEW v_current_claim AS
+SELECT satellite_id, claim_id, source, source_key, attribute, value, first_run, observed_from,
+       observed_to
+FROM v_claim WHERE closed_run IS NULL;

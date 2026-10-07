@@ -83,14 +83,18 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   claim today; the new model keeps one row per (satellite, source, key, attribute, value) and
   so inherits the duplication until the links are fixed. Fix the links first.
 - A value that flips A -> B -> A produces three rows, not two; "ever claimed A" stays true.
-- A feed that stops asserting a key closes its rows (observed_to = that run); newest-per-key
-  readers must decide whether a closed claim is shown. Today they show it; the view keeps that
-  behaviour by default (`v_current_assertion` = open rows plus the newest closed row per key
-  when nothing is open), and the conflicts page gets an explicit "stale claim" flag.
-- Identity merges repoint satellite_id on all rows (identity/merge.py); ranges stay valid.
+- A feed that stops asserting a key, or an attribute of it, closes the claim (observed_to =
+  the last run that made it). A closed claim is not current, even through a current key:
+  `v_current_claim` is "what does each source say now", the one definition every reader
+  uses (decided 2026-10-07, see the log). "Ever claimed" readers (the GP backfill's
+  ever-a-payload cohort, the gold queue's never-had-a-SATCAT-claim stratum) read `v_claim`,
+  open and closed claims through current links.
+- Identity merges do not touch claims: the crosswalk link moves, and the claim follows it
+  through the view (identity/merge.py still repoints source_assertion until that table goes).
 - satellite_status_history has the same shape (one row per satellite per run, 2.2M rows) and
   the Resolver timeline shows ~49 identical entries per object; it moves to the same model in
-  the same change.
+  a follow-up change, not this one (out of scope 2026-10-07: the claim replay is the risky
+  step and goes alone).
 
 ## Acceptance criteria
 - [x] Writer and replay (tests/test_claims.py, 8 tests): open/close/unchanged, same-or-older
@@ -103,8 +107,11 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   nothing), and `claim_progress.last_run` per feed equals the feed's newest run.
 - [ ] The new table built from production has one row per claim: about 1.4M rows against 35M
   (measured 2026-10-05: 140,881 current (satellite, source) pairs per attribute).
-- [ ] For every reader in the inventory, the before/after comparison script reports identical
-  output, or a difference the spec names.
+- [ ] For every reader in the inventory, the before/after comparison script
+  (scripts/compare_claims.py: ledger vs view both ways, resolver winners per attribute,
+  progress per feed) reports identical output, or a difference the spec names: the resolver's
+  "no longer claimed" count per attribute is that difference, recorded in the log with its
+  production numbers.
 - [ ] A nightly on the new model adds rows only for changed or new claims; the table's growth
   over a week is under 5 MB.
 - [ ] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
@@ -114,7 +121,9 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
 
 ## Open questions
 - (Vib) Approve option 3, or prefer the lighter option 2 as a stopgap.
-- (Vib) Closed claims on the conflicts page: shown with a "no longer asserted" flag, or hidden?
+- (Vib, answered by Claude 2026-10-07, revisit if wanted) Closed claims on the conflicts page:
+  hidden. A conflict is between what sources say now; a claim a feed withdrew is history,
+  and the API, conflicts page and quality report already read only each feed's newest run.
 - (Claude) Whether the view can serve "as of run N" cheaply enough for the audit report's
   monthly denominators, or those keep a monthly snapshot table.
 
@@ -122,3 +131,25 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
 - 2026-10-06 (Claude) — Spec drafted from the 2026-09-29 reader audit, the retention work, and
   the resolver fix. The per-run copies were the root cause of three separate incidents: the disk
   at 93%, counts 49x too high in reports, and the 90-minute nightly.
+- 2026-10-07 (Claude, after the Codex verify of the readers branch) — **One definition of
+  current, everywhere.** Codex found that the resolver, the gold evidence, the audit report's
+  accountability and integrity sections and v_killer_chart had read the newest copy over every
+  retained run, so a value a feed stopped making lived on until its run was pruned, while the
+  API, conflicts page and quality report read only each feed's newest run. The spec had
+  promised a newest-closed fallback view; rejected in favour of the stricter rule, because two
+  definitions of "current" were how the reports and the site disagreed in the first place, and
+  a withdrawn decay date resolving as if still asserted is the wrong answer (the resolver now
+  retracts it). The difference is measured on production by scripts/compare_claims.py before
+  the readers move, and recorded here. Readers that mean "ever claimed" use `v_claim`.
+- 2026-10-07 (Claude, after Codex) — External field names survive the model: the satellite
+  detail API keeps `observed_at` on its assertion rows (the Resolver page reads it), sourced
+  from the claim's `observed_to`. A test pins it. Lesson: a renamed column in a dict-row API
+  is a silent frontend regression; grep the web/ tree for every field a migrated query drops.
+- 2026-10-07 (Claude, after Codex) — Tie-breakers are per reader and documented in each query:
+  the API, reports, gold queue and killer chart take the lesser source_key when a satellite
+  holds two keys of one source; the resolver takes the greater. Both are what the ledger
+  readers did; neither is a decision about which key is "right".
+- 2026-10-07 (Claude, after Codex) — Test fixtures own the feed's progress row inside their
+  transaction (tests/claimfix.py overwrites it), so "last observed" is the test's, not the
+  database's; the resolver test moves progress past a claim's first observation and closes a
+  claim on a current key, and a mutant returning observed_from fails it.
