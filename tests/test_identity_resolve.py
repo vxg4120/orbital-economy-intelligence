@@ -295,3 +295,45 @@ def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_ti
         assert statuses == {}
     finally:
         db_conn.rollback()
+
+
+@pytest.mark.db
+def test_a_gcat_phase_date_is_a_decay_only_under_a_decayed_phase(db_conn):
+    """GCAT's DDate is the date its Status phase began: a reentry (R) date is a decay, so is a
+    probable one (R?: GCAT's uncertainty mark, the phase unchanged), a grapple (GRP) date is
+    not, and SATCAT's own decay date is taken as before. An object whose card was given a
+    grapple date earlier (the ISS, 1998-12-06) has it retracted."""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("INSERT INTO status_mapping (source, source_value, canonical_status) "
+                        "VALUES ('gcat', 'R', 'DECAYED'), ('gcat', 'GRP', 'UNKNOWN') "
+                        "ON CONFLICT DO NOTHING")
+            run = _run(cur)
+            grappled, reentered, both, probably = (
+                _sat(cur, n) for n in (970000111, 970000112, 970000113, 970000114))
+            cur.execute("UPDATE satellite SET decay_date = '1998-12-06' WHERE satellite_id = %s",
+                        (grappled,))
+            seed_claim(cur, grappled, "gcat", "status", "GRP", run, key="S970000111")
+            seed_claim(cur, grappled, "gcat", "decay_date", "1998 Dec  6 2347:02", run,
+                       key="S970000111")
+            seed_claim(cur, reentered, "gcat", "status", "R", run, key="S970000112")
+            seed_claim(cur, reentered, "gcat", "decay_date", "2024 Mar  3", run, key="S970000112")
+            seed_claim(cur, both, "gcat", "status", "GRP", run, key="S970000113")
+            seed_claim(cur, both, "gcat", "decay_date", "2020 Jan  1", run, key="S970000113")
+            seed_claim(cur, both, "satcat", "decay_date", "2025-05-05", run)
+            seed_claim(cur, probably, "gcat", "status", "R?", run, key="S970000114")
+            seed_claim(cur, probably, "gcat", "decay_date", "2023 Jul  1?", run, key="S970000114")
+        resolve._resolve_decay_date(db_conn, ["spacetrack_decay", "satcat", "gcat"])
+        stats = {}
+        resolve._resolve_status(db_conn, ["satcat", "gcat"], stats)
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT satellite_id, decay_date FROM satellite WHERE satellite_id = ANY(%s) "
+                        "ORDER BY 1", ([grappled, reentered, both, probably],))
+            assert cur.fetchall() == [(grappled, None), (reentered, dt.date(2024, 3, 3)),
+                                      (both, dt.date(2025, 5, 5)), (probably, dt.date(2023, 7, 1))]
+            cur.execute("SELECT canonical_status FROM satellite_status_history WHERE satellite_id = %s",
+                        (probably,))
+            assert cur.fetchall() == [("DECAYED",)]
+        assert ("gcat", "R?") not in stats["unmapped_status"]
+    finally:
+        db_conn.rollback()
