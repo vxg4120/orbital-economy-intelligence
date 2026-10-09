@@ -71,6 +71,10 @@ start_line=$(( $( { wc -l < ./refresh.log; } 2>/dev/null || echo 0) + 1 ))
   step exo_ingest_all $DC exec -T exo-api python scripts/ingest_all.py  || echo "!! exo ingest_all failed"
   step exo_build_graph $DC exec -T exo-api python scripts/build_graph.py || echo "!! exo build_graph failed"
   step exo_report $DC exec -T exo-api python quality/report.py      || echo "!! exo report failed"
+  # Last for exo, for the same reason as oei's: exo's raw_* tables land a full copy per pull too,
+  # and had reached 6.2 GB of copies by 2026-10-09 (exodossier docs/specs/raw-retention.md).
+  step exo_prune_snapshots $DC exec -T exo-api python scripts/prune_snapshots.py --apply \
+                                                    || echo "!! exo prune_snapshots failed"
   echo "===== done $(date -u +%FT%TZ) ====="
 } >> ./refresh.log 2>&1
 
