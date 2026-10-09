@@ -153,10 +153,11 @@ and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention
 also covers `source_assertion`: it grows the same way (about 88 MB a day) and is not pruned.
 
 The `exo` database lands copies the same way, and the nightly's last exo step runs exo's own
-`scripts/prune_snapshots.py --apply` with the same policy (since 2026-10-09; spec in the
-exodossier repo, `docs/specs/raw-retention.md`). The commands below work for exo with
-`exo-api` in place of `oei-api`. Exo's `source_assertion` is rebuilt from the newest runs every
-night, so it does not grow.
+`scripts/prune_snapshots.py --apply` with the same policy (since 2026-10-09). Its one-time
+compaction follows the ordered Rollout in the exodossier repo's `docs/specs/raw-retention.md`:
+a verified laptop backup first, then `--compact` under `nohup` with a log, and the nightly step
+only after that. The dry-run command below works for exo with `exo-api` in place of `oei-api`.
+Exo's `source_assertion` is rebuilt from the newest runs every night, so it does not grow.
 
 Deleting rows does not shrink the files. To return the space of a backlog to the OS, run the
 one-time rewrite, outside the 07:10 and 19:10 UTC windows. Each table is locked while it is
