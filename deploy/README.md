@@ -149,8 +149,17 @@ cd ~/apps/space/deploy && docker compose up -d --build
 Every ingest run lands a full copy of its source in the `raw_*` tables. The nightly's last oei
 step, `scripts/prune_snapshots.py --apply`, keeps the newest 3 OK runs per table plus the first
 run of each month and deletes the other finished runs, so the tables stop growing. The policy
-and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention.md), which
-also covers `source_assertion`: it grows the same way (about 88 MB a day) and is not pruned.
+and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention.md). The
+per-run assertion ledger, `source_assertion`, grew the same way (about 88 MB a day); it was
+replaced by the `claim` table (one row per claim with its run range, 161 MB, see
+[docs/specs/assertion-model.md](../docs/specs/assertion-model.md)) and renamed
+`source_assertion_runs_20261012` on 2026-10-12. Drop it after 2026-10-19, outside the windows,
+then `VACUUM`:
+
+```bash
+docker compose exec -T db psql -U oei -d oei -c 'DROP TABLE source_assertion_runs_20261012'
+df -h /
+```
 
 The `exo` database lands copies the same way, and the nightly's last exo step runs exo's own
 `scripts/prune_snapshots.py --apply` with the same policy (since 2026-10-09). Its one-time
@@ -177,8 +186,9 @@ the dead space is inside the files and `--compact` reports nothing to drop. Then
 dropped SSH session cannot interrupt it; each needs only its kept size as headroom and frees
 its old file when it finishes (2026-10-01: all 13 tables in 35 s, 2.6 GB to 8.1 GB free).
 
-Never run an ad-hoc `count(DISTINCT ...)` or a large sort against `source_assertion` on the
-box: Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
+Never run an ad-hoc `count(DISTINCT ...)` or a large sort against
+`source_assertion_runs_20261012` (while it exists) or any other multi-GB table on the box:
+Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
 
 ### Caddy configuration updates
 
