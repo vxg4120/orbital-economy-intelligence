@@ -161,6 +161,29 @@ docker compose exec -T db psql -U oei -d oei -c 'DROP TABLE source_assertion_run
 df -h /
 ```
 
+#### Rolling the ledger back (before the drop)
+
+The renamed table is frozen at the rename and has no foreign key to `satellite`, so a week
+of merges may leave rows pointing at deleted shells, and it holds no run after the rename.
+Rolling back is therefore a procedure (rehearsed 2026-10-12 on a local copy), outside the
+windows:
+
+```bash
+cd /root/apps/space && git revert --no-edit <the retirement merge> && cd deploy
+docker compose up -d --build oei-api        # the dual writer and claim_is_current readers
+docker compose exec -T db psql -U oei -d oei <<'SQL'
+ALTER TABLE source_assertion_runs_20261012 RENAME TO source_assertion;
+UPDATE source_assertion a SET satellite_id = NULL
+ WHERE satellite_id IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM satellite s WHERE s.satellite_id = a.satellite_id);
+ALTER TABLE source_assertion ADD CONSTRAINT source_assertion_satellite_id_fkey
+  FOREIGN KEY (satellite_id) REFERENCES satellite;
+DELETE FROM schema_migrations WHERE filename = '0024_ledger_retired.sql';
+SQL
+# then recreate claim_is_current from db/migrations/0022_linked_assertions.sql (the function
+# body, unchanged) and run the next nightly: extract() fills the newest run idempotently.
+```
+
 The `exo` database lands copies the same way, and the nightly's last exo step runs exo's own
 `scripts/prune_snapshots.py --apply` with the same policy (since 2026-10-09). Its one-time
 compaction follows the ordered Rollout in the exodossier repo's `docs/specs/raw-retention.md`:
