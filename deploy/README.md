@@ -22,7 +22,7 @@ laptop's network drops).
                      └─────────┘
 ```
 
-**Cost:** Hetzner CAX11 (ARM, 2 vCPU / 4 GB / 40 GB) ≈ €4.5/mo · domain ≈ $10–12/yr.
+**Cost:** Hetzner CX33 (x86, 4 vCPU / 8 GB / 80 GB, €9.99/mo gross in Helsinki; resized from CX23 at €6.49 on 2026-10-12 with `hcloud server change-type orbital cx33`, about a minute of downtime) · domain ≈ $10–12/yr.
 Everything else (Caddy, Let's Encrypt, Docker) is free.
 
 **Why one box:** the satellite app *requires* TimescaleDB at query time (a continuous
