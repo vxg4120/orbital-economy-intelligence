@@ -28,8 +28,9 @@ jcat crosswalk only when the piece has no cospar identifier: GCAT reshuffles pro
 slots between releases on fresh multi-payload launches, so jcat alone mis-joins those rows.
 
 Provenance: every satellite_bus row carries (source='gcat', source_key=jcat, ingest_run_id),
-and identity/assertions.py also extracts per-row 'bus' and 'manufacturer' source_assertion
-records, so each resolved value is traceable to the raw catalog row that asserted it.
+and identity/claims.py records per-row 'bus' and 'manufacturer' claims (the claim table, read
+through v_current_claim), so each resolved value is traceable to the raw catalog row that
+asserted it.
 
 No commit here: the caller owns the transaction (same contract as the rest of identity/).
 """

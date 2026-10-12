@@ -65,6 +65,9 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   set (the script sets 2 GB), after the laptop backup; it holds each feed's advisory lock for
   its pass, so a nightly that fires meanwhile waits on the claims step.
 - The cutover is reversible for at least one week: the old table is renamed, not dropped.
+  The rollback is a procedure, not just the rename (deploy/README.md, "Rolling the ledger
+  back"): the renamed table is frozen at the rename and merges in the week delete
+  shells its rows may point at.
 - Never a large sort on production `source_assertion` outside a planned window with
   `temp_file_limit` set; the one-time build streams per source and attribute.
 - `observed_at` semantics the Resolver shows as "last observed" must survive as `observed_to`.
@@ -72,16 +75,19 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   conflicts, resolved values) that is byte-identical, except where the spec names the change.
 
 ## Interfaces & dependencies
-- Writer: identity/assertions.py `extract()`; its callers in scripts/build_graph.py.
-- `identity.assertions.CURRENT_ASSERTIONS` becomes `SELECT * FROM v_current_assertion`.
+- Writer: identity/claims.py `record_all()`, called from scripts/build_graph.py; it owns the
+  per-feed (attribute, column) lists. (identity/assertions.py `extract()` was the ledger's
+  writer, dual-run beside it until 2026-10-12, then deleted.)
+- The readers' table expression is `v_current_claim` (and `v_claim` for "ever claimed").
 - The one-time build is a script (scripts/build_claims.py) with `--dry-run`, run under nohup
   on the box like the raw_* compaction, outside the 07:10 and 19:10 UTC windows.
 - Phase 1's prune (scripts/prune_snapshots.py) is unaffected; raw_* stay as they are.
 
 ## Edge cases
-- A key linked to two satellites (see docs/specs/gcat-sibling-links.md) produces two rows per
-  claim today; the new model keeps one row per (satellite, source, key, attribute, value) and
-  so inherits the duplication until the links are fixed. Fix the links first.
+- A key linked to two satellites (see docs/specs/gcat-sibling-links.md) produced two ledger
+  rows per claim; the claim table keeps one row per (source, key, attribute, value) with no
+  satellite_id, and the views reach both satellites through the two links, so the view
+  inherits the duplication until the links are fixed. Fix the links first (done 2026-10-07).
 - A value that flips A -> B -> A produces three rows, not two; "ever claimed A" stays true.
 - A feed that stops asserting a key, or an attribute of it, closes the claim (observed_to =
   the last run that made it). A closed claim is not current, even through a current key:
@@ -90,7 +96,9 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   ever-a-payload cohort, the gold queue's never-had-a-SATCAT-claim stratum) read `v_claim`,
   open and closed claims through current links.
 - Identity merges do not touch claims: the crosswalk link moves, and the claim follows it
-  through the view (identity/merge.py still repoints source_assertion until that table goes).
+  through the view. (identity/merge.py repointed source_assertion until the table was retired
+  on 2026-10-12; the renamed history table has no foreign key to satellite, so a merged shell's
+  old rows cannot block its deletion.)
 - satellite_status_history has the same shape (one row per satellite per run, 2.2M rows) and
   the Resolver timeline shows ~49 identical entries per object; it moves to the same model in
   a follow-up change, not this one (out of scope 2026-10-07: the claim replay is the risky
@@ -101,7 +109,10 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   run refused with progress advancing on unchanged runs, empty snapshot refused, the bootstrap
   gate, A->B->A as three rows, row-for-row agreement with the assertion writer on a seeded
   snapshot, the view through current links only, and a replayed history equal to one recorded
-  live. Mutants of each guard fail the suite. Full suite 420 passed.
+  live. Mutants of each guard fail the suite. Full suite 420 passed. (2026-10-12: the bootstrap
+  gate and the replay were retired with the ledger, and their tests with them; what remains is
+  pinned by seven tests, including a feed with no progress row starting at its newest run and
+  record_feed's reading of the raw snapshot through the attribute lists.)
 - [x] After the production replay, `v_current_claim` equals the current readers' output
   (`claim_is_current` over `CURRENT_ASSERTIONS`) row for row (`EXCEPT` both ways returns
   nothing), and `claim_progress.last_run` per feed equals the feed's newest run. Measured
@@ -127,11 +138,21 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   times links (704,323; 401,662: GCAT keys still linked to two satellites until the first
   retirement nightly), and decay-date coverage is 35,601 against 35,602 (one withdrawn date).
 - [ ] A nightly on the new model adds rows only for changed or new claims; the table's growth
-  over a week is under 5 MB.
-- [ ] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
-  the old one).
-- [ ] The old table is renamed `source_assertion_runs_<date>` and dropped only after seven
-  green nightlies.
+  over a week is under 5 MB. Measured 2026-10-12 00:40 UTC, five days and nine nightlies after
+  the replay: 729,732 claims (704,324 open) against 728,766 at the replay, 966 rows; the
+  table's total size is 161 MB at both points (169,336,832 bytes now). The dual-written ledger
+  grew to 5,019 MB from 4.7 GB in the same days. Close on 2026-10-14 with the seven-day size
+  (`SELECT pg_total_relation_size('claim')`, under 169,336,832 + 5 MB).
+- [x] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
+  the old one). Measured on production 2026-10-12 (EXPLAIN ANALYZE of the resolver's query):
+  name 340 ms, object_type 319 ms, owner 283 ms, status 263 ms, decay_date 213 ms. That is the
+  SQL; the Python wrapper's dict build is bounded by the whole build_graph step, 82 to 151 s
+  per nightly since 2026-10-07 against about 27 minutes before the resolver fix.
+- [x] The old table is renamed `source_assertion_runs_<date>` and dropped only after seven
+  green nightlies. Nine green nightlies (2026-10-07 19:10 to 2026-10-11 19:10; the one `!!`,
+  2026-10-08 19:10, was a network blip on two unrelated feeds, gates passed); migration 0024
+  renamed it `source_assertion_runs_20261012`. The DROP is scheduled after 2026-10-19 (the
+  one-week reversibility constraint), then VACUUM; about 5 GB returns to the box.
 
 ## Open questions
 - (Vib) Approve option 3, or prefer the lighter option 2 as a stopgap.
@@ -180,3 +201,33 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   attachment. GCAT's "?" suffix marks an uncertain phase (R?, 13 objects), the same phase: the
   mapping lookup retries without it, for status as well as decay. Pre-existing in the ledger;
   not a claim-model regression (the production comparison showed 0 changed decay winners).
+- 2026-10-12 (Claude) — **The ledger is retired; the claim table is the only record.** After
+  nine green nightlies, migration 0024 renames `source_assertion` to
+  `source_assertion_runs_20261012`, drops its foreign key to satellite (identity/merge.py no
+  longer repoints it, and a merged shell's old history rows must not block the shell's
+  deletion; the key to ingest_run stays, runs are never deleted) and drops `claim_is_current`
+  (the views carry the current-link join). identity/claims.py absorbs the attribute lists and
+  `_latest_run` from identity/assertions.py, which is deleted with scripts/build_claims.py and
+  scripts/compare_claims.py; build_bus.py no longer calls `extract` (the bus and manufacturer
+  claims are recorded by the graph build, which runs first). The bootstrap gate goes with the
+  replay: with no ledger to replay, a feed with no progress row starts at its newest run (UCS,
+  when it lands on production, records from its first run). Lesson: a reserved source with no
+  crosswalk key type (`operator_confirmed`) was "always current" under `claim_is_current`; the
+  views reach a satellite only through a crosswalk link, so such a channel needs a link type of
+  its own before it can carry claims. No rows exist, so nothing changes today; recorded so the
+  correction channel is designed with the view in mind. Open: DROP the renamed table after
+  2026-10-19, then VACUUM.
+- 2026-10-12 (Claude, after Codex) — Two findings on the retirement, both taken. (1) The
+  renamed table is not a rollback by itself: merges in the week delete shells its rows point
+  at (the foreign key is gone), and it receives no new runs. The rollback is written as a
+  procedure in deploy/README.md and was rehearsed in a rolled-back transaction on the local
+  database: revert the code, rename back, detach rows whose satellite is gone
+  (`satellite_id = NULL`, the ledger's "unmatched, attachable by key" state), restore the
+  foreign key, recreate `claim_is_current` from migration 0022. Runs the ledger missed are not
+  recovered; the readers never needed them (newest run only) and "ever claimed" reads v_claim.
+  (2) Without the bootstrap gate, a database with ledger history that was never replayed
+  would start each feed at its newest run and strand the history. Migration 0024 now refuses
+  such a database (one index probe per feed) and names the two ways out; both branches
+  exercised on the local database. Not taken: a migration test over merge, ingest and rollback
+  (the rehearsal above covers the SQL; the week-long window does not justify a fixture), and
+  keeping criterion 5 open until the seven-day measurement, which it now is (2026-10-14).

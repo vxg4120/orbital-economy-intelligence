@@ -23,13 +23,13 @@ def test_attribution_populated_with_provenance(db_conn):
     assert with_bus > 0 and with_manufacturer > 0
 
     with db_conn.cursor() as cur:
-        # Row provenance is NOT NULL by schema; verify the assertion-layer provenance exists too.
+        # Row provenance is NOT NULL by schema; verify the claim-layer provenance exists too.
         cur.execute(
-            "SELECT count(*) FROM source_assertion "
-            "WHERE source = 'gcat' AND attribute IN ('bus', 'manufacturer')"
+            "SELECT count(*) FROM claim WHERE source = 'gcat' "
+            "AND attribute IN ('bus', 'manufacturer') AND closed_run IS NULL"
         )
-        assertions = cur.fetchone()[0]
-    assert assertions > 0, "bus/manufacturer claims must be extracted into source_assertion"
+        recorded = cur.fetchone()[0]
+    assert recorded > 0, "bus/manufacturer claims must be recorded in the claim table"
 
 
 @pytest.mark.db

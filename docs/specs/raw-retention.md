@@ -217,3 +217,7 @@ nearly all of it copies.
   CI does) for both the base and this branch. The failure sets were identical (91 failed and 5
   errors, all data-dependent tests on an empty database), and the branch passed 390 tests
   against the base's 372.
+- 2026-10-12 (Claude): Phase 2 closed. `source_assertion` was replaced by the `claim` table
+  (docs/specs/assertion-model.md) and renamed `source_assertion_runs_20261012`; it is dropped
+  after 2026-10-19. The "never prune `source_assertion` by run" rule is moot; the large-sort
+  rule stays for the renamed table while it exists.

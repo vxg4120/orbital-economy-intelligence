@@ -149,8 +149,40 @@ cd ~/apps/space/deploy && docker compose up -d --build
 Every ingest run lands a full copy of its source in the `raw_*` tables. The nightly's last oei
 step, `scripts/prune_snapshots.py --apply`, keeps the newest 3 OK runs per table plus the first
 run of each month and deletes the other finished runs, so the tables stop growing. The policy
-and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention.md), which
-also covers `source_assertion`: it grows the same way (about 88 MB a day) and is not pruned.
+and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention.md). The
+per-run assertion ledger, `source_assertion`, grew the same way (about 88 MB a day); it was
+replaced by the `claim` table (one row per claim with its run range, 161 MB, see
+[docs/specs/assertion-model.md](../docs/specs/assertion-model.md)) and renamed
+`source_assertion_runs_20261012` on 2026-10-12. Drop it after 2026-10-19, outside the windows,
+then `VACUUM`:
+
+```bash
+docker compose exec -T db psql -U oei -d oei -c 'DROP TABLE source_assertion_runs_20261012'
+df -h /
+```
+
+#### Rolling the ledger back (before the drop)
+
+The renamed table is frozen at the rename and has no foreign key to `satellite`, so a week
+of merges may leave rows pointing at deleted shells, and it holds no run after the rename.
+Rolling back is therefore a procedure (rehearsed 2026-10-12 on a local copy), outside the
+windows:
+
+```bash
+cd /root/apps/space && git revert --no-edit <the retirement merge> && cd deploy
+docker compose up -d --build oei-api        # the dual writer and claim_is_current readers
+docker compose exec -T db psql -U oei -d oei <<'SQL'
+ALTER TABLE source_assertion_runs_20261012 RENAME TO source_assertion;
+UPDATE source_assertion a SET satellite_id = NULL
+ WHERE satellite_id IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM satellite s WHERE s.satellite_id = a.satellite_id);
+ALTER TABLE source_assertion ADD CONSTRAINT source_assertion_satellite_id_fkey
+  FOREIGN KEY (satellite_id) REFERENCES satellite;
+DELETE FROM schema_migrations WHERE filename = '0024_ledger_retired.sql';
+SQL
+# then recreate claim_is_current from db/migrations/0022_linked_assertions.sql (the function
+# body, unchanged) and run the next nightly: extract() fills the newest run idempotently.
+```
 
 The `exo` database lands copies the same way, and the nightly's last exo step runs exo's own
 `scripts/prune_snapshots.py --apply` with the same policy (since 2026-10-09). Its one-time
@@ -177,8 +209,9 @@ the dead space is inside the files and `--compact` reports nothing to drop. Then
 dropped SSH session cannot interrupt it; each needs only its kept size as headroom and frees
 its old file when it finishes (2026-10-01: all 13 tables in 35 s, 2.6 GB to 8.1 GB free).
 
-Never run an ad-hoc `count(DISTINCT ...)` or a large sort against `source_assertion` on the
-box: Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
+Never run an ad-hoc `count(DISTINCT ...)` or a large sort against
+`source_assertion_runs_20261012` (while it exists) or any other multi-GB table on the box:
+Postgres spills the sort to disk, and on 2026-09-29 one such query filled the disk.
 
 ### Caddy configuration updates
 

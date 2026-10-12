@@ -132,3 +132,20 @@ reproduced and resolved in9e0edfd.14 focused SQL/API tests and3 Caddy tests pass
 desktop/mobile browser evidence passed. See tasks/independent-followup-review.md.
 Live404 was repaired independently by Claude and confirmed by public GET; directory
 mount adoption and API release remain operator-owned. No production actions by Codex.
+
+## 2026-10-12 — Retire the per-run assertion ledger (assertion-model.md, criterion 7)
+
+Condition met: nine green nightlies on the claim table (2026-10-07 19:10 to 2026-10-11 19:10).
+
+- [ ] Migration 0024: rename `source_assertion` to `source_assertion_runs_20261012`, drop its
+      FK to satellite, drop `claim_is_current`.
+- [ ] One writer: `identity/claims.py` owns the attribute lists and `_latest_run`; the
+      bootstrap gate goes (no ledger to replay); `identity/assertions.py`, `build_claims.py`,
+      `compare_claims.py` deleted; `build_graph.py` and `build_bus.py` stop calling `extract`;
+      `merge.py` stops repointing the ledger.
+- [ ] Tests moved to the claim table (claims, sibling links, merge, reconcile, pipeline,
+      migrations, bus build, conflicts fixture); full suite green on the local DB after 0024.
+- [ ] Codex verify against the spec; findings resolved.
+- [ ] Deploy outside the windows: pull, rebuild oei-api, migrate; verify views, resolver
+      timing (criterion 6), site; spec criteria 5-7 and decision log; memory; peers told.
+- [ ] After 2026-10-19: `DROP TABLE source_assertion_runs_20261012`, VACUUM, df.

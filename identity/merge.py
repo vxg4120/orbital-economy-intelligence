@@ -79,7 +79,7 @@ def link(conn, satellite_id, raw_ref, rule, score, details=None) -> bool:
 def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
     """Fold merged_id into surviving_id: repoint every child row, log, drop the shell.
 
-    Repoints every table that references satellite: satellite_identifier, source_assertion,
+    Repoints every table that references satellite: satellite_identifier,
     satellite_status_history, satellite_operator, satellite_bus, gold_case,
     satellite_fcc_authorization and satellite_manufacturer_credit. Any merged-side
     row that would collide with an existing surviving-side row on its natural key is deleted
@@ -109,11 +109,6 @@ def merge(conn, surviving_id, merged_id, rule, score, details=None) -> None:
         )
         cur.execute(
             "UPDATE satellite_identifier SET satellite_id = %s WHERE satellite_id = %s",
-            (surviving_id, merged_id),
-        )
-        # source_assertion: no per-satellite natural key -> straight repoint
-        cur.execute(
-            "UPDATE source_assertion SET satellite_id = %s WHERE satellite_id = %s",
             (surviving_id, merged_id),
         )
         # satellite_status_history: PK (satellite_id, observed_at, source)

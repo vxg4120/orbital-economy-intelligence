@@ -13,7 +13,6 @@ design — if you have the .xlsx, export it to a delimited text file first).
 """
 
 import csv
-import datetime as dt
 import glob
 import hashlib
 import io

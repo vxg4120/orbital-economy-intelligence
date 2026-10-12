@@ -9,14 +9,6 @@ from identity import merge
 pytestmark = pytest.mark.db
 
 
-def _run(cur):
-    cur.execute(
-        "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
-        "VALUES ('satcat', 'test://t4', now(), now(), 'ok') RETURNING ingest_run_id"
-    )
-    return cur.fetchone()[0]
-
-
 def _sat(cur, norad, name):
     cur.execute(
         "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, %s) RETURNING satellite_id",
@@ -36,7 +28,6 @@ def _operator(cur):
 def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
     obs = dt.datetime(2023, 1, 1, tzinfo=dt.timezone.utc)
     with db_conn.cursor() as cur:
-        run = _run(cur)
         op = _operator(cur)
         surviving = _sat(cur, 910000101, "Survivor")
         merged = _sat(cur, 910000102, "Doomed")
@@ -46,11 +37,6 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
             "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) "
             "VALUES (%s, 'name_gcat', 'Doomed Name', 'gcat')",
             (merged,),
-        )
-        cur.execute(
-            "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, source, "
-            "observed_at, ingest_run_id) VALUES (%s, '910000102', 'owner', 'X', 'gcat', %s, %s)",
-            (merged, obs, run),
         )
         cur.execute(
             "INSERT INTO satellite_status_history (satellite_id, canonical_status, observed_at, "
@@ -92,7 +78,6 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
         # no orphan child rows reference the merged id anywhere
         for table in (
             "satellite_identifier",
-            "source_assertion",
             "satellite_status_history",
             "satellite_operator",
             "satellite_manufacturer_credit",
@@ -105,8 +90,6 @@ def test_merge_repoints_children_logs_and_leaves_no_orphans(db_conn):
             "SELECT count(*) FROM satellite_identifier WHERE satellite_id=%s AND id_value=%s",
             (surviving, "Doomed Name"),
         )
-        assert cur.fetchone()[0] == 1
-        cur.execute("SELECT count(*) FROM source_assertion WHERE satellite_id=%s", (surviving,))
         assert cur.fetchone()[0] == 1
         cur.execute("SELECT count(*) FROM satellite_operator WHERE satellite_id=%s", (surviving,))
         assert cur.fetchone()[0] == 1
