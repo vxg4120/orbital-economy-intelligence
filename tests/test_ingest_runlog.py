@@ -130,7 +130,14 @@ def test_a_daily_feed_pulled_at_yesterdays_slot_is_due_again_today(clean_db):
 
 
 def test_every_daily_feed_fits_between_one_nightly_slot_and_a_day():
-    from ingest import celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db, supgp_crosstags, ucs_seed
+    from ingest import (
+        celestrak_satcat,
+        fcc_ssal,
+        gcat_loader,
+        satnogs_db,
+        supgp_crosstags,
+        ucs_seed,
+    )
 
     for module in (celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db, supgp_crosstags, ucs_seed):
         assert dt.timedelta(hours=12) < module.MIN_INTERVAL < dt.timedelta(hours=24), module.__name__

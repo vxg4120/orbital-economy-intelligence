@@ -4,21 +4,45 @@ A claim is (source, source_key, attribute, value). `record` takes one run's full
 feed's claims and reconciles it with the open claims: anything the run no longer makes is
 closed at that run, anything new is opened at it, and anything unchanged is left alone, so a
 nightly that changes nothing writes nothing but the feed's progress row. The feed's rows come
-from the raw landing tables through the same (attribute, column) lists as
-identity/assertions.py, so the two agree row for row.
+from the raw landing tables through the (attribute, column) lists below; satellite_id is not
+stored, the views join each claim to its satellite through the current crosswalk link.
 
 Runs are recorded strictly in order, once each, one writer per feed at a time: claim_progress
 holds the last run recorded (changes or not) and a transaction-scoped advisory lock on the feed
-serializes the nightly and the history replay. A feed with no progress row is not recorded by
-the nightly: scripts/build_claims.py creates it as it replays the history, so history is never
-skipped.
+serializes concurrent writers. A feed with no progress row starts at its newest run (the
+per-run ledger this replaced, and its history replay, retired 2026-10-12).
 
 No commit: the caller owns the transaction.
 """
 
 from __future__ import annotations
 
-from identity.assertions import _GCAT_ATTRS, _SATCAT_ATTRS, _UCS_ATTRS, _latest_run
+# (attribute, raw column expression) per source. name uses the most commercial field available.
+_SATCAT_ATTRS = [
+    ("owner", "owner"),
+    ("status", "ops_status_code"),
+    ("decay_date", "decay_date::text"),
+    ("object_type", "object_type"),
+    ("name", "object_name"),
+]
+_GCAT_ATTRS = [
+    ("owner", "owner"),
+    ("status", "status"),
+    ("decay_date", "decay_date"),
+    ("object_type", "object_type"),
+    ("name", "coalesce(pl_name, name)"),
+    # Bus Benchmarks provenance: the raw platform / manufacturer claims behind satellite_bus.
+    # '-' is GCAT's explicit "no value" and would be noise as a claim, so it maps to NULL (and
+    # the NOT NULL filter in _raw_rows drops it).
+    ("bus", "nullif(nullif(bus, '-'), '')"),
+    ("manufacturer", "nullif(nullif(manufacturer, '-'), '')"),
+]
+# UCS carries no status column; every listed satellite is "operational as of the freeze".
+_UCS_ATTRS = [
+    ("owner", "operator"),
+    ("name", "name"),
+    ("status", "'operational'"),
+]
 
 # The feeds: (raw table, source, key expression, attribute lists). Only these are snapshot
 # feeds; a correction channel (operator_confirmed) is additive and is not recorded here.
@@ -36,27 +60,24 @@ def lock(cur, source: str) -> None:
 
 
 def progress(cur, source: str):
-    """(last_run, observed_at) for the feed, or None before its history is replayed."""
+    """(last_run, observed_at) for the feed, or None before its first run is recorded."""
     cur.execute("SELECT last_run, observed_at FROM claim_progress WHERE source = %s", (source,))
     return cur.fetchone()
 
 
-def record(conn, source: str, run: int, observed_at, rows, *, bootstrap: bool = False):
+def record(conn, source: str, run: int, observed_at, rows):
     """Reconcile the open claims of `source` with `rows`, the (key, attribute, value) triples
     its run `run` asserts, observed at `observed_at`. Returns (closed, opened).
 
     Refused, returning (0, 0): a run at or before the feed's last recorded one (recording out
-    of order would close everything a newer run makes; recording twice must change nothing); an
-    empty run (a snapshot asserting nothing is not evidence that every claim ended); and a feed
-    with no progress row unless `bootstrap`, which only the history replay passes."""
+    of order would close everything a newer run makes; recording twice must change nothing),
+    and an empty run (a snapshot asserting nothing is not evidence that every claim ended)."""
     rows = list(rows)
     if not rows:
         return 0, 0
     with conn.cursor() as cur:
         lock(cur, source)
         before = progress(cur, source)
-        if before is None and not bootstrap:
-            return 0, 0
         if before is not None and run <= before[0]:
             return 0, 0
         cur.execute(
@@ -111,21 +132,26 @@ def _raw_rows(cur, table, key_expr, attrs, run):
         yield from cur.fetchall()
 
 
-def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int] | None:
+def _latest_run(conn, table: str) -> int | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT max(r.ingest_run_id) FROM {table} r "
+            "JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id WHERE i.status = 'ok'"
+        )
+        return cur.fetchone()[0]
+
+
+def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
     """Record the feed's newest OK snapshot. Returns (closed, opened): (0, 0) with no snapshot
-    or nothing new, None for a feed whose history is not replayed yet (the nightly summary
-    says so, since such a feed records nothing until scripts/build_claims.py runs)."""
+    or nothing new."""
     run = _latest_run(conn, table)
     if run is None:
         return 0, 0
     with conn.cursor() as cur:
-        # The bootstrap gate, checked before the snapshot is fetched: record() refuses the run
-        # anyway, but a feed whose history is not replayed yet should not cost the nightly a
-        # 100 MB fetch to find that out.
+        # Checked before the snapshot is fetched: record() refuses an old run anyway, but a
+        # run already recorded should not cost the nightly a 100 MB fetch to find that out.
         before = progress(cur, source)
-        if before is None:
-            return None
-        if run <= before[0]:
+        if before is not None and run <= before[0]:
             return 0, 0
         cur.execute(f"SELECT max(loaded_at) FROM {table} WHERE ingest_run_id = %s", (run,))
         observed_at = cur.fetchone()[0]
@@ -133,7 +159,7 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int] | None:
     return record(conn, source, run, observed_at, rows)
 
 
-def record_all(conn) -> dict[str, tuple[int, int] | None]:
-    """The nightly: every feed's newest snapshot (None for a feed not yet bootstrapped)."""
+def record_all(conn) -> dict[str, tuple[int, int]]:
+    """The nightly: every feed's newest snapshot."""
     return {source: record_feed(conn, table, source, key_expr, attrs)
             for table, source, key_expr, attrs in FEEDS}

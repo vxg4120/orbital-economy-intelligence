@@ -7,7 +7,7 @@ import datetime as dt
 
 import pytest
 
-from identity import assertions, claims
+from identity import claims
 
 pytestmark = pytest.mark.db
 
@@ -43,7 +43,7 @@ def _all(cur, source="satcat"):
 
 
 def _record(conn, run, at, rows, source="satcat"):
-    return claims.record(conn, source, run, at, rows, bootstrap=True)
+    return claims.record(conn, source, run, at, rows)
 
 
 def test_a_run_opens_closes_and_leaves_unchanged_claims_alone(db_conn):
@@ -105,23 +105,24 @@ def test_an_empty_snapshot_is_not_evidence_that_every_claim_ended(db_conn):
         db_conn.rollback()
 
 
-def test_the_nightly_records_nothing_for_a_feed_whose_history_is_not_replayed(db_conn):
-    """The replay creates the progress row; until then a nightly run would be recorded first
-    and every older run refused, and the history lost."""
+def test_a_feed_with_no_progress_row_starts_at_its_newest_run(db_conn):
+    """The first run a feed is recorded from opens every claim it makes and creates the
+    progress row; the same run again is refused before the snapshot is fetched."""
     try:
         with db_conn.cursor() as cur:
+            cur.execute("DELETE FROM claim WHERE source = 'satcat'")
+            cur.execute("DELETE FROM claim_progress WHERE source = 'satcat'")
             r1 = _run(cur)
-        assert claims.record(db_conn, "satcat", r1, T0, [("1", "owner", "NASA")]) == (0, 0)
-        # The nightly path, before the fetch: a feed without progress records nothing, and the
-        # run already recorded is not fetched again.
-        with db_conn.cursor() as cur:
             cur.execute("INSERT INTO raw_satcat (norad_cat_id, object_name, ingest_run_id) "
                         "VALUES (1, 'ONE', %s)", (r1,))
         assert claims.record_feed(db_conn, "raw_satcat", "satcat", "norad_cat_id",
-                                  assertions._SATCAT_ATTRS) is None
-        assert _record(db_conn, r1, T0, [("1", "owner", "NASA")]) == (0, 1)
+                                  claims._SATCAT_ATTRS) == (0, 1)
+        with db_conn.cursor() as cur:
+            assert _open(cur) == [("1", "name", "ONE", r1)]
+            cur.execute("SELECT last_run FROM claim_progress WHERE source = 'satcat'")
+            assert cur.fetchone()[0] == r1
         assert claims.record_feed(db_conn, "raw_satcat", "satcat", "norad_cat_id",
-                                  assertions._SATCAT_ATTRS) == (0, 0)
+                                  claims._SATCAT_ATTRS) == (0, 0)
     finally:
         db_conn.rollback()
 
@@ -140,9 +141,9 @@ def test_a_value_that_flips_back_is_three_rows(db_conn):
         db_conn.rollback()
 
 
-def test_feeds_record_the_same_rows_the_assertion_writer_extracts(db_conn):
-    """The two writers read the raw snapshot through the same (attribute, column) lists; on a
-    seeded GCAT snapshot their outputs agree row for row, NULLs and '-' placeholders included."""
+def test_record_feed_reads_the_raw_snapshot_through_the_attribute_lists(db_conn):
+    """One (key, attribute, value) per non-NULL column of each raw row: NULLs make no claim,
+    GCAT's '-' and '' placeholders make none, and name prefers pl_name."""
     try:
         with db_conn.cursor() as cur:
             earlier, run = _run(cur, "gcat"), _run(cur, "gcat")
@@ -154,18 +155,17 @@ def test_feeds_record_the_same_rows_the_assertion_writer_extracts(db_conn):
                 {"r": run},
             )
             cur.execute("INSERT INTO claim_progress VALUES ('gcat', %s, %s)", (earlier, T0))
-        assertions._extract(db_conn, "raw_gcat_satcat", "gcat", "jcat", "gcat_id",
-                            assertions._GCAT_ATTRS, run)
         assert claims.record_feed(db_conn, "raw_gcat_satcat", "gcat", "jcat",
-                                  assertions._GCAT_ATTRS) == (0, 10)
+                                  claims._GCAT_ATTRS) == (0, 10)
         with db_conn.cursor() as cur:
-            cur.execute("SELECT source_key, attribute, value FROM source_assertion "
-                        "WHERE source = 'gcat' AND ingest_run_id = %s ORDER BY 1, 2, 3", (run,))
-            extracted = cur.fetchall()
             cur.execute("SELECT source_key, attribute, value FROM claim WHERE source = 'gcat' "
                         "AND first_run = %s ORDER BY 1, 2, 3", (run,))
-            assert cur.fetchall() == extracted
-            assert len(extracted) == 10
+            assert cur.fetchall() == [
+                ("S1", "manufacturer", "ACME"), ("S1", "name", "ONE PL"), ("S1", "object_type", "P"),
+                ("S1", "owner", "NASA"), ("S1", "status", "O"),
+                ("S2", "bus", "X-BUS"), ("S2", "decay_date", "2026-01-02"), ("S2", "name", "TWO"),
+                ("S2", "object_type", "P"), ("S2", "status", "D"),
+            ]
     finally:
         db_conn.rollback()
 
@@ -192,43 +192,5 @@ def test_the_current_view_reaches_satellites_through_current_links_only(db_conn)
             cur.execute("SELECT satellite_id, value, observed_to FROM v_current_claim "
                         "WHERE source = 'gcat' AND source_key LIKE 'S97000200%'")
             assert cur.fetchall() == [(b, "OWN", T0)]  # a's link is retired; S970002003 has none
-    finally:
-        db_conn.rollback()
-
-
-def test_replaying_history_gives_the_same_claims_as_recording_it_live(db_conn):
-    """scripts/build_claims.py replays source_assertion run by run through the same writer, so a
-    history replayed later equals the claims a nightly would have recorded as it happened."""
-    from scripts import build_claims
-
-    try:
-        with db_conn.cursor() as cur:
-            runs = [_run(cur) for _ in range(3)]
-            history = {
-                runs[0]: [("1", "owner", "NASA"), ("2", "owner", "ESA")],
-                runs[1]: [("1", "owner", "NASA/GSFC"), ("2", "owner", "ESA")],
-                runs[2]: [("1", "owner", "NASA/GSFC")],
-            }
-            for i, (run, rows) in enumerate(history.items()):
-                for key, attribute, value in rows:
-                    cur.execute(
-                        "INSERT INTO source_assertion (satellite_id, source_key, attribute, "
-                        "value, source, observed_at, ingest_run_id) VALUES (NULL, %s, %s, %s, "
-                        "'satcat', %s, %s)",
-                        (key, attribute, value, T0 + i * DAY, run),
-                    )
-            cur.execute("DELETE FROM claim WHERE source = 'satcat'")
-            cur.execute("DELETE FROM claim_progress WHERE source = 'satcat'")
-        todo = [r for r in build_claims.runs_to_replay(db_conn, "satcat") if r in runs]
-        assert todo == runs
-        assert [build_claims.replay(db_conn, "satcat", r) for r in todo] == [(0, 2), (1, 1), (1, 0)]
-        with db_conn.cursor() as cur:
-            assert _open(cur) == [("1", "owner", "NASA/GSFC", runs[1])]
-            assert len(_all(cur)) == 3
-            cur.execute("SELECT observed_to FROM claim WHERE source_key = '2'")
-            assert cur.fetchone()[0] == T0 + DAY  # last seen in run 2, absent from run 3
-        # Resumable: nothing left, and the last run again is refused.
-        assert [r for r in build_claims.runs_to_replay(db_conn, "satcat") if r in runs] == []
-        assert build_claims.replay(db_conn, "satcat", runs[2]) == (0, 0)
     finally:
         db_conn.rollback()

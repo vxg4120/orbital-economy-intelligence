@@ -83,15 +83,13 @@ def test_iss_like_row_generated_columns(db_conn):
 
 
 @pytest.mark.db
-def test_source_assertion_requires_valid_ingest_run_id(db_conn):
+def test_claim_requires_valid_ingest_run_id(db_conn):
     with db_conn.cursor() as cur:
         with pytest.raises(psycopg.errors.ForeignKeyViolation):
             cur.execute(
                 """
-                INSERT INTO source_assertion
-                    (source_key, attribute, value, source, observed_at, ingest_run_id)
-                VALUES
-                    ('99999', 'status', 'ACTIVE', 'satcat', now(), 999999999)
+                INSERT INTO claim (source, source_key, attribute, value, first_run, observed_from)
+                VALUES ('satcat', '99999', 'status', 'ACTIVE', 999999999, now())
                 """
             )
     db_conn.rollback()

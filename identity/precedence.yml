@@ -1,6 +1,6 @@
 # Conflict-resolution precedence per attribute (config, not code).
 # "disagreements are data, not errors": the resolver picks the winner by this order and writes it
-# to the dimension tables; every losing assertion stays queryable in source_assertion.
+# to the dimension tables; every losing claim stays queryable in v_current_claim.
 #
 # Order = highest precedence first. Source tokens that have no assertions yet in Phase 1
 # (operator_seed, spacetrack_decay) are intentional higher-precedence slots reserved for later

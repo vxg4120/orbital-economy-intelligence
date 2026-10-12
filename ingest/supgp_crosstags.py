@@ -17,7 +17,6 @@ count). If badges parse but all are ``good`` the run is a clean 'ok' with a note
 NO badges at all the structure has changed and the run is recorded 'error' so it can't hide.
 """
 
-import datetime as dt
 import logging
 import re
 from html.parser import HTMLParser

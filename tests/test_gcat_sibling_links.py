@@ -10,7 +10,7 @@ current keys only. Every test seeds its own rows and rolls back.
 
 import pytest
 
-from identity import assertions, churn, match
+from identity import churn, claims, match
 from tests.claimfix import seed_claim
 
 pytestmark = pytest.mark.db
@@ -152,10 +152,10 @@ def test_a_retired_link_receives_no_claims(db_conn):
                 "AND ingest_run_id = %s",
                 (run,),
             )
-        assertions.extract(db_conn)
+        claims.record_all(db_conn)
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT satellite_id FROM source_assertion WHERE source = 'gcat' "
+                "SELECT satellite_id FROM v_current_claim WHERE source = 'gcat' "
                 "AND source_key = 'S970001032' AND attribute = 'owner'"
             )
             assert [r[0] for r in cur.fetchall()] == [b]
@@ -237,32 +237,23 @@ def test_a_key_moved_and_moved_back_leaves_a_full_audit_trail(db_conn):
 
 
 def test_a_claim_through_a_retired_link_is_not_a_current_claim(db_conn):
-    """claim_is_current: the resolver, the satellite page and the conflicts page keep claims
-    only through keys that currently identify the satellite, so a sibling's leftover claim
-    stops counting the moment its link is retired, even for an attribute the satellite's own
-    key never asserts."""
+    """v_current_claim reaches a satellite only through keys that currently identify it, so
+    the resolver, the satellite page and the conflicts page lose a sibling's leftover claim the
+    moment its link is retired, even for an attribute the satellite's own key never asserts."""
     try:
         with db_conn.cursor() as cur:
             a = _sat(cur, 970001071, "2026-007A", "ZZ VIEW A")
             _link(cur, a, "gcat_id", "S970001071")
             _link(cur, a, "gcat_id", "S970001072", valid_to="2026-10-01")
             run = _run(cur)
+            seed_claim(cur, a, "gcat", "owner", "OWN", run, key="S970001071")
+            seed_claim(cur, a, "gcat", "manufacturer", "SIBLING", run, key="S970001072")
             cur.execute(
-                "INSERT INTO source_assertion (satellite_id, source_key, attribute, value, "
-                "source, observed_at, ingest_run_id) VALUES "
-                "(%(a)s, 'S970001071', 'owner', 'OWN', 'gcat', now(), %(r)s), "
-                "(%(a)s, 'S970001072', 'manufacturer', 'SIBLING', 'gcat', now(), %(r)s)",
-                {"a": a, "r": run},
-            )
-            cur.execute(
-                "SELECT attribute, value FROM source_assertion WHERE satellite_id = %s "
-                "AND claim_is_current(satellite_id, source, source_key)",
+                "SELECT attribute, value FROM v_current_claim WHERE satellite_id = %s "
+                "AND source_key LIKE 'S9700010%%'",
                 (a,),
             )
             assert cur.fetchall() == [("owner", "OWN")]
-            # A source with no crosswalk key type (a correction channel) is always current.
-            cur.execute("SELECT claim_is_current(%s, 'operator_confirmed', 'fix-1')", (a,))
-            assert cur.fetchone()[0] is True
     finally:
         db_conn.rollback()
 

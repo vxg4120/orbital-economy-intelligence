@@ -17,7 +17,6 @@ from identity.reconcile import name_gate
 # against the live schema rather than against another copy of the same assumption.
 _REPOINTED = {
     "satellite_identifier",
-    "source_assertion",
     "satellite_status_history",
     "satellite_operator",
     "satellite_bus",

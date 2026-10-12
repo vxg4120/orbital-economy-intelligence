@@ -28,7 +28,7 @@ METHODOLOGY_DOC_URL = (
 CORRECTION_CHANNEL = (
     "Operators and manufacturers can confirm or dispute attribution: email "
     "vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections "
-    "enter the record as source_assertion rows with source 'operator_confirmed', which "
+    "enter the record as claims with source 'operator_confirmed', which "
     "outranks catalog sources in precedence."
 )
 
@@ -231,7 +231,7 @@ METHODOLOGY = {
     ],
     "provenance_guarantee": (
         "Every number is traceable to source rows: each attribution carries (source, "
-        "source_key = GCAT jcat, ingest_run_id) plus source_assertion records, and the "
+        "source_key = GCAT jcat, ingest_run_id) plus the claim table's records, and the "
         "per-metric provenance endpoint returns the exact constituent satellites behind any "
         "headline value."
     ),

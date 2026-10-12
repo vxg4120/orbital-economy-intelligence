@@ -148,7 +148,7 @@ def _bulk_upsert_satellites_by_norad(cur, stage_table: str) -> None:
     ``DISTINCT ON (norad)`` collapses rows that share a NORAD id (GCAT registers several JCAT
     pieces under one Satcat number): a single INSERT ... ON CONFLICT DO UPDATE cannot touch the
     same target row twice, and one representative row per object is all a norad-keyed dimension
-    needs — the losing attributes still resolve later from source_assertion."""
+    needs — the losing attributes still resolve later from the claim table."""
     cur.execute(
         f"""
         INSERT INTO satellite (norad_id, cospar_id, canonical_name, object_type, launch_date)

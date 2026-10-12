@@ -15,7 +15,7 @@
 #     retired slug in benchmark_slug_alias, so /buses/{old} keeps serving the surviving cohort
 #     with aliased_from set, exactly as the operator merge does.
 #   * Display-name entries change what a cohort is called, never what it contains; the raw
-#     GCAT assertion stays queryable in source_assertion. Keep them to typos and truncations.
+#     GCAT claim stays queryable in v_current_claim. Keep them to typos and truncations.
 #
 # Applied after the GCAT parent walk and before the operator-identity merge, so a curated
 # group is one cohort by construction and the merge layer sees it as such. Participation

@@ -1,7 +1,7 @@
 """Phase 1 identity pipeline CLI.
 
 Seeds operators + status_mapping from the curated YAML (idempotent upserts), runs the matcher
-(deterministic then probabilistic), extracts source assertions, resolves winners into the
+(deterministic then probabilistic), records each feed's claims, resolves winners into the
 dimension tables, and prints a summary. Seeding and every phase write are idempotent, so the
 whole build is safe to re-run.
 """
@@ -19,7 +19,6 @@ if str(REPO_ROOT) not in sys.path:
 
 from common.db import get_conn  # noqa: E402
 from identity import (  # noqa: E402
-    assertions,
     churn,
     claims,
     enrich_operators,
@@ -122,9 +121,8 @@ def run_pipeline(conn, review_csv=_REVIEW_CSV) -> dict:
     # that are volatile AND observed-churned AND pointing at unanchored satellites. Runs after
     # promotion so freshly promoted satellites are anchored before expiry considers them.
     churn_stats = churn.run_all(conn)
-    assertions.extract(conn)
-    # Claims, not copies (docs/specs/assertion-model.md): the same snapshots recorded once each,
-    # with a validity range. Both writers run until the readers have moved to the claim table.
+    # Claims, not copies (docs/specs/assertion-model.md): each feed's newest snapshot recorded
+    # once, with a validity range; the resolver and every reader work from the claim table.
     claim_stats = claims.record_all(conn)
     # resolve() is a per-satellite write loop (one INSERT/UPDATE per object, no result read back);
     # psycopg pipeline mode batches those thousands of statements into far fewer round-trips,
@@ -218,8 +216,8 @@ def _print_summary(s: dict) -> None:
     for val in s["unmatched_owners"][:20]:
         print(f"  {val!r}")
     if "claims" in s:
-        changed = ", ".join(f"{src} closed {r[0]} opened {r[1]}" if r else f"{src} not replayed"
-                            for src, r in s["claims"].items())
+        changed = ", ".join(f"{src} closed {closed} opened {opened}"
+                            for src, (closed, opened) in s["claims"].items())
         print(f"claims:                  {changed}")
 
 

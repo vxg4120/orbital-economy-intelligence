@@ -1,9 +1,9 @@
 """Bus Benchmarks build CLI.
 
-Rebuilds satellite_bus from the latest OK GCAT snapshot (identity/bus.py), extracts the
-'bus' / 'manufacturer' source assertions (identity/assertions.py, idempotent), refreshes the
+Rebuilds satellite_bus from the latest OK GCAT snapshot (identity/bus.py), refreshes the
 behavior materialized view backing the benchmark views, and freezes the current month's
-leaderboard snapshot (first run of each month wins; later runs insert nothing).
+leaderboard snapshot (first run of each month wins; later runs insert nothing). The 'bus' and
+'manufacturer' claims behind each row are recorded by the graph build (identity/claims.py).
 
 Runs after scripts/build_graph.py in the daily cycle: attribution joins through the
 satellite_identifier crosswalk the graph build maintains. Safe to re-run at any time.
@@ -19,14 +19,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from identity import assertions, bus  # noqa: E402
+from identity import bus  # noqa: E402
 
 
 def main() -> None:
     conn = get_conn()
     try:
         stats = bus.build(conn)
-        assertions.extract(conn)
         refreshed = bus.refresh_behavior_matview(conn)
         snapshots = bus.snapshot_benchmarks(conn)
         conn.commit()

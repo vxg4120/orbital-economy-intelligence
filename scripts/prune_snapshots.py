@@ -2,8 +2,9 @@
 
 Every ingest run lands a FULL copy of its source in raw_*. Nothing ever deleted one, yet every
 reader of these tables wants only the newest OK run (identity/churn.py wants the newest two). By
-2026-09-28 the older copies filled the disk to 93%. See docs/specs/raw-retention.md, which also
-explains why source_assertion, the other table that grows this way, is not pruned here.
+2026-09-28 the older copies filled the disk to 93%. See docs/specs/raw-retention.md (the
+per-run assertion ledger that grew the same way was replaced by the claim table, see
+docs/specs/assertion-model.md).
 
 The policy, per table:
   * keep the newest KEEP_LATEST OK runs;

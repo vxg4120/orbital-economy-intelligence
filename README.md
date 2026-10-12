@@ -106,10 +106,11 @@ early re-pull attempt — the ledger recorded it as `error`, exactly as designed
   parked in a human-review CSV). Thresholds and weights are config (`match_config.yml`), not code.
 - **Merge** (`merge.py`): the only writer of the crosswalk + `merge_log`. **Every** link and merge is
   audited with its rule and score — there are no silent writes anywhere in `identity/`.
-- **Assertions** (`assertions.py`): each source's claim about `owner | status | decay_date |
-  object_type | name` lands in `source_assertion` with provenance, *before* resolution.
+- **Claims** (`claims.py`): each source's claim about `owner | status | decay_date |
+  object_type | name` (and GCAT's `bus | manufacturer`) is recorded once in `claim` with the
+  runs it held for, *before* resolution; `v_current_claim` is what each source says now.
 - **Resolve** (`resolve.py`): applies per-attribute precedence (`precedence.yml`) to pick a winner
-  into the dimension tables; losers stay queryable in `source_assertion`. **Disagreements are data,
+  into the dimension tables; losers stay queryable in `v_current_claim`. **Disagreements are data,
   not errors.** Status flows through a `status_mapping` table seeded from source documentation;
   owners resolve to operators with **temporal ownership** — when an operator was acquired
   (OneWeb→Eutelsat, Inmarsat→Viasat, Intelsat→SES), a pre-acquisition launch produces two
@@ -117,14 +118,15 @@ early re-pull attempt — the ledger recorded it as `error`, exactly as designed
 
 ### Deliberate deviations from the spec DDL (applied on purpose)
 
-1. `source_assertion` gains `source_key TEXT NOT NULL` — the source-native object key (SATCAT NORAD
-   id, GCAT JCAT id, UCS row hash). Without it, an assertion made before its object is matched
-   (`satellite_id` still NULL) would be an orphan that can never be re-attached. With it, matching is
-   order-independent.
-2. `source_assertion.ingest_run_id` is a real FK to `ingest_run` — every claim is traceable to the
-   exact pull that produced it.
-3. Assertion extraction lives in `identity/assertions.py` reading the raw landing tables, not inside
-   the network loaders. Clean boundary: `ingest/` is network + landing, `identity/` is semantics.
+1. A claim is keyed by `source_key TEXT NOT NULL`, the source-native object key (SATCAT NORAD
+   id, GCAT JCAT id, UCS row hash), not by `satellite_id`: the views join it to the satellite
+   through the current crosswalk link, so matching and merging are order-independent and a claim
+   made before its object is matched is never an orphan.
+2. `claim.first_run` and `closed_run` are real FKs to `ingest_run` — every claim is traceable to the
+   exact pulls that opened and closed it. (The per-run copy of every claim, `source_assertion`,
+   was replaced by this table on 2026-10-07; docs/specs/assertion-model.md.)
+3. Claim recording lives in `identity/claims.py` reading the raw landing tables, not inside the
+   network loaders. Clean boundary: `ingest/` is network + landing, `identity/` is semantics.
 
 ---
 

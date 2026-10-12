@@ -99,11 +99,12 @@ def test_every_raw_table_in_the_migrations_is_pruned():
     assert created <= set(SNAPSHOT_TABLES), f"not pruned: {sorted(created - set(SNAPSHOT_TABLES))}"
 
 
-def test_source_assertion_is_not_pruned_by_run():
-    """Its readers take the newest claim per key and 'any claim ever' across all runs, so
-    dropping whole runs can revert a value or erase a claim. That needs its own design
-    (docs/specs/raw-retention.md, Phase 2), not this policy."""
-    assert "source_assertion" not in SNAPSHOT_TABLES
+def test_the_claim_table_is_not_pruned_by_run():
+    """A claim's validity is its run range (docs/specs/assertion-model.md); pruning claims by run
+    would close nothing and erase 'ever claimed'. The per-run ledger that once grew this way was
+    retired on 2026-10-12."""
+    assert "claim" not in SNAPSHOT_TABLES
+    assert "claim_progress" not in SNAPSHOT_TABLES
 
 
 LABELS = [("aug1", "2026-08-01", "ok"), ("aug2", "2026-08-02", "ok"),
