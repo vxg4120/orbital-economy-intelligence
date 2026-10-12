@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 SOURCE = "celestrak"
 ENDPOINT = "satcat_bulk"
 URL = "https://celestrak.org/pub/satcat.csv"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 DATA_DIR = Path("data/celestrak")
 
 _DATE_FIELDS = {"launch_date", "decay_date"}

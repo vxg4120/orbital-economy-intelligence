@@ -16,6 +16,13 @@ import requests
 USER_AGENT = "orbital-economy-intelligence/0.1 (portfolio project; polite; contact in repo)"
 TIMEOUT_S = 120
 
+# The interval for a feed that refreshes once a day. The nightly runs at 07:10 and 19:10 UTC and
+# fresh_within counts from the last pull's finished_at, so a 24-hour interval left the same slot
+# the next day "fresh" by the seconds the download took: satcat and GCAT refreshed every 36 hours
+# (every third slot) until 2026-10-11. Anything between one slot (12 hours) and a day works;
+# 20 hours leaves room for a late or slow run on either side.
+DAILY = dt.timedelta(hours=20)
+
 
 def start_run(conn, source: str, endpoint: str) -> int:
     """Open a new ingest_run row and return its id. Caller must eventually finish_run() it."""

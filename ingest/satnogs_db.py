@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 SOURCE = "satnogs"
 ENDPOINT = "transmitters"
 URL = "https://db.satnogs.org/api/transmitters/?format=json"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 DATA_DIR = Path("data/satnogs")
 MAX_PAGES = 200  # ~thousands of transmitters at 25-100/page; a runaway-pagination backstop
 

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 SOURCE = "celestrak"
 ENDPOINT = "supgp_index"
 URL = "https://celestrak.org/NORAD/elements/supplemental/"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 
 MATCH_WARNINGS_FLAG = "MATCH_WARNINGS"
 

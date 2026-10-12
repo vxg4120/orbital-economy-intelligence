@@ -29,7 +29,7 @@ PSATCAT_ENDPOINT = "gcat_psatcat"
 PSATCAT_URL = "https://planet4589.org/space/gcat/tsv/cat/psatcat.tsv"
 ORGS_ENDPOINT = "gcat_orgs"
 ORGS_URL = "https://planet4589.org/space/gcat/tsv/tables/orgs.tsv"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 DATA_DIR = Path("data/gcat")
 
 MISSING_MARKERS = {"", "-"}
