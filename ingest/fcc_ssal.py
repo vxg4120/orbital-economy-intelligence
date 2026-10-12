@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 SOURCE = "fcc"
 ENDPOINT = "ssal"
 URL = "https://www.fcc.gov/sites/default/files/ssal.xlsx"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 DATA_DIR = Path("data/fcc")
 
 WAYBACK_URL = (

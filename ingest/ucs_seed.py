@@ -27,7 +27,7 @@ from ingest import runlog
 logger = logging.getLogger(__name__)
 
 SOURCE = "ucs"
-MIN_INTERVAL = dt.timedelta(hours=24)
+MIN_INTERVAL = runlog.DAILY
 LOCAL_GLOBS = ("data/ucs/*.txt", "data/ucs/*.csv")
 
 # UCS export header (as shipped) -> raw_ucs column

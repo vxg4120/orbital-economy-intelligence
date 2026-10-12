@@ -102,3 +102,35 @@ def test_fresh_within_ignores_non_ok_runs(clean_db):
     run_id = runlog.start_run(clean_db, "testsrc", "ep4")
     runlog.finish_run(clean_db, run_id, rows=0, bytes_dl=0, status="error")
     assert runlog.fresh_within(clean_db, "testsrc", "ep4", dt.timedelta(hours=1)) is False
+
+
+@pytest.mark.db
+def test_a_daily_feed_pulled_at_yesterdays_slot_is_due_again_today(clean_db):
+    # The nightly's two slots are 12 hours apart and fresh_within counts from finished_at, so a
+    # full day's interval left yesterday's slot "fresh" by the seconds the download took and the
+    # feed refreshed every third slot. The daily interval has to call that pull stale, and a pull
+    # from the other slot today fresh.
+    run_id = runlog.start_run(clean_db, "testsrc", "ep5")
+    runlog.finish_run(clean_db, run_id, rows=1, bytes_dl=1, status="ok")
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "UPDATE ingest_run SET started_at = now() - interval '24 hours', "
+            "finished_at = now() - interval '23 hours 59 minutes 30 seconds' "
+            "WHERE ingest_run_id = %s",
+            (run_id,),
+        )
+    assert runlog.fresh_within(clean_db, "testsrc", "ep5", runlog.DAILY) is False
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "UPDATE ingest_run SET started_at = now() - interval '12 hours', "
+            "finished_at = now() - interval '11 hours 59 minutes' WHERE ingest_run_id = %s",
+            (run_id,),
+        )
+    assert runlog.fresh_within(clean_db, "testsrc", "ep5", runlog.DAILY) is True
+
+
+def test_every_daily_feed_fits_between_one_nightly_slot_and_a_day():
+    from ingest import celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db, supgp_crosstags, ucs_seed
+
+    for module in (celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db, supgp_crosstags, ucs_seed):
+        assert dt.timedelta(hours=12) < module.MIN_INTERVAL < dt.timedelta(hours=24), module.__name__
