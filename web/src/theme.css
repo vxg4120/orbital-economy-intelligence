@@ -1739,6 +1739,15 @@ button {
   .navlink__name {
     letter-spacing: 0.05em;
   }
+  /* panel heads: the meta annotation drops to its own line, so the Fraunces title keeps
+     the full width instead of wrapping under its own plate number */
+  .panel__head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .panel__meta {
+    flex-basis: 100%;
+  }
   /* the full name holds one line only at the base size */
   .topbar__mark {
     font-size: var(--fs-base);
