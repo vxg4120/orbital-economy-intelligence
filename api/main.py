@@ -58,6 +58,14 @@ app.include_router(filings.router, prefix="/api")
 app.include_router(environment.router, prefix="/api")
 
 
+@app.get("/api/health", tags=["health"])
+def health():
+    """Liveness for uptime checks: the process is up and routing. It deliberately does not touch
+    the database, so a probe stays cheap and a slow query can never make the service look down.
+    Mirrors exodossier's /api/health so one monitor config covers both apps."""
+    return {"status": "ok", "service": "oei-api"}
+
+
 _WEB_DIST = pathlib.Path(__file__).resolve().parent.parent / "web" / "dist"
 if (_WEB_DIST / "index.html").exists():
     # Imported lazily so the API has no hard dependency on the SPA being built.
