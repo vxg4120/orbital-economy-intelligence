@@ -264,8 +264,34 @@ It bakes whatever the live endpoints serve at that moment, so a deploy that itse
 the data (a graph rebuild, a dedupe) ships numbers from before the change. When that
 happens, run it once more after the deploy has settled and pull again.
 
-**Backups:** re-run `seed/dump-local.sh`-style dumps on the box against the `db` service,
-or snapshot the Hetzner volume. The `pgdata` volume holds all state.
+**Backups:** Hetzner automatic backups are ON for `orbital` (since 2026-10-12, 20% of the server
+price, window 02-06 UTC, seven rolling daily images of the whole disk, listed by
+`hcloud image list --type backup`). They are crash-consistent: a restored Postgres reports
+"database system was not properly shut down" and replays WAL, which took under a second in
+the rehearsal. The `pgdata` volume holds all state. For a logical copy as well, re-run
+`seed/dump-local.sh`-style dumps on the box against the `db` service.
+
+**Restore rehearsal (done 2026-10-16, 9 minutes, under 2 cents):** restore to a SECOND server,
+never over `orbital`, and neutralise the clone before its first nightly slot, because it boots
+as a full copy of production: it would pull every feed from a second IP, page the ntfy topic
+with any `!!` line, and try to renew the real certificates.
+
+```bash
+hcloud server create --name restore-rehearsal --type cx33 --location hel1 \
+    --image <backup image id> --ssh-key vib-laptop          # ~1 min to boot
+ssh root@<clone ip> 'crontab -r; cd /root/apps/space/deploy; docker compose stop caddy;
+    sed -i "s/^ALERT_URL=.*/ALERT_URL=/" .env'               # no nightly, no alerts, no TLS
+ssh root@<clone ip> 'docker logs orbital-db 2>&1 | grep -E "redo done|ready to accept"
+    docker exec orbital-db psql -U oei -d oei -Atc "select count(*) from satellite"
+    docker exec orbital-oei-api python -c "import urllib.request as u; print(u.urlopen(\"http://127.0.0.1:8600/api/stats\").read()[:80])"
+    docker exec orbital-exo-api python -c "import urllib.request as u; print(u.urlopen(\"http://127.0.0.1:8700/api/stats\").read()[:80])"'
+hcloud server delete restore-rehearsal                    # leave the account's backup images alone
+```
+
+Counts should match the nightly that ran just before the image's creation time (Hetzner
+timestamps backups in the account's timezone). A real disaster recovery is the same
+procedure with the DNS A records repointed to the new server and Caddy left running; the
+old server's certificates are in the image, so TLS resumes without a new issuance.
 
 **TLS not issuing?** Check DNS resolves to the box (`dig orbital.<domain>`), ports 80/443
 are open (Hetzner firewall off by default), and `docker compose logs caddy`.
