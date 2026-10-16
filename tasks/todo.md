@@ -164,13 +164,14 @@ Owner: session space-7e. Peers: space-28 owns deploy/landing/* copy tonight (bra
 landing/oct-2026-copy); space-a2 owns the source_assertion_runs_20261012 drop after 10-19.
 
 ## Needs nothing from Vib
-- [ ] 1. orbital `/api/health` route (parity with exo's), covered by a test, deployed.
-- [ ] 2. Cold-hit latency: `/api/buses` 4.2 s and exo first paint 2.9 s. Measure, fix the
-      query or warm the cache, re-measure on the box.
-- [ ] 3. CI: the `db` job is green but 95 `graph` tests skip on the empty DB. Move the
-      existing fixture ingest + build_graph ahead of pytest so they run; see what breaks.
-- [ ] 4. Hetzner restore rehearsal: second server from the newest backup image, verify
-      both DBs and both sites, then delete the server and any image. Never touch orbital.
+- [x] 1. orbital `/api/health` route (parity with exo's), covered by a test, deployed 10-16 02:57 UTC (c6c7b2d).
+- [x] 2. Latency: `/api/buses` 4.2 s -> 1.4 s (SQL 3.3 s -> 0.19 s, migration 0025
+      mv_latest_satellite_status); exo landing cold 2.4/2.8 s -> 0.66/0.63 s (warm caches,
+      exodossier a86c356). Both measured on the box after deploy.
+- [x] 3. CI: tried seeding the fixtures before pytest; 5 of 96 graph tests pass, the rest
+      are by design about the real catalog. Not viable; the skip-on-empty rule stays. The
+      experiment found and fixed the audit_report crash on an empty Eutelsat cohort.
+- [x] 4. Restore rehearsal passed 10-16 02:41-02:50 UTC (procedure in deploy/README.md).
 - [ ] 5. Design pass on the orbital and exo apps (not the landing tonight): mobile widths,
       contrast, loading/empty states, consistency between the two apps.
 
