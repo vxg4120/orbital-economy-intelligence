@@ -44,10 +44,11 @@ series (`metrics/caggs.sql`).
   and/or a manufacturer to it, and the object resolves to a canonical satellite under the
   four-rule join described in section 4.1: by its permanent NORAD id when the row carries
   one, else by the catalog number its GCAT key names (`S<n>` is NORAD n), else through the
-  COSPAR crosswalk to an anchored satellite, else as provisional slot occupancy. Neither of the catalogs' provisional keys is stable on fresh launches (GCAT
-  renumbered 67 of 73 Transporter-17 catalog ids against their pieces in one release, then
-  re-identified 41 of 73 slot occupants in another without moving any key), which is why the
-  permanent id outranks every crosswalk and the join rule is published per row.
+  COSPAR crosswalk to an anchored satellite, else as provisional slot occupancy. Neither of
+  the catalogs' provisional keys is stable on fresh launches (GCAT renumbered 67 of 73
+  Transporter-17 catalog ids against their pieces in one release, then re-identified 41 of 73
+  slot occupants in another without moving any key), which is why the permanent id outranks
+  every crosswalk and the join rule is published per row.
 * Counting convention: this scoreboard counts spacecraft that have launched and been
   catalogued. It does not count buses that a manufacturer has built or delivered but that have
   not flown, and it does not count hosted payloads riding on someone else's bus as separate
@@ -122,8 +123,9 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
   anchored satellite whose NORAD id is n, ahead of any COSPAR lookup, because on the
   ISS-deployed cubesats GCAT's piece letter is one off SATCAT's for the same object and a
   piece lookup lands on the deployment neighbour. `anchored_cospar` means the row reached an
-  anchored satellite through the COSPAR crosswalk. `provisional_slot` means the satellite has no permanent id yet, so the
-  attribution is a dated observation of slot occupancy rather than a settled identity.
+  anchored satellite through the COSPAR crosswalk. `provisional_slot` means the satellite
+  has no permanent id yet, so the attribution is a dated observation of slot occupancy rather
+  than a settled identity.
   Provisional fleets stay on the leaderboard, counted per cohort in `provisional_n`, because
   they are the newest and most commercially interesting cohort and the catalogs' name-level
   attribution is stable even while slot assignments move; readers who want settled

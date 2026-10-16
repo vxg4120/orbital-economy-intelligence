@@ -296,7 +296,8 @@ def test_bus_attribution_of_a_norad_less_row_follows_its_key_number(db_conn):
     """Methodology v1.10: a GCAT row with no NORAD attributes to the satellite whose NORAD is
     its key's number, before the cospar crosswalk. The ISS shape: GCAT's piece for a is the
     piece the crosswalk holds for its sibling b, so rule 2 alone lands on b. A row whose key
-    number names no satellite still falls through to anchored_cospar."""
+    number names no satellite still falls through to anchored_cospar. Piece churn does not
+    flag the number join, which never rides the piece, but still flags the cospar one."""
     try:
         with db_conn.cursor() as cur:
             b = _sat(cur, 970001102, "1998-067VQ", "ZZ BUS B")  # lower satellite_id
@@ -312,15 +313,21 @@ def test_bus_attribution_of_a_norad_less_row_follows_its_key_number(db_conn):
                     "VALUES (%s, NULL, %s, 'ZZ BUS', 'ZZ BUS', 'P', 'CubeSat (3U)', 'ZZMFR', %s)",
                     (jcat, piece, run),
                 )
+            for piece in ("1998-067VR", "1998-067VT"):  # both pieces seen reassigned
+                cur.execute(
+                    "INSERT INTO catalog_key_churn (source, id_type, id_value, prev_run_id, "
+                    "curr_run_id, prev_anchored) VALUES ('gcat', 'cospar', %s, %s, %s, TRUE)",
+                    (piece, run, run),
+                )
         bus.build(db_conn)
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT source_key, satellite_id, join_rule FROM satellite_bus "
+                "SELECT source_key, satellite_id, join_rule, key_churn_observed FROM satellite_bus "
                 "WHERE source_key IN ('S970001101', 'S970001199') ORDER BY 1"
             )
             assert cur.fetchall() == [
-                ("S970001101", a, "anchored_jcat_number"),
-                ("S970001199", c, "anchored_cospar"),
+                ("S970001101", a, "anchored_jcat_number", False),
+                ("S970001199", c, "anchored_cospar", True),
             ]
             cur.execute("SELECT count(*) FROM satellite_bus WHERE satellite_id = %s", (b,))
             assert cur.fetchone()[0] == 0

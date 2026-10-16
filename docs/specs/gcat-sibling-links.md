@@ -96,10 +96,12 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - The rule never touches a key whose GCAT row has no NORAD and whose number matches none of
   its satellites (0 today); such keys stay with `expire_contested`.
 - The nightly after the change must pass both gates. For rows that carry a NORAD the bus build
-  is unchanged (rule 1 bypasses the crosswalk). For NORAD-less rows its rule 2 takes the
-  lowest current anchored cospar link, so retiring a sibling's cospar link can move an
-  attribution to the key's own satellite; that is the convention applied, measured after the
-  first nightly against the saved before-state (`zz_bus_before` on the box).
+  is unchanged (rule 1 bypasses the crosswalk). ~~For NORAD-less rows its rule 2 takes the
+  lowest current anchored cospar link~~ (superseded 2026-10-16, see the decision log: a
+  NORAD-less `S<n>` row now attributes to the satellite with NORAD n before rule 2), so
+  retiring a sibling's cospar link could move an attribution to the key's own satellite; that
+  is the convention applied, measured against the saved before-state (`zz_bus_before` on the
+  box), which on 2026-10-16 matched the build exactly.
 - Historical `source_assertion` rows written under the wrong sibling are left in place and
   stop counting as current claims the moment the link is retired (`claim_is_current`). The
   assertion-model spec removes them for good.
@@ -145,14 +147,15 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - [x] Resolver timing on production, read-only, 2026-10-06: `EXPLAIN (ANALYZE, BUFFERS)` of the
   newest-then-current-key shape for `owner`: 19.1 s, hash aggregate in memory, 140,881
   winners, against 13.9 s without the check and a 300 s timeout for the join-first view.
-- [x] Tests (tests/test_gcat_sibling_links.py, 11 of them: the two added by the second pass
-  cover a numbered row with no piece and the decay-date retraction): a moved key is retired with its
-  event; the key-number fallback; nothing retired when the anchor lacks the key; a shared piece
-  judges nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
+- [x] Tests (tests/test_gcat_sibling_links.py, 12 of them: the two added by the second pass
+  cover a numbered row with no piece and the decay-date retraction, and the 2026-10-16 one
+  covers bus attribution by the key's number): a moved key is retired with its event; the
+  key-number fallback; nothing retired when the anchor lacks the key; a shared piece judges
+  nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
   with its three events; a retired link receives no claim; a claim through a retired link is
   not current. Mutants of the direction, the guard, the fallback, the unique-anchor rule, the
   matcher authority, the probe skip, the retraction and the writer filter each fail the
-  suite. Full suite 410 passed.
+  suite. Full suite 427 passed, 117 skipped (2026-10-16, on an empty migrated DB).
 - [ ] Both nightly gates pass on the first run after deployment.
 
 ## Open questions
@@ -175,7 +178,9 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   (125 rows) matches today's build exactly; they change only `join_rule`, from
   `anchored_cospar` to `anchored_jcat_number` (after deploy `anchored_cospar` drops from 557
   to 0). The rule's value is that the attribution no longer depends on the crosswalk staying
-  corrected. A NORAD-less row whose number names no satellite still falls through to rule 2. Test: `test_bus_attribution_of_a_norad_less_row_follows_its_key_number`.
+  corrected. A NORAD-less row whose number names no satellite still falls through to rule 2,
+  and the row's `key_churn_observed` checks jcat churn only (this join never uses the piece).
+  Test: `test_bus_attribution_of_a_norad_less_row_follows_its_key_number`.
   Separately reviewed and kept: GCAT status code C (Collided) -> DECAYED in
   `identity/status_map.yml` (a collided object is no longer an operating satellite; its
   debris, if tracked, enters the catalog as separate objects). Lesson: a CHECK-constrained

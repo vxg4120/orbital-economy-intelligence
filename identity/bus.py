@@ -429,6 +429,10 @@ SELECT
     -- producing key has never been observed to move, so the flag stays false there even when
     -- the row's piece churned before the anchor arrived.
     CASE WHEN join_rule = 'anchored_norad' THEN FALSE
+         -- anchored_jcat_number rides the jcat alone and never the piece, so only jcat churn.
+         WHEN join_rule = 'anchored_jcat_number'
+         THEN EXISTS (SELECT 1 FROM catalog_key_churn c
+                      WHERE c.id_type = 'gcat_id' AND c.id_value = linked.jcat)
          ELSE EXISTS (SELECT 1 FROM catalog_key_churn c
                       WHERE (c.id_type = 'cospar' AND c.id_value = linked.piece)
                          OR (c.id_type = 'gcat_id' AND c.id_value = linked.jcat))
