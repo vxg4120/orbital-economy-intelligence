@@ -390,10 +390,15 @@ history.
   number n), before the COSPAR crosswalk, and publishes `join_rule = 'anchored_jcat_number'`.
   Before, such a row took the lowest current anchored COSPAR link for its piece, and on the
   ISS-deployed cubesats of 1998-067 GCAT's piece letter is one off SATCAT's (`1998-067VR`
-  where SATCAT says `VQ`), so the row landed on the deployment neighbour. On production this
-  moves the 23 NORAD-less 1998-067 rows onto their own satellites; rows that carry a NORAD id
-  are unchanged, and a NORAD-less row whose key number names no satellite falls through to
-  the COSPAR crosswalk as before. No metric definitions changed.
+  where SATCAT says `VQ`), so the row could land on the deployment neighbour whenever the
+  crosswalk held the neighbour's link. Measured on production on 2026-10-16 (read-only), the
+  change moves no attribution: since the 2026-10-06 sibling-link correction the crosswalk
+  already reaches the key's own satellite for all 557 NORAD-less rows the rule covers (24 of
+  them 1998-067), so those rows change only their `join_rule` from `anchored_cospar` to
+  `anchored_jcat_number`, and their attribution no longer depends on the crosswalk staying
+  correct. Rows that carry a NORAD id are unchanged, and a NORAD-less row whose key number
+  names no satellite falls through to the COSPAR crosswalk as before. No metric definitions
+  changed.
 
 * **v1.9 (2026-09-17).** Attribution rule addition: curated aliases (sections 4.2 and 4.3),
   from the 2026-09-16 site audit, which found the "one cohort per company" promise broken on
