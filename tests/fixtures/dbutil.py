@@ -17,6 +17,7 @@ _RAW_TABLES_BY_RUN = (
     "raw_gcat_orgs",
     "raw_ucs",
     "raw_supgp_status",
+    "raw_spacetrack_decay",
 )
 
 
