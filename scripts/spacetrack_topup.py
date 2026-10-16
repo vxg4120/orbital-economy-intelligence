@@ -58,6 +58,9 @@ PUBLICATION_MARGIN = dt.timedelta(hours=2)
 EMPTY_WINDOW_MIN_IDS = 100
 MAX_REQUESTS_PER_HOUR = 250   # Space-Track's cap is 300; headroom for login and the decay pull
 MAX_PLANNED_REQUESTS = 200    # refuse a plan this large: retries need room under the hourly cap
+# Session advisory lock: one top-up at a time (a manual run during the nightly would double the
+# request rate, since the pacers are per process and the limits per account). Fixed key, 'STTOPU'.
+LOCK_KEY = 0x535454_4F5055
 
 
 class TopupGapError(RuntimeError):
@@ -223,7 +226,14 @@ def main(argv=None, conn=None, client_factory=None, now=None, out=print) -> int:
     owns_conn = conn is None
     conn = conn or get_conn()
     failed: list[str] = []
+    locked = False
     try:
+        if not conn.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,)).fetchone()[0]:
+            conn.rollback()
+            out("[spacetrack_topup] another top-up is running; skipping")
+            return 0
+        locked = True
+        conn.commit()
         pacer = bf.HourlyPacer(MAX_REQUESTS_PER_HOUR)
         factory = client_factory or (lambda c, **kw: SpaceTrackClient(c, **kw))
         client = factory(conn, identity=identity, password=password, pre_request=pacer.acquire)
@@ -242,6 +252,13 @@ def main(argv=None, conn=None, client_factory=None, now=None, out=print) -> int:
                       file=sys.stderr)
                 failed.append(part)
     finally:
+        if locked:
+            try:
+                conn.rollback()
+                conn.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
+                conn.commit()
+            except Exception:  # session-scoped: closing the connection frees it anyway
+                pass
         if owns_conn:
             conn.close()
     return 1 if failed else 0

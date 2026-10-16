@@ -119,6 +119,46 @@ def test_the_nightly_passes_the_credentials_and_runs_between_ingest_and_graph():
     assert "|| echo \"!!" in block
 
 
+@pytest.mark.db
+@responses.activate
+def test_a_second_concurrent_top_up_skips_on_the_advisory_lock(monkeypatch):
+    from common.db import get_conn
+    monkeypatch.setenv("SPACETRACK_IDENTITY", "u@example.com")
+    monkeypatch.setenv("SPACETRACK_PASSWORD", "pw")
+    holder, second = get_conn(), get_conn()
+    try:
+        assert holder.execute("SELECT pg_try_advisory_lock(%s)", (topup.LOCK_KEY,)).fetchone()[0]
+        lines = []
+        rc = topup.main([], conn=second, out=lines.append,
+                        client_factory=lambda *a, **k: pytest.fail("must not build a client"))
+        assert rc == 0
+        assert lines == ["[spacetrack_topup] another top-up is running; skipping"]
+        assert len(responses.calls) == 0
+    finally:
+        holder.execute("SELECT pg_advisory_unlock(%s)", (topup.LOCK_KEY,))
+        holder.close()
+        second.close()
+
+
+@pytest.mark.db
+def test_the_lock_is_released_when_a_top_up_finishes(monkeypatch):
+    from common.db import get_conn
+    monkeypatch.setenv("SPACETRACK_IDENTITY", "u@example.com")
+    monkeypatch.setenv("SPACETRACK_PASSWORD", "pw")
+    monkeypatch.setattr(topup, "gp_topup", lambda *a, **k: 0)
+    monkeypatch.setattr(topup.spacetrack_decay, "run", lambda *a, **k: 0)
+    first, other = get_conn(), get_conn()
+    try:
+        assert topup.main([], conn=first, out=lambda s: None,
+                          client_factory=lambda *a, **k: object()) == 0
+        got = other.execute("SELECT pg_try_advisory_lock(%s)", (topup.LOCK_KEY,)).fetchone()[0]
+        assert got
+        other.execute("SELECT pg_advisory_unlock(%s)", (topup.LOCK_KEY,))
+    finally:
+        first.close()
+        other.close()
+
+
 # --- window -------------------------------------------------------------------
 
 
