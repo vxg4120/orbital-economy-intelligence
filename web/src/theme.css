@@ -1364,7 +1364,7 @@ button {
 }
 .hm-axis-label {
   fill: var(--ink-faint);
-  font-size: 9px;
+  font-size: var(--fs-micro);
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
 }
@@ -1668,6 +1668,12 @@ button {
 @media (max-width: 560px) {
   :root {
     --pad: 14px;
+    /* phones read one step up on the bottom four tiers: 10/11px was the majority of
+       text on a 1x phone. Desktop density is untouched. */
+    --fs-micro: 11px;
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-base: 14px;
   }
   .grid--stats {
     grid-template-columns: 1fr;
@@ -2617,7 +2623,7 @@ button {
 }
 /* 'suggested' tag on the AI-pre-selected verdict button */
 .verdict-btn__suggest {
-  font-size: 9px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--signal);
