@@ -65,10 +65,8 @@ WITH per_satellite AS (
     WHERE satellite_id IS NOT NULL
 ),
 latest_status AS (
-    SELECT DISTINCT ON (satellite_id)
-        satellite_id, canonical_status
-    FROM satellite_status_history
-    ORDER BY satellite_id, observed_at DESC
+    -- Materialized by migration 0025 and refreshed after build_graph in the nightly.
+    SELECT satellite_id, canonical_status FROM mv_latest_satellite_status
 )
 SELECT
     ps.satellite_id,
@@ -181,10 +179,8 @@ GROUP BY
 -- expected here, not a bug.
 CREATE OR REPLACE VIEW v_deorbit_compliance AS
 WITH latest_status AS (
-    SELECT DISTINCT ON (satellite_id)
-        satellite_id, canonical_status
-    FROM satellite_status_history
-    ORDER BY satellite_id, observed_at DESC
+    -- Materialized by migration 0025 and refreshed after build_graph in the nightly.
+    SELECT satellite_id, canonical_status FROM mv_latest_satellite_status
 ),
 last_active AS (
     SELECT satellite_id, max(observed_at) AS last_active_at
