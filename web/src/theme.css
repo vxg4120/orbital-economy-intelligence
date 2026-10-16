@@ -277,9 +277,24 @@ button {
    overrides: declared after them (it used to sit with the tour styles at the end of the file),
    it silently won every phone-width margin rule, since equal specificity goes to the later rule. */
 .topbar__help {
+  /* a 36px hit box around the 24px ring; from 768px up the word "Tour" sits beside it,
+     so visitors who dismissed the auto tour can see that it replays */
   align-self: center;
   flex: none;
-  margin: 0 14px;
+  margin: 0 8px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.topbar__help-ring {
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -288,15 +303,30 @@ button {
   border: 1px solid var(--rule-2);
   border-radius: 50%;
   background: var(--surface-2);
-  color: var(--ink-dim);
   font-size: var(--fs-sm);
   font-weight: 600;
-  cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.topbar__help:hover {
+.topbar__help-word {
+  /* the .tele__k micro-label voice */
+  display: none;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition: color 0.15s;
+}
+@media (min-width: 768px) {
+  .topbar__help-word {
+    display: inline;
+  }
+}
+.topbar__help:hover .topbar__help-ring {
   color: var(--signal);
   border-color: var(--signal-dim);
+}
+.topbar__help:hover .topbar__help-word {
+  color: var(--ink-dim);
 }
 
 /* ---- rail ---- */
@@ -1734,7 +1764,7 @@ button {
     padding-right: 36px;
   }
   .topbar__help {
-    margin: 0 8px;
+    margin: 0 2px;
   }
   /* nav strip: four views show at 390px instead of two and a half. The 00-07 plate
      indices go (the names carry the meaning; the indices are ordinal decoration) and
@@ -1812,16 +1842,12 @@ button {
     padding: 0 10px;
   }
   .topbar__help {
-    margin: 0 6px;
+    margin: 0;
   }
 }
 @media (pointer: coarse) {
-  /* toward the 44px guideline on touch: the "?" was 24px, .btn 27px tall, table rows
-     34-36px, the tour's Back/Next 24px and the receipt "§" links 14x21px */
-  .topbar__help {
-    width: 36px;
-    height: 36px;
-  }
+  /* toward the 44px guideline on touch: .btn was 27px tall, table rows 34-36px, the
+     tour's Back/Next 24px and the receipt "§" links 14x21px (the "?" is 36px everywhere) */
   .btn {
     padding: 11px 14px;
   }
