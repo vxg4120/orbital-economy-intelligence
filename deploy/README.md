@@ -127,6 +127,20 @@ Logs land in `deploy/refresh.log`. Add `SPACETRACK_IDENTITY` / `SPACETRACK_PASSW
 `.env` if you want the deep satellite history to keep advancing; without them the nightly
 CelesTrak pull (current elements) still runs.
 
+**Space-Track step (`oei_spacetrack`).** Between `oei_ingest_all` and `oei_build_graph`, the
+nightly runs `scripts/spacetrack_topup.py`, which does two things at most once a day each:
+it asks Space-Track's `gp_history` class for the element sets *created* since the last
+successful night (the `spacetrack_cursor` table holds that mark; windows never overlap,
+because Space-Track allows each element set to be downloaded once) for the benchmark fleet,
+about 126 requests of 100 NORAD ids, and lands them in `gp_elements` as
+`spacetrack_gp_history`; then it pulls the last 30 days of actual decays (`decay` class,
+`MSG_TYPE` Historical) into `raw_spacetrack_decay`, read through `v_spacetrack_decay_actual`.
+Requests are spaced 3 s apart and capped at 250 an hour, under Space-Track's 30 a minute and
+300 an hour. With blank credentials the step prints one line and exits 0. `deploy/` is
+bind-mounted but `scripts/` and `ingest/` are baked into the image, so the step needs
+`docker compose up -d --build oei-api` and migration 0026 before it can run; until then it
+soft-fails as `!! oei spacetrack top-up failed`. Spec: `docs/specs/spacetrack-topup.md`.
+
 ### 8. Retire the laptop demo
 Once the box is verified, stop the laptop's tunnels/watchdog and repoint any shared links
 to the new domains. The GitHub repos stay the durable code home.

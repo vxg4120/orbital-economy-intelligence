@@ -46,6 +46,12 @@ start_line=$(( $( { wc -l < ./refresh.log; } 2>/dev/null || echo 0) + 1 ))
   echo "--- satellite (oei) ---"
   step oei_ingest_all $DC exec -T -e SPACETRACK_IDENTITY="${SPACETRACK_IDENTITY:-}" -e SPACETRACK_PASSWORD="${SPACETRACK_PASSWORD:-}" \
       oei-api python scripts/ingest_all.py || echo "!! oei ingest_all failed"
+  # Space-Track: new gp_history element sets for the benchmark fleet (non-overlapping
+  # CREATION_DATE windows, once a day) and the last 30 days of actual decays (once a day).
+  # Before build_graph so the graph build sees the new rows. Blank credentials: one log line,
+  # exit 0, no request (docs/specs/spacetrack-topup.md).
+  step oei_spacetrack $DC exec -T -e SPACETRACK_IDENTITY="${SPACETRACK_IDENTITY:-}" -e SPACETRACK_PASSWORD="${SPACETRACK_PASSWORD:-}" \
+      oei-api python scripts/spacetrack_topup.py || echo "!! oei spacetrack top-up failed"
   step oei_build_graph $DC exec -T oei-api python scripts/build_graph.py || echo "!! oei build_graph failed"
   step oei_refresh_matviews $DC exec -T oei-api python scripts/refresh_matviews.py || echo "!! oei refresh_matviews failed"
   step oei_report $DC exec -T oei-api python quality/report.py      || echo "!! oei report failed"
