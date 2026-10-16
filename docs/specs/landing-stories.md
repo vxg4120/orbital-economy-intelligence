@@ -141,3 +141,31 @@ giant >= 6, unknown radius.
   July to 10,656 in October in a naive count).
 - 2026-10-16 (Claude) Exo has no disposition history table; the retained raw snapshots are the only
   history (2026-07-15 baseline, the first of each month, and the newest three daily pulls).
+- 2026-10-16 (Claude, space build) **Correction to the constellation decision above:** the name
+  match does not undercount. `canonical_name ILIKE 'starlink%'` finds 11,152 in-orbit payloads
+  against 10,656 owned by SpaceX; the 499 difference is the Starlinks launched since July whose
+  owner is still "United States". Keying by operator stays right (it is how every other
+  constellation has to be counted, and it is honest once cut at complete_through), but the
+  reason is consistency with the attribution rule, not a name-match undercount.
+- 2026-10-16 (Claude, space build) `complete_through` walks the scanned months oldest first and
+  stops before the first month under 80% company-attributed, instead of taking the newest
+  passing month anywhere. A month-end in-orbit count is only complete when every earlier month
+  is attributed, so a lone well-attributed month after the gap must not extend the series. Live
+  data gives 2026-06 under both readings (every month from 2024-10 to 2026-06 is 89% or more).
+- 2026-10-16 (Claude, space build) Additions to the orbital payload beyond the keys above:
+  `recent_launches[].lead_satellite_id` and `owners` (the SPA links the lead to
+  /resolver/{id} and says "and N other owners" for rideshares), `reentries.notable[].satellite_id`,
+  and `active_fleet.country_only`. `active_fleet.top` ranks company owners only; payloads whose
+  owner is a country placeholder (or missing) are counted in `country_only`, and `other` is
+  everyone else, so total = sum(top) + country_only + other. Ranked naively, "United States"
+  (786 ACTIVE) would be second and "People's Republic of China" sixth.
+- 2026-10-16 (Claude, space build) Windows anchor on `as_of`: the 30 days are
+  (as_of - 30, as_of]. The lead payload of a launch group prefers a real name over a SATCAT
+  placeholder ("OBJECT A"). Launch groups are searched in the trailing 90 days only, because
+  `oei_launch_key` is a non-inlinable SQL function at about 0.1 ms a row (365 days cost 520 ms).
+- 2026-10-16 (Claude, space build) Latency: the eight story queries cost 1.4 s of server time
+  (EXPLAIN ANALYZE) and run in one psycopg pipeline. Through the read-only tunnel a cold compute
+  measured 2.0 to 4.5 s, dominated by round trips. Every API request opens its own connection
+  (api/deps.get_db), which costs about 5 to 6 s through the tunnel, so a full landing load over
+  the tunnel can trip the SPA's 30 s timeout on one or two panels; that is a tunnel artifact,
+  not something the box sees.
