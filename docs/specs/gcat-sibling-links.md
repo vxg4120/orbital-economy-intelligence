@@ -4,7 +4,7 @@
 questions below are decided as recorded.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-16
 
 ## Goal
 On production, 105 GCAT keys (`gcat_id`, values like `S65730`) are each linked to two or three
@@ -38,7 +38,7 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - 2026-10-06 — **For keys whose GCAT row carries no NORAD, the key's own number decides**
   (`S<n>` is catalog number n in GCAT's scheme). On production this agrees with the data for
   all 23 such keys, and it is the only evidence that ties the key to one sibling, since the two
-  catalogs disagree on the COSPAR piece. Open question 1 asks Vib to confirm the convention.
+  catalogs disagree on the COSPAR piece. Confirmed by Vib 2026-10-16 (see Open questions).
 - 2026-10-06 — **Retire, don't delete.** The losing link gets `valid_to` = the latest OK run's
   date and an `identity_event` row (`identifier_expired`, reason `gcat_anchor_moved`), as
   `identity/churn.py` does for contested provisional keys. Rejected: deleting. Because: the
@@ -96,19 +96,22 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - The rule never touches a key whose GCAT row has no NORAD and whose number matches none of
   its satellites (0 today); such keys stay with `expire_contested`.
 - The nightly after the change must pass both gates. For rows that carry a NORAD the bus build
-  is unchanged (rule 1 bypasses the crosswalk). For NORAD-less rows its rule 2 takes the
-  lowest current anchored cospar link, so retiring a sibling's cospar link can move an
-  attribution to the key's own satellite; that is the convention applied, measured after the
-  first nightly against the saved before-state (`zz_bus_before` on the box).
+  is unchanged (rule 1 bypasses the crosswalk). ~~For NORAD-less rows its rule 2 takes the
+  lowest current anchored cospar link~~ (superseded 2026-10-16, see the decision log: a
+  NORAD-less `S<n>` row now attributes to the satellite with NORAD n before rule 2), so
+  retiring a sibling's cospar link could move an attribution to the key's own satellite; that
+  is the convention applied, measured against the saved before-state (`zz_bus_before` on the
+  box), which on 2026-10-16 matched the build exactly.
 - Historical `source_assertion` rows written under the wrong sibling are left in place and
   stop counting as current claims the moment the link is retired (`claim_is_current`). The
   assertion-model spec removes them for good.
-- `identity/bus.py` is not changed: for NORAD-less rows its rule 2 takes the lowest current
-  anchored cospar link rather than the key's own satellite, and the churn pass leaves a piece
-  shared by two anchors alone, so a corrected `gcat_id` does not by itself correct that
-  attribution. Aligning rule 2 with the key number is a methodology change (a version bump in
-  docs/BUS_BENCHMARKS_METHODOLOGY.md), decided after the first nightly's before/after
-  comparison shows how many rows it would move.
+- ~~`identity/bus.py` is not changed~~ (superseded 2026-10-16, see the decision log): for
+  NORAD-less rows its rule 2 took the lowest current anchored cospar link rather than the
+  key's own satellite, and the churn pass leaves a piece shared by two anchors alone, so a
+  corrected `gcat_id` did not by itself correct that attribution. Aligning it with the key
+  number is a methodology change, made as v1.10 of docs/BUS_BENCHMARKS_METHODOLOGY.md: a
+  NORAD-less `S<n>` row attributes to the anchored satellite with NORAD n before rule 2, with
+  `join_rule = 'anchored_jcat_number'` (migration 0026 admits the value).
 
 ## Interfaces & dependencies
 - `identity/churn.py` (new pass, `run_all`), `identity/match.py` (`_bulk_link_by_norad`
@@ -144,23 +147,45 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
 - [x] Resolver timing on production, read-only, 2026-10-06: `EXPLAIN (ANALYZE, BUFFERS)` of the
   newest-then-current-key shape for `owner`: 19.1 s, hash aggregate in memory, 140,881
   winners, against 13.9 s without the check and a 300 s timeout for the join-first view.
-- [x] Tests (tests/test_gcat_sibling_links.py, 11 of them: the two added by the second pass
-  cover a numbered row with no piece and the decay-date retraction): a moved key is retired with its
-  event; the key-number fallback; nothing retired when the anchor lacks the key; a shared piece
-  judges nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
+- [x] Tests (tests/test_gcat_sibling_links.py, 12 of them: the two added by the second pass
+  cover a numbered row with no piece and the decay-date retraction, and the 2026-10-16 one
+  covers bus attribution by the key's number): a moved key is retired with its event; the
+  key-number fallback; nothing retired when the anchor lacks the key; a shared piece judges
+  nothing; the COSPAR matcher links by number; a full move-and-move-back round trip
   with its three events; a retired link receives no claim; a claim through a retired link is
   not current. Mutants of the direction, the guard, the fallback, the unique-anchor rule, the
   matcher authority, the probe skip, the retraction and the writer filter each fail the
-  suite. Full suite 410 passed.
+  suite. Full suite 427 passed, 117 skipped (2026-10-16, on an empty migrated DB).
 - [ ] Both nightly gates pass on the first run after deployment.
 
 ## Open questions
+- None open. The `S<n>` convention is confirmed by Vib 2026-10-16 ("yes to all"), and it now
+  governs bus attribution too (methodology v1.10).
 - Decided 2026-10-06 (Claude, under Vib's "best quality"): the `S<n>` convention is
   authoritative, it agrees with the data for all 23 NORAD-less keys and is how GCAT defines
   S-numbers; cohorts that the corrected links restore come back live, the structural gate
   already handles live against archived; `name_gcat` links stay as they are and are not judged.
 
 ## Decision log & lessons learned
+- 2026-10-16 (Vib, "yes to all"; implemented by Claude on feat/gcat-rule2) — the `S<n>`
+  convention is confirmed, and `identity/bus.py` adopts it: a GCAT row with no NORAD
+  attributes to the anchored satellite whose NORAD is its key's number, before rule 2's
+  lowest anchored cospar link, published as `join_rule = 'anchored_jcat_number'` so
+  provenance shows which rule fired. Methodology 1.9 -> 1.10. Measured on production
+  2026-10-16 (read-only, after the 07:10 nightly): 0 attributions move. The 557 NORAD-less
+  rows the rule covers (24 of them 1998-067) already sit on their key's own satellite, because
+  no current 1998-067 cospar link is shared by two satellites any more and `zz_bus_before`
+  (125 rows) matches today's build exactly; they change only `join_rule`, from
+  `anchored_cospar` to `anchored_jcat_number` (after deploy `anchored_cospar` drops from 557
+  to 0). The rule's value is that the attribution no longer depends on the crosswalk staying
+  corrected. A NORAD-less row whose number names no satellite still falls through to rule 2,
+  and the row's `key_churn_observed` checks jcat churn only (this join never uses the piece).
+  Test: `test_bus_attribution_of_a_norad_less_row_follows_its_key_number`.
+  Separately reviewed and kept: GCAT status code C (Collided) -> DECAYED in
+  `identity/status_map.yml` (a collided object is no longer an operating satellite; its
+  debris, if tracked, enters the catalog as separate objects). Lesson: a CHECK-constrained
+  provenance vocabulary turns a new rule into a migration; ship it before the code, or the
+  nightly bus build aborts on the constraint.
 - 2026-10-06 (Codex verify, confirmed by Claude) — the first implementation could retire every
   link of a piece shared by two anchors, fought the COSPAR matcher nightly on the ISS rows,
   revived links without an event, and left a sibling's leftover claim visible wherever the

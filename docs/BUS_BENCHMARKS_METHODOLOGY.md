@@ -1,6 +1,6 @@
 # Bus Benchmarks Methodology
 
-**Version 1.9, updated 2026-09-17.**
+**Version 1.10, updated 2026-10-16.**
 
 This document is the normative definition of every number the Bus Benchmarks feature publishes
 (the `/api/buses` endpoints, the BUSES view of the Orbital Terminal, and the `bus_benchmarks` /
@@ -42,12 +42,13 @@ series (`metrics/caggs.sql`).
   spacecraft platforms.
 * An object enters the benchmark when the latest OK GCAT snapshot attributes a bus model
   and/or a manufacturer to it, and the object resolves to a canonical satellite under the
-  three-rule join described in section 4.1: by its permanent NORAD id when the row carries
-  one, else through the COSPAR crosswalk to an anchored satellite, else as provisional slot
-  occupancy. Neither of the catalogs' provisional keys is stable on fresh launches (GCAT
-  renumbered 67 of 73 Transporter-17 catalog ids against their pieces in one release, then
-  re-identified 41 of 73 slot occupants in another without moving any key), which is why the
-  permanent id outranks every crosswalk and the join rule is published per row.
+  four-rule join described in section 4.1: by its permanent NORAD id when the row carries
+  one, else by the catalog number its GCAT key names (`S<n>` is NORAD n), else through the
+  COSPAR crosswalk to an anchored satellite, else as provisional slot occupancy. Neither of
+  the catalogs' provisional keys is stable on fresh launches (GCAT renumbered 67 of 73
+  Transporter-17 catalog ids against their pieces in one release, then re-identified 41 of 73
+  slot occupants in another without moving any key), which is why the permanent id outranks
+  every crosswalk and the join rule is published per row.
 * Counting convention: this scoreboard counts spacecraft that have launched and been
   catalogued. It does not count buses that a manufacturer has built or delivered but that have
   not flown, and it does not count hosted payloads riding on someone else's bus as separate
@@ -114,12 +115,17 @@ Build implementation: `identity/bus.py` (rules), `scripts/build_bus.py` (runner)
   names its continuation. Group codes the operator graph does not recognize keep their incumbent
   cohort untouched.
 * Every attributed satellite records how its catalog row was joined to its canonical
-  identity, published per row as `join_rule` with three values. `anchored_norad` means the
+  identity, published per row as `join_rule` with four values. `anchored_norad` means the
   catalog row itself carries the permanent NORAD id, a key that has never been observed to
   move (the platform measures this nightly and publishes the measurement in its data quality
-  report). `anchored_cospar` means the row reached an anchored satellite through the COSPAR
-  crosswalk. `provisional_slot` means the satellite has no permanent id yet, so the
-  attribution is a dated observation of slot occupancy rather than a settled identity.
+  report). `anchored_jcat_number` means the row carries no NORAD id but its GCAT key does:
+  in GCAT's numbering the key `S<n>` is catalog number n, so the row attributes to the
+  anchored satellite whose NORAD id is n, ahead of any COSPAR lookup, because on the
+  ISS-deployed cubesats GCAT's piece letter is one off SATCAT's for the same object and a
+  piece lookup lands on the deployment neighbour. `anchored_cospar` means the row reached an
+  anchored satellite through the COSPAR crosswalk. `provisional_slot` means the satellite
+  has no permanent id yet, so the attribution is a dated observation of slot occupancy rather
+  than a settled identity.
   Provisional fleets stay on the leaderboard, counted per cohort in `provisional_n`, because
   they are the newest and most commercially interesting cohort and the catalogs' name-level
   attribution is stable even while slot assignments move; readers who want settled
@@ -379,6 +385,22 @@ rather than overwriting it. The original catalog claim remains visible in the as
 history.
 
 ## Changelog
+
+* **v1.10 (2026-10-16).** Attribution rule change (section 4.1, decided by the owner on
+  2026-10-16 under docs/specs/gcat-sibling-links.md). A GCAT row with no NORAD id now
+  attributes to the satellite whose NORAD id is its own key's number (`S<n>` is catalog
+  number n), before the COSPAR crosswalk, and publishes `join_rule = 'anchored_jcat_number'`.
+  Before, such a row took the lowest current anchored COSPAR link for its piece, and on the
+  ISS-deployed cubesats of 1998-067 GCAT's piece letter is one off SATCAT's (`1998-067VR`
+  where SATCAT says `VQ`), so the row could land on the deployment neighbour whenever the
+  crosswalk held the neighbour's link. Measured on production on 2026-10-16 (read-only), the
+  change moves no attribution: since the 2026-10-06 sibling-link correction the crosswalk
+  already reaches the key's own satellite for all 557 NORAD-less rows the rule covers (24 of
+  them 1998-067), so those rows change only their `join_rule` from `anchored_cospar` to
+  `anchored_jcat_number`, and their attribution no longer depends on the crosswalk staying
+  correct. Rows that carry a NORAD id are unchanged, and a NORAD-less row whose key number
+  names no satellite falls through to the COSPAR crosswalk as before. No metric definitions
+  changed.
 
 * **v1.9 (2026-09-17).** Attribution rule addition: curated aliases (sections 4.2 and 4.3),
   from the 2026-09-16 site audit, which found the "one cohort per company" promise broken on

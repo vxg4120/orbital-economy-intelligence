@@ -46,6 +46,9 @@ gcat:
   "REL": {canonical: UNKNOWN, notes: "Released: separated from an attached parent."}
   "DEP": {canonical: UNKNOWN, notes: "Deployed: released from a planetary surface."}
   "E": {canonical: DECAYED, notes: "Exploded: breakup in orbit (destroyed)."}
+  # Reviewed and kept 2026-10-16 (Vib): a collided object is no longer an operating satellite;
+  # its debris, if tracked, enters the catalog as separate objects, so DECAYED is the honest
+  # end state for the parent and nothing in-orbit is left under its identity.
   "C": {canonical: DECAYED, notes: "Collided: destroyed in a collision event."}
   "R": {canonical: DECAYED, notes: "Reentered: destroyed in the atmosphere after natural decay."}
   "D": {canonical: DECAYED, notes: "Deorbited: destroyed via an active deorbit maneuver."}
