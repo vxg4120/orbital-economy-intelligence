@@ -30,9 +30,9 @@ const STEPS: DriveStep[] = [
   {
     element: '[data-tour="nav"]',
     popover: {
-      title: "Five sections",
+      title: "Eight sections",
       description:
-        "Overview (you're here) · Resolver looks up one object · Conflicts shows where catalogs disagree · Operators maps who owns what · Review is the human-checked cases.",
+        "Overview (you're here) · Resolver looks up one object · Conflicts shows where catalogs disagree · Operators maps who owns what · Review is the human-checked cases · Buses scores spacecraft platforms · Reachability shows what is overhead from a spot on Earth · Filings is the FCC pre-launch queue.",
       side: "right",
       align: "start",
     },
@@ -81,7 +81,11 @@ export function startTour(): void {
     prevBtnText: "← Back",
     doneBtnText: "Done",
   });
-  d.setSteps(STEPS);
+  // Under 900px the rail is a horizontal strip wider than the screen (1068px of nav in
+  // 390px), so a step spotlighting the whole strip points at mostly off-screen items:
+  // skip it there. The Resolver step still anchors on its own (visible) nav item.
+  const narrow = window.matchMedia("(max-width: 900px)").matches;
+  d.setSteps(narrow ? STEPS.filter((s) => s.element !== '[data-tour="nav"]') : STEPS);
   d.drive();
 }
 

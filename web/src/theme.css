@@ -21,7 +21,9 @@
   --rule-2: #35353b;
 
   /* ---- ink (warm starlight-on-plate; dimmest two clear WCAG AA on --surface:
-     faint >= 4.5:1 for small body text, ghost ~3:1 for the null placeholder) ---- */
+     faint >= 4.5:1 for small body text, ghost ~3:1 for the null placeholder).
+     Ghost (3.2:1) is for rules, decorative marks and the em-dash null placeholder
+     only: words set in it fail AA at 10-11px, so text uses take faint. ---- */
   --ink: #ece9e1;
   --ink-dim: #a8a49b;
   --ink-faint: #8e8a81;
@@ -275,9 +277,24 @@ button {
    overrides: declared after them (it used to sit with the tour styles at the end of the file),
    it silently won every phone-width margin rule, since equal specificity goes to the later rule. */
 .topbar__help {
+  /* a 36px hit box around the 24px ring; from 768px up the word "Tour" sits beside it,
+     so visitors who dismissed the auto tour can see that it replays */
   align-self: center;
   flex: none;
-  margin: 0 14px;
+  margin: 0 8px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.topbar__help-ring {
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -286,15 +303,30 @@ button {
   border: 1px solid var(--rule-2);
   border-radius: 50%;
   background: var(--surface-2);
-  color: var(--ink-dim);
   font-size: var(--fs-sm);
   font-weight: 600;
-  cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.topbar__help:hover {
+.topbar__help-word {
+  /* the .tele__k micro-label voice */
+  display: none;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  transition: color 0.15s;
+}
+@media (min-width: 768px) {
+  .topbar__help-word {
+    display: inline;
+  }
+}
+.topbar__help:hover .topbar__help-ring {
   color: var(--signal);
   border-color: var(--signal-dim);
+}
+.topbar__help:hover .topbar__help-word {
+  color: var(--ink-dim);
 }
 
 /* ---- rail ---- */
@@ -330,7 +362,7 @@ button {
 }
 .navlink__idx {
   font-size: var(--fs-micro);
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
 .navlink__name {
@@ -425,7 +457,9 @@ button {
   box-shadow: 0 3px 0 -2px var(--rule);
 }
 .panel__title {
-  /* engraved caption: mono micro plate number, then the title in Fraunces */
+  /* engraved caption: mono micro plate number, then the title in Fraunces. An <h2>:
+     the margin reset keeps the class-based look */
+  margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-md);
   font-weight: 560;
@@ -439,7 +473,7 @@ button {
   font-size: var(--fs-micro);
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   vertical-align: 2px;
 }
 .panel__meta {
@@ -705,6 +739,17 @@ button {
 .table-wrap {
   overflow-x: auto;
   width: 100%;
+  /* scroll-edge cue (the background-attachment trick): two faint ink glows are pinned
+     to the wrap's edges (scroll), and two surface-coloured covers ride with the content
+     (local). A glow shows only while content is hidden past that edge; when the table
+     fits, the covers sit on top of both glows and nothing shows. */
+  background:
+    linear-gradient(90deg, var(--surface) 40%, transparent) left center / 32px 100% no-repeat local,
+    linear-gradient(270deg, var(--surface) 40%, transparent) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+      left center / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+      right center / 14px 100% no-repeat scroll;
 }
 .dtable {
   width: 100%;
@@ -740,6 +785,9 @@ button {
 .dtable th .sort-caret {
   color: var(--signal);
   margin-left: 4px;
+}
+.dtable th .sort-caret.is-idle {
+  color: var(--ink-faint);
 }
 .dtable tbody td {
   padding: 7px 12px;
@@ -937,14 +985,15 @@ button {
   font-size: var(--fs-xs);
   color: var(--ink-dim);
   border-bottom: 1px solid var(--rule);
-  max-width: 100ch;
+  max-width: 80ch;
 }
 .wrap-cell {
   white-space: normal;
   color: var(--ink-dim);
 }
 .acq-arrow {
-  color: var(--conflict);
+  /* faint, not --conflict: inside a clickable row an orange glyph read as a second link */
+  color: var(--ink-faint);
 }
 
 /* =============================================================================
@@ -1351,7 +1400,7 @@ button {
 }
 .hm-axis-label {
   fill: var(--ink-faint);
-  font-size: 9px;
+  font-size: var(--fs-micro);
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
 }
@@ -1466,6 +1515,9 @@ button {
   color: var(--ink-dim);
 }
 .state__title {
+  /* <h2> for error/empty titles (loading labels stay spans): reset the heading defaults */
+  margin: 0;
+  font-weight: 400;
   font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1478,6 +1530,16 @@ button {
 }
 .state--error .state__title {
   color: var(--err);
+}
+/* skeleton loading: text-shaped shimmer lines (.skeleton) under a left-set label */
+.state--skeleton {
+  align-items: flex-start;
+  text-align: left;
+  padding: 16px 14px;
+}
+.state--skeleton .skeleton {
+  display: block;
+  max-width: 100%;
 }
 .spinner {
   width: 16px;
@@ -1538,6 +1600,8 @@ button {
 .hint {
   font-size: var(--fs-xs);
   color: var(--ink-faint);
+  /* panel footnotes ran 170 characters a line at 1440 */
+  max-width: 80ch;
 }
 .crosswalk-src {
   padding: 10px 12px;
@@ -1599,6 +1663,14 @@ button {
     border-right: none;
     border-bottom: 1px solid var(--rule-2);
     overflow-x: auto;
+    /* the nav is a horizontal strip here and the OS hides its scrollbar; the fade on
+       the right edge is the cue that more views sit past the last visible item */
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
   }
   .rail__nav {
     flex-direction: row;
@@ -1611,6 +1683,10 @@ button {
   .navlink.is-active {
     border-left: none;
     border-bottom-color: var(--signal);
+  }
+  .navlink:last-child {
+    /* room to scroll the last view out from under the fade */
+    margin-right: 40px;
   }
   .rail__foot {
     display: none;
@@ -1643,6 +1719,12 @@ button {
 @media (max-width: 560px) {
   :root {
     --pad: 14px;
+    /* phones read one step up on the bottom four tiers: 10/11px was the majority of
+       text on a 1x phone. Desktop density is untouched. */
+    --fs-micro: 11px;
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-base: 14px;
   }
   .grid--stats {
     grid-template-columns: 1fr;
@@ -1651,20 +1733,75 @@ button {
   .topbar__sub {
     display: none;
   }
-  .tele,
-  .topbar__clock {
+  .tele {
     padding: 0 10px;
   }
-  .topbar__help {
-    margin: 0 8px;
+  /* the stat strip gets its own scrolling row under the brand line: inside the bar it
+     had a clientWidth of 0 at 390px, so the five stats did not exist on a phone. The
+     chips go label-beside-value to keep the row short, and the right edge fades so the
+     scroll is discoverable. */
+  .app {
+    grid-template-rows: auto auto 1fr;
   }
-  /* the full name holds one line only at the base size, and the clock drops its
-     label so the date and time can stack inside the bar instead of clipping it */
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .topbar__brand {
+    flex: 1;
+    min-width: 0;
+    height: var(--topbar-h);
+    border-right: none;
+  }
+  /* with the strip moved out, brand + clock + "?" still overflow 390px by a few pixels
+     (the mark clipped "Terminal"), so the clock goes: the strip is the live readout */
+  .topbar__clock {
+    display: none;
+  }
+  .topbar__tele {
+    order: 3;
+    flex: 1 0 100%;
+    height: 32px;
+    border-top: 1px solid var(--rule);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  }
+  .tele {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+  .tele:last-child {
+    /* room to scroll the last chip out from under the fade */
+    padding-right: 36px;
+  }
+  .topbar__help {
+    margin: 0 2px;
+  }
+  /* nav strip: four views show at 390px instead of two and a half. The 00-07 plate
+     indices go (the names carry the meaning; the indices are ordinal decoration) and
+     the inline padding tightens. */
+  .navlink {
+    display: block;
+    padding: 9px 8px;
+  }
+  .navlink__idx {
+    display: none;
+  }
+  .navlink__name {
+    letter-spacing: 0.05em;
+  }
+  /* panel heads: the meta annotation drops to its own line, so the Fraunces title keeps
+     the full width instead of wrapping under its own plate number */
+  .panel__head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .panel__meta {
+    flex-basis: 100%;
+  }
+  /* the full name holds one line only at the base size */
   .topbar__mark {
     font-size: var(--fs-base);
-  }
-  .topbar__clock .tele__k {
-    display: none;
   }
   /* review queue rows: stratum tag stacks above the subject */
   .case-row {
@@ -1684,6 +1821,26 @@ button {
   .case-row__open {
     grid-area: open;
   }
+  /* tables that name their rows in the first column (the buses leaderboard) keep that
+     column pinned while the metrics scroll under it */
+  .table-wrap--sticky-first th:first-child,
+  .table-wrap--sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    max-width: 44vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--rule-2);
+  }
+  .table-wrap--sticky-first tbody tr:hover td:first-child {
+    background: var(--surface-2);
+  }
+  .table-wrap--sticky-first tbody tr.is-link:hover td:first-child {
+    background: var(--surface-3);
+    box-shadow: inset 2px 0 0 var(--signal), 1px 0 0 var(--rule-2);
+  }
 }
 
 /* comfortable touch targets on touch-first devices */
@@ -1695,22 +1852,27 @@ button {
   .topbar__brand {
     padding: 0 10px;
   }
-  .topbar__clock {
-    padding: 0 6px;
-  }
   .topbar__help {
-    margin: 0 6px;
+    margin: 0;
   }
 }
 @media (pointer: coarse) {
+  /* toward the 44px guideline on touch: .btn was 27px tall, table rows 34-36px, the
+     tour's Back/Next 24px and the receipt "§" links 14x21px (the "?" is 36px everywhere) */
   .btn {
-    padding: 8px 12px;
+    padding: 11px 14px;
   }
+  .dtable tbody td {
+    padding-block: 12px;
+  }
+  /* .receipt-link and the tour buttons get their touch sizes at the end of the file,
+     after their base rules (equal specificity goes to the later rule) */
   .tab {
     padding: 11px 16px;
   }
   .navlink {
-    padding: 12px 16px;
+    /* block only: inline padding stays with the width-based rules (tightened at 560px) */
+    padding-block: 12px;
   }
 }
 
@@ -2508,7 +2670,7 @@ button {
   text-transform: uppercase;
   font-size: var(--fs-micro);
   letter-spacing: 0.08em;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 .dossier__foot {
   margin-top: 12px;
@@ -2516,19 +2678,19 @@ button {
   border-top: 1px solid var(--rule);
   font-size: var(--fs-micro);
   letter-spacing: 0.04em;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 /* subtle line when no dossier has landed yet (absence is normal) */
 .dossier-none {
   margin: 0;
   padding: 10px 2px;
   font-size: var(--fs-xs);
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   letter-spacing: 0.02em;
 }
 /* 'suggested' tag on the AI-pre-selected verdict button */
 .verdict-btn__suggest {
-  font-size: 9px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--signal);
@@ -3042,7 +3204,7 @@ button {
   font-size: var(--fs-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 .colophon a {
   color: var(--ink-faint);
@@ -3052,4 +3214,17 @@ button {
 }
 .colophon .num {
   color: var(--ink-faint);
+}
+
+/* touch sizes for rules declared after the main pointer:coarse block */
+@media (pointer: coarse) {
+  /* the hit box grows by padding and the negative margin gives the space back, so the
+     number and its section mark do not move */
+  .receipt-link {
+    padding: 8px 4px;
+    margin: -8px -4px;
+  }
+  .driver-popover.oei-tour .driver-popover-footer-btn {
+    padding: 10px 14px;
+  }
 }

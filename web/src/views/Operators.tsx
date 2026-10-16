@@ -109,7 +109,7 @@ export function Operators() {
         }
         flush
       >
-        <Async state={league} loadingLabel="Loading operators">
+        <Async state={league} loadingLabel="Loading operators" loadingRows={10}>
           {(data) => (
             <>
               <DataTable<OperatorRow>

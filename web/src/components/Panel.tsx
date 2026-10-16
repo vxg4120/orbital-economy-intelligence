@@ -14,7 +14,7 @@ export function Panel({ title, meta, children, flush, className }: PanelProps) {
   return (
     <section className={`panel${className ? " " + className : ""}`}>
       <header className="panel__head">
-        <span className="panel__title">{title}</span>
+        <h2 className="panel__title">{title}</h2>
         {meta !== undefined ? <span className="panel__meta">{meta}</span> : null}
       </header>
       <div className={`panel__body${flush ? " panel__body--flush" : ""}`}>{children}</div>

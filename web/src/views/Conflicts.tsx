@@ -75,7 +75,7 @@ export function Conflicts() {
           {CONFLICT_TABS.find((t) => t.key === tab)?.headline}
         </p>
 
-        <Async state={page} loadingLabel="Loading conflicts">
+        <Async state={page} loadingLabel="Loading conflicts" loadingRows={10}>
           {(data) => (
             <>
               {tab === "status" ? (

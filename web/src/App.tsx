@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { getStats, MOCK } from "./api/client";
 import { useApi } from "./hooks/useApi";
-import { compact, fmtPct } from "./lib/format";
+import { compact, fmtInt, fmtPct } from "./lib/format";
 import { Colophon } from "./components/Colophon";
 import { SourceBadge } from "./components/SourceBadge";
 import { Loading } from "./components/States";
@@ -56,19 +56,27 @@ function Telemetry() {
   const stats = useApi(() => getStats(), []);
   const s = stats.data;
   const conflictTotal = s ? s.conflicts.status + s.conflicts.decay + s.conflicts.stale_owners : null;
-  const chip = (k: string, v: string, cls = "") => (
+  const chip = (k: string, v: string, cls = "", title?: string) => (
     <div className="tele">
       <span className="tele__k">{k}</span>
-      <span className={`tele__v ${cls}`}>{v}</span>
+      <span className={`tele__v ${cls}`} title={title}>
+        {v}
+      </span>
     </div>
   );
+  // a count chip: compact on the bar, the exact figure on hover when compacting dropped any
+  const count = (k: string, n: number | null | undefined, cls = "") => {
+    if (n === null || n === undefined) return chip(k, "····", cls);
+    const short = compact(n);
+    return chip(k, short, cls, short === fmtInt(n) ? undefined : fmtInt(n));
+  };
   return (
     <div className="topbar__tele">
-      {chip("objects", s ? compact(s.satellites) : "····")}
-      {chip("operators", s ? compact(s.operators) : "····")}
-      {chip("element sets", s ? compact(s.gp_elements) : "····")}
+      {count("objects", s?.satellites)}
+      {count("operators", s?.operators)}
+      {count("element sets", s?.gp_elements)}
       {chip("op coverage", s ? fmtPct(s.coverage.operator_pct) : "····", "is-signal")}
-      {chip("conflicts", conflictTotal !== null ? compact(conflictTotal) : "····", "is-conflict")}
+      {count("conflicts", conflictTotal, "is-conflict")}
     </div>
   );
 }
@@ -97,7 +105,12 @@ export default function App() {
           title="Replay the intro tour"
           aria-label="Replay the intro tour"
         >
-          ?
+          <span className="topbar__help-ring" aria-hidden="true">
+            ?
+          </span>
+          <span className="topbar__help-word" aria-hidden="true">
+            Tour
+          </span>
         </button>
       </header>
 
@@ -129,7 +142,7 @@ export default function App() {
       </nav>
 
       <main className="main">
-        <Suspense fallback={<Loading label="Loading view" />}>
+        <Suspense fallback={<Loading label="Loading view" rows={8} />}>
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/resolver" element={<Resolver />} />
