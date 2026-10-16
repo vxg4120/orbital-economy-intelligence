@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
-import { getAuditSummary, getCongestion, getEnvironment, getStats } from "../api/client";
+import {
+  getAuditSummary,
+  getCongestion,
+  getEnvironment,
+  getStats,
+  getStories,
+} from "../api/client";
 import { useApi } from "../hooks/useApi";
-import { fmtInt } from "../lib/format";
+import { fmtInt, fmtPct } from "../lib/format";
 import { CONFLICT_TABS } from "../lib/conflicts";
+import { dispatch, longDate, operatorName, shortDate } from "../lib/stories";
 import { Panel } from "../components/Panel";
 import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
@@ -10,34 +17,151 @@ import { LedgerTable } from "../components/LedgerTable";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
 import { EnvironmentStrip } from "../components/EnvironmentStrip";
 import { AuditStrip } from "../components/AuditStrip";
-import { Async } from "../components/States";
+import {
+  ComingDown,
+  ConstellationRace,
+  FleetShare,
+  LatestLaunches,
+  LaunchTempo,
+  weatherLead,
+} from "../components/Stories";
+import { Async, Loading } from "../components/States";
 
 export function Overview() {
+  const stories = useApi(() => getStories(), []);
   const stats = useApi(() => getStats(), []);
   const audit = useApi(() => getAuditSummary(), []);
   const congestion = useApi(() => getCongestion(), []);
   const env = useApi(() => getEnvironment(60), []);
+  const s = stories.data;
 
   return (
     <div className="view fadein">
       <header className="vhead">
         <div>
-          <h1 className="vhead__title">Overview</h1>
-          <p className="vhead__desc">
-            A read-only window on the identity graph — one resolved object per physical satellite,
-            stitched from SATCAT, GCAT and UCS. The numbers below are the coverage and the
-            disagreements the resolver had to adjudicate.
-          </p>
+          <h1 className="vhead__title">What&apos;s happening in orbit</h1>
+          {s ? (
+            <>
+              <p className="dispatch">{dispatch(s).join(" ")}</p>
+              <p className="dispatch__asof">
+                As of <span className="num">{longDate(s.as_of)}, {s.as_of.slice(0, 4)}</span>,
+                from the latest successful ingest.
+              </p>
+            </>
+          ) : stories.loading ? (
+            <Loading label="Reading the latest dispatch" rows={2} />
+          ) : null}
         </div>
+      </header>
+
+      <Async state={stories} loadingLabel="Loading the stories" loadingRows={10}>
+        {(st) => {
+          const spacex = st.active_fleet.top[0];
+          const a = st.attribution;
+          return (
+            <>
+              <div className="grid grid--stats" data-tour="stats">
+                <StatTile
+                  lead
+                  hero
+                  label="Payloads launched"
+                  n={st.last_30d.payloads_launched}
+                  sub={
+                    <>
+                      in 30 days, on <span className="num">{fmtInt(st.last_30d.launches)}</span>{" "}
+                      launches
+                    </>
+                  }
+                />
+                <StatTile
+                  label="Payloads reentered"
+                  n={st.last_30d.payloads_reentered}
+                  sub={
+                    <>
+                      in 30 days, <span className="num">{fmtInt(st.reentries.starlink)}</span> of
+                      them Starlink
+                    </>
+                  }
+                />
+                <StatTile
+                  label="Active payloads"
+                  n={st.active_fleet.total}
+                  sub={
+                    spacex ? (
+                      <>
+                        {operatorName(spacex.operator)} owns{" "}
+                        <span className="num">{fmtPct(spacex.pct)}</span>
+                      </>
+                    ) : (
+                      "latest status ACTIVE"
+                    )
+                  }
+                />
+                <StatTile
+                  label="Awaiting attribution"
+                  n={a.pending_payloads}
+                  sub={
+                    a.since ? (
+                      <>
+                        payloads launched since{" "}
+                        <span className="num">{shortDate(a.since)}</span> with only a country, or
+                        no owner yet
+                      </>
+                    ) : (
+                      "payloads with only a country, or no owner yet"
+                    )
+                  }
+                />
+              </div>
+
+              <div className="grid grid--2 stories-row">
+                <LaunchTempo s={st} />
+                <FleetShare s={st} />
+              </div>
+
+              <ConstellationRace s={st} />
+
+              <div className="grid grid--2 stories-row">
+                <LatestLaunches s={st} />
+                <ComingDown s={st} />
+              </div>
+            </>
+          );
+        }}
+      </Async>
+
+      <Panel title="Space weather" meta="drag environment · 60 days">
+        {s ? <p className="story__lead">{weatherLead(s, env.data)}</p> : null}
+        <Async state={env} loadingLabel="Loading drag environment">
+          {(e) => <EnvironmentStrip env={e} />}
+        </Async>
+        <p className="hint story__hint">
+          Bars show the fleet-wide median one-day change in semi-major axis over consecutive-day
+          LEO element pairs. The median is robust to maneuvers, so when a bar stretches, the
+          atmosphere moved everyone. Storm days on the NOAA G scale are tinted. Indices come from
+          CelesTrak&apos;s consolidated space-weather data.
+        </p>
+      </Panel>
+
+      <Async state={audit} loadingLabel="Loading audit">
+        {(a) => <AuditStrip summary={a} />}
+      </Async>
+
+      <header className="underhood">
+        <h2 className="underhood__title">Under the hood</h2>
+        <p className="underhood__desc">
+          A read-only window on the identity graph: one resolved object per physical satellite,
+          stitched from SATCAT, GCAT and UCS. These are its coverage and the disagreements the
+          resolver had to adjudicate.
+        </p>
       </header>
 
       <Async state={stats} loadingLabel="Loading telemetry" loadingRows={12}>
         {(s) => (
           <>
-            <div className="grid grid--stats" data-tour="stats">
+            <div className="grid grid--stats">
               <StatTile
                 lead
-                hero
                 label="Tracked objects"
                 n={s.satellites}
                 sub={
@@ -106,10 +230,6 @@ export function Overview() {
               </Panel>
             </div>
 
-            <Async state={audit} loadingLabel="Loading audit">
-              {(a) => <AuditStrip summary={a} />}
-            </Async>
-
             <Panel title="Ingestion ledger" meta="last run per source · endpoint" flush>
               <LedgerTable runs={s.ingest_runs} />
             </Panel>
@@ -129,17 +249,6 @@ export function Overview() {
         <p className="hint" style={{ marginTop: 10 }}>
           LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
           <Link to="/operators">Operators</Link> view. Click a shell to read its count.
-        </p>
-      </Panel>
-
-      <Panel title="Drag environment" meta="space weather · fleet response · 60 days">
-        <Async state={env} loadingLabel="Loading drag environment">
-          {(e) => <EnvironmentStrip env={e} />}
-        </Async>
-        <p className="hint" style={{ marginTop: 10 }}>
-          Bars: fleet-wide median one-day SMA change over LEO consecutive-day element pairs —
-          maneuver-robust, so when a bar stretches, the atmosphere moved everyone. Storm days
-          (NOAA G scale) tinted. Indices: CelesTrak consolidated space-weather data.
         </p>
       </Panel>
     </div>

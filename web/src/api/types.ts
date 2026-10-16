@@ -938,3 +938,67 @@ export interface ReachabilityPassesResponse {
   fcc: FccLicense[];
   attribution: string;
 }
+
+/* ---- GET /api/stories (docs/specs/landing-stories.md) ----
+   Facts only: counts, dates and names. The landing phrases them (lib/stories.ts). */
+export interface StoriesMonth {
+  month: string; // YYYY-MM
+  launched: number; // payloads
+  reentered: number; // payloads
+  partial: boolean; // the month has not ended yet
+}
+
+export interface StoriesLaunch {
+  launch_key: string; // YYYY-NNN, oei_launch_key of the COSPAR id
+  date: string;
+  lead_name: string;
+  lead_satellite_id: number;
+  payloads: number;
+  objects: number; // payloads plus rocket bodies and debris cataloged with the launch
+  owner: string | null; // the most common current owner, as cataloged
+  owner_attributed: boolean; // false: the owner is only a country-level placeholder
+  owners: number; // distinct owners among the payloads
+}
+
+export interface StoriesReentry {
+  satellite_id: number;
+  name: string;
+  date: string;
+  launched: string | null;
+  owner: string | null;
+}
+
+export interface StoriesConstellation {
+  key: "starlink" | "oneweb" | "kuiper" | "qianfan" | "guowang";
+  operator: string;
+  in_orbit_now: number; // payloads in orbit today that carry this company owner
+  added_12m: number; // payloads launched in the 12 months ending at complete_through
+  series: { month: string; in_orbit: number }[]; // month-ends through complete_through
+}
+
+export interface StoriesResponse {
+  as_of: string;
+  launches_monthly: StoriesMonth[];
+  last_30d: { launches: number; payloads_launched: number; payloads_reentered: number };
+  recent_launches: StoriesLaunch[];
+  reentries: {
+    window_days: number;
+    payloads: number;
+    starlink: number; // name match: "Starlink..."
+    starlink_v1: number; // name match: "Starlink V1.0..."
+    notable: StoriesReentry[];
+  };
+  constellations: StoriesConstellation[];
+  attribution: {
+    pending_payloads: number;
+    since: string | null;
+    complete_through: string | null;
+  };
+  active_fleet: {
+    total: number;
+    top: { operator: string; n: number; pct: number }[];
+    country_only: number; // owner cataloged only as a country, or no owner on record
+    other: number;
+  };
+  storms: { day: string; level: string; kp_max: number }[]; // newest first
+}

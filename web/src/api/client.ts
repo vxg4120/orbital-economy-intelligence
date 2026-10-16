@@ -45,6 +45,7 @@ import type {
   SearchResponse,
   Stats,
   StatusConflictRow,
+  StoriesResponse,
   DecayConflictRow,
   StaleOwnerRow,
   Verdict,
@@ -76,6 +77,7 @@ import busProvenanceFixture from "./fixtures/bus_provenance.json";
 import busHistoryFixture from "./fixtures/bus_history.json";
 import reachabilityFixture from "./fixtures/reachability.json";
 import reachabilityPassesFixture from "./fixtures/reachability_passes.json";
+import storiesFixture from "./fixtures/stories.json";
 
 import { naturalDir, type SortDir } from "../lib/busSort";
 
@@ -563,6 +565,12 @@ export function getFilingDocket(callsign: string): Promise<DocketResponse> {
 export function getSatelliteTrack(id: number): Promise<LifeTrack> {
   if (MOCK) return delay(trackFixture as LifeTrack);
   return realGet<LifeTrack>(`/satellites/${id}/track`);
+}
+
+/** The landing's story facts (api/routers/stories.py), warm-cached server-side. */
+export function getStories(): Promise<StoriesResponse> {
+  if (MOCK) return delay(storiesFixture as unknown as StoriesResponse);
+  return realGet<StoriesResponse>("/stories");
 }
 
 export function getAuditSummary(): Promise<AuditSummary> {
