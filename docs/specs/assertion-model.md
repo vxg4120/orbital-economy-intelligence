@@ -137,12 +137,14 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   the audit report's data basis counts claims (703,661; gcat 401,000) where it counted claims
   times links (704,323; 401,662: GCAT keys still linked to two satellites until the first
   retirement nightly), and decay-date coverage is 35,601 against 35,602 (one withdrawn date).
-- [ ] A nightly on the new model adds rows only for changed or new claims; the table's growth
+- [x] A nightly on the new model adds rows only for changed or new claims; the table's growth
   over a week is under 5 MB. Measured 2026-10-12 00:40 UTC, five days and nine nightlies after
   the replay: 729,732 claims (704,324 open) against 728,766 at the replay, 966 rows; the
   table's total size is 161 MB at both points (169,336,832 bytes now). The dual-written ledger
-  grew to 5,019 MB from 4.7 GB in the same days. Close on 2026-10-14 with the seven-day size
-  (`SELECT pg_total_relation_size('claim')`, under 169,336,832 + 5 MB).
+  grew to 5,019 MB from 4.7 GB in the same days. Closed 2026-10-16 02:40 UTC, ten days and
+  nineteen nightlies after the replay: 730,299 claims (704,688 open), 169,459,712 bytes, 122,880
+  bytes (0.12 MB) more than the 2026-10-12 reading; the nights that change nothing wrote only
+  the progress row ("closed 0 opened 0"), the evening runs 8 to 121 closed and 9 to 200 opened.
 - [x] The resolver's `_assertions` runs in under 2 s per attribute on the new table (13 s on
   the old one). Measured on production 2026-10-12 (EXPLAIN ANALYZE of the resolver's query):
   name 340 ms, object_type 319 ms, owner 283 ms, status 263 ms, decay_date 213 ms. That is the
