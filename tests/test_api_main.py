@@ -48,3 +48,11 @@ def test_spa_deep_link_still_serves_index_html(client):
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert r.text.lstrip().startswith("<")
+
+
+def test_health_is_a_cheap_liveness_probe(client):
+    """/api/health answers without a database so an uptime monitor can poll it freely, and it
+    names the service so one monitor config can tell the two apps apart."""
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok", "service": "oei-api"}

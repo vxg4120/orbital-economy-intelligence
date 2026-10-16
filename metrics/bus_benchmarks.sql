@@ -57,9 +57,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS mv_bus_behavior_sat_satellite_id
 -- decayed-cohort median lifetime; survivors are censored, not zero).
 CREATE OR REPLACE VIEW v_bus_sat AS
 WITH latest_status AS (
-    SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
-    FROM satellite_status_history
-    ORDER BY satellite_id, observed_at DESC
+    -- Materialized by migration 0025 and refreshed after build_graph in the nightly; the live
+    -- DISTINCT ON over satellite_status_history cost 3 s per read of this view.
+    SELECT satellite_id, canonical_status FROM mv_latest_satellite_status
 )
 SELECT
     sb.satellite_id, s.norad_id, s.cospar_id, s.canonical_name, s.object_type,

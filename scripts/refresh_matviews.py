@@ -1,12 +1,18 @@
 """Refresh the derived materialized views. Nightly, after GP ingest, before the report.
 
-Two views, one job each:
+Three views, one job each:
 
   mv_latest_gp_element   the newest element set per satellite (migration 0019). Nine
                          consumers used to re-derive this with a DISTINCT ON over the whole
                          10.2M-row gp_elements hypertable per query; now they read 17k rows.
                          GP data only changes at ingest time, so refreshing right after
                          ingest makes the materialization identically fresh to a live query.
+  mv_latest_satellite_status
+                         the newest canonical_status per satellite (migration 0025). Three
+                         metrics views (v_bus_sat behind the buses leaderboard, station
+                         keeping, deorbit compliance) re-derived it with a DISTINCT ON over
+                         the 3.1M-row status history per query, 3 s each. Status only moves
+                         when build_graph runs, which is the step before this one.
   mv_drag_daily          the fleet-wide daily drag series (metrics/space_weather.sql), whose
                          pair-building window scan costs seconds nobody should pay on a page
                          load.
@@ -25,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common.db import get_autocommit_conn  # noqa: E402
 
-MATVIEWS = ["mv_latest_gp_element", "mv_drag_daily"]
+MATVIEWS = ["mv_latest_gp_element", "mv_latest_satellite_status", "mv_drag_daily"]
 
 
 def main() -> int:

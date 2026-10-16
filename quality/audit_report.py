@@ -859,7 +859,9 @@ def generate_report(conn, period_end: dt.date | None = None, period_months: int 
         "exact failure the next number quantifies.\n"
     )
     k = acct["killer"]
-    if k is not None:
+    # The aggregate returns one row of NULLs, not no row, when the Eutelsat / OneWeb cohort is
+    # absent (a fresh or fixture-only database), so guard the values and not just the row.
+    if k is not None and None not in k:
         t_days, n_days, t_sats, n_sats = k
         ratio = (t_days / n_days) if n_days else None
         ratio_txt = f"{ratio:.1f}×" if ratio else "n/a"

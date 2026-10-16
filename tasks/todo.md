@@ -156,3 +156,33 @@ and buses APIs 200. Codex found two things, both taken: the renamed table is not
 itself (procedure written and rehearsed) and the missing gate could strand un-replayed history
 (migration preflight, both branches exercised). Criterion 5 closes 2026-10-14; the DROP after
 2026-10-19.
+
+
+# Improvement batch, 2026-10-16 (Vib: "Do all of that", "Also work on improving design")
+
+Owner: session space-7e. Peers: space-28 owns deploy/landing/* copy tonight (branch
+landing/oct-2026-copy); space-a2 owns the source_assertion_runs_20261012 drop after 10-19.
+
+## Needs nothing from Vib
+- [ ] 1. orbital `/api/health` route (parity with exo's), covered by a test, deployed.
+- [ ] 2. Cold-hit latency: `/api/buses` 4.2 s and exo first paint 2.9 s. Measure, fix the
+      query or warm the cache, re-measure on the box.
+- [ ] 3. CI: the `db` job is green but 95 `graph` tests skip on the empty DB. Move the
+      existing fixture ingest + build_graph ahead of pytest so they run; see what breaks.
+- [ ] 4. Hetzner restore rehearsal: second server from the newest backup image, verify
+      both DBs and both sites, then delete the server and any image. Never touch orbital.
+- [ ] 5. Design pass on the orbital and exo apps (not the landing tonight): mobile widths,
+      contrast, loading/empty states, consistency between the two apps.
+
+## Needs a decision from Vib (present, don't build)
+- [ ] 6. Space-Track: creds are wired through nightly-refresh.sh and the client, but only
+      scripts/backfill_gp_history.py uses the client. Confirm what the nightly gains, then
+      Vib pastes creds into /root/apps/space/deploy/.env himself.
+- [ ] 7. Exo light curves: nothing live reads the pipeline; the Docker image omits
+      pipeline/. Decision is whether to build Wave 2 (recovery results on the site).
+- [ ] 8. GCAT: main fix shipped 10-07. Two open decisions: bus.py rule 2 for NORAD-less
+      rows; whether status_map.yml keeps GCAT code C -> DECAYED (23 objects).
+- [x] 9. 31% vs 31-37% copy: handed to space-28; source is splitstep build-journal.md:95-96.
+
+## Review
+(filled in at the end)
