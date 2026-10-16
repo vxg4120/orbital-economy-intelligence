@@ -264,7 +264,7 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
           s.as_of,
         )} and ${longDate(newest, s.as_of)}.`}
         {pending === rows.length
-          ? " All of them are still cataloged mainly under a country or placeholder owner rather than a company."
+          ? " All of them are still cataloged under a country or placeholder owner, because the company-level catalog runs about three months behind."
           : pending > 0
             ? ` ${fmtInt(pending)} of them are still cataloged mainly under a country or placeholder owner rather than a company.`
             : ""}
@@ -283,7 +283,7 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
               <span className="launch__owner">
                 {operatorName(r.owner)}
                 {r.owners > 1 ? ` and ${plural(r.owners - 1, "other owner")}` : ""}
-                {!r.owner_attributed ? (
+                {!r.owner_attributed && pending < rows.length ? (
                   <span className="pending-mark" title="The owner is a country code until GCAT names the company">
                     awaiting company attribution
                   </span>
