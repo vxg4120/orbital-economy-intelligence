@@ -1,0 +1,880 @@
+{
+  "as_of": "2026-10-16",
+  "launches_monthly": [
+    {
+      "month": "2025-10",
+      "launched": 423,
+      "reentered": 94,
+      "partial": false
+    },
+    {
+      "month": "2025-11",
+      "launched": 479,
+      "reentered": 59,
+      "partial": false
+    },
+    {
+      "month": "2025-12",
+      "launched": 484,
+      "reentered": 72,
+      "partial": false
+    },
+    {
+      "month": "2026-01",
+      "launched": 328,
+      "reentered": 70,
+      "partial": false
+    },
+    {
+      "month": "2026-02",
+      "launched": 349,
+      "reentered": 85,
+      "partial": false
+    },
+    {
+      "month": "2026-03",
+      "launched": 510,
+      "reentered": 79,
+      "partial": false
+    },
+    {
+      "month": "2026-04",
+      "launched": 395,
+      "reentered": 93,
+      "partial": false
+    },
+    {
+      "month": "2026-05",
+      "launched": 360,
+      "reentered": 77,
+      "partial": false
+    },
+    {
+      "month": "2026-06",
+      "launched": 379,
+      "reentered": 79,
+      "partial": false
+    },
+    {
+      "month": "2026-07",
+      "launched": 428,
+      "reentered": 78,
+      "partial": false
+    },
+    {
+      "month": "2026-08",
+      "launched": 326,
+      "reentered": 71,
+      "partial": false
+    },
+    {
+      "month": "2026-09",
+      "launched": 249,
+      "reentered": 81,
+      "partial": false
+    },
+    {
+      "month": "2026-10",
+      "launched": 155,
+      "reentered": 42,
+      "partial": true
+    }
+  ],
+  "last_30d": {
+    "launches": 24,
+    "payloads_launched": 289,
+    "payloads_reentered": 82
+  },
+  "recent_launches": [
+    {
+      "launch_key": "2026-234",
+      "date": "2026-10-14",
+      "lead_name": "OBJECT A",
+      "lead_satellite_id": 26218015,
+      "payloads": 10,
+      "objects": 11,
+      "owner": "People's Republic of China",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-233",
+      "date": "2026-10-13",
+      "lead_name": "DRAGON CRS-35",
+      "lead_satellite_id": 25937033,
+      "payloads": 1,
+      "objects": 1,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-232",
+      "date": "2026-10-13",
+      "lead_name": "STARLINK-38435",
+      "lead_satellite_id": 26217959,
+      "payloads": 27,
+      "objects": 27,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-231",
+      "date": "2026-10-10",
+      "lead_name": "SDA-NG-T1TL-301",
+      "lead_satellite_id": 25937012,
+      "payloads": 21,
+      "objects": 21,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-230",
+      "date": "2026-10-09",
+      "lead_name": "GUOWANG 27 OBJECT A",
+      "lead_satellite_id": 25094524,
+      "payloads": 9,
+      "objects": 10,
+      "owner": "People's Republic of China",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-229",
+      "date": "2026-10-07",
+      "lead_name": "NEONSAT-02",
+      "lead_satellite_id": 24673298,
+      "payloads": 14,
+      "objects": 15,
+      "owner": "Republic of Korea",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-228",
+      "date": "2026-10-02",
+      "lead_name": "USA 708",
+      "lead_satellite_id": 22989032,
+      "payloads": 1,
+      "objects": 1,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-226",
+      "date": "2026-10-02",
+      "lead_name": "CREW DRAGON 13",
+      "lead_satellite_id": 22568144,
+      "payloads": 1,
+      "objects": 1,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    },
+    {
+      "launch_key": "2026-227",
+      "date": "2026-10-01",
+      "lead_name": "TANAGER-2",
+      "lead_satellite_id": 23830919,
+      "payloads": 71,
+      "objects": 71,
+      "owner": "To Be Determined",
+      "owner_attributed": false,
+      "owners": 13
+    },
+    {
+      "launch_key": "2026-225",
+      "date": "2026-09-28",
+      "lead_name": "STARLINK-40083",
+      "lead_satellite_id": 22568117,
+      "payloads": 27,
+      "objects": 27,
+      "owner": "United States",
+      "owner_attributed": false,
+      "owners": 1
+    }
+  ],
+  "reentries": {
+    "window_days": 30,
+    "payloads": 82,
+    "starlink": 50,
+    "starlink_v1": 27,
+    "notable": [
+      {
+        "satellite_id": 51798,
+        "name": "Wenchang yi hao 01 xing",
+        "date": "2026-10-14",
+        "launched": "2022-02-27",
+        "owner": "Sanya Yanjiu Zhongxin"
+      },
+      {
+        "satellite_id": 61707,
+        "name": "SITRO-AIS-42",
+        "date": "2026-10-13",
+        "launched": "2024-11-04",
+        "owner": "Sitronics Group"
+      },
+      {
+        "satellite_id": 68632,
+        "name": "Cygnus NG-24",
+        "date": "2026-10-12",
+        "launched": "2026-04-11",
+        "owner": "Northrop Grumman Innovation Systems"
+      },
+      {
+        "satellite_id": 62409,
+        "name": "SDX-02",
+        "date": "2026-10-12",
+        "launched": "2024-12-30",
+        "owner": "Indian Space Research Organization"
+      },
+      {
+        "satellite_id": 62408,
+        "name": "SDX-01",
+        "date": "2026-10-12",
+        "launched": "2024-12-30",
+        "owner": "Indian Space Research Organization"
+      },
+      {
+        "satellite_id": 61711,
+        "name": "SITRO-AIS-41",
+        "date": "2026-10-12",
+        "launched": "2024-11-04",
+        "owner": "Sitronics Group"
+      },
+      {
+        "satellite_id": 58262,
+        "name": "Dove 24d5",
+        "date": "2026-10-11",
+        "launched": "2023-11-11",
+        "owner": "Planet Labs"
+      },
+      {
+        "satellite_id": 67741,
+        "name": "Dragon C212.5",
+        "date": "2026-10-08",
+        "launched": "2026-02-13",
+        "owner": "SpaceX"
+      }
+    ]
+  },
+  "constellations": [
+    {
+      "key": "starlink",
+      "operator": "SpaceX",
+      "in_orbit_now": 10656,
+      "added_12m": 3284,
+      "series": [
+        {
+          "month": "2024-07",
+          "in_orbit": 6276
+        },
+        {
+          "month": "2024-08",
+          "in_orbit": 6383
+        },
+        {
+          "month": "2024-09",
+          "in_orbit": 6428
+        },
+        {
+          "month": "2024-10",
+          "in_orbit": 6561
+        },
+        {
+          "month": "2024-11",
+          "in_orbit": 6810
+        },
+        {
+          "month": "2024-12",
+          "in_orbit": 6902
+        },
+        {
+          "month": "2025-01",
+          "in_orbit": 6978
+        },
+        {
+          "month": "2025-02",
+          "in_orbit": 7083
+        },
+        {
+          "month": "2025-03",
+          "in_orbit": 7154
+        },
+        {
+          "month": "2025-04",
+          "in_orbit": 7307
+        },
+        {
+          "month": "2025-05",
+          "in_orbit": 7654
+        },
+        {
+          "month": "2025-06",
+          "in_orbit": 7925
+        },
+        {
+          "month": "2025-07",
+          "in_orbit": 8097
+        },
+        {
+          "month": "2025-08",
+          "in_orbit": 8300
+        },
+        {
+          "month": "2025-09",
+          "in_orbit": 8547
+        },
+        {
+          "month": "2025-10",
+          "in_orbit": 8840
+        },
+        {
+          "month": "2025-11",
+          "in_orbit": 9097
+        },
+        {
+          "month": "2025-12",
+          "in_orbit": 9400
+        },
+        {
+          "month": "2026-01",
+          "in_orbit": 9618
+        },
+        {
+          "month": "2026-02",
+          "in_orbit": 9857
+        },
+        {
+          "month": "2026-03",
+          "in_orbit": 10160
+        },
+        {
+          "month": "2026-04",
+          "in_orbit": 10338
+        },
+        {
+          "month": "2026-05",
+          "in_orbit": 10509
+        },
+        {
+          "month": "2026-06",
+          "in_orbit": 10723
+        }
+      ]
+    },
+    {
+      "key": "oneweb",
+      "operator": "Eutelsat",
+      "in_orbit_now": 708,
+      "added_12m": 0,
+      "series": [
+        {
+          "month": "2024-07",
+          "in_orbit": 688
+        },
+        {
+          "month": "2024-08",
+          "in_orbit": 688
+        },
+        {
+          "month": "2024-09",
+          "in_orbit": 688
+        },
+        {
+          "month": "2024-10",
+          "in_orbit": 708
+        },
+        {
+          "month": "2024-11",
+          "in_orbit": 708
+        },
+        {
+          "month": "2024-12",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-01",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-02",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-03",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-04",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-05",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-06",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-07",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-08",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-09",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-10",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-11",
+          "in_orbit": 708
+        },
+        {
+          "month": "2025-12",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-01",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-02",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-03",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-04",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-05",
+          "in_orbit": 708
+        },
+        {
+          "month": "2026-06",
+          "in_orbit": 708
+        }
+      ]
+    },
+    {
+      "key": "kuiper",
+      "operator": "Amazon",
+      "in_orbit_now": 392,
+      "added_12m": 313,
+      "series": [
+        {
+          "month": "2024-07",
+          "in_orbit": 2
+        },
+        {
+          "month": "2024-08",
+          "in_orbit": 2
+        },
+        {
+          "month": "2024-09",
+          "in_orbit": 1
+        },
+        {
+          "month": "2024-10",
+          "in_orbit": 1
+        },
+        {
+          "month": "2024-11",
+          "in_orbit": 1
+        },
+        {
+          "month": "2024-12",
+          "in_orbit": 1
+        },
+        {
+          "month": "2025-01",
+          "in_orbit": 1
+        },
+        {
+          "month": "2025-02",
+          "in_orbit": 1
+        },
+        {
+          "month": "2025-03",
+          "in_orbit": 1
+        },
+        {
+          "month": "2025-04",
+          "in_orbit": 27
+        },
+        {
+          "month": "2025-05",
+          "in_orbit": 27
+        },
+        {
+          "month": "2025-06",
+          "in_orbit": 54
+        },
+        {
+          "month": "2025-07",
+          "in_orbit": 78
+        },
+        {
+          "month": "2025-08",
+          "in_orbit": 102
+        },
+        {
+          "month": "2025-09",
+          "in_orbit": 129
+        },
+        {
+          "month": "2025-10",
+          "in_orbit": 153
+        },
+        {
+          "month": "2025-11",
+          "in_orbit": 153
+        },
+        {
+          "month": "2025-12",
+          "in_orbit": 180
+        },
+        {
+          "month": "2026-01",
+          "in_orbit": 180
+        },
+        {
+          "month": "2026-02",
+          "in_orbit": 211
+        },
+        {
+          "month": "2026-03",
+          "in_orbit": 210
+        },
+        {
+          "month": "2026-04",
+          "in_orbit": 300
+        },
+        {
+          "month": "2026-05",
+          "in_orbit": 329
+        },
+        {
+          "month": "2026-06",
+          "in_orbit": 365
+        }
+      ]
+    },
+    {
+      "key": "qianfan",
+      "operator": "Shanghai Yuanxin Weixing Keji YG",
+      "in_orbit_now": 239,
+      "added_12m": 111,
+      "series": [
+        {
+          "month": "2024-07",
+          "in_orbit": 0
+        },
+        {
+          "month": "2024-08",
+          "in_orbit": 18
+        },
+        {
+          "month": "2024-09",
+          "in_orbit": 18
+        },
+        {
+          "month": "2024-10",
+          "in_orbit": 36
+        },
+        {
+          "month": "2024-11",
+          "in_orbit": 36
+        },
+        {
+          "month": "2024-12",
+          "in_orbit": 54
+        },
+        {
+          "month": "2025-01",
+          "in_orbit": 72
+        },
+        {
+          "month": "2025-02",
+          "in_orbit": 72
+        },
+        {
+          "month": "2025-03",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-04",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-05",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-06",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-07",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-08",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-09",
+          "in_orbit": 90
+        },
+        {
+          "month": "2025-10",
+          "in_orbit": 108
+        },
+        {
+          "month": "2025-11",
+          "in_orbit": 108
+        },
+        {
+          "month": "2025-12",
+          "in_orbit": 108
+        },
+        {
+          "month": "2026-01",
+          "in_orbit": 108
+        },
+        {
+          "month": "2026-02",
+          "in_orbit": 108
+        },
+        {
+          "month": "2026-03",
+          "in_orbit": 108
+        },
+        {
+          "month": "2026-04",
+          "in_orbit": 126
+        },
+        {
+          "month": "2026-05",
+          "in_orbit": 162
+        },
+        {
+          "month": "2026-06",
+          "in_orbit": 201
+        }
+      ]
+    },
+    {
+      "key": "guowang",
+      "operator": "Zhongguo Weixing Wangluo Jituan YG",
+      "in_orbit_now": 206,
+      "added_12m": 159,
+      "series": [
+        {
+          "month": "2024-07",
+          "in_orbit": 9
+        },
+        {
+          "month": "2024-08",
+          "in_orbit": 9
+        },
+        {
+          "month": "2024-09",
+          "in_orbit": 9
+        },
+        {
+          "month": "2024-10",
+          "in_orbit": 9
+        },
+        {
+          "month": "2024-11",
+          "in_orbit": 10
+        },
+        {
+          "month": "2024-12",
+          "in_orbit": 20
+        },
+        {
+          "month": "2025-01",
+          "in_orbit": 20
+        },
+        {
+          "month": "2025-02",
+          "in_orbit": 29
+        },
+        {
+          "month": "2025-03",
+          "in_orbit": 29
+        },
+        {
+          "month": "2025-04",
+          "in_orbit": 43
+        },
+        {
+          "month": "2025-05",
+          "in_orbit": 43
+        },
+        {
+          "month": "2025-06",
+          "in_orbit": 48
+        },
+        {
+          "month": "2025-07",
+          "in_orbit": 62
+        },
+        {
+          "month": "2025-08",
+          "in_orbit": 95
+        },
+        {
+          "month": "2025-09",
+          "in_orbit": 104
+        },
+        {
+          "month": "2025-10",
+          "in_orbit": 112
+        },
+        {
+          "month": "2025-11",
+          "in_orbit": 121
+        },
+        {
+          "month": "2025-12",
+          "in_orbit": 153
+        },
+        {
+          "month": "2026-01",
+          "in_orbit": 172
+        },
+        {
+          "month": "2026-02",
+          "in_orbit": 172
+        },
+        {
+          "month": "2026-03",
+          "in_orbit": 183
+        },
+        {
+          "month": "2026-04",
+          "in_orbit": 193
+        },
+        {
+          "month": "2026-05",
+          "in_orbit": 197
+        },
+        {
+          "month": "2026-06",
+          "in_orbit": 206
+        }
+      ]
+    }
+  ],
+  "attribution": {
+    "pending_payloads": 912,
+    "since": "2026-07-01",
+    "complete_through": "2026-06"
+  },
+  "active_fleet": {
+    "total": 16817,
+    "top": [
+      {
+        "operator": "SpaceX",
+        "n": 10338,
+        "pct": 61.5
+      },
+      {
+        "operator": "Eutelsat",
+        "n": 672,
+        "pct": 4.0
+      },
+      {
+        "operator": "Amazon",
+        "n": 390,
+        "pct": 2.3
+      },
+      {
+        "operator": "National Reconnaissance Office (NROC)",
+        "n": 288,
+        "pct": 1.7
+      },
+      {
+        "operator": "Shanghai Yuanxin Weixing Keji YG",
+        "n": 221,
+        "pct": 1.3
+      },
+      {
+        "operator": "Zhongguo Weixing Wangluo Jituan YG",
+        "n": 206,
+        "pct": 1.2
+      }
+    ],
+    "country_only": 1396,
+    "other": 3306
+  },
+  "storms": [
+    {
+      "day": "2026-10-10",
+      "level": "G3",
+      "kp_max": 7.3
+    },
+    {
+      "day": "2026-10-05",
+      "level": "G1",
+      "kp_max": 5.0
+    },
+    {
+      "day": "2026-10-04",
+      "level": "G1",
+      "kp_max": 5.7
+    },
+    {
+      "day": "2026-09-08",
+      "level": "G1",
+      "kp_max": 5.0
+    },
+    {
+      "day": "2026-08-18",
+      "level": "G1",
+      "kp_max": 5.3
+    },
+    {
+      "day": "2026-08-08",
+      "level": "G2",
+      "kp_max": 6.0
+    },
+    {
+      "day": "2026-08-02",
+      "level": "G1",
+      "kp_max": 5.7
+    },
+    {
+      "day": "2026-07-23",
+      "level": "G1",
+      "kp_max": 5.0
+    },
+    {
+      "day": "2026-07-04",
+      "level": "G3",
+      "kp_max": 7.0
+    },
+    {
+      "day": "2026-06-25",
+      "level": "G1",
+      "kp_max": 5.0
+    }
+  ]
+}
