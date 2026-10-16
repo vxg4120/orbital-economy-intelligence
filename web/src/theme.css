@@ -457,7 +457,9 @@ button {
   box-shadow: 0 3px 0 -2px var(--rule);
 }
 .panel__title {
-  /* engraved caption: mono micro plate number, then the title in Fraunces */
+  /* engraved caption: mono micro plate number, then the title in Fraunces. An <h2>:
+     the margin reset keeps the class-based look */
+  margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-md);
   font-weight: 560;
@@ -1513,6 +1515,9 @@ button {
   color: var(--ink-dim);
 }
 .state__title {
+  /* <h2> for error/empty titles (loading labels stay spans): reset the heading defaults */
+  margin: 0;
+  font-weight: 400;
   font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;

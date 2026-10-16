@@ -117,7 +117,7 @@ export function Review() {
           {(data) =>
             data.rows.length === 0 ? (
               <div className="state">
-                <span className="state__title">Nothing here</span>
+                <h2 className="state__title">Nothing here</h2>
                 <span className="state__msg">
                   No {only} cases{type ? ` in ${stratumLabel(type)}` : ""}.
                 </span>
