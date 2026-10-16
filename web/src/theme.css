@@ -1797,9 +1797,20 @@ button {
   }
 }
 @media (pointer: coarse) {
-  .btn {
-    padding: 8px 12px;
+  /* toward the 44px guideline on touch: the "?" was 24px, .btn 27px tall, table rows
+     34-36px, the tour's Back/Next 24px and the receipt "§" links 14x21px */
+  .topbar__help {
+    width: 36px;
+    height: 36px;
   }
+  .btn {
+    padding: 11px 14px;
+  }
+  .dtable tbody td {
+    padding-block: 12px;
+  }
+  /* .receipt-link and the tour buttons get their touch sizes at the end of the file,
+     after their base rules (equal specificity goes to the later rule) */
   .tab {
     padding: 11px 16px;
   }
@@ -3147,4 +3158,17 @@ button {
 }
 .colophon .num {
   color: var(--ink-faint);
+}
+
+/* touch sizes for rules declared after the main pointer:coarse block */
+@media (pointer: coarse) {
+  /* the hit box grows by padding and the negative margin gives the space back, so the
+     number and its section mark do not move */
+  .receipt-link {
+    padding: 8px 4px;
+    margin: -8px -4px;
+  }
+  .driver-popover.oei-tour .driver-popover-footer-btn {
+    padding: 10px 14px;
+  }
 }
