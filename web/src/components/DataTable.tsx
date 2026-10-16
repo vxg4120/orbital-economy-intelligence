@@ -57,6 +57,11 @@ export function DataTable<Row>({
                     <span className="sort-caret" aria-hidden="true">
                       {sort!.dir === "asc" ? "▲" : "▼"}
                     </span>
+                  ) : sortable ? (
+                    // a dim ↕ on every other sortable column, so it is clear they sort too
+                    <span className="sort-caret is-idle" aria-hidden="true">
+                      ↕
+                    </span>
                   ) : null}
                 </th>
               );

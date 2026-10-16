@@ -784,6 +784,9 @@ button {
   color: var(--signal);
   margin-left: 4px;
 }
+.dtable th .sort-caret.is-idle {
+  color: var(--ink-faint);
+}
 .dtable tbody td {
   padding: 7px 12px;
   border-bottom: 1px solid var(--rule);
@@ -987,7 +990,8 @@ button {
   color: var(--ink-dim);
 }
 .acq-arrow {
-  color: var(--conflict);
+  /* faint, not --conflict: inside a clickable row an orange glyph read as a second link */
+  color: var(--ink-faint);
 }
 
 /* =============================================================================
