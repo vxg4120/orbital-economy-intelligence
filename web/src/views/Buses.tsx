@@ -273,6 +273,7 @@ export function Buses() {
                 sort={sortSpec}
                 onSort={onSort}
                 zebra
+                stickyFirst
               />
               <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
             </>

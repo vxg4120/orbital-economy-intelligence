@@ -705,6 +705,17 @@ button {
 .table-wrap {
   overflow-x: auto;
   width: 100%;
+  /* scroll-edge cue (the background-attachment trick): two faint ink glows are pinned
+     to the wrap's edges (scroll), and two surface-coloured covers ride with the content
+     (local). A glow shows only while content is hidden past that edge; when the table
+     fits, the covers sit on top of both glows and nothing shows. */
+  background:
+    linear-gradient(90deg, var(--surface) 40%, transparent) left center / 32px 100% no-repeat local,
+    linear-gradient(270deg, var(--surface) 40%, transparent) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+      left center / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--ink) 22%, transparent), transparent)
+      right center / 14px 100% no-repeat scroll;
 }
 .dtable {
   width: 100%;
@@ -1741,6 +1752,26 @@ button {
   }
   .case-row__open {
     grid-area: open;
+  }
+  /* tables that name their rows in the first column (the buses leaderboard) keep that
+     column pinned while the metrics scroll under it */
+  .table-wrap--sticky-first th:first-child,
+  .table-wrap--sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    max-width: 44vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--rule-2);
+  }
+  .table-wrap--sticky-first tbody tr:hover td:first-child {
+    background: var(--surface-2);
+  }
+  .table-wrap--sticky-first tbody tr.is-link:hover td:first-child {
+    background: var(--surface-3);
+    box-shadow: inset 2px 0 0 var(--signal), 1px 0 0 var(--rule-2);
   }
 }
 

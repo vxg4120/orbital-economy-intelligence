@@ -21,6 +21,8 @@ interface DataTableProps<Row> {
   sort?: SortSpec;
   onSort?: (key: string) => void;
   zebra?: boolean;
+  /** Pin the first column while the rest scrolls sideways (phones only, see theme.css). */
+  stickyFirst?: boolean;
 }
 
 /** Dense hairline table. Numeric columns are right-aligned tabular. When
@@ -33,9 +35,10 @@ export function DataTable<Row>({
   sort,
   onSort,
   zebra,
+  stickyFirst,
 }: DataTableProps<Row>) {
   return (
-    <div className="table-wrap">
+    <div className={`table-wrap${stickyFirst ? " table-wrap--sticky-first" : ""}`}>
       <table className={`dtable${zebra ? " dtable--zebra" : ""}`}>
         <thead>
           <tr>
