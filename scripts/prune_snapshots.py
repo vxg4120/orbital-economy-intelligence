@@ -60,6 +60,7 @@ SNAPSHOT_TABLES = [
     "raw_fcc_ssal",
     "raw_supgp_status",
     "raw_ucs",
+    "raw_spacetrack_decay",
 ]
 
 

@@ -68,6 +68,18 @@ def _is_rate_limit_stub(resp: requests.Response) -> bool:
     return bool(data) and isinstance(data[0], dict) and "error" in data[0]
 
 
+def _is_login_failed(resp: requests.Response) -> bool:
+    """Space-Track answers a bad identity or password with HTTP 200 and {"Login":"Failed"}; a
+    good login sets the session cookie and returns an empty body."""
+    if b"Login" not in resp.content:
+        return False
+    try:
+        data = resp.json()
+    except ValueError:
+        return False
+    return isinstance(data, dict) and str(data.get("Login", "")).lower() == "failed"
+
+
 def _chunk(items: list, size: int):
     for i in range(0, len(items), size):
         yield items[i : i + size]
@@ -92,6 +104,7 @@ class SpaceTrackClient:
             )
         self.session = session or requests.Session()
         self._logged_in = False
+        self._login_error: SpaceTrackAuthError | None = None
         self._last_request_at: float | None = None
         # Called before EVERY query attempt, including retries (429/5xx/timeout/stub). External
         # rate limiters must hook here, not around gp_history() calls: retries are real requests
@@ -109,6 +122,10 @@ class SpaceTrackClient:
     def _login(self) -> None:
         if self._logged_in:
             return
+        if self._login_error is not None:
+            # One failed login per client: retrying a wrong password on every batch would only
+            # pile failed attempts onto the account.
+            raise self._login_error
         self._throttle()
         resp = self.session.post(
             LOGIN_URL,
@@ -117,14 +134,24 @@ class SpaceTrackClient:
             headers={"User-Agent": runlog.USER_AGENT},
         )
         resp.raise_for_status()
+        if _is_login_failed(resp):
+            self._login_error = SpaceTrackAuthError(
+                "Space-Track login failed (HTTP 200, {\"Login\":\"Failed\"}): check "
+                "SPACETRACK_IDENTITY / SPACETRACK_PASSWORD in deploy/.env"
+            )
+            raise self._login_error
         self._logged_in = True
 
     def _request(self, url: str) -> requests.Response:
         self._login()
         attempt = 0
         while True:
-            self._pre_request()
+            # Throttle first, then the external pacer, so the pacer records (nearly) the moment
+            # the request is sent. The other order let the 3 s spacing delay a send after the
+            # pacer had already timestamped it, and a fake-clock test counted 251 requests in
+            # one trailing hour under a 250 cap (tests/test_spacetrack_topup.py).
             self._throttle()
+            self._pre_request()
             try:
                 resp = self.session.get(
                     url, timeout=TIMEOUT_S, headers={"User-Agent": runlog.USER_AGENT}
@@ -173,7 +200,7 @@ class SpaceTrackClient:
             run_id = runlog.start_run(self.conn, "spacetrack", endpoint)
             try:
                 resp = self._request(url)
-            except requests.RequestException as exc:
+            except (requests.RequestException, SpaceTrackAuthError) as exc:
                 runlog.finish_run(
                     self.conn, run_id, rows=0, bytes_dl=0, status="error", notes=str(exc)[:2000]
                 )
@@ -196,11 +223,29 @@ class SpaceTrackClient:
             yield from rows
 
     def decay(self, norad_ids: list[int]) -> list[dict]:
-        """Decay messages, format=json. Landing is deferred to Phase 2 — kept thin here."""
+        """Decay messages for given NORAD ids, format=json, not landed. The nightly's windowed
+        decay pull is `query_ledgered` via ingest/spacetrack_decay.py instead."""
         rows_out: list[dict] = []
         for rows in self._ledgered_batches(DECAY_PATH, norad_ids, "/format/json"):
             rows_out.extend(rows)
         return rows_out
+
+
+    def query_ledgered(self, endpoint: str, query: str) -> tuple[requests.Response, int]:
+        """One query (the path after BASE_URL), logged as an ingest_run row (source='spacetrack',
+        `endpoint`) that the CALLER finishes once it has landed the rows, so the raw landing can
+        reference the run. On an HTTP error the row is finished as 'error' here and the error is
+        re-raised. The URL goes in the row's notes when the caller finishes it."""
+        url = f"{BASE_URL}{query}"
+        run_id = runlog.start_run(self.conn, "spacetrack", endpoint)
+        try:
+            resp = self._request(url)
+        except (requests.RequestException, SpaceTrackAuthError) as exc:
+            runlog.finish_run(
+                self.conn, run_id, rows=0, bytes_dl=0, status="error", notes=str(exc)[:2000]
+            )
+            raise
+        return resp, run_id
 
 
 def land_gp_history(conn, rows: list[dict]) -> int:
