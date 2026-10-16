@@ -212,3 +212,5 @@ review each, then merge and deploy. space-28 owns landing/stories-20261016 in bo
 - [x] D. (merged 0d9a384, deployed 07:53 UTC, migration 0026; 0 moves, 557 relabels) GCAT: bus.py rule 2 for NORAD-less rows follows the key's own number (methodology
       1.9 -> 1.10, changelog); GCAT code C -> DECAYED stays, documented as decided.
       Branch space feat/gcat-rule2.
+- [x] E. (space-28) Landing data stories on both apps, reviewed by space-7e, deployed with Vib's
+      "Deploy the landing stories": orbital b9bccdf live 08:10 UTC, exo 2fed917 live 08:16 UTC.
