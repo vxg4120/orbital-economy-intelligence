@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { getAuditSummary, getCongestion, getEnvironment, getStats } from "../api/client";
 import { useApi } from "../hooks/useApi";
-import { compact, fmtInt } from "../lib/format";
+import { fmtInt } from "../lib/format";
 import { CONFLICT_TABS } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
 import { StatTile } from "../components/StatTile";
@@ -39,7 +39,7 @@ export function Overview() {
                 lead
                 hero
                 label="Tracked objects"
-                value={compact(s.satellites)}
+                n={s.satellites}
                 sub={
                   <>
                     on-orbit payloads <span className="num">{fmtInt(s.on_orbit_payloads)}</span>
@@ -48,7 +48,7 @@ export function Overview() {
               />
               <StatTile
                 label="Operators"
-                value={compact(s.operators)}
+                n={s.operators}
                 sub={
                   <>
                     crosswalk rows <span className="num">{fmtInt(s.identifier_rows)}</span>
@@ -57,12 +57,12 @@ export function Overview() {
               />
               <StatTile
                 label="Element sets"
-                value={compact(s.gp_elements)}
+                n={s.gp_elements}
                 sub="latest GP per object"
               />
               <StatTile
                 label="Merge events"
-                value={compact(s.merge_events)}
+                n={s.merge_events}
                 sub="norad + cospar exact"
               />
             </div>
