@@ -1651,20 +1651,53 @@ button {
   .topbar__sub {
     display: none;
   }
-  .tele,
-  .topbar__clock {
+  .tele {
     padding: 0 10px;
+  }
+  /* the stat strip gets its own scrolling row under the brand line: inside the bar it
+     had a clientWidth of 0 at 390px, so the five stats did not exist on a phone. The
+     chips go label-beside-value to keep the row short, and the right edge fades so the
+     scroll is discoverable. */
+  .app {
+    grid-template-rows: auto auto 1fr;
+  }
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .topbar__brand {
+    flex: 1;
+    min-width: 0;
+    height: var(--topbar-h);
+    border-right: none;
+  }
+  /* with the strip moved out, brand + clock + "?" still overflow 390px by a few pixels
+     (the mark clipped "Terminal"), so the clock goes: the strip is the live readout */
+  .topbar__clock {
+    display: none;
+  }
+  .topbar__tele {
+    order: 3;
+    flex: 1 0 100%;
+    height: 32px;
+    border-top: 1px solid var(--rule);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  }
+  .tele {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+  .tele:last-child {
+    /* room to scroll the last chip out from under the fade */
+    padding-right: 36px;
   }
   .topbar__help {
     margin: 0 8px;
   }
-  /* the full name holds one line only at the base size, and the clock drops its
-     label so the date and time can stack inside the bar instead of clipping it */
+  /* the full name holds one line only at the base size */
   .topbar__mark {
     font-size: var(--fs-base);
-  }
-  .topbar__clock .tele__k {
-    display: none;
   }
   /* review queue rows: stratum tag stacks above the subject */
   .case-row {
@@ -1694,9 +1727,6 @@ button {
   }
   .topbar__brand {
     padding: 0 10px;
-  }
-  .topbar__clock {
-    padding: 0 6px;
   }
   .topbar__help {
     margin: 0 6px;
