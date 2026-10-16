@@ -10,7 +10,7 @@ current keys only. Every test seeds its own rows and rolls back.
 
 import pytest
 
-from identity import churn, claims, match
+from identity import bus, churn, claims, match
 from tests.claimfix import seed_claim
 
 pytestmark = pytest.mark.db
@@ -288,5 +288,41 @@ def test_a_decay_date_with_no_current_claim_is_retracted(db_conn):
         with db_conn.cursor() as cur:
             cur.execute("SELECT decay_date FROM satellite WHERE satellite_id = %s", (a,))
             assert cur.fetchone()[0] is None
+    finally:
+        db_conn.rollback()
+
+
+def test_bus_attribution_of_a_norad_less_row_follows_its_key_number(db_conn):
+    """Methodology v1.10: a GCAT row with no NORAD attributes to the satellite whose NORAD is
+    its key's number, before the cospar crosswalk. The ISS shape: GCAT's piece for a is the
+    piece the crosswalk holds for its sibling b, so rule 2 alone lands on b. A row whose key
+    number names no satellite still falls through to anchored_cospar."""
+    try:
+        with db_conn.cursor() as cur:
+            b = _sat(cur, 970001102, "1998-067VQ", "ZZ BUS B")  # lower satellite_id
+            a = _sat(cur, 970001101, "1998-067VP", "ZZ BUS A")
+            c = _sat(cur, 970001103, "1998-067VS", "ZZ BUS C")
+            _link(cur, b, "cospar", "1998-067VR")  # the piece GCAT gives a
+            _link(cur, c, "cospar", "1998-067VT")
+            run = _run(cur)
+            for jcat, piece in (("S970001101", "1998-067VR"), ("S970001199", "1998-067VT")):
+                cur.execute(
+                    "INSERT INTO raw_gcat_satcat (jcat, norad_id, piece, name, pl_name, "
+                    "object_type, bus, manufacturer, ingest_run_id) "
+                    "VALUES (%s, NULL, %s, 'ZZ BUS', 'ZZ BUS', 'P', 'CubeSat (3U)', 'ZZMFR', %s)",
+                    (jcat, piece, run),
+                )
+        bus.build(db_conn)
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "SELECT source_key, satellite_id, join_rule FROM satellite_bus "
+                "WHERE source_key IN ('S970001101', 'S970001199') ORDER BY 1"
+            )
+            assert cur.fetchall() == [
+                ("S970001101", a, "anchored_jcat_number"),
+                ("S970001199", c, "anchored_cospar"),
+            ]
+            cur.execute("SELECT count(*) FROM satellite_bus WHERE satellite_id = %s", (b,))
+            assert cur.fetchone()[0] == 0
     finally:
         db_conn.rollback()

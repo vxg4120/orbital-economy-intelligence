@@ -1,7 +1,8 @@
 """Join provenance (tenancy Phase 3): every attribution row says how it was joined.
 
-Three categorical rules instead of a confidence float: anchored_norad (the row carries the
-permanent anchor), anchored_cospar (crosswalk to an anchored satellite), provisional_slot (a
+Four categorical rules instead of a confidence float: anchored_norad (the row carries the
+permanent anchor), anchored_jcat_number (a NORAD-less row whose key S<n> names satellite n,
+methodology v1.10), anchored_cospar (crosswalk to an anchored satellite), provisional_slot (a
 dated occupancy observation, kept on the leaderboard and flagged rather than hidden, because
 withholding provisional fleets would blind the product to every fleet younger than about a
 month). key_churn_observed marks joins that rode a key the churn ledger has seen move.
@@ -18,8 +19,8 @@ def test_every_row_carries_a_valid_join_rule(db_conn):
             "SELECT join_rule, count(*) FROM satellite_bus GROUP BY 1 ORDER BY 2 DESC"
         )
         dist = dict(cur.fetchall())
-    assert set(dist) <= {"anchored_norad", "anchored_cospar", "provisional_slot",
-                         "operator_confirmed"}
+    assert set(dist) <= {"anchored_norad", "anchored_jcat_number", "anchored_cospar",
+                         "provisional_slot", "operator_confirmed"}
     assert dist.get("anchored_norad", 0) > 20000, "the anchored majority rides direct norad joins"
 
 

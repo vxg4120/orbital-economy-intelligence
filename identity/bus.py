@@ -23,9 +23,11 @@ attribution with explicit provenance, in one set-based rebuild:
   rewritten this way carry rollup_source='curated_alias' and a rollup_path ending in the
   surviving code; every retired slug is recorded in benchmark_slug_alias.
 
-Rows attach to canonical satellites by COSPAR piece designation first, falling back to the
-jcat crosswalk only when the piece has no cospar identifier: GCAT reshuffles provisional jcat
-slots between releases on fresh multi-payload launches, so jcat alone mis-joins those rows.
+Rows attach to canonical satellites by the NORAD they carry; a NORAD-less row with an S<n> key
+attaches to the satellite whose NORAD is n (GCAT's own numbering, methodology v1.10); the rest
+attach by COSPAR piece designation, falling back to the jcat crosswalk only when the piece has no
+cospar identifier: GCAT reshuffles provisional jcat slots between releases on fresh
+multi-payload launches, so jcat alone mis-joins those rows.
 
 Provenance: every satellite_bus row carries (source='gcat', source_key=jcat, ingest_run_id),
 and identity/claims.py records per-row 'bus' and 'manufacturer' claims (the claim table, read
@@ -47,8 +49,8 @@ import yaml
 # rule, or attribution rule changes, together with the Changelog in
 # docs/BUS_BENCHMARKS_METHODOLOGY.md. Monthly snapshots record the version that produced them,
 # and /api/buses/methodology reports it, so published numbers stay citable.
-METHODOLOGY_VERSION = "1.9"
-METHODOLOGY_UPDATED = "2026-09-17"
+METHODOLOGY_VERSION = "1.10"
+METHODOLOGY_UPDATED = "2026-10-16"
 
 # Curated parent-rollup overrides for org edges GCAT leaves blank. Kept deliberately tiny and
 # documented in docs/BUS_BENCHMARKS_METHODOLOGY.md; rows resolved through one of these carry
@@ -335,6 +337,21 @@ rule1 AS (
     WHERE r.norad_id IS NOT NULL
     ORDER BY r.jcat, s.satellite_id
 ),
+rule_jcat AS (
+    -- anchored_jcat_number (methodology v1.10): no NORAD on the row, but its key S<n> is
+    -- catalog number n in GCAT's scheme, so the row belongs to the satellite whose NORAD is n.
+    -- This outranks the piece: on the ISS-deployed cubesats GCAT's piece letter is one off
+    -- SATCAT's (1998-067VR where SATCAT says VQ), so a piece lookup lands on the neighbour.
+    -- The same authority as match.py's jcat_number rule (docs/specs/gcat-sibling-links.md).
+    SELECT DISTINCT ON (r.jcat) s.satellite_id, r.*,
+           'anchored_jcat_number'::text AS join_rule
+    FROM resolved r
+    JOIN satellite s
+      ON s.norad_id = substring(r.jcat FROM '^S([0-9]{1,18})$')::bigint
+     AND s.anchor_state = 'anchored'
+    WHERE r.norad_id IS NULL
+    ORDER BY r.jcat, s.satellite_id
+),
 rule2 AS (
     -- anchored_cospar: no anchor on the row yet, but the piece resolves through the live
     -- crosswalk (expired identifiers excluded) to a satellite that IS anchored, typically
@@ -348,6 +365,7 @@ rule2 AS (
     JOIN satellite s ON s.satellite_id = si.satellite_id AND s.anchor_state = 'anchored'
     WHERE r.norad_id IS NULL
       AND NOT EXISTS (SELECT 1 FROM rule1 WHERE rule1.jcat = r.jcat)
+      AND NOT EXISTS (SELECT 1 FROM rule_jcat WHERE rule_jcat.jcat = r.jcat)
     ORDER BY r.jcat, si.satellite_id
 ),
 rule3 AS (
@@ -375,11 +393,13 @@ rule3 AS (
         LIMIT 1
     ) m ON TRUE
     WHERE NOT EXISTS (SELECT 1 FROM rule1 WHERE rule1.jcat = r.jcat)
+      AND NOT EXISTS (SELECT 1 FROM rule_jcat WHERE rule_jcat.jcat = r.jcat)
       AND NOT EXISTS (SELECT 1 FROM rule2 WHERE rule2.jcat = r.jcat)
     ORDER BY r.jcat, m.satellite_id
 ),
 matched AS (
-    SELECT * FROM rule1 UNION ALL SELECT * FROM rule2 UNION ALL SELECT * FROM rule3
+    SELECT * FROM rule1 UNION ALL SELECT * FROM rule_jcat
+    UNION ALL SELECT * FROM rule2 UNION ALL SELECT * FROM rule3
 ),
 linked AS (
     -- A satellite occasionally carries two GCAT rows (merge artifacts): prefer the row with a
