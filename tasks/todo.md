@@ -172,8 +172,11 @@ landing/oct-2026-copy); space-a2 owns the source_assertion_runs_20261012 drop af
       are by design about the real catalog. Not viable; the skip-on-empty rule stays. The
       experiment found and fixed the audit_report crash on an empty Eutelsat cohort.
 - [x] 4. Restore rehearsal passed 10-16 02:41-02:50 UTC (procedure in deploy/README.md).
-- [ ] 5. Design pass on the orbital and exo apps (not the landing tonight): mobile widths,
-      contrast, loading/empty states, consistency between the two apps.
+- [x] 5. Phone/accessibility pass shipped on both apps 10-16 03:13 and 03:19 UTC (space 8436531,
+      exodossier e8341d9): the stat strip, nav and tables get scroll cues, 10px text gone on
+      phones, --ink-ghost text to --ink-faint, 36px+ touch targets, skeleton loading, exact
+      figures on compact numbers, h2 panel titles. Open: whether exo adopts orbital's serif
+      heading layer (P2-4), Vib's call.
 
 ## Needs a decision from Vib (present, don't build)
 - [ ] 6. Space-Track: creds are wired through nightly-refresh.sh and the client, but only
@@ -185,5 +188,12 @@ landing/oct-2026-copy); space-a2 owns the source_assertion_runs_20261012 drop af
       rows; whether status_map.yml keeps GCAT code C -> DECAYED (23 objects).
 - [x] 9. 31% vs 31-37% copy: handed to space-28; source is splitstep build-journal.md:95-96.
 
-## Review
-(filled in at the end)
+## Review (2026-10-16 03:20 UTC)
+Shipped and measured on the box: /api/health (orbital); /api/buses 4.2 s -> 1.4 s; exo landing
+cold 2.4+2.8 s -> 0.66+0.63 s; restore rehearsal passed and documented; phone pass on both
+apps (audit and after-metrics in the session scratchpad, report tables in the merge commits'
+branches). Not done, by finding: CI graph tests cannot run on fixtures (5/96 pass), so the
+skip-on-empty rule stays. Reviews: Codex was down for the account all night ("model is not
+supported when using Codex with a ChatGPT account", needs `codex login`); each diff got an
+independent Claude review instead, which caught two CI-breaking tests and an unbounded
+cache staleness, both fixed before deploy. Lesson recorded: never Write over tasks/todo.md.
