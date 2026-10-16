@@ -202,13 +202,13 @@ cache staleness, both fixed before deploy. Lesson recorded: never Write over tas
 Owner: session space-7e. One implementer per item in its own worktree/branch, an independent
 review each, then merge and deploy. space-28 owns landing/stories-20261016 in both repos
 (landing route + its own read-only endpoints) at the same time; we keep off those paths.
-- [ ] A. Exo serif headings (P2-4): port orbital's Fraunces heading/display layer to exo.
+- [x] A. (merged f3cbe6f, exo main; deploy with C) Exo serif headings (P2-4): port orbital's Fraunces heading/display layer to exo.
       Branch exodossier design/serif-headings-20261016.
-- [ ] B. Space-Track: periodic gp_history top-up + decay-message landing, as a nightly step
+- [x] B. (merged a8a1357, deployed 07:53 UTC, migration 0027; awaits creds) Space-Track: periodic gp_history top-up + decay-message landing, as a nightly step
       that no-ops without SPACETRACK_IDENTITY/PASSWORD. Branch space feat/spacetrack-topup.
       Vib creates the account and pastes creds into /root/apps/space/deploy/.env himself.
 - [ ] C. Exo light curves Wave 2: a page showing transit-recovery results from the pipeline.
       Branch exodossier feat/lightcurves-wave2.
-- [ ] D. GCAT: bus.py rule 2 for NORAD-less rows follows the key's own number (methodology
+- [x] D. (merged 0d9a384, deployed 07:53 UTC, migration 0026; 0 moves, 557 relabels) GCAT: bus.py rule 2 for NORAD-less rows follows the key's own number (methodology
       1.9 -> 1.10, changelog); GCAT code C -> DECAYED stays, documented as decided.
       Branch space feat/gcat-rule2.
