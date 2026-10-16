@@ -126,7 +126,7 @@ def test_the_nightly_passes_the_credentials_and_runs_between_ingest_and_graph():
 def test_first_window_starts_three_days_back_then_at_the_cursor(clean_db):
     since, through = topup.topup_window(clean_db, NOW)
     assert since == dt.datetime(2026, 10, 13, 7, 20, 0)
-    assert through == dt.datetime(2026, 10, 16, 7, 20, 0)
+    assert through == dt.datetime(2026, 10, 16, 5, 20, 0)   # now minus the 2 h margin
     topup._write_cursor(clean_db, dt.datetime(2026, 10, 15, 7, 31, 5, tzinfo=dt.timezone.utc))
     since, _ = topup.topup_window(clean_db, NOW)
     assert since == dt.datetime(2026, 10, 15, 7, 31, 5)
@@ -161,9 +161,9 @@ def test_topup_batches_the_fleet_and_queries_only_the_creation_window(clean_db, 
     assert len(gets) == 3                                   # 150 ids -> 2 batches, 1 id -> 1
     assert [u.split("/NORAD_CAT_ID/")[1].split("/")[0].count(",") for u in gets] == [99, 49, 0]
     for url in gets:
-        assert "/CREATION_DATE/2026-10-13T07:20:00--2026-10-16T07:20:00/" in url
+        assert "/CREATION_DATE/2026-10-13T07:20:00--2026-10-16T05:20:00/" in url
     assert n == 4 and _gp_count(clean_db) == 4
-    assert topup.read_cursor(clean_db) == NOW
+    assert topup.read_cursor(clean_db) == NOW - topup.PUBLICATION_MARGIN
     (status, rows, notes), = _ledger(clean_db, baseline, topup.TOPUP_ENDPOINT)
     assert (status, rows) == ("ok", 4) and "3 request(s)" in notes
 
@@ -189,8 +189,8 @@ def test_running_twice_adds_no_rows_and_the_second_window_starts_where_the_first
 
     assert _gp_count(clean_db) == 2
     second = [c.request.url for c in responses.calls if c.request.method == "GET"][1]
-    assert "/CREATION_DATE/2026-10-16T07:20:00--2026-10-17T07:20:00/" in second
-    assert topup.read_cursor(clean_db) == later
+    assert "/CREATION_DATE/2026-10-16T05:20:00--2026-10-17T05:20:00/" in second
+    assert topup.read_cursor(clean_db) == later - topup.PUBLICATION_MARGIN
 
 
 @pytest.mark.db
@@ -210,7 +210,7 @@ def test_a_second_run_within_the_day_is_skipped_without_a_request(clean_db, no_t
     assert len(responses.calls) == calls
     assert [r[0] for r in _ledger(clean_db, baseline, topup.TOPUP_ENDPOINT)] == \
         ["ok", "skipped_fresh"]
-    assert topup.read_cursor(clean_db) == NOW
+    assert topup.read_cursor(clean_db) == NOW - topup.PUBLICATION_MARGIN
 
 
 @pytest.mark.db
@@ -232,6 +232,44 @@ def test_a_failed_batch_leaves_the_cursor_put_and_ledgers_an_error(clean_db, no_
     assert topup.read_cursor(clean_db) is None
     (status, _, notes), = _ledger(clean_db, baseline, topup.TOPUP_ENDPOINT)
     assert status == "error" and "CREATION_DATE 2026-10-13T07:20:00" in notes
+
+
+@pytest.mark.db
+def test_an_empty_fleet_is_an_error_and_leaves_the_cursor_put(clean_db):
+    baseline = run_id_baseline(clean_db)
+    with pytest.raises(topup.TopupEmptyError, match="no NORAD ids"):
+        topup.gp_topup(clean_db, _client(clean_db), now=NOW, fleet_provider=_fleet({"OpA": []}),
+                       operators=["OpA"], out=lambda s: None)
+    assert topup.read_cursor(clean_db) is None
+    (status, _, notes), = _ledger(clean_db, baseline, topup.TOPUP_ENDPOINT)
+    assert status == "error" and "no NORAD ids" in notes
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_large_fleet_returning_nothing_is_an_error_and_leaves_the_cursor_put(
+        clean_db, no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[])
+    responses.add(responses.GET, GP_HISTORY_RE, json=[])
+    baseline = run_id_baseline(clean_db)
+    fleet = _fleet({"OpA": list(range(900000001, 900000001 + topup.EMPTY_WINDOW_MIN_IDS + 50))})
+    with pytest.raises(topup.TopupEmptyError, match="returned no element set"):
+        topup.gp_topup(clean_db, _client(clean_db), now=NOW, fleet_provider=fleet,
+                       operators=["OpA"], out=lambda s: None)
+    assert topup.read_cursor(clean_db) is None
+    (status, _, notes), = _ledger(clean_db, baseline, topup.TOPUP_ENDPOINT)
+    assert status == "error" and "150 ids in 2 request(s)" in notes
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_small_fleet_returning_nothing_is_a_quiet_night(clean_db, no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    responses.add(responses.GET, GP_HISTORY_RE, json=[])
+    topup.gp_topup(clean_db, _client(clean_db), now=NOW, fleet_provider=_fleet({"OpA": [900000001]}),
+                   operators=["OpA"], out=lambda s: None)
+    assert topup.read_cursor(clean_db) == NOW - topup.PUBLICATION_MARGIN
 
 
 @pytest.mark.db

@@ -18,7 +18,7 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 
 ## Architecture decisions
 - 2026-10-16 (Claude): **gp_history windows are incremental by CREATION_DATE and never
-  overlap.** Each night asks for `CREATION_DATE/<cursor>--<now>`, where the cursor
+  overlap.** Each night asks for `CREATION_DATE/<cursor>--<now - 2 h>`, where the cursor
   (`spacetrack_cursor`, migration 0027) is the previous successful night's upper bound. The
   first night, with no cursor, starts 3 days back. Rejected: a rolling window such as
   `EPOCH > now-3d` (the first idea). Because: Space-Track's documentation limits `gp_history`
@@ -39,7 +39,8 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 - 2026-10-16 (Claude): **The cursor advances only when every batch landed**, in the same
   commit as the ledger's 'ok'. A failed night leaves it put, and the next night asks for the
   same window again (rows already landed are skipped by the conflict key). That re-download is
-  the one exception to "never twice", and only after a failure.
+  the one exception to "never twice", and only after a failure. An empty fleet, or a fleet of
+  100+ ids with no rows at all, counts as a failure (review I-1, 2026-10-16).
 - 2026-10-16 (Claude): **Fleet scope stays the benchmark fleet.** Measured on production
   2026-10-16: SpaceX 10,660, Eutelsat 708, Amazon 392, Planet Labs 130, Iridium 104, Spire
   57, ICEYE 35, Capella Space 9 NORAD ids, which is 126 requests of 100 ids. Rejected: a
@@ -72,6 +73,15 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   wide; `gp_history` once per element set; DECAY once a day. The client spaces requests 3 s
   apart (at most 20 a minute), the pacer caps a run at 250 an hour with retries counted, and a
   plan over 200 requests is refused before any request.
+- **The gp_history window ends 2 hours before now** (`PUBLICATION_MARGIN`). An element set
+  can become queryable after its CREATION_DATE; a window ending at "now" would move the cursor
+  past such a set before it was visible, and it would never be fetched. Never shrink the margin
+  to zero.
+- **A window is only "done" when it could have returned data.** A fleet of zero ids, or a fleet
+  of at least 100 ids (`EMPTY_WINDOW_MIN_IDS`) that returns no element set across the whole
+  window, is an 'error' ledger row, the cursor stays put and the part exits non-zero.
+- **One top-up at a time.** `main()` takes `pg_try_advisory_lock` on a fixed key when the
+  credentials are set; a second run prints "another top-up is running; skipping" and exits 0.
 - **No credentials, no requests.** Blank or unset `SPACETRACK_IDENTITY` or
   `SPACETRACK_PASSWORD`: one log line, exit 0, no database connection.
 - **Never delete `gp_elements` rows.** The top-up only inserts, with `ON CONFLICT DO NOTHING`.

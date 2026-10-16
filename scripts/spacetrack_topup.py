@@ -49,6 +49,13 @@ TOPUP_MIN_INTERVAL = runlog.DAILY
 # First night with no cursor: start this far back (the gap before it is a one-off backfill).
 INITIAL_LOOKBACK = dt.timedelta(days=3)
 MAX_GAP_DAYS = 30
+# The window ends this long before now. An element set can become queryable some time after
+# its CREATION_DATE (it is stamped when built, published after), and a window that ended at
+# "now" would put such a set behind the cursor before it was visible: skipped for good.
+PUBLICATION_MARGIN = dt.timedelta(hours=2)
+# A fleet this large returning no element set at all over a whole window is not a quiet night,
+# it is a broken query (a throttle stub that slipped through, a changed field, a bad range).
+EMPTY_WINDOW_MIN_IDS = 100
 MAX_REQUESTS_PER_HOUR = 250   # Space-Track's cap is 300; headroom for login and the decay pull
 MAX_PLANNED_REQUESTS = 200    # refuse a plan this large: retries need room under the hourly cap
 
@@ -59,6 +66,10 @@ class TopupGapError(RuntimeError):
 
 class TopupBudgetError(RuntimeError):
     """The fleet would take more requests than one nightly may spend."""
+
+
+class TopupEmptyError(RuntimeError):
+    """The window cannot be trusted as done: no fleet, or a large fleet that returned nothing."""
 
 
 class _MemoryCheckpoint:
@@ -106,10 +117,12 @@ def _naive_utc_seconds(t: dt.datetime) -> dt.datetime:
 
 
 def topup_window(conn, now: dt.datetime) -> tuple[dt.datetime, dt.datetime]:
-    """(created_since, created_through) for tonight, both naive UTC to the second."""
+    """(created_since, created_through) for tonight, both naive UTC to the second. The window
+    ends PUBLICATION_MARGIN before now."""
     through = read_cursor(conn)
     since = through if through is not None else now - INITIAL_LOOKBACK
-    if now - since > dt.timedelta(days=MAX_GAP_DAYS):
+    upper = now - PUBLICATION_MARGIN
+    if upper - since > dt.timedelta(days=MAX_GAP_DAYS):
         raise TopupGapError(
             f"gp_history cursor is at {since:%Y-%m-%dT%H:%M:%SZ}, more than {MAX_GAP_DAYS} days "
             "back. Fill the gap deliberately, outside the nightly windows, then set the cursor: "
@@ -117,7 +130,12 @@ def topup_window(conn, now: dt.datetime) -> tuple[dt.datetime, dt.datetime]:
             f"--until {now:%Y-%m-%d}; UPDATE spacetrack_cursor SET through = "
             f"'{now:%Y-%m-%d} 00:00:00+00' WHERE stream = '{CURSOR_STREAM}'"
         )
-    return _naive_utc_seconds(since), _naive_utc_seconds(now)
+    return _naive_utc_seconds(since), _naive_utc_seconds(upper)
+
+
+def _fail_empty(conn, run_id: int, message: str):
+    runlog.finish_run(conn, run_id, rows=0, bytes_dl=0, status="error", notes=message[:2000])
+    raise TopupEmptyError(message)
 
 
 def gp_topup(conn, client, *, now=None, fleet_provider=None, operators=None,
@@ -133,6 +151,10 @@ def gp_topup(conn, client, *, now=None, fleet_provider=None, operators=None,
         return 0
 
     since, through = topup_window(conn, now)
+    if through <= since:
+        out(f"[spacetrack_topup] gp_history skipped: empty window ({since.isoformat()} is not "
+            f"before {through.isoformat()})")
+        return 0
     if fleet_provider is None:
         decayed_after = since.date() - dt.timedelta(days=1)
         bf.verify_operators(conn, operators)
@@ -155,6 +177,10 @@ def gp_topup(conn, client, *, now=None, fleet_provider=None, operators=None,
 
     run_id = runlog.start_run(conn, SOURCE, TOPUP_ENDPOINT)
     window_note = f"CREATION_DATE {since.isoformat()}--{through.isoformat()}"
+    n_ids = sum(len(p["ids"]) for p in plan)
+    if n_ids == 0:
+        _fail_empty(conn, run_id, f"{window_note}: the fleet query returned no NORAD ids; "
+                    "cursor not advanced")
     try:
         summary = bf.run_backfill(conn, client, plan, windows, _MemoryCheckpoint(),
                                   land_fn=land_fn, max_requests_per_hour=MAX_REQUESTS_PER_HOUR,
@@ -164,6 +190,10 @@ def gp_topup(conn, client, *, now=None, fleet_provider=None, operators=None,
         runlog.finish_run(conn, run_id, rows=0, bytes_dl=0, status="error",
                           notes=f"{window_note}: {exc}"[:2000])
         raise
+    if summary["cumulative_rows"] == 0 and n_ids >= EMPTY_WINDOW_MIN_IDS:
+        _fail_empty(conn, run_id, f"{window_note}: {n_ids} ids in "
+                    f"{summary['requests_issued']} request(s) returned no element set; "
+                    "cursor not advanced")
     # The cursor and the ledger's 'ok' commit together: either tonight counts or it does not.
     _write_cursor(conn, through.replace(tzinfo=dt.timezone.utc))
     runlog.finish_run(conn, run_id, rows=summary["cumulative_rows"], bytes_dl=0, status="ok",
