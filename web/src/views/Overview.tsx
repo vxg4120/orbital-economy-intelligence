@@ -31,7 +31,7 @@ export function Overview() {
         </div>
       </header>
 
-      <Async state={stats} loadingLabel="Loading telemetry">
+      <Async state={stats} loadingLabel="Loading telemetry" loadingRows={12}>
         {(s) => (
           <>
             <div className="grid grid--stats" data-tour="stats">

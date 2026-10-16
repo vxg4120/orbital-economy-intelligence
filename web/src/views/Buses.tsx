@@ -262,7 +262,7 @@ export function Buses() {
             ))}
           </div>
         </div>
-        <Async state={board} loadingLabel="Loading leaderboard">
+        <Async state={board} loadingLabel="Loading leaderboard" loadingRows={10}>
           {(data) => (
             <>
               <DataTable<BusRow>

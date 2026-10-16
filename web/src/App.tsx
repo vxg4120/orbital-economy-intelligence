@@ -137,7 +137,7 @@ export default function App() {
       </nav>
 
       <main className="main">
-        <Suspense fallback={<Loading label="Loading view" />}>
+        <Suspense fallback={<Loading label="Loading view" rows={8} />}>
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/resolver" element={<Resolver />} />

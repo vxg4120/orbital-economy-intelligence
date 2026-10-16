@@ -1492,6 +1492,16 @@ button {
 .state--error .state__title {
   color: var(--err);
 }
+/* skeleton loading: text-shaped shimmer lines (.skeleton) under a left-set label */
+.state--skeleton {
+  align-items: flex-start;
+  text-align: left;
+  padding: 16px 14px;
+}
+.state--skeleton .skeleton {
+  display: block;
+  max-width: 100%;
+}
 .spinner {
   width: 16px;
   height: 16px;
