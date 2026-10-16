@@ -214,3 +214,19 @@ review each, then merge and deploy. space-28 owns landing/stories-20261016 in bo
       Branch space feat/gcat-rule2.
 - [x] E. (space-28) Landing data stories on both apps, reviewed by space-7e, deployed with Vib's
       "Deploy the landing stories": orbital b9bccdf live 08:10 UTC, exo 2fed917 live 08:16 UTC.
+
+## Review (2026-10-16 08:50 UTC, decisions batch)
+All four "yes to all" items live, each independently reviewed before merge (Codex still down
+for the account; Claude opus reviewers instead): exo serif headings (exodossier f3cbe6f, +118 KB
+latin woff2); Space-Track nightly top-up + decay landing (space a8a1357, migration 0027, no-ops
+with blank creds, verified on the box; Vib pastes creds into deploy/.env); /lightcurves page
+(exodossier 882605c, migration 0007; the real finding was that the nightly graph build's
+TRUNCATE candidate CASCADE had been wiping the result tables since July, so results are now
+keyed on TOI; production populated from the laptop 08:17-08:41 UTC, 58/58 ok, 16/20, 20/20,
+16/18 live); GCAT anchored_jcat_number rule (space 0d9a384, methodology 1.10; prod effect 0
+moves, 557 relabels; code C -> DECAYED kept). Reviews caught: two data-loss paths in the
+Space-Track cursor (empty window, no publication margin), a wrong-password loop, a missing
+ON DELETE CASCADE on the light-curve FKs, and a churn flag over-counting on the new GCAT rule;
+all fixed before merge. Watch: the 19:10 UTC rebuild is the first live test of 0007
+(`/api/lightcurves/summary` .processed must stay 58). Side fixes: local Docker VM disk freed
+(29 GB of stale ECR images); the scratch DB on 5439 restarted.
