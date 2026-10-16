@@ -3228,3 +3228,422 @@ button {
     padding: 10px 14px;
   }
 }
+
+/* =============================================================================
+   Stories (2026-10-16): the story-led landing (views/Overview.tsx,
+   components/Stories.tsx). Fraunces narrates the dispatch and each panel's lead
+   sentence; numbers and labels stay mono. Existing tokens only.
+   ============================================================================= */
+.dispatch {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 400;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 62ch;
+  margin: 10px 0 0;
+}
+.dispatch__asof {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+  margin: 8px 0 0;
+}
+.vhead .state--skeleton {
+  margin-top: 10px;
+  min-width: min(60ch, 80vw);
+}
+
+.story__lead {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 420;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.4;
+  color: var(--ink);
+  max-width: 54ch;
+  margin: 0 0 14px;
+}
+.story__sub {
+  margin: 18px 0 6px;
+  font-size: var(--fs-micro);
+  font-weight: 400;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.story__hint {
+  margin: 14px 0 0;
+}
+.stories-row {
+  align-items: start;
+}
+
+/* legends: a swatch beside text-colored words, never colored text */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+  margin-bottom: 6px;
+}
+.legend--under {
+  margin: 8px 0 0;
+}
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.legend__swatch--signal,
+.seg--signal {
+  background: var(--signal);
+}
+.legend__swatch--muted {
+  background: var(--ink-faint);
+}
+.legend__swatch--hatch {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--signal) 0 2px,
+    var(--signal-wash) 2px 4px
+  );
+}
+.seg--dim {
+  background: var(--signal-dim);
+}
+.seg--muted {
+  background: var(--ink-ghost);
+}
+
+/* hand-rolled SVG charts, drawn in real pixels */
+.story-chart {
+  width: 100%;
+  min-width: 0;
+}
+.story-chart svg,
+.race__chart svg {
+  display: block;
+}
+.story-chart text {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  fill: var(--ink-faint);
+}
+.story-chart .story-chart__value {
+  fill: var(--ink);
+}
+.story-chart .story-chart__year {
+  fill: var(--ink-ghost);
+}
+.story-chart__grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.story-chart__axis {
+  stroke: var(--rule-2);
+  stroke-width: 1;
+}
+.story-chart__hit:hover {
+  fill: var(--signal-wash);
+}
+
+/* latest launches */
+.launches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.launch {
+  display: grid;
+  grid-template-columns: 4.5em minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.launch__date {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+.launch__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.launch__name {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.launch__more {
+  color: var(--ink-dim);
+}
+.launch__owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.launch__n {
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+.launch__unit {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+}
+.pending-mark {
+  font-size: var(--fs-xs);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.pending-mark::before {
+  content: "\25CB"; /* an open circle: the owner slot is still empty */
+  margin-right: 4px;
+}
+
+/* coming down: one stacked bar, then the notable list */
+.stackbar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+}
+.stackbar__seg {
+  flex-basis: 0;
+  min-width: 3px;
+}
+.stackbar__seg:first-child {
+  border-radius: 2px 0 0 2px;
+}
+.stackbar__seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.downlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.downlist__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.downlist__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.downlist__owner {
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.downlist__when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: var(--fs-xs);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.downlist__up {
+  color: var(--ink-faint);
+}
+
+/* the constellation race: small multiples on hairline gutters */
+.race {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.race__card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--surface);
+}
+.race__head {
+  display: flex;
+  flex-direction: column;
+}
+.race__name {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 560;
+  color: var(--ink);
+}
+.race__owner {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.race__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.1;
+  color: var(--ink);
+  margin-top: 6px;
+}
+.race__sub,
+.race__today {
+  font-size: var(--fs-xs);
+  color: var(--ink-dim);
+}
+.race__today {
+  color: var(--ink-faint);
+}
+.race__today .num {
+  color: var(--ink-dim);
+}
+.race__chart {
+  width: 100%;
+  /* charts align across the row however many lines the text above them takes */
+  margin-top: auto;
+  padding-top: 8px;
+}
+.race__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+}
+
+/* who flies the active fleet: share of the whole, so the bars sum to 100% */
+.share {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.share__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 12px;
+  align-items: baseline;
+}
+.share__name {
+  font-size: var(--fs-sm);
+  color: var(--ink-dim);
+  overflow-wrap: anywhere;
+}
+.share__val {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.share__pct {
+  color: var(--ink-faint);
+}
+.share__track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 8px;
+  background: var(--surface-2);
+}
+.share__fill {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+  border-radius: 0 4px 4px 0;
+}
+.share__fill--hatch {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--ink-faint) 0 2px,
+    transparent 2px 5px
+  );
+}
+.share__fill--muted {
+  background: var(--ink-ghost);
+}
+
+/* the divider between the stories and the resolver internals */
+.underhood {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 3px double var(--rule-2);
+}
+.underhood__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  color: var(--ink);
+}
+.underhood__desc {
+  font-size: var(--fs-sm);
+  color: var(--ink-dim);
+  margin: 4px 0 0;
+  max-width: 68ch;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1200px) {
+  .race {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .race {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .race__card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .dispatch,
+  .story__lead {
+    font-size: var(--fs-md);
+  }
+  .launch {
+    grid-template-columns: 3.8em minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .launch__unit {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .launch__name a,
+  .downlist__name a {
+    padding-block: 6px;
+  }
+}

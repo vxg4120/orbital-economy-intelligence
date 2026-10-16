@@ -20,9 +20,9 @@ const STEPS: DriveStep[] = [
   {
     element: '[data-tour="stats"]',
     popover: {
-      title: "The graph at a glance",
+      title: "The last 30 days at a glance",
       description:
-        "How big the reconciled picture is — tracked objects, operators, and element sets (each object's latest orbit). One row per physical satellite.",
+        "What happened in orbit recently: payloads launched and reentered, the active fleet, and the new payloads still waiting for the catalogs to name their company owner. The stories below explain each number.",
       side: "bottom",
       align: "start",
     },
@@ -40,9 +40,9 @@ const STEPS: DriveStep[] = [
   {
     element: '[data-tour="conflicts"]',
     popover: {
-      title: "The catalogs disagree",
+      title: "Under the hood: the catalogs disagree",
       description:
-        "Four public sources rarely tell the same story. This surfaces the disagreements — status, decay, stale ownership — and every number traces back to which source said what.",
+        "Four public sources rarely tell the same story. This surfaces their disagreements about status, decay and stale ownership, and every number traces back to which source said what.",
       side: "top",
       align: "start",
     },
