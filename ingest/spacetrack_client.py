@@ -123,8 +123,12 @@ class SpaceTrackClient:
         self._login()
         attempt = 0
         while True:
-            self._pre_request()
+            # Throttle first, then the external pacer, so the pacer records (nearly) the moment
+            # the request is sent. The other order let the 3 s spacing delay a send after the
+            # pacer had already timestamped it, and a fake-clock test counted 251 requests in
+            # one trailing hour under a 250 cap (tests/test_spacetrack_topup.py).
             self._throttle()
+            self._pre_request()
             try:
                 resp = self.session.get(
                     url, timeout=TIMEOUT_S, headers={"User-Agent": runlog.USER_AGENT}
@@ -196,11 +200,29 @@ class SpaceTrackClient:
             yield from rows
 
     def decay(self, norad_ids: list[int]) -> list[dict]:
-        """Decay messages, format=json. Landing is deferred to Phase 2 — kept thin here."""
+        """Decay messages for given NORAD ids, format=json, not landed. The nightly's windowed
+        decay pull is `query_ledgered` via ingest/spacetrack_decay.py instead."""
         rows_out: list[dict] = []
         for rows in self._ledgered_batches(DECAY_PATH, norad_ids, "/format/json"):
             rows_out.extend(rows)
         return rows_out
+
+
+    def query_ledgered(self, endpoint: str, query: str) -> tuple[requests.Response, int]:
+        """One query (the path after BASE_URL), logged as an ingest_run row (source='spacetrack',
+        `endpoint`) that the CALLER finishes once it has landed the rows, so the raw landing can
+        reference the run. On an HTTP error the row is finished as 'error' here and the error is
+        re-raised. The URL goes in the row's notes when the caller finishes it."""
+        url = f"{BASE_URL}{query}"
+        run_id = runlog.start_run(self.conn, "spacetrack", endpoint)
+        try:
+            resp = self._request(url)
+        except requests.RequestException as exc:
+            runlog.finish_run(
+                self.conn, run_id, rows=0, bytes_dl=0, status="error", notes=str(exc)[:2000]
+            )
+            raise
+        return resp, run_id
 
 
 def land_gp_history(conn, rows: list[dict]) -> int:
