@@ -97,6 +97,10 @@ WHERE so.role = 'owner'
   AND so.operator_id IN (SELECT operator_id FROM target)
   AND s.norad_id IS NOT NULL
   AND s.launch_date IS NOT NULL
+  -- The nightly top-up (scripts/spacetrack_topup.py) skips objects that decayed before its
+  -- window: they publish no new element sets. The backfill passes NULL and keeps them all.
+  AND (%(decayed_after)s::date IS NULL OR s.decay_date IS NULL
+       OR s.decay_date >= %(decayed_after)s::date)
   AND (
     s.object_type = 'PAYLOAD'
     OR EXISTS (
@@ -138,10 +142,11 @@ def verify_operators(conn, names: list[str]) -> None:
         raise ValueError(f"operators not found in operator table: {missing}")
 
 
-def fleet_ids(conn, name: str) -> list[int]:
-    """DISTINCT NORAD ids of the operator's (and its children's) on-orbit payload fleet."""
+def fleet_ids(conn, name: str, decayed_after: dt.date | None = None) -> list[int]:
+    """DISTINCT NORAD ids of the operator's (and its children's) payload fleet. With
+    `decayed_after`, objects whose resolved decay_date is before that day are left out."""
     with conn.cursor() as cur:
-        cur.execute(FLEET_SQL, {"name": name})
+        cur.execute(FLEET_SQL, {"name": name, "decayed_after": decayed_after})
         return [r[0] for r in cur.fetchall()]
 
 
