@@ -30,9 +30,9 @@ const STEPS: DriveStep[] = [
   {
     element: '[data-tour="nav"]',
     popover: {
-      title: "Five sections",
+      title: "Eight sections",
       description:
-        "Overview (you're here) · Resolver looks up one object · Conflicts shows where catalogs disagree · Operators maps who owns what · Review is the human-checked cases.",
+        "Overview (you're here) · Resolver looks up one object · Conflicts shows where catalogs disagree · Operators maps who owns what · Review is the human-checked cases · Buses scores spacecraft platforms · Reachability shows what is overhead from a spot on Earth · Filings is the FCC pre-launch queue.",
       side: "right",
       align: "start",
     },
