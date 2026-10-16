@@ -9,7 +9,10 @@
 -- build_graph (the same slot as mv_latest_gp_element, migration 0019).
 --
 -- Ordering is the TOTAL order (observed_at DESC, then source) so equal timestamps resolve the
--- same way on every refresh; the live CTEs left that tie to the planner.
+-- same way on every refresh; the live CTEs left that tie to the planner. Source ascending
+-- equals the status precedence in identity/precedence.yml (gcat, satcat, ucs) only because
+-- those names sort that way; tests/test_latest_status.py pins that, so a new status source
+-- that would invert it gets an explicit precedence tiebreak in a new migration instead.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_latest_satellite_status AS
 SELECT DISTINCT ON (satellite_id)
     satellite_id,

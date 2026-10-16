@@ -272,9 +272,12 @@ the rehearsal. The `pgdata` volume holds all state. For a logical copy as well, 
 `seed/dump-local.sh`-style dumps on the box against the `db` service.
 
 **Restore rehearsal (done 2026-10-16, 9 minutes, under 2 cents):** restore to a SECOND server,
-never over `orbital`, and neutralise the clone before its first nightly slot, because it boots
-as a full copy of production: it would pull every feed from a second IP, page the ntfy topic
-with any `!!` line, and try to renew the real certificates.
+never over `orbital`, and neutralise the clone the moment SSH answers, because it boots as a
+full copy of production with every container on `restart: unless-stopped`: it would pull every
+feed from a second IP, page the ntfy topic with any `!!` line, and Caddy would start ACME for
+the real hostnames against DNS that still points at `orbital` (failed validations count toward
+Let's Encrypt's rate limit). So do not start the clone within 15 minutes of 07:10 or 19:10 UTC,
+and run the ssh step straight after the create returns.
 
 ```bash
 hcloud server create --name restore-rehearsal --type cx33 --location hel1 \
@@ -289,9 +292,10 @@ hcloud server delete restore-rehearsal                    # leave the account's 
 ```
 
 Counts should match the nightly that ran just before the image's creation time (Hetzner
-timestamps backups in the account's timezone). A real disaster recovery is the same
-procedure with the DNS A records repointed to the new server and Caddy left running; the
-old server's certificates are in the image, so TLS resumes without a new issuance.
+timestamps backups in the account's timezone). A real disaster recovery differs in
+three ways: keep the crontab and ALERT_URL (the new box IS production now), leave Caddy
+running, and repoint the two DNS A records to the new IP; the old server's certificates are
+in the image, so TLS resumes without a new issuance.
 
 **TLS not issuing?** Check DNS resolves to the box (`dig orbital.<domain>`), ports 80/443
 are open (Hetzner firewall off by default), and `docker compose logs caddy`.

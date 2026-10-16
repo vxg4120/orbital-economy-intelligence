@@ -370,6 +370,10 @@ def test_v_station_keeping_operator_reports_p50(db_conn):
                 "VALUES (%s, 'ACTIVE', now(), 'test')",
                 (sat_id,),
             )
+            # The view reads status from mv_latest_satellite_status (migration 0025), which
+            # cannot see this transaction's rows until refreshed; a plain (non-CONCURRENT)
+            # refresh is transactional, so the rollback below undoes it too.
+            cur.execute("REFRESH MATERIALIZED VIEW mv_latest_satellite_status")
             # Three days with slightly varying sma so the rolling stddev is defined and non-zero.
             cur.execute(
                 "INSERT INTO gp_elements (norad_id, epoch, mean_motion, eccentricity, inclination, "
@@ -414,6 +418,9 @@ def test_v_deorbit_compliance_flags_late_deorbit(db_conn):
                 "(%s, 'DECAYED', '2021-06-01T00:00:00Z', 'test')",
                 (satellite_id, satellite_id),
             )
+            # Same reason as test_v_station_keeping_operator_reports_p50: the view's status
+            # comes from the matview, refreshed inside this transaction and rolled back with it.
+            cur.execute("REFRESH MATERIALIZED VIEW mv_latest_satellite_status")
 
             cur.execute(
                 "SELECT elapsed_days, compliant FROM v_deorbit_compliance WHERE norad_id = %s",

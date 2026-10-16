@@ -47,10 +47,15 @@ def test_view_is_exactly_one_latest_row_per_satellite(db_conn):
             """
         )
         assert cur.fetchone()[0] == 0, "the matview stores a status newer than any real row"
+        # Scoped to satellites that still have history: a merge between the refresh and this
+        # assertion repoints or deletes the merged satellite's rows (identity/merge.py), and the
+        # snapshot keeping that satellite until the next refresh is lag, not fabrication.
         cur.execute(
             """
             SELECT count(*) FROM mv_latest_satellite_status mv
-            WHERE NOT EXISTS (
+            WHERE EXISTS (SELECT 1 FROM satellite_status_history h
+                          WHERE h.satellite_id = mv.satellite_id)
+              AND NOT EXISTS (
                 SELECT 1 FROM satellite_status_history h
                 WHERE h.satellite_id = mv.satellite_id AND h.observed_at = mv.observed_at
                   AND h.source = mv.source AND h.canonical_status = mv.canonical_status
@@ -64,16 +69,32 @@ def test_view_is_exactly_one_latest_row_per_satellite(db_conn):
 def test_tiebreak_is_the_total_order(db_conn):
     """Equal observed_at rows from different sources are resolved by source, the same way on
     every refresh, so a consumer never sees a satellite flip status between two refreshes
-    that saw identical data."""
+    that saw identical data. Scoped to the rows the snapshot saw (observed_at no newer than
+    the stored one) so a row landing between refresh and assertion is lag, not a failure."""
     with db_conn.cursor() as cur:
         cur.execute(
             """
             SELECT count(*) FROM mv_latest_satellite_status mv
             JOIN satellite_status_history h USING (satellite_id, observed_at)
             WHERE h.source < mv.source
+              AND h.observed_at <= mv.observed_at
             """
         )
         assert cur.fetchone()[0] == 0, "a tie was not resolved by the lowest source"
+
+
+def test_alphabetical_source_tiebreak_matches_status_precedence():
+    """The matview breaks an observed_at tie by source name ascending, which today equals the
+    status precedence in identity/precedence.yml (gcat, satcat, ucs) only because those names
+    happen to sort that way. This pins the coincidence so a new status source that would
+    invert it fails here instead of silently outranking GCAT on tied timestamps."""
+    import yaml
+
+    order = yaml.safe_load((REPO_ROOT / "identity" / "precedence.yml").read_text())["status"]
+    assert order == sorted(order), (
+        f"status precedence {order} no longer sorts alphabetically; change the matview's "
+        "tiebreak in db/migrations (a new migration) to follow precedence explicitly"
+    )
 
 
 @pytest.mark.db
