@@ -322,3 +322,37 @@ def test_pre_request_hook_fires_once_per_attempt_including_retries(clean_db, mon
 
     assert len(rows) == 1
     assert len(calls) == 3  # initial attempt + two retries
+
+
+@pytest.mark.db
+@responses.activate
+def test_login_failed_body_raises_once_and_ledgers_an_error(clean_db, no_throttle):
+    """Space-Track rejects a bad password with HTTP 200 and {"Login":"Failed"}. That must be a
+    clear auth error on the first batch, not a 401 on every batch, and the client must not try
+    to log in again."""
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, json={"Login": "Failed"},
+                  status=200)
+
+    client = _client(clean_db)
+    with pytest.raises(SpaceTrackAuthError, match="login failed"):
+        list(client.gp_history([900000001], "2024-01-01", "2024-02-01"))
+    with pytest.raises(SpaceTrackAuthError, match="login failed"):
+        client.decay([900000001])
+
+    assert [c.request.method for c in responses.calls] == ["POST"]  # one login, no queries
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT status, notes FROM ingest_run WHERE source = 'spacetrack' "
+            "ORDER BY ingest_run_id DESC LIMIT 2"
+        )
+        rows = cur.fetchall()
+    assert [r[0] for r in rows] == ["error", "error"]
+    assert "SPACETRACK_PASSWORD" in rows[0][1]
+
+
+@responses.activate
+def test_a_good_login_with_an_empty_body_is_not_a_failure(no_throttle):
+    responses.add(responses.POST, spacetrack_client.LOGIN_URL, body="", status=200)
+    client = _client(None)
+    client._login()
+    assert client._logged_in
