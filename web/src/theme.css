@@ -21,7 +21,9 @@
   --rule-2: #35353b;
 
   /* ---- ink (warm starlight-on-plate; dimmest two clear WCAG AA on --surface:
-     faint >= 4.5:1 for small body text, ghost ~3:1 for the null placeholder) ---- */
+     faint >= 4.5:1 for small body text, ghost ~3:1 for the null placeholder).
+     Ghost (3.2:1) is for rules, decorative marks and the em-dash null placeholder
+     only: words set in it fail AA at 10-11px, so text uses take faint. ---- */
   --ink: #ece9e1;
   --ink-dim: #a8a49b;
   --ink-faint: #8e8a81;
@@ -330,7 +332,7 @@ button {
 }
 .navlink__idx {
   font-size: var(--fs-micro);
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
 .navlink__name {
@@ -439,7 +441,7 @@ button {
   font-size: var(--fs-micro);
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   vertical-align: 2px;
 }
 .panel__meta {
@@ -2595,7 +2597,7 @@ button {
   text-transform: uppercase;
   font-size: var(--fs-micro);
   letter-spacing: 0.08em;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 .dossier__foot {
   margin-top: 12px;
@@ -2603,14 +2605,14 @@ button {
   border-top: 1px solid var(--rule);
   font-size: var(--fs-micro);
   letter-spacing: 0.04em;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 /* subtle line when no dossier has landed yet (absence is normal) */
 .dossier-none {
   margin: 0;
   padding: 10px 2px;
   font-size: var(--fs-xs);
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
   letter-spacing: 0.02em;
 }
 /* 'suggested' tag on the AI-pre-selected verdict button */
@@ -3129,7 +3131,7 @@ button {
   font-size: var(--fs-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-ghost);
+  color: var(--ink-faint);
 }
 .colophon a {
   color: var(--ink-faint);
