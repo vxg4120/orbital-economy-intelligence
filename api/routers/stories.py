@@ -1,7 +1,7 @@
 """GET /api/stories -- the facts behind the Overview's story panels.
 
 The landing leads with what happened in orbit recently: launches and reentries, the newest
-launch groups, the constellation build-outs, who flies the active fleet, and the geomagnetic
+launch groups, the constellation build-outs, who owns the active fleet, and the geomagnetic
 storms. This endpoint returns those facts as numbers, names and dates; the SPA phrases them,
 so copy changes never need an API deploy (docs/specs/landing-stories.md).
 
@@ -73,10 +73,13 @@ owner AS (
              so.operator_id
 )"""
 
+# The reference date is the newest successful catalog pull (SATCAT or GCAT), not any source: a
+# space-weather or FCC run must not advance "as of" while the catalog itself is stale.
 _AS_OF_SQL = """
 SELECT (max(finished_at) AT TIME ZONE 'UTC')::date AS as_of
 FROM ingest_run
 WHERE status = 'ok'
+  AND (source, endpoint) IN (('celestrak', 'satcat_bulk'), ('gcat', 'gcat_satcat'))
 """
 
 # Payloads launched (and how many of those carry a company owner) and payloads reentered, per
@@ -252,6 +255,9 @@ FROM mv_latest_satellite_status ls
 JOIN satellite s ON s.satellite_id = ls.satellite_id
 LEFT JOIN owner ow ON ow.satellite_id = s.satellite_id
 WHERE ls.canonical_status = 'ACTIVE' AND s.object_type = 'PAYLOAD'
+  -- A reentered payload whose newest status still reads ACTIVE is a status/decay conflict, not
+  -- part of the active fleet (it would also appear among the reentries).
+  AND (s.decay_date IS NULL OR s.decay_date > %(ref)s)
 GROUP BY ow.owner, ow.attributed
 ORDER BY n DESC, ow.owner
 """
@@ -304,6 +310,20 @@ def complete_through(
             break
         through = m["month"]
     return through
+
+
+def last_full_month(through: str | None, ref: dt.date) -> str | None:
+    """Cap ``through`` at the newest month that has ended by ``ref``.
+
+    When every scanned month passes the attribution check, complete_through lands on the
+    reference month itself, which is still in progress: the series would claim an "end of
+    October" count before October ends. The month before the reference month is the newest
+    month-end that has actually happened.
+    """
+    if through is None or not is_partial(through, ref):
+        return through
+    prev = ref.replace(day=1) - dt.timedelta(days=1)
+    return min(through, month_key(prev))
 
 
 def next_month_start(month: str) -> dt.date:
@@ -388,12 +408,12 @@ def _build_stories(db: psycopg.Connection) -> dict:
             (_NOTABLE_REENTRIES_SQL, {"ref": ref, "days": WINDOW_DAYS, "n": NOTABLE_REENTRIES}),
             (_CONSTELLATION_SERIES_SQL, {"ref": ref, "scan": SERIES_SCAN_MONTHS, "ops": ops}),
             (_CONSTELLATION_NOW_SQL, {"ref": ref, "ops": ops}),
-            (_ACTIVE_FLEET_SQL, {}),
+            (_ACTIVE_FLEET_SQL, {"ref": ref}),
             (_STORMS_SQL, {"ref": ref, "days": STORM_DAYS}),
         ],
     )
 
-    through = complete_through(monthly)
+    through = last_full_month(complete_through(monthly), ref)
     w = window[0]
 
     by_op: dict[str, list[dict]] = {}

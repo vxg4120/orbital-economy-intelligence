@@ -119,7 +119,7 @@ export function dispatch(s: StoriesResponse): string[] {
   const lead = s.active_fleet.top[0];
   if (lead && s.active_fleet.total > 0) {
     out.push(
-      `${operatorName(lead.operator)} operates ${fmtPct(lead.pct)} of the ${fmtInt(
+      `${operatorName(lead.operator)} owns ${fmtPct(lead.pct)} of the ${fmtInt(
         s.active_fleet.total,
       )} active payloads.`,
     );

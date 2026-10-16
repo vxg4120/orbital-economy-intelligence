@@ -3642,8 +3642,11 @@ button {
   }
 }
 @media (pointer: coarse) {
+  /* The phone pass's 44px touch floor: the link box itself grows, not just its padding. */
   .launch__name a,
   .downlist__name a {
-    padding-block: 6px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 }

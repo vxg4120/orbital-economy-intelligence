@@ -89,7 +89,7 @@ export function Overview() {
                   sub={
                     spacex ? (
                       <>
-                        {operatorName(spacex.operator)} operates{" "}
+                        {operatorName(spacex.operator)} owns{" "}
                         <span className="num">{fmtPct(spacex.pct)}</span>
                       </>
                     ) : (
@@ -104,11 +104,11 @@ export function Overview() {
                     a.since ? (
                       <>
                         payloads launched since{" "}
-                        <span className="num">{shortDate(a.since)}</span> with only a country as
-                        owner
+                        <span className="num">{shortDate(a.since)}</span> with only a country, or
+                        no owner yet
                       </>
                     ) : (
-                      "payloads with only a country as owner"
+                      "payloads with only a country, or no owner yet"
                     )
                   }
                 />

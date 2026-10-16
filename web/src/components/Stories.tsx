@@ -321,7 +321,7 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
   const others = Math.max(0, r.payloads - r.starlink);
   const segs = [
     { key: "v1", n: v1, label: "Starlink V1.0", cls: "seg--signal" },
-    { key: "sl", n: laterStarlink, label: "later Starlink", cls: "seg--dim" },
+    { key: "sl", n: laterStarlink, label: "other Starlink", cls: "seg--dim" },
     { key: "other", n: others, label: "everything else", cls: "seg--muted" },
   ].filter((x) => x.n > 0);
   return (
@@ -332,7 +332,7 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
           : `${plural(r.payloads, "payload")} reentered in the last ${r.window_days} days, and ${fmtInt(
               r.starlink,
             )} of them were Starlink satellites.`}
-        {v1 > 0 ? ` ${fmtInt(v1)} were from the first generation, launched as V1.0.` : ""}
+        {v1 > 0 ? ` ${fmtInt(v1)} were the original V1.0 design.` : ""}
       </p>
       {r.payloads > 0 ? (
         <>
@@ -362,7 +362,7 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
       ) : null}
       {r.notable.length > 0 ? (
         <>
-          <h3 className="story__sub">The other recent reentries</h3>
+          <h3 className="story__sub">The latest reentries other than Starlink</h3>
           <ul className="downlist">
             {r.notable.map((n) => {
               const up = lifetime(n.launched, n.date);
@@ -383,8 +383,9 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
         </>
       ) : null}
       <p className="hint story__hint">
-        Payload reentries by decay date. Starlink is a name match, and the first generation is
-        every name that starts with &quot;Starlink V1.0&quot;, which is how GCAT names that cohort.
+        Payload reentries by decay date. Starlink is a name match. The V1.0 count is
+        every name that starts with &quot;Starlink V1.0&quot;, which is how GCAT names that design;
+        &quot;other Starlink&quot; holds every other version.
       </p>
     </Panel>
   );
@@ -538,11 +539,11 @@ export function ConstellationRace({ s }: { s: StoriesResponse }) {
       <p className="hint story__hint">
         Counted by current owner, so Starlink is every SpaceX payload and OneWeb includes
         Eutelsat&apos;s other satellites. Each chart has its own vertical scale, starting at zero.
-        {through && a.since
+        {through && a.since && a.pending_payloads > 0
           ? ` ${plural(a.pending_payloads, "payload")} launched since ${longDate(
               a.since,
               s.as_of,
-            )} still carry only a country code as owner, so these lines stop at ${monthYear(
+            )} still carry only a country code as owner, or no owner yet, so these lines stop at ${monthYear(
               through,
             )} and the counts for today leave those payloads out.`
           : ""}
@@ -551,7 +552,7 @@ export function ConstellationRace({ s }: { s: StoriesResponse }) {
   );
 }
 
-/* ---- e. Who flies the active fleet ----------------------------------------- */
+/* ---- e. Who owns the active fleet ----------------------------------------- */
 
 export function FleetShare({ s }: { s: StoriesResponse }) {
   const f = s.active_fleet;
@@ -560,18 +561,18 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
   const pct = (n: number) => (f.total ? (100 * n) / f.total : 0);
   const rows = [
     ...f.top.map((t) => ({ key: t.operator, name: operatorName(t.operator), n: t.n, cls: "" })),
-    { key: "country", name: "Owner cataloged only as a country", n: f.country_only, cls: "share__fill--hatch" },
+    { key: "country", name: "Owner cataloged only as a country, or none yet", n: f.country_only, cls: "share__fill--hatch" },
     { key: "other", name: "Everyone else", n: f.other, cls: "share__fill--muted" },
   ];
   return (
-    <Panel title="Who flies the active fleet" meta="active payloads by owner">
+    <Panel title="Who owns the active fleet" meta="active payloads by owner">
       <p className="story__lead">
         {lead
-          ? `${operatorName(lead.operator)} operates ${fmtPct(lead.pct)} of the ${fmtInt(
+          ? `${operatorName(lead.operator)} owns ${fmtPct(lead.pct)} of the ${fmtInt(
               f.total,
             )} active payloads.` +
             (next.length
-              ? ` The next ${next.length === 5 ? "five" : fmtInt(next.length)} operators together run ${fmtInt(nextSum)}.`
+              ? ` The next ${next.length === 5 ? "five" : fmtInt(next.length)} owners together hold ${fmtInt(nextSum)}.`
               : "")
           : "No active payloads are on record."}
       </p>
@@ -594,8 +595,8 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
       </div>
       <p className="hint story__hint">
         Payloads whose latest status is ACTIVE, by current owner. The country-only row holds
-        owners that are a country code, including recent launches still awaiting company
-        attribution.
+        owners that are a country code, plus payloads with no owner on record yet, including
+        recent launches still awaiting company attribution.
       </p>
     </Panel>
   );

@@ -20,6 +20,7 @@ from api.main import app
 from api.routers.stories import (
     complete_through,
     is_partial,
+    last_full_month,
     month_end,
     next_month_start,
     pending_after,
@@ -88,7 +89,7 @@ def test_stories_shape(client):
     assert fleet["total"] == sum(t["n"] for t in fleet["top"]) + fleet["country_only"] + fleet[
         "other"
     ]
-    assert fleet["top"][0]["operator"] == "SpaceX"  # the real build: over half the active fleet
+    assert fleet["top"] == sorted(fleet["top"], key=lambda t: -t["n"])
 
     for s in body["storms"]:
         assert s["level"] in {"G1", "G2", "G3", "G4", "G5"}
@@ -172,3 +173,11 @@ def test_split_fleet_keeps_country_placeholders_out_of_the_ranking():
     assert out["top"][0]["pct"] == 60.0
     assert out["country_only"] == 175
     assert out["other"] == 125  # Amazon + Planet Labs
+
+
+def test_last_full_month_never_claims_a_month_still_in_progress():
+    ref = dt.date(2026, 10, 16)
+    assert last_full_month("2026-10", ref) == "2026-09"
+    assert last_full_month("2026-06", ref) == "2026-06"
+    assert last_full_month(None, ref) is None
+    assert last_full_month("2026-10", dt.date(2026, 10, 31)) == "2026-10"
