@@ -983,7 +983,7 @@ button {
   font-size: var(--fs-xs);
   color: var(--ink-dim);
   border-bottom: 1px solid var(--rule);
-  max-width: 100ch;
+  max-width: 80ch;
 }
 .wrap-cell {
   white-space: normal;
@@ -1595,6 +1595,8 @@ button {
 .hint {
   font-size: var(--fs-xs);
   color: var(--ink-faint);
+  /* panel footnotes ran 170 characters a line at 1440 */
+  max-width: 80ch;
 }
 .crosswalk-src {
   padding: 10px 12px;
