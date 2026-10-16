@@ -138,7 +138,7 @@ about 126 requests of 100 NORAD ids, and lands them in `gp_elements` as
 Requests are spaced 3 s apart and capped at 250 an hour, under Space-Track's 30 a minute and
 300 an hour. With blank credentials the step prints one line and exits 0. `deploy/` is
 bind-mounted but `scripts/` and `ingest/` are baked into the image, so the step needs
-`docker compose up -d --build oei-api` and migration 0026 before it can run; until then it
+`docker compose up -d --build oei-api` and migration 0027 before it can run; until then it
 soft-fails as `!! oei spacetrack top-up failed`. Spec: `docs/specs/spacetrack-topup.md`.
 
 ### 8. Retire the laptop demo

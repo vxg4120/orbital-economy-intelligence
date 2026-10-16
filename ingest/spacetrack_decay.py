@@ -1,4 +1,4 @@
-"""Space-Track actual-decay landing (raw_spacetrack_decay, migration 0026). Raw landing only.
+"""Space-Track actual-decay landing (raw_spacetrack_decay, migration 0027). Raw landing only.
 
 One query a day: the decay messages of type 'Historical' (an object that has actually
 reentered; the other types are predictions) whose MSG_EPOCH falls in the last WINDOW_DAYS days.

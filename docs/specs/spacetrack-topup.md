@@ -19,7 +19,7 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 ## Architecture decisions
 - 2026-10-16 (Claude): **gp_history windows are incremental by CREATION_DATE and never
   overlap.** Each night asks for `CREATION_DATE/<cursor>--<now>`, where the cursor
-  (`spacetrack_cursor`, migration 0026) is the previous successful night's upper bound. The
+  (`spacetrack_cursor`, migration 0027) is the previous successful night's upper bound. The
   first night, with no cursor, starts 3 days back. Rejected: a rolling window such as
   `EPOCH > now-3d` (the first idea). Because: Space-Track's documentation limits `gp_history`
   to "1 / lifetime" and says "once you download an object's history, you need to store it on
@@ -89,7 +89,7 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 - `deploy/nightly-refresh.sh`: `step oei_spacetrack` runs between `oei_ingest_all` and
   `oei_build_graph`, passing the two variables from `deploy/.env`; failure prints
   `!! oei spacetrack top-up failed`, which ALERT_URL forwards.
-- Migration 0026: `spacetrack_cursor`, `raw_spacetrack_decay`, `v_spacetrack_decay_actual`.
+- Migration 0027: `spacetrack_cursor`, `raw_spacetrack_decay`, `v_spacetrack_decay_actual`.
 - `ingest/spacetrack_client.py`: new `query_ledgered(endpoint, query)`; throttle now runs
   before the pre-request hook (see the decision log).
 - `ingest/spacetrack_decay.py`: `run(conn, client)`, `land_rows`, `parse_row`.
