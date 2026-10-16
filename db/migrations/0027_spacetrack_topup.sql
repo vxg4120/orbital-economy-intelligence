@@ -43,6 +43,9 @@ CREATE INDEX IF NOT EXISTS raw_spacetrack_decay_norad ON raw_spacetrack_decay (n
 --    object the graph has not matched). Not yet read by the resolver: wiring it in as the
 --    decay_date source `spacetrack_decay` (already first in identity/precedence.yml) is the
 --    spec's next step.
+--    Known limits (review M-5, 2026-10-16): an OK run that landed 0 rows is invisible to the
+--    `latest` CTE, so the view keeps showing the previous run; and a NORAD id with several
+--    current satcat links shows the lowest satellite_id only.
 CREATE OR REPLACE VIEW v_spacetrack_decay_actual AS
 WITH latest AS (
     SELECT max(r.ingest_run_id) AS run_id

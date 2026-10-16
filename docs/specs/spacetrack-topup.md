@@ -188,6 +188,28 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   first live night; if it is long, raise the batch size or run the step after the publish
   steps instead.
 
+- (Claude, from the 2026-10-16 review, M-2) **Placement before the publish chain.** The
+  step has no time limit and the client allows 300 s timeouts with retries, so a slow
+  Space-Track night (126 batches) holds `build_graph` and every publish step for hours. Add a
+  time budget to the step, or move it after the publish steps (the graph would then see the
+  rows a night later).
+- (Claude, from the 2026-10-16 review, M-3) **Retries re-send a query that may already have
+  been served.** After a timeout, 5xx or throttle stub the client re-sends up to 3 times (30,
+  60, 120 s backoff); for DECAY (1 / day) and gp_history (once per element set) the timed-out
+  attempt may have counted, and an 'error' row does not block the 19:10 retry. Inherited from
+  the client, and within the "only after a failure" exception; decide whether DECAY should
+  retry at all.
+- (Claude, from the 2026-10-16 review, M-5) **The decay view.** An OK run that landed 0 rows
+  is invisible to `v_spacetrack_decay_actual`'s `latest` CTE, so the view keeps the previous
+  run; a NORAD id with several current satcat links shows the lowest `satellite_id` only.
+  Settle both with the resolver wiring.
+- (Claude, from the 2026-10-16 review, M-7) **Test gaps.** The "second run within the day"
+  test passes `now + 12h`, but the gate reads the database's `now()`, so it tests "right
+  after"; the 07:10/19:10 cadence is reasoned (the review worked it through), not tested.
+  `main()` with credentials (exit 1 when one part fails and the other runs, `--only`,
+  `--dry-run`) is untested, and so is the real `fleet_ids(decayed_after=...)` SQL (the
+  reviewer ran it by hand).
+
 ## Decision log & lessons learned
 - 2026-10-16 (Claude): the brief proposed a rolling `EPOCH > now-3d` window; Space-Track's
   documentation (fetched 2026-10-16) limits gp_history to once per element set and DECAY to
@@ -206,3 +228,15 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   pass after `codex login` is fixed, before merge. The db tests ran on a RAM-backed scratch
   TimescaleDB (127.0.0.1:5446), because the shared scratch on 5439 had crashed when the
   Docker VM's disk filled (58 GB, 100%).
+- 2026-10-16 (review, applied by Claude): I-1 (an empty fleet, or 100+ ids returning nothing,
+  advanced the cursor and lost the window for good), I-2 (a window ending at `now` can skip an
+  element set published after its CREATION_DATE; now ends at `now - 2 h`), M-1 (advisory lock)
+  and M-6 (`{"Login":"Failed"}` raises once, clearly) are fixed on this branch with tests. The
+  migration became 0027 (main's 0026 is `join_rule_jcat_number`).
+- 2026-10-16 (review, M-4): each window's edge second is fetched twice, because Space-Track's
+  `--` range is inclusive and `since` equals the previous `through`. An element set created in
+  exactly that second is downloaded on both nights and `ON CONFLICT` absorbs it. Accepted.
+- 2026-10-16 (review, M-8): after the throttle-first swap, `_last_request_at` is recorded
+  before the pacer can sleep, so right after a pacer sleep the 3 s spacing comes from the
+  pacer's sliding window, not the throttle. The fake-clock test shows at most 20 a minute;
+  harmless, recorded so a future change to either keeps both bounds tested.
