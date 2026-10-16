@@ -190,3 +190,9 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 - 2026-10-16 (Claude): production's `spacetrack` ledger rows are all from the July backfill,
   with endpoint `gp_history` or (before the ledger-hygiene change) the full query URL; none use
   `gp_history_topup` or `decay`, so no old row can satisfy the new gates.
+- 2026-10-16 (Claude): the Codex verify pass could not run: `codex exec` rejects both the
+  configured model and `gpt-5.5` on the ChatGPT login ("model is not supported when using
+  Codex with a ChatGPT account"). The branch has had a Claude self-review only; run the verify
+  pass after `codex login` is fixed, before merge. The db tests ran on a RAM-backed scratch
+  TimescaleDB (127.0.0.1:5446), because the shared scratch on 5439 had crashed when the
+  Docker VM's disk filled (58 GB, 100%).
