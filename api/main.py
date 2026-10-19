@@ -71,10 +71,22 @@ def health():
 _WEB_DIST = pathlib.Path(__file__).resolve().parent.parent / "web" / "dist"
 if (_WEB_DIST / "index.html").exists():
     # Imported lazily so the API has no hard dependency on the SPA being built.
+    from fastapi.responses import HTMLResponse
     from fastapi.staticfiles import StaticFiles
 
+    from api import seo
+
+    # The shell and the route table are read once: every fallback response is a rewrite of
+    # the same string, and a deploy ships a new image rather than editing dist in place.
+    _SHELL = (_WEB_DIST / "index.html").read_text(encoding="utf-8")
+    _ROUTES = seo.load_routes()
+
     class _SpaStaticFiles(StaticFiles):
-        """StaticFiles that falls back to index.html so SPA deep links survive hard refresh.
+        """StaticFiles that falls back to the SPA shell so deep links survive hard refresh.
+
+        The fallback is not the shell verbatim: api.seo rewrites its head for the requested
+        path (title, description, canonical, social tags), and a path no route matches gets a
+        noindex and a real 404 while the SPA still renders its NotFound view.
 
         Unknown ``/api/*`` paths are exempt: they keep their real 404 (a JSON error) instead of
         being swallowed into the SPA shell, so a mistyped/removed endpoint surfaces as an error
@@ -91,9 +103,16 @@ if (_WEB_DIST / "index.html").exists():
             except StarletteHTTPException as exc:
                 if is_api or exc.status_code != 404:
                     raise
-                return await super().get_response("index.html", scope)
+                return self._shell(path, scope)
             if response.status_code == 404 and not is_api:
-                response = await super().get_response("index.html", scope)
+                response = self._shell(path, scope)
             return response
+
+        @staticmethod
+        def _shell(path, scope):
+            body, status = seo.render_head(
+                _SHELL, "/" + path, scope.get("query_string", b""), _ROUTES
+            )
+            return HTMLResponse(body, status_code=status)
 
     app.mount("/", _SpaStaticFiles(directory=str(_WEB_DIST), html=True), name="spa")

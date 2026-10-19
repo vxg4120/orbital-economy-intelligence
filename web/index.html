@@ -9,19 +9,20 @@
     <title>Orbital Economy Intelligence</title>
     <meta
       name="description"
-      content="A read-only public catalog over a satellite identity graph: one resolved object per physical satellite, stitched from SATCAT, GCAT and UCS, with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pre-launch FCC filings."
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
     />
     <link rel="canonical" href="https://orbital.vibcreates.com/" />
 
-    <!-- Share cards. The static values describe the landing page; src/seo.ts rewrites the title,
-         description and canonical per route once the app mounts. og.png is rendered from the live
-         landing page and lives in public/, which Vite copies to the dist root. -->
+    <!-- Share cards. The static values describe the landing page. The per-route values live in
+         public/seo-routes.json: api/seo.py writes them into this head before the shell leaves the
+         server, and src/seo.ts rewrites them again on client-side navigation. og.png is rendered
+         from the live landing page and lives in public/, which Vite copies to the dist root. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Orbital Economy Intelligence" />
     <meta property="og:title" content="Orbital Economy Intelligence" />
     <meta
       property="og:description"
-      content="A read-only public catalog over a satellite identity graph: one resolved object per physical satellite, stitched from SATCAT, GCAT and UCS, with operator attribution, cross-source conflicts, bus benchmarks and pre-launch filings."
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
     />
     <meta property="og:url" content="https://orbital.vibcreates.com/" />
     <meta property="og:image" content="https://orbital.vibcreates.com/og.png" />
@@ -32,7 +33,7 @@
     <meta name="twitter:title" content="Orbital Economy Intelligence" />
     <meta
       name="twitter:description"
-      content="A read-only public catalog over a satellite identity graph: one resolved object per physical satellite, stitched from SATCAT, GCAT and UCS, with operator attribution, cross-source conflicts, bus benchmarks and pre-launch filings."
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
     />
     <meta name="twitter:image" content="https://orbital.vibcreates.com/og.png" />
 
@@ -42,7 +43,7 @@
       "@graph": [
         {
           "@type": "Person",
-          "@id": "https://vibcreates.com/#person",
+          "@id": "https://vibcreates.com/#vib",
           "name": "Vibhav Gupta",
           "url": "https://vibcreates.com"
         },
@@ -51,16 +52,16 @@
           "@id": "https://orbital.vibcreates.com/#website",
           "name": "Orbital Economy Intelligence",
           "url": "https://orbital.vibcreates.com/",
-          "description": "A read-only public catalog over a satellite identity graph: one resolved object per physical satellite, stitched from SATCAT, GCAT and UCS, with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pre-launch FCC filings.",
-          "author": { "@id": "https://vibcreates.com/#person" }
+          "description": "One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings.",
+          "author": { "@id": "https://vibcreates.com/#vib" }
         },
         {
           "@type": "Dataset",
           "@id": "https://orbital.vibcreates.com/#dataset",
           "name": "Orbital Economy Intelligence satellite identity graph",
-          "description": "A resolved satellite catalog that stitches SATCAT, GCAT and UCS into one object per physical satellite, with NORAD and COSPAR identifier crosswalks, operator attribution with temporal ownership, cross-source conflicts, spacecraft bus benchmarks derived from GP element history, and pending FCC space-station applications. Served as JSON by a public read-only API.",
+          "description": "A satellite identity graph with one resolved record per physical satellite, stitched from SATCAT, GCAT and UCS, served as JSON by a public read-only API: NORAD and COSPAR identifier crosswalks, operator attribution with ownership over time, cross-source conflicts, spacecraft bus benchmarks derived from GP element history, and pending FCC space-station applications.",
           "url": "https://orbital.vibcreates.com/",
-          "creator": { "@id": "https://vibcreates.com/#person" },
+          "creator": { "@id": "https://vibcreates.com/#vib" },
           "isAccessibleForFree": true,
           "license": "https://www.gnu.org/licenses/agpl-3.0.html",
           "keywords": [
@@ -77,7 +78,11 @@
             "FCC filings",
             "space situational awareness"
           ],
-          "includedInDataCatalog": { "@id": "https://orbital.vibcreates.com/#website" },
+          "isBasedOn": [
+            "https://planet4589.org/space/gcat/",
+            "https://celestrak.org/satcat/",
+            "https://www.ucs.org/resources/satellite-database"
+          ],
           "distribution": [
             {
               "@type": "DataDownload",
