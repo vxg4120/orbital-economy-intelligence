@@ -19,11 +19,16 @@
 	}
 	respond @probe 404
 
-	# Crawlers asking for robots.txt were handed the SPA shell.
+	# Crawlers asking for robots.txt or sitemap.xml were handed the SPA shell with a 200, which
+	# search engines read as a broken sitemap. Each host passes its sitemap body as {args[1]}.
 	respond /robots.txt <<TXT
 		User-agent: *
 		Allow: /
+
+		Sitemap: https://{host}/sitemap.xml
 		TXT 200
+	header /sitemap.xml Content-Type "application/xml; charset=utf-8"
+	respond /sitemap.xml {args[1]} 200
 
 	# Vite names every bundle by its content hash (index-vraI7x54.js), so a changed file is a new
 	# URL and a year of caching can never serve a stale one; index.html lives outside /assets/
@@ -128,7 +133,7 @@ orbital.{$BASE_DOMAIN} {
 		Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 	}
 
-	import spa oei-api:8600
+	import spa oei-api:8600 `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://orbital.vibcreates.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url><url><loc>https://orbital.vibcreates.com/resolver</loc><changefreq>daily</changefreq></url><url><loc>https://orbital.vibcreates.com/conflicts</loc><changefreq>daily</changefreq></url><url><loc>https://orbital.vibcreates.com/operators</loc><changefreq>daily</changefreq></url><url><loc>https://orbital.vibcreates.com/review</loc><changefreq>weekly</changefreq></url><url><loc>https://orbital.vibcreates.com/buses</loc><changefreq>daily</changefreq></url><url><loc>https://orbital.vibcreates.com/reachability</loc><changefreq>daily</changefreq></url><url><loc>https://orbital.vibcreates.com/filings</loc><changefreq>daily</changefreq></url></urlset>`
 }
 
 # ExoDossier — exoplanet candidate vetting
@@ -149,5 +154,5 @@ exo.{$BASE_DOMAIN} {
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
-	import spa exo-api:8700
+	import spa exo-api:8700 `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://exo.vibcreates.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url><url><loc>https://exo.vibcreates.com/search</loc><changefreq>daily</changefreq></url><url><loc>https://exo.vibcreates.com/conflicts</loc><changefreq>daily</changefreq></url><url><loc>https://exo.vibcreates.com/lightcurves</loc><changefreq>weekly</changefreq></url><url><loc>https://exo.vibcreates.com/followup</loc><changefreq>daily</changefreq></url><url><loc>https://exo.vibcreates.com/about</loc><changefreq>monthly</changefreq></url></urlset>`
 }
