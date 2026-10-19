@@ -240,8 +240,28 @@ all fixed before merge. Watch: the 19:10 UTC rebuild is the first live test of 0
       space-28's copy branch, merged 2a8e3d4 before ours.)
 - [x] C. (same merge; caddy reloaded 09:56 UTC, sitemaps 200 application/xml, probes still 404, /api/stories 200 on both) Caddy: real /sitemap.xml per app host (was the SPA shell with a 200), robots points at it.
       Same branch; needs a caddy reload on the box outside the nightly windows.
-- [ ] D. Orbital app SEO: canonical/OG/Twitter/JSON-LD Dataset in web/index.html, per-route
+- [x] D. (merged 938bb3d, live 10:14 UTC) Orbital app SEO: canonical/OG/Twitter/JSON-LD Dataset in web/index.html, per-route
       titles + descriptions + canonical, og.png. Branch space seo/orbital-20261019 (subagent).
-- [ ] E. Exo app SEO: same shape. Branch exodossier seo/exo-20261019 (subagent).
-- [ ] F. Independent review of each branch, merge, deploy (landing = git pull on the box; apps =
+- [x] E. (merged exodossier 240daf6, live 10:08 UTC) Exo app SEO: same shape. Branch exodossier seo/exo-20261019 (subagent).
+- [x] F. Independent review of each branch, merge, deploy (landing = git pull on the box; apps =
       image rebuild), live verification incl. /api/stories on both hosts.
+
+## Review (2026-10-19 10:20 UTC, nav + SEO batch)
+Nav: vibcreates.com's "the work" link is a "projects" disclosure listing CannMenus, Orbital,
+ExoDossier and SplitStep directly, each with a sentence and a jump to its write-up; the phone
+menu leads with the same four rows. The review caught that showing the panel on :hover and
+:focus-within let aria-expanded disagree with the screen and kept Escape from closing it; now
+.open is the only thing that shows it and one setter drives click, hover (fine pointers only),
+Escape and focus-out. Verified by Playwright: keyboard, mouse, touch, 901 to 1440 px.
+SEO: share and structured-data tags on all three landing pages (projects typed WebSite, not
+WebApplication, which Google reports as broken software-app items); Caddy serves a real
+application/xml sitemap per app host (was the SPA shell with a 200) and robots points at it;
+both apps now rewrite the shell's head server-side per path from one table
+(web/public/seo-routes.json, read by seo.ts and api/seo.py), so deep links carry their own
+title, description, canonical and og:url to scrapers that never run JS, and an unknown path is
+a real 404 with noindex. Live checks: exo /target/1 200 with its own canonical, /nope 404,
+/LightCurves/ canonical lowercase without the slash; orbital /buses/<slug>?kind=bus keeps the
+kind param in its canonical (slugs collide across kinds), /Resolver/25544/ normalises; /api/stats,
+/api/stories, /api/health, lightcurves processed 58, all unchanged; box 35%.
+Not done: prerendered per-route bodies (only heads are per-route); the share cards are
+screenshots dated 2026-10-19 and will drift; Search Console verification token still blank.

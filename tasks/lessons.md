@@ -11,3 +11,9 @@
   restored it from main. Rule: tasks/todo.md and tasks/lessons.md are shared,
   append-only ledgers; Read them first and add a dated section with Edit or an
   append, never Write the whole file.
+
+## 2026-10-19: never pipe a gate command into tail in an && chain
+`pnpm build 2>&1 | tail -2 && git push` pushed a merge whose build had failed, because the
+pipeline's exit status is tail's. Use `set -o pipefail`, or run the gate on its own line and
+check `$?`, before anything that publishes. (The failure was a stale node_modules, not the
+code, but the push happened before I knew that.)
