@@ -10,7 +10,7 @@
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="I'm Vib. A lifelong connector of dots." />
 <meta property="og:description" content="Founder for seven years. Space-obsessed. The numbers on this page are live queries against systems I run." />
-<meta property="og:url" content="https://vibcreates.com" />
+<meta property="og:url" content="https://vibcreates.com/" />
 <meta property="og:image" content="https://vibcreates.com/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -21,22 +21,20 @@
 <meta name="theme-color" content="#FBF7EC" />
 <link rel="canonical" href="https://vibcreates.com/" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Person","@id":"https://vibcreates.com/#vib","name":"Vibhav Gupta","alternateName":"Vib Gupta",
-"url":"https://vibcreates.com","image":"https://vibcreates.com/img/portrait.jpg",
+{"@context":"https://schema.org","@graph":[
+{"@type":"Person","@id":"https://vibcreates.com/#vib","name":"Vibhav Gupta","alternateName":"Vib Gupta",
+"url":"https://vibcreates.com/","image":"https://vibcreates.com/img/portrait.jpg",
 "jobTitle":"Data Platform Engineer and Founder","worksFor":{"@type":"Organization","name":"CannMenus","url":"https://cannmenus.com"},
 "alumniOf":{"@type":"CollegeOrUniversity","name":"DePaul University"},
 "address":{"@type":"PostalAddress","addressLocality":"Los Angeles","addressRegion":"CA"},
 "email":"mailto:vibhavgupta2@gmail.com",
 "sameAs":["https://github.com/vxg4120","https://linkedin.com/in/vib"],
-"knowsAbout":["data platforms","entity resolution","TimescaleDB","Kafka","Kubernetes","AI infrastructure","satellite catalogs","exoplanet data"]}
-</script>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@graph":[
+"knowsAbout":["data platforms","entity resolution","TimescaleDB","Kafka","Kubernetes","AI infrastructure","satellite catalogs","exoplanet data"]},
 {"@type":"WebSite","@id":"https://vibcreates.com/#site","url":"https://vibcreates.com/","name":"vibcreates","author":{"@id":"https://vibcreates.com/#vib"},"inLanguage":"en-US"},
 {"@type":"ItemList","name":"Projects by Vibhav Gupta","itemListOrder":"https://schema.org/ItemListOrderAscending","numberOfItems":4,"itemListElement":[
 {"@type":"ListItem","position":1,"item":{"@type":"Organization","name":"CannMenus","url":"https://cannmenus.com","description":"Cannabis retail data platform: menus, pricing, and inferred sales across US dispensaries.","founder":{"@id":"https://vibcreates.com/#vib"},"foundingDate":"2019"}},
-{"@type":"ListItem","position":2,"item":{"@type":"WebApplication","name":"Orbital Economy Intelligence","url":"https://orbital.vibcreates.com/","applicationCategory":"Reference","description":"A satellite identity graph that resolves Space-Track, CelesTrak, GCAT, and UCS records to one identity per satellite and keeps every disagreement on the record.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
-{"@type":"ListItem","position":3,"item":{"@type":"WebApplication","name":"ExoDossier","url":"https://exo.vibcreates.com/","applicationCategory":"Reference","description":"A provenance graph over the NASA Exoplanet Archive, ExoFOP, KOI, and Gaia that shows where the archives disagree about the same star or candidate.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
+{"@type":"ListItem","position":2,"item":{"@type":"WebSite","name":"Orbital Economy Intelligence","url":"https://orbital.vibcreates.com/","description":"A satellite identity graph that resolves Space-Track, CelesTrak, GCAT, and UCS records to one identity per satellite and keeps every disagreement on the record.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
+{"@type":"ListItem","position":3,"item":{"@type":"WebSite","name":"ExoDossier","url":"https://exo.vibcreates.com/","description":"A provenance graph over the NASA Exoplanet Archive, ExoFOP, KOI, and Gaia that shows where the archives disagree about the same star or candidate.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
 {"@type":"ListItem","position":4,"item":{"@type":"CreativeWork","name":"SplitStep","url":"https://vibcreates.com/splitstep/","description":"A product case study: the smartphones players already own, coordinated into a tennis coach, counter, and line judge.","author":{"@id":"https://vibcreates.com/#vib"}}}
 ]}]}
 </script>
@@ -95,16 +93,17 @@
   .nav{display:flex; gap:22px; align-items:center; margin-left:auto}
   .nav a{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; padding-bottom:2px; border-bottom:1.5px solid transparent}
   .nav a:hover{color:var(--gold); border-color:var(--gold)}
-  /* Projects menu: a disclosure that opens on hover, focus, or tap and lists every live
-     property directly, so a visitor never has to scroll the write-ups to reach a project. */
+  /* Projects menu: a disclosure that lists every project directly, so a visitor never has to
+     scroll the write-ups to reach one. The .open class is the only thing that shows it; the
+     script below sets it on click, and on hover for mouse users, so aria-expanded always agrees. */
   .pm{position:relative}
   .pm > button{font:inherit; font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); background:none; border:0; border-bottom:1.5px solid transparent; padding:0 0 2px; cursor:pointer; display:inline-flex; align-items:center; gap:6px}
   .pm > button::after{content:""; width:5px; height:5px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-2px) rotate(45deg); transition:transform .15s}
-  .pm:hover > button, .pm.open > button, .pm:focus-within > button{color:var(--gold); border-color:var(--gold)}
-  .pm.open > button::after, .pm:hover > button::after{transform:translateY(1px) rotate(-135deg)}
+  .pm.open > button, .pm > button:focus-visible{color:var(--gold); border-color:var(--gold)}
+  .pm.open > button::after{transform:translateY(1px) rotate(-135deg)}
   .pm-panel{display:none; position:absolute; top:calc(100% + 14px); left:-18px; min-width:420px; background:var(--plate); border:1px solid var(--ink); outline:1px solid var(--line); outline-offset:3px; padding:8px 0 0; z-index:20; text-align:left}
   .pm-panel::before{content:""; position:absolute; top:-15px; left:0; right:0; height:15px}
-  .pm:hover .pm-panel, .pm.open .pm-panel, .pm:focus-within .pm-panel{display:block}
+  .pm.open .pm-panel{display:block}
   .pm-panel .pm-k{display:block; font-family:var(--mono); font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); padding:6px 18px 8px}
   .pm-row{display:grid; grid-template-columns:30px minmax(0,1fr) auto; gap:0 12px; align-items:baseline; padding:11px 18px; border-top:1px dotted var(--line-2)}
   .pm-row .pm-i{font-family:var(--mono); font-size:.7rem; letter-spacing:.08em; color:var(--hue)}
@@ -361,36 +360,36 @@
   <a class="brand" href="/"><span class="star">✦</span>vibcreates</a>
   <nav class="nav" aria-label="Site">
     <div class="pm" id="pm">
-      <button type="button" aria-expanded="false" aria-controls="pm-panel" onclick="var p=this.parentNode;var o=p.classList.toggle('open');this.setAttribute('aria-expanded',o)">projects</button>
+      <button type="button" aria-expanded="false" aria-controls="pm-panel">projects</button>
       <div class="pm-panel" id="pm-panel">
-        <span class="pm-k">Four live properties, one per domain</span>
+        <span class="pm-k">Three live platforms and one case study, one for each domain</span>
         <div class="pm-row h-retail">
           <span class="pm-i num">01</span>
-          <a class="pm-name" href="https://cannmenus.com" target="_blank" rel="noopener">CannMenus ↗</a>
-          <a class="pm-go" href="#cannmenus">the story ↓</a>
-          <span class="pm-d">Cannabis retail's system of record. Founder and CEO since 2019.</span>
+          <a class="pm-name" href="https://cannmenus.com" target="_blank" rel="noopener">CannMenus&nbsp;<span aria-hidden="true">↗</span></a>
+          <a class="pm-go" href="#cannmenus">the story&nbsp;<span aria-hidden="true">↓</span></a>
+          <span class="pm-d">The system of record for cannabis retail. I founded it in 2019 and still run it as CEO.</span>
         </div>
         <div class="pm-row h-orbit">
           <span class="pm-i num">02</span>
-          <a class="pm-name" href="https://orbital.vibcreates.com" target="_blank" rel="noopener">Orbital Economy Intelligence ↗</a>
-          <a class="pm-go" href="#orbital">the story ↓</a>
-          <span class="pm-d">One resolved identity per satellite, with the catalog disagreements kept on the record.</span>
+          <a class="pm-name" href="https://orbital.vibcreates.com" target="_blank" rel="noopener">Orbital Economy Intelligence&nbsp;<span aria-hidden="true">↗</span></a>
+          <a class="pm-go" href="#orbital">the story&nbsp;<span aria-hidden="true">↓</span></a>
+          <span class="pm-d">It resolves every satellite to one identity and keeps the catalog disagreements on the record.</span>
         </div>
         <div class="pm-row h-deep">
           <span class="pm-i num">03</span>
-          <a class="pm-name" href="https://exo.vibcreates.com" target="_blank" rel="noopener">ExoDossier ↗</a>
-          <a class="pm-go" href="#exodossier">the story ↓</a>
-          <span class="pm-d">Where the exoplanet archives disagree about the same world, with every source's receipt.</span>
+          <a class="pm-name" href="https://exo.vibcreates.com" target="_blank" rel="noopener">ExoDossier&nbsp;<span aria-hidden="true">↗</span></a>
+          <a class="pm-go" href="#exodossier">the story&nbsp;<span aria-hidden="true">↓</span></a>
+          <span class="pm-d">It shows where the exoplanet archives disagree about the same world, with every source's receipt kept.</span>
         </div>
         <div class="pm-row h-base">
           <span class="pm-i num">04</span>
-          <a class="pm-name" href="/splitstep/">SplitStep →</a>
-          <a class="pm-go" href="#splitstep">the story ↓</a>
-          <span class="pm-d">The phones players already own, turned into a tennis coach, counter, and line judge.</span>
+          <a class="pm-name" href="/splitstep/">SplitStep&nbsp;<span aria-hidden="true">→</span></a>
+          <a class="pm-go" href="#splitstep">the story&nbsp;<span aria-hidden="true">↓</span></a>
+          <span class="pm-d">It turns the phones players already own into a tennis coach, counter, and line judge.</span>
         </div>
         <div class="pm-foot">
-          <a href="#work">all four write-ups ↓</a>
-          <a href="#live">the live numbers ↓</a>
+          <a href="#work">all four write-ups&nbsp;<span aria-hidden="true">↓</span></a>
+          <a href="#live">the live numbers&nbsp;<span aria-hidden="true">↓</span></a>
         </div>
       </div>
     </div>
@@ -404,10 +403,10 @@
   </button>
   <nav class="mnav" id="mnav" aria-label="Site mobile" onclick="if(event.target.closest('a')){this.classList.remove('open');document.getElementById('menu-toggle').setAttribute('aria-expanded','false')}">
     <span class="mn-k">Projects</span>
-    <div class="mn-p h-retail"><a class="mn-name" href="https://cannmenus.com" target="_blank" rel="noopener"><b class="num">01</b>CannMenus ↗</a><a class="mn-go" href="#cannmenus">story ↓</a><span class="mn-d">Cannabis retail's system of record</span></div>
-    <div class="mn-p h-orbit"><a class="mn-name" href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><b class="num">02</b>Orbital Economy Intelligence ↗</a><a class="mn-go" href="#orbital">story ↓</a><span class="mn-d">One identity per satellite, disagreements kept</span></div>
-    <div class="mn-p h-deep"><a class="mn-name" href="https://exo.vibcreates.com" target="_blank" rel="noopener"><b class="num">03</b>ExoDossier ↗</a><a class="mn-go" href="#exodossier">story ↓</a><span class="mn-d">Where the exoplanet archives disagree</span></div>
-    <div class="mn-p h-base"><a class="mn-name" href="/splitstep/"><b class="num">04</b>SplitStep →</a><a class="mn-go" href="#splitstep">story ↓</a><span class="mn-d">Your phones as a tennis instrument</span></div>
+    <div class="mn-p h-retail"><a class="mn-name" href="https://cannmenus.com" target="_blank" rel="noopener"><b class="num">01</b>CannMenus&nbsp;<span aria-hidden="true">↗</span></a><a class="mn-go" href="#cannmenus">story&nbsp;<span aria-hidden="true">↓</span></a><span class="mn-d">The system of record for cannabis retail.</span></div>
+    <div class="mn-p h-orbit"><a class="mn-name" href="https://orbital.vibcreates.com" target="_blank" rel="noopener"><b class="num">02</b>Orbital Economy Intelligence&nbsp;<span aria-hidden="true">↗</span></a><a class="mn-go" href="#orbital">story&nbsp;<span aria-hidden="true">↓</span></a><span class="mn-d">Every satellite resolved to one identity, with the disagreements kept.</span></div>
+    <div class="mn-p h-deep"><a class="mn-name" href="https://exo.vibcreates.com" target="_blank" rel="noopener"><b class="num">03</b>ExoDossier&nbsp;<span aria-hidden="true">↗</span></a><a class="mn-go" href="#exodossier">story&nbsp;<span aria-hidden="true">↓</span></a><span class="mn-d">Where the exoplanet archives disagree about the same world.</span></div>
+    <div class="mn-p h-base"><a class="mn-name" href="/splitstep/"><b class="num">04</b>SplitStep&nbsp;<span aria-hidden="true">→</span></a><a class="mn-go" href="#splitstep">story&nbsp;<span aria-hidden="true">↓</span></a><span class="mn-d">The phones you already own, turned into a tennis instrument.</span></div>
     <div class="mn-rest">
       <a href="#work">all four write-ups</a>
       <a href="#method">method</a>
@@ -416,13 +415,22 @@
     </div>
   </nav>
   <script>
-    // The projects menu closes on Escape, on a tap outside it, and after a link is followed.
+    // The projects menu: the button toggles it, mouse users also get it on hover, and it closes on
+    // Escape (focus returns to the button), on a click outside it, and after a link is followed.
     (function(){
       var pm=document.getElementById('pm'); if(!pm) return;
       var btn=pm.querySelector('button');
-      function close(){pm.classList.remove('open'); btn.setAttribute('aria-expanded','false');}
-      document.addEventListener('click',function(e){ if(!pm.contains(e.target)) close(); else if(e.target.closest('a')) close(); });
-      document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ close(); btn.blur(); } });
+      var byHover=false;
+      function set(o){pm.classList.toggle('open',o); btn.setAttribute('aria-expanded',o?'true':'false'); if(!o) byHover=false;}
+      // A click on a menu that hover already opened pins it open; the next click closes it.
+      btn.addEventListener('click',function(){ if(byHover){ byHover=false; set(true); } else set(!pm.classList.contains('open')); });
+      if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+        pm.addEventListener('mouseenter',function(){ if(!pm.classList.contains('open')){ set(true); byHover=true; } });
+        pm.addEventListener('mouseleave',function(){ if(byHover && !pm.contains(document.activeElement)) set(false); });
+      }
+      document.addEventListener('click',function(e){ if(!pm.contains(e.target)) set(false); else if(e.target.closest('a')){ set(false); e.target.closest('a').blur(); } });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape' && (pm.classList.contains('open') || pm.contains(document.activeElement))){ set(false); btn.focus(); } });
+      pm.addEventListener('focusout',function(e){ if(!pm.contains(e.relatedTarget)) set(false); });
     })();
   </script>
 </div>
