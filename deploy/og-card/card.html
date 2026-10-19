@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Source for deploy/landing/og.png (1200x630). Render: deploy/og-card/render.sh. Not served. -->
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Fraunces;src:url(../landing/fonts/Fraunces-var.woff2) format("woff2");font-weight:100 900}
+@font-face{font-family:Fraunces;font-style:italic;src:url(../landing/fonts/Fraunces-italic-var.woff2) format("woff2");font-weight:100 900}
+:root{--paper:#FBF7EC;--ink:#1E2A48;--slate:#3F4A6B;--mute:#7C8399;--gold:#B8860B}
+html,body{margin:0;width:1200px;height:630px;background:var(--paper);overflow:hidden}
+body{position:relative;font-family:Fraunces,Georgia,serif;color:var(--ink)}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--mute);letter-spacing:.06em}
+.site{position:absolute;left:72px;top:56px;font-size:17px;letter-spacing:.2em}
+.site b{color:var(--gold);font-weight:400;margin-right:10px}
+h1{position:absolute;left:68px;top:188px;margin:0;font-size:124px;font-weight:420;letter-spacing:-.02em;line-height:1}
+h1 i{color:var(--gold);font-style:normal}
+.tag{position:absolute;left:72px;top:330px;width:700px;margin:0;font-style:italic;font-weight:480;font-size:36px;line-height:1.3;color:var(--slate)}
+.photo{position:absolute;left:860px;top:80px;width:272px;height:312px;background:#fff;border:1px solid #e3dccb;box-shadow:0 0 0 4px var(--paper),0 0 0 5px #e3dccb}
+.photo .in{position:absolute;inset:6px;border:2px solid var(--ink)}
+.photo img{position:absolute;left:14px;top:14px;width:242px;height:256px;object-fit:cover}
+.photo .cap{position:absolute;left:14px;bottom:12px;font-size:11px;letter-spacing:.08em;white-space:nowrap}
+.photo .cap b{color:var(--gold);font-weight:400}
+svg{position:absolute;left:0;top:400px}
+.foot{position:absolute;bottom:56px;font-size:18px}
+.l{left:72px}.r{right:72px}
+</style></head><body>
+<div class="site mono"><b>✦</b>VIBCREATES.COM</div>
+<h1>I'm Vib<i>.</i></h1>
+<p class="tag">A lifelong connector of dots: retail, orbit, deep sky, baseline.</p>
+<div class="photo"><div class="in"></div><img src="../landing/img/portrait.jpg" alt=""><div class="cap mono"><b>✦</b>FIG. 0 · THE PERSON IN QUESTION</div></div>
+<svg width="1200" height="110" viewBox="0 400 1200 110">
+ <polyline fill="none" stroke="#B8860B" stroke-width="1.4" points="85,489 208,456 342,483 488,441 633,472 768,450 903,478 1048,439"/>
+ <g id="stars"></g>
+</svg>
+<div class="foot mono l">founder · data platforms · Los Angeles</div>
+<div class="foot mono r">live numbers inside</div>
+<script>
+const S=[[85,489,7,'#B03A6E'],[208,456,7,'#1F8A9A'],[342,483,7,'#D9772B'],[488,441,13,'#B03A6E'],[633,472,9,'#B03A6E'],[768,450,10,'#B03A6E'],[903,478,10,'#7A9A1F'],[1048,439,14,'#D9772B']];
+const g=document.getElementById('stars');
+for(const [x,y,r,c] of S){
+ const halo=document.createElementNS('http://www.w3.org/2000/svg','circle');
+ halo.setAttribute('cx',x);halo.setAttribute('cy',y);halo.setAttribute('r',r*1.35);halo.setAttribute("fill",c);halo.setAttribute("opacity",".11");g.appendChild(halo);
+ const p=document.createElementNS('http://www.w3.org/2000/svg','path');const k=r*0.28;
+ p.setAttribute('d',`M${x},${y-r} Q${x+k},${y-k} ${x+r},${y} Q${x+k},${y+k} ${x},${y+r} Q${x-k},${y+k} ${x-r},${y} Q${x-k},${y-k} ${x},${y-r}Z`);
+ p.setAttribute('fill',c);g.appendChild(p);
+}
+</script>
+</body></html>
