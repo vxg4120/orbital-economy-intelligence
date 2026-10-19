@@ -230,3 +230,18 @@ ON DELETE CASCADE on the light-curve FKs, and a churn flag over-counting on the 
 all fixed before merge. Watch: the 19:10 UTC rebuild is the first live test of 0007
 (`/api/lightcurves/summary` .processed must stay 58). Side fixes: local Docker VM disk freed
 (29 GB of stale ECR images); the scratch DB on 5439 restarted.
+
+# Nav + SEO batch, 2026-10-19 09:00 UTC (Vib: "keep going", "improve the nav greatly" so
+# projects are reachable directly, "also do some work on SEO")
+- [ ] A. Landing nav: "projects" disclosure listing CannMenus, Orbital, ExoDossier, SplitStep
+      directly (desktop + phone), anchor ids on the write-ups. Branch space landing/nav-seo-20261019.
+- [ ] B. Landing SEO: OG/Twitter/author/theme-color, JSON-LD WebSite + ItemList, canonical on
+      /fun/ and /splitstep/, dated sitemap. Same branch. (Description line and og.png belong to
+      space-28's copy branch, merged 2a8e3d4 before ours.)
+- [ ] C. Caddy: real /sitemap.xml per app host (was the SPA shell with a 200), robots points at it.
+      Same branch; needs a caddy reload on the box outside the nightly windows.
+- [ ] D. Orbital app SEO: canonical/OG/Twitter/JSON-LD Dataset in web/index.html, per-route
+      titles + descriptions + canonical, og.png. Branch space seo/orbital-20261019 (subagent).
+- [ ] E. Exo app SEO: same shape. Branch exodossier seo/exo-20261019 (subagent).
+- [ ] F. Independent review of each branch, merge, deploy (landing = git pull on the box; apps =
+      image rebuild), live verification incl. /api/stories on both hosts.
