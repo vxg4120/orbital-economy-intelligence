@@ -4,18 +4,117 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <title>Orbital Economy Terminal</title>
+    <meta name="theme-color" content="#09090a" />
+    <meta name="author" content="Vibhav Gupta" />
+    <title>Orbital Economy Intelligence</title>
     <meta
       name="description"
-      content="Read-only mission-control terminal over a satellite identity graph: crosswalks, provenance, temporal ownership, and cross-source conflicts."
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
     />
-  
+    <link rel="canonical" href="https://orbital.vibcreates.com/" />
+
+    <!-- Share cards. The static values describe the landing page. The per-route values live in
+         public/seo-routes.json: api/seo.py writes them into this head before the shell leaves the
+         server, and src/seo.ts rewrites them again on client-side navigation. og.png is rendered
+         from the live landing page and lives in public/, which Vite copies to the dist root. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Orbital Economy Intelligence" />
+    <meta property="og:title" content="Orbital Economy Intelligence" />
+    <meta
+      property="og:description"
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+    />
+    <meta property="og:url" content="https://orbital.vibcreates.com/" />
+    <meta property="og:image" content="https://orbital.vibcreates.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Orbital Economy Intelligence landing page" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Orbital Economy Intelligence" />
+    <meta
+      name="twitter:description"
+      content="One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+    />
+    <meta name="twitter:image" content="https://orbital.vibcreates.com/og.png" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Person",
+          "@id": "https://vibcreates.com/#vib",
+          "name": "Vibhav Gupta",
+          "url": "https://vibcreates.com"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://orbital.vibcreates.com/#website",
+          "name": "Orbital Economy Intelligence",
+          "url": "https://orbital.vibcreates.com/",
+          "description": "One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings.",
+          "author": { "@id": "https://vibcreates.com/#vib" }
+        },
+        {
+          "@type": "Dataset",
+          "@id": "https://orbital.vibcreates.com/#dataset",
+          "name": "Orbital Economy Intelligence satellite identity graph",
+          "description": "A satellite identity graph with one resolved record per physical satellite, stitched from SATCAT, GCAT and UCS, served as JSON by a public read-only API: NORAD and COSPAR identifier crosswalks, operator attribution with ownership over time, cross-source conflicts, spacecraft bus benchmarks derived from GP element history, and pending FCC space-station applications.",
+          "url": "https://orbital.vibcreates.com/",
+          "creator": { "@id": "https://vibcreates.com/#vib" },
+          "isAccessibleForFree": true,
+          "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+          "keywords": [
+            "satellite catalog",
+            "satellite identity graph",
+            "NORAD",
+            "COSPAR",
+            "SATCAT",
+            "GCAT",
+            "UCS",
+            "operator attribution",
+            "satellite operators",
+            "spacecraft bus benchmarks",
+            "FCC filings",
+            "space situational awareness"
+          ],
+          "isBasedOn": [
+            "https://planet4589.org/space/gcat/",
+            "https://celestrak.org/satcat/",
+            "https://www.ucs.org/resources/satellite-database"
+          ],
+          "distribution": [
+            {
+              "@type": "DataDownload",
+              "name": "Catalog statistics",
+              "contentUrl": "https://orbital.vibcreates.com/api/stats",
+              "encodingFormat": "application/json"
+            },
+            {
+              "@type": "DataDownload",
+              "name": "Landing stories",
+              "contentUrl": "https://orbital.vibcreates.com/api/stories",
+              "encodingFormat": "application/json"
+            },
+            {
+              "@type": "DataDownload",
+              "name": "Bus benchmarks methodology",
+              "contentUrl": "https://orbital.vibcreates.com/api/buses/methodology",
+              "encodingFormat": "application/json"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
   <!-- Visitor analytics. Each service activates only when its id below is filled in; while an
        id is empty nothing loads and no request leaves the page. Ids live here and nowhere else
        on this surface. GA4 wants a measurement id (G-XXXXXXXXXX), Clarity a project id,
        Fingerprint the public API key from its free tier. For Search Console, paste the
-       verification token into the meta tag. -->
-  <meta name="google-site-verification" content="">
+       verification token into a tag here:
+         <meta name="google-site-verification" content="TOKEN">
+       The tag is left out while there is no token, because an empty one is noise. -->
   <script>
     (function () {
       var ids = { ga4: "", clarity: "", fingerprint: "" };

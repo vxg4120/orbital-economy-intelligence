@@ -1,0 +1,64 @@
+{
+  "site": {
+    "name": "Orbital Economy Intelligence",
+    "origin": "https://orbital.vibcreates.com",
+    "description": "One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+  },
+  "routes": [
+    {
+      "pattern": "/",
+      "end": true,
+      "title": "Orbital Economy Intelligence",
+      "description": "One resolved record per physical satellite, stitched from SATCAT, GCAT and UCS: a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+    },
+    {
+      "pattern": "/resolver/:satelliteId?",
+      "end": true,
+      "title": "Resolver · Orbital Economy Intelligence",
+      "description": "Search the resolved satellite catalog and read one object's full identity: every source's identifier crosswalk, its ownership over time, and where SATCAT, GCAT and UCS disagree."
+    },
+    {
+      "pattern": "/conflicts",
+      "end": true,
+      "title": "Conflicts · Orbital Economy Intelligence",
+      "description": "Every cross-source disagreement the resolver had to adjudicate, from the data-quality report, with each row linking into the resolver so the underlying claims can be read."
+    },
+    {
+      "pattern": "/operators/:operatorId?",
+      "end": true,
+      "title": "Operators · Orbital Economy Intelligence",
+      "description": "A league table of satellite operators over the resolved ownership graph, with each operator's hierarchy, fleet mix by status and orbital regime, and acquisition history."
+    },
+    {
+      "pattern": "/review/:caseId?",
+      "end": true,
+      "title": "Review · Orbital Economy Intelligence",
+      "description": "Hard identity cases the graph resolved under conflicting sources, in an arbitration workbench where a recorded verdict turns coverage into per-failure-mode accuracy."
+    },
+    {
+      "pattern": "/buses/:slug?",
+      "end": true,
+      "canonicalParams": ["kind"],
+      "title": "Bus Benchmarks · Orbital Economy Intelligence",
+      "description": "Spacecraft bus benchmarks per manufacturer and per bus model: fleet size, time to operational, station-keeping, lifetime and disposal, derived from GP element history with provenance and a published methodology."
+    },
+    {
+      "pattern": "/reachability",
+      "end": true,
+      "title": "Reachability · Orbital Economy Intelligence",
+      "description": "Every satellite above your horizon right now, computed from the latest GP elements for a spot on Earth, with the transmitters each one carries from SatNOGS and the next passes."
+    },
+    {
+      "pattern": "/filings",
+      "end": true,
+      "title": "Filings · Orbital Economy Intelligence",
+      "description": "Pending FCC space-station applications from IBFS bulk data and harvested ICFS documents: the pre-launch pipeline of satellites that do not yet exist in any tracking catalog."
+    },
+    {
+      "pattern": "*",
+      "title": "Page not found · Orbital Economy Intelligence",
+      "description": "Nothing resolves at this address on Orbital Economy Intelligence.",
+      "noindex": true
+    }
+  ]
+}

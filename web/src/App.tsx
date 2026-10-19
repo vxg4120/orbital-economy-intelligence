@@ -4,6 +4,7 @@ import { getStats, MOCK } from "./api/client";
 import { useApi } from "./hooks/useApi";
 import { compact, fmtInt, fmtPct } from "./lib/format";
 import { Colophon } from "./components/Colophon";
+import { RouteMeta } from "./components/RouteMeta";
 import { SourceBadge } from "./components/SourceBadge";
 import { Loading } from "./components/States";
 import { maybeAutoStartTour, startTour } from "./lib/tour";
@@ -88,6 +89,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <RouteMeta />
       <header className="topbar">
         <div className="topbar__brand">
           <span className="topbar__mark">
