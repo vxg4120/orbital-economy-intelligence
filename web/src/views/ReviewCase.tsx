@@ -32,7 +32,7 @@ import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { VerdictBadge } from "../components/VerdictBadge";
-import { LIFETRACK_COMPACT_H, LifeTrack } from "../components/LifeTrack";
+import { LIFETRACK_COMPACT_H, LifeTrack, LifeTrackFoot } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 
 const TOKEN_KEY = "oei_review_token";
@@ -342,10 +342,16 @@ function CaseBody({
         ))}
 
         {track.loading && track.data === null && detail.satellite_id !== null ? (
-          // The orbit history arrives after the case itself; hold its slot with a skeleton the
-          // size of the chart and its foot line, so the panels below do not jump when it lands.
+          // The orbit history arrives after the case itself; hold its slot with the chart's own
+          // block (a skeleton the chart's height over the real foot line), so the panels below do
+          // not jump when it lands at any width. The counts on the right are not known yet.
           <Panel title="Life track" meta="resolving orbit history">
-            <div className="skeleton" style={{ height: LIFETRACK_COMPACT_H + 30 }} aria-hidden="true" />
+            <div className="lifetrack" aria-hidden="true">
+              <div className="skeleton" style={{ height: LIFETRACK_COMPACT_H }} />
+              <LifeTrackFoot
+                right={(!cluster && ev.norad_id !== null ? `NORAD ${ev.norad_id} · ` : "") + "… d · … pts"}
+              />
+            </div>
           </Panel>
         ) : trackData ? (
           <Panel title="Life track" meta="daily orbit — physics vs the catalog">

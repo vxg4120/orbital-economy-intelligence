@@ -146,15 +146,24 @@ export function LifeTrack({
           />
         </ComposedChart>
       </ResponsiveContainer>
-      <div className="lifetrack__foot">
-        <span className="hint">
-          semi-major axis (mean altitude) · faint band = perigee → apogee
-        </span>
-        <span className="hint num">
-          {data.norad_id !== null ? `NORAD ${data.norad_id} · ` : ""}
-          {data.span_days} d · {data.points.length} pts
-        </span>
-      </div>
+      <LifeTrackFoot
+        right={
+          (data.norad_id !== null ? `NORAD ${data.norad_id} · ` : "") +
+          `${data.span_days} d · ${data.points.length} pts`
+        }
+      />
+    </div>
+  );
+}
+
+/** The legend line under the chart. The Review case renders the same block under its loading
+    placeholder, so the slot is the chart plus this line at every width: on phones the two spans
+    wrap onto separate lines, and a constant allowance for the foot would fall short there. */
+export function LifeTrackFoot({ right }: { right: string }) {
+  return (
+    <div className="lifetrack__foot">
+      <span className="hint">semi-major axis (mean altitude) · faint band = perigee → apogee</span>
+      <span className="hint num">{right}</span>
     </div>
   );
 }
