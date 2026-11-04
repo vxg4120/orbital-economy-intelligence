@@ -340,7 +340,7 @@ export function Buses() {
                   offset={offset}
                   limit={LIMIT}
                   total={data.total}
-                  shown={data.rows.length}
+                  shown={board.loading ? undefined : data.rows.length}
                   onOffset={setOffset}
                 />
               ) : null}

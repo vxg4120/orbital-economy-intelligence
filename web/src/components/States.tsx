@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { AsyncState } from "../hooks/useApi";
 
 // ragged line lengths so a skeleton reads as text-shaped, not as a progress bar
@@ -61,8 +61,22 @@ export function visitorMessage(raw: string): string | null {
   return null;
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorState({
+  message,
+  onRetry,
+  focusRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+  /** Take the focus if it fell to the body: the error replaced a list whose pager or sort
+      button the keyboard was on, so Enter retries instead of starting over from the top. */
+  focusRetry?: boolean;
+}) {
   const friendly = visitorMessage(message);
+  const retryRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (focusRetry && document.activeElement === document.body) retryRef.current?.focus();
+  }, [focusRetry]);
   return (
     <div className="state state--error" role="alert">
       <h2 className="state__title">Signal lost</h2>
@@ -70,7 +84,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
         {friendly ?? message}
       </span>
       {onRetry ? (
-        <button className="btn" onClick={onRetry}>
+        <button ref={retryRef} className="btn" onClick={onRetry}>
           Retry
         </button>
       ) : null}
@@ -112,7 +126,8 @@ export function Async<T>({
   loadingRows?: number;
   children: (data: T) => ReactNode;
 }) {
-  if (state.error) return <ErrorState message={state.error} onRetry={state.reload} />;
+  if (state.error)
+    return <ErrorState message={state.error} onRetry={state.reload} focusRetry={Boolean(state.keep)} />;
   if (state.loading && state.data === null)
     return <Loading label={loadingLabel} rows={loadingRows} />;
   if (state.data === null) return <EmptyState title="No data" />;

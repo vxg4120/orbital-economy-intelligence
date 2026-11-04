@@ -138,7 +138,7 @@ export function Operators() {
                 offset={offset}
                 limit={LIMIT}
                 total={data.total}
-                shown={data.rows.length}
+                shown={league.loading ? undefined : data.rows.length}
                 onOffset={setOffset}
               />
             </>

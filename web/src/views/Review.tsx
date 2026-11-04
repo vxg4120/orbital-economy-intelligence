@@ -203,7 +203,13 @@ export function Review() {
                     </li>
                   ))}
                 </ul>
-                <Pager offset={offset} limit={LIMIT} total={data.total} shown={data.rows.length} onOffset={setOffset} />
+                <Pager
+                  offset={offset}
+                  limit={LIMIT}
+                  total={data.total}
+                  shown={page.loading ? undefined : data.rows.length}
+                  onOffset={setOffset}
+                />
               </>
             )
           }

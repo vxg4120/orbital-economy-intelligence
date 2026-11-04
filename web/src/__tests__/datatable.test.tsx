@@ -51,6 +51,11 @@ describe("Pager", () => {
     expect(presses(0)).toEqual([50]);
     expect(presses(50)).toEqual([0]);
   });
+  it("makes Next inert on a page past the end", () => {
+    const html = renderToStaticMarkup(<Pager offset={50} limit={50} total={1435} shown={0} onOffset={noop} />);
+    expect(html).toContain('aria-disabled="true">Next ›');
+    expect(html).toContain('<button class="btn">‹ Prev');
+  });
 });
 
 /** A list refetching with useApi's `keep` stays on screen, dimmed and marked busy, so the pager

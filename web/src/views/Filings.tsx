@@ -204,7 +204,7 @@ export function Filings() {
                   offset={offset}
                   limit={LIMIT}
                   total={f.total}
-                  shown={f.rows.length}
+                  shown={filings.loading ? undefined : f.rows.length}
                   onOffset={setOffset}
                 />
               ) : null}

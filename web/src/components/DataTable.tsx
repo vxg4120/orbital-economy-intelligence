@@ -147,7 +147,8 @@ export function Pager({
   // a page past the end (the list shrank since it was counted) has no range to print
   const empty = shown === 0 && total > 0;
   const canPrev = offset > 0;
-  const canNext = offset + limit < total;
+  // nothing lies past a page that is already past the end
+  const canNext = offset + limit < total && shown !== 0;
   return (
     <div className="pager">
       <span className="num">

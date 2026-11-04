@@ -129,7 +129,7 @@ export function Conflicts() {
                 offset={offsets[data.tab] ?? 0}
                 limit={LIMIT}
                 total={data.total}
-                shown={data.rows.length}
+                shown={page.loading ? undefined : data.rows.length}
                 onOffset={setOffset}
               />
             </>
