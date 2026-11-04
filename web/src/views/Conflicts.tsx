@@ -14,13 +14,18 @@ import type {
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtInt } from "../lib/format";
-import { CONFLICT_TABS, toConflictTab } from "../lib/conflicts";
+import { CONFLICT_TABS, toConflictTab, type ConflictTab } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
 import { Cell, DataTable, Pager, type Column } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { Async, EmptyState } from "../components/States";
 
 const LIMIT = 50;
+
+/** One page of a tab's list, tagged with the tab it answers for (see the useApi below). */
+type ConflictPage = Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow> & {
+  tab: ConflictTab;
+};
 
 export function Conflicts() {
   const [params, setParams] = useSearchParams();
@@ -32,12 +37,18 @@ export function Conflicts() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [tab]: next }));
 
   const stats = useApi(() => getStats(), []);
-  // keep: a page or tab change dims the table in place instead of unmounting it with the pager
-  const page = useApi<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>>(
+  // keep: a page or tab change dims the table in place instead of unmounting it with the pager.
+  // Each page carries the tab it answers for: while a new tab loads, the kept page is still the
+  // last tab's, so the columns and the pager below read data.tab, never the live tab.
+  const page = useApi<ConflictPage>(
     () => {
-      if (tab === "status") return getConflictsStatus(LIMIT, offset);
-      if (tab === "decay") return getConflictsDecay(LIMIT, offset);
-      return getConflictsStale(LIMIT, offset);
+      const rows: Promise<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>> =
+        tab === "status"
+          ? getConflictsStatus(LIMIT, offset)
+          : tab === "decay"
+            ? getConflictsDecay(LIMIT, offset)
+            : getConflictsStale(LIMIT, offset);
+      return rows.then((d) => ({ ...d, tab }));
     },
     [tab, offset],
     { keep: true },
@@ -90,14 +101,14 @@ export function Conflicts() {
                   title="Nothing on this page"
                   message="The list changed since it was counted. Go back a page."
                 />
-              ) : tab === "status" ? (
+              ) : data.tab === "status" ? (
                 <DataTable<StatusConflictRow>
                   columns={STATUS_COLS}
                   rows={data.rows as StatusConflictRow[]}
                   rowKey={(r) => r.satellite_id}
                   onRowClick={(r) => open(r.satellite_id)}
                 />
-              ) : tab === "decay" ? (
+              ) : data.tab === "decay" ? (
                 <DataTable<DecayConflictRow>
                   columns={DECAY_COLS}
                   rows={data.rows as DecayConflictRow[]}
@@ -113,7 +124,7 @@ export function Conflicts() {
                 />
               )}
               <Pager
-                offset={offset}
+                offset={offsets[data.tab] ?? 0}
                 limit={LIMIT}
                 total={data.total}
                 shown={data.rows.length}

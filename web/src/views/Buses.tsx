@@ -110,18 +110,21 @@ export function Buses() {
     if (kind && kind !== group) pickGroup(kind);
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns: Column<BusRow>[] = [
+  // The columns read the group from the board itself (BusesResponse.group), not from the toggle:
+  // while the other group loads, the kept rows are still this one's, so the header, the
+  // sub-label and the receipt links keep describing the rows they sit on.
+  const columnsFor = (g: BusGroup): Column<BusRow>[] => [
     {
       key: "sort:name",
-      header: group === "manufacturer" ? "Manufacturer" : "Bus model",
+      header: g === "manufacturer" ? "Manufacturer" : "Bus model",
       sortable: true,
       render: (r) => (
         <span>
           <span className="mono-hi">{r.name}</span>
-          {group === "manufacturer" && r.manufacturer_country ? (
+          {g === "manufacturer" && r.manufacturer_country ? (
             <span className="muted"> · {r.manufacturer_country}</span>
           ) : null}
-          {group === "bus" && r.primary_manufacturer ? (
+          {g === "bus" && r.primary_manufacturer ? (
             <span className="muted"> · {r.primary_manufacturer}</span>
           ) : null}
         </span>
@@ -135,7 +138,7 @@ export function Buses() {
       render: (r) => (
         <a
           className="receipt-link"
-          href={`/api/buses/${r.slug}/provenance?metric=fleet&kind=${group}`}
+          href={`/api/buses/${r.slug}/provenance?metric=fleet&kind=${g}`}
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -296,10 +299,10 @@ export function Buses() {
           {(data) => (
             <>
               <DataTable<BusRow>
-                columns={columns}
+                columns={columnsFor(data.group)}
                 rows={data.rows}
                 rowKey={(r) => r.slug}
-                onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${group}`)}
+                onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${data.group}`)}
                 sort={sortSpec}
                 onSort={onSort}
                 zebra
