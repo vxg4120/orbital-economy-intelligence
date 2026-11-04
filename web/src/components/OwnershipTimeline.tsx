@@ -93,7 +93,7 @@ export function OwnershipTimeline({ segments }: { segments: OwnershipSegment[] }
                     {fmtDate(s.seg.valid_from)} → {fmtRangeEnd(s.seg.valid_to)}
                   </span>
                   <span className="tl-seg__range-short">
-                    {fmtYear(s.seg.valid_from)} → {s.seg.valid_to ? fmtYear(s.seg.valid_to) : "now"}
+                    {fmtYear(s.seg.valid_from)} → {s.seg.valid_to ? fmtYear(s.seg.valid_to) : "present"}
                   </span>
                 </span>
               </div>

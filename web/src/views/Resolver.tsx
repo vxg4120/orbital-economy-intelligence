@@ -149,7 +149,7 @@ function Examples() {
   );
 }
 
-function ResultsList({
+export function ResultsList({
   debounced,
   loading,
   error,
@@ -262,7 +262,11 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
         </div>
       </div>
 
-      <Panel title="Identifier crosswalk" meta={`${detail.identifiers.length} ids · by source`} flush>
+      <Panel
+        title="Identifier crosswalk"
+        meta={`${detail.identifiers.length === 1 ? "1 id" : `${detail.identifiers.length} ids`} · by source`}
+        flush
+      >
         {crosswalk.length === 0 ? (
           <EmptyState title="No identifiers" />
         ) : (

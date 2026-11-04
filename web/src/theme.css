@@ -142,6 +142,7 @@ a:hover {
    shows as two side ticks at best; these draw it inside the control instead */
 .tabs .tab:focus-visible,
 .rail .navlink:focus-visible,
+.results .result-row:focus-visible,
 .table-wrap tr:focus-visible {
   outline-offset: -2px;
 }
@@ -931,6 +932,8 @@ button {
 .btn[aria-busy="true"] {
   opacity: 0.6;
   cursor: progress;
+  /* full ink under the fade: the plain button's dim ink would drop to 3.3:1 at 0.6 */
+  color: var(--ink);
 }
 /* a paged or sorted list reloading in place (useApi keep + Async): the last page stays on
    screen, dimmed and inert, so the pager or sort button that fired it is still there to keep
@@ -1029,10 +1032,10 @@ button {
   color: var(--ink-dim);
 }
 .tab:disabled {
-  /* same inert reading as .btn:disabled: faint ink at full opacity, not a 2:1 fade */
+  /* same inert reading as .btn:disabled: faint ink at full opacity, not a 2:1 fade (no
+     border colour: a tab's only border is the 2px bar that marks the active one) */
   opacity: 1;
   color: var(--ink-faint);
-  border-color: var(--rule);
   background: transparent;
   cursor: not-allowed;
 }
@@ -1105,8 +1108,9 @@ button {
   background: var(--surface);
   padding: 0 12px;
 }
-.searchbar:focus-within {
-  /* the input inside is borderless and ringless; the wrapper wears the focus ring */
+.searchbar:has(input:focus-visible) {
+  /* the input inside is borderless and ringless; the wrapper wears its focus ring, and only
+     the input's (a chip inside the bar, as on Filings, rings itself) */
   border-color: var(--signal-dim);
   outline: 1.5px solid var(--signal);
   outline-offset: 1px;
@@ -1997,6 +2001,11 @@ button {
   }
   /* tables that name their rows in the first column (the buses leaderboard) keep that
      column pinned while the metrics scroll under it */
+  .table-wrap--sticky-first {
+    /* a control that scrolled under the pinned column (a receipt link) comes back out from
+       under it when it takes the focus */
+    scroll-padding-inline-start: 44vw;
+  }
   .table-wrap--sticky-first th:first-child,
   .table-wrap--sticky-first td:first-child {
     position: sticky;
@@ -2205,7 +2214,9 @@ button {
   color: var(--ink);
 }
 @media (pointer: coarse) {
-  .chip {
+  /* the chips that are links or buttons; a plain label chip (the source key) stays small */
+  a.chip,
+  button.chip {
     padding: 8px 10px;
   }
 }
@@ -2362,12 +2373,13 @@ button {
   padding-left: 10px;
 }
 .rc-head__subject {
-  /* the subject is a datum: mono, one step under the title */
+  /* the subject is a datum inside the title: mono, one step under it, a word-space apart */
   font-size: var(--fs-md);
   color: var(--ink);
   font-weight: 400;
+  font-variation-settings: normal;
   line-height: 1.15;
-  margin: 0;
+  margin: 0 0 0 8px;
 }
 .rc-head__nav {
   display: flex;
@@ -2770,6 +2782,11 @@ button {
   font-size: var(--fs-xs);
   color: var(--err);
 }
+/* the live region is always in the DOM so an error is announced when it lands; empty, it
+   takes no room */
+.verdict-bar__err:empty {
+  display: none;
+}
 .state--sm {
   padding: 16px;
 }
@@ -3007,6 +3024,10 @@ button {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
   }
+  .verdict-inputs {
+    /* the base 220px floor pushed the inputs under the Submit on a 320px-class phone */
+    min-width: 0;
+  }
   .verdict-btns {
     grid-column: 1 / -1;
     display: grid;
@@ -3032,9 +3053,15 @@ button {
   .verdict-btn {
     min-height: 44px;
   }
-  /* a phone has no c/i/p/u keys: the key caps go with the legend */
-  .verdict-btn__key {
+  /* a touch device has no c/i/p/u keys: the key caps go, and so does the legend that names
+     them (the width rule above covers phones; this covers a touch tablet) */
+  .verdict-btn__key,
+  .verdict-bar__hint {
     display: none;
+  }
+  .verdict-bar__foot {
+    margin-top: 0;
+    min-height: 0;
   }
 }
 
@@ -3536,6 +3563,12 @@ button {
   .receipt-link {
     padding: 8px 4px;
     margin: -8px -4px;
+  }
+  /* the go and submit variants set their own padding after the .btn rule above, so they
+     stayed 36px tall on touch; the same height as every other button here */
+  .btn--go,
+  .btn--submit {
+    padding-block: 11px;
   }
   /* inline links in table cells and the colophon: 17px and 14px tall on a phone */
   .dtable td a.mono-hi,

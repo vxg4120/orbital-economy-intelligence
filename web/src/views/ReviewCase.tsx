@@ -34,13 +34,9 @@ import { StatusBadge } from "../components/StatusBadge";
 import { VerdictBadge } from "../components/VerdictBadge";
 import { LIFETRACK_COMPACT_H, LifeTrack, LifeTrackFoot } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
+import { coarsePointer } from "../lib/pointer";
 
 const TOKEN_KEY = "oei_review_token";
-
-/** A touch device has no c/i/p/u or n keys: the copy that names them stays for a keyboard. */
-function coarsePointer(): boolean {
-  return typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
-}
 
 /** The queue's filter query, carried from the queue to a case and back. */
 function queueQuery(type: string | undefined, only: string | undefined): string {
@@ -116,12 +112,13 @@ export function ReviewCase() {
         <div className="rc-head__main">
           {d ? (
             <>
-              {/* the stratum is the page's chapter head (Fraunces, like every other route's h1);
-                  the subject reference is a datum beside it, not the heading */}
+              {/* the stratum is the page's chapter head (Fraunces, like every other route's h1)
+                  and the subject reference rides inside it as a datum, so each case's heading
+                  is its own (a heading list would otherwise repeat the stratum eight times) */}
               <h1 className="rc-head__title" data-stratum={d.case_type}>
-                {stratumLabel(d.case_type)}
+                {stratumLabel(d.case_type)}{" "}
+                <span className="rc-head__subject num">{d.subject_ref}</span>
               </h1>
-              <span className="rc-head__subject num">{d.subject_ref}</span>
               {d.verdict !== null ? <VerdictBadge verdict={d.verdict} /> : null}
             </>
           ) : (
@@ -784,11 +781,13 @@ function VerdictBar(props: {
           {props.submitting ? "Saving…" : props.alreadyLabeled ? "Update ⏎" : "Submit ⏎"}
         </button>
       </div>
-      {/* a live region: a submit error replaces the legend here, and a screen reader hears it */}
-      <div className="verdict-bar__foot" aria-live="polite">
-        {props.err ? (
-          <span className="verdict-bar__err">{props.err}</span>
-        ) : (
+      {/* only the error is live: a screen reader hears a submit error, and never the legend
+          re-entering the region after one clears (the legend is outside it) */}
+      <div className="verdict-bar__foot">
+        <span className="verdict-bar__err" role="status" aria-live="polite">
+          {props.err ?? ""}
+        </span>
+        {props.err ? null : (
           <span className="verdict-bar__hint">
             c/i/p/u verdict · n notes · Enter submit → auto-advance · j/k prev/next
           </span>
