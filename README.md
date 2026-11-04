@@ -139,12 +139,16 @@ parameterized and LIMIT-bounded) reads the live graph through the existing `comm
 Vite + React + TypeScript SPA (`web/`) renders it as a dark, monospace instrument. In single-process
 demo mode the API serves the built SPA at `/`, so the whole terminal runs from one port.
 
-**Four views:**
+**Eight views:**
 
-- **Overview (`/`)** — fleet-wide stat tiles, coverage meters, conflict counts, the ingest-run ledger, and a congestion-heatmap teaser.
-- **Resolver (`/resolver`)** — search any object by name, NORAD, or COSPAR and read its full identity card: identifier crosswalk grouped by source, the SCD2 ownership timeline, status history, and conflicting assertions flagged amber.
+- **Overview (`/`)** — what happened in orbit in the last 30 days as data stories (launch tempo, who owns the active fleet, the constellation race, reentries, space weather), then the graph under the hood: stat tiles, coverage meters, open conflicts, the ingest-run ledger and the congestion field.
+- **Resolver (`/resolver`)** — search any object by name, NORAD, or COSPAR and read its full identity card: identifier crosswalk grouped by source, the SCD2 ownership timeline, the daily orbit life track, status history, and conflicting assertions flagged amber.
 - **Conflicts (`/conflicts`)** — the DQ report made browsable: status disagreements, decay-date conflicts, and stale post-M&A owners, each row deep-linking into the resolver.
 - **Operators (`/operators`)** — the MSO league table with a per-operator panel: parent/child hierarchy, fleet-by-status and by-regime mix, acquisition history, and the full orbital-congestion field.
+- **Review (`/review`)** — the arbitration workbench for the hard identity cases the graph resolved under conflicting sources; a recorded verdict turns coverage into per-failure-mode accuracy. Keyboard-first.
+- **Buses (`/buses`)** — provenance-tracked benchmarks per manufacturer and per bus model (fleet, time to operational, station-keeping, lifetime, disposal), with receipts down to the source rows and the versioned methodology.
+- **Reachability (`/reachability`)** — every satellite above a spot on Earth right now from the latest GP elements, the transmitters each one carries (SatNOGS), and the next passes.
+- **Filings (`/filings`)** — pending FCC space-station applications from IBFS bulk data and harvested ICFS documents: the pre-launch pipeline of satellites that exist in no tracking catalog yet.
 
 ```bash
 make fe            # build the SPA, then serve the API + app from one process

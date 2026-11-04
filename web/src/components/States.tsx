@@ -34,7 +34,7 @@ const REASON_PHRASES = /^(bad request|unauthorized|forbidden|not found|method no
 
 /** Fetch failures in visitor words. The raw message (it can quote an API path) moves
     to the title attribute; anything unrecognised is shown as-is. */
-function visitorMessage(raw: string): string | null {
+export function visitorMessage(raw: string): string | null {
   // Chrome "Failed to fetch", Firefox "NetworkError when attempting…", Safari "Load failed"
   if (/^(Failed to fetch|NetworkError\b|Load failed)/i.test(raw)) {
     return "The API did not answer. Check your connection, then retry.";
