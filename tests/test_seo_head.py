@@ -65,6 +65,8 @@ def test_root_keeps_root_metadata():
     h = _head(html)
     assert status == 200
     assert h["title"] == "Orbital Economy Terminal"
+    # the landing is a story page, so its description is its own, not the site's catalog line
+    assert h["description"].startswith("What happened in orbit")
     assert h["canonical"] == "https://orbital.vibcreates.com/"
     assert h["og:url"] == h["canonical"]
     assert h["robots"] is None
@@ -93,7 +95,7 @@ def test_static_segment_is_case_insensitive_and_canonical_is_lowercase():
     html, status = seo.render_head(SHELL, "/Buses/Starlink-V2-Mini/", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Terminal"
+    assert h["title"] == "Bus benchmarks · Orbital Economy Terminal"
     # The static segment comes from the pattern; the id keeps the case it was asked with.
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/Starlink-V2-Mini"
 
@@ -159,7 +161,7 @@ def test_deep_link_gets_its_own_head(client):
     r = client.get("/buses/x")
     assert r.status_code == 200
     h = _head(r.text)
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Terminal"
+    assert h["title"] == "Bus benchmarks · Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/x"
 
     r = client.get("/buses/starlink-v2-mini?kind=bus")

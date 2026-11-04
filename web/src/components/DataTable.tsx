@@ -4,6 +4,9 @@ import { fmtInt } from "../lib/format";
 export interface Column<Row> {
   key: string;
   header: string;
+  /** The sort button's tooltip; defaults to "Sort by <header>", so an abbreviated header
+      spells itself out here. */
+  title?: string;
   num?: boolean;
   sortable?: boolean;
   render: (row: Row) => ReactNode;
@@ -59,7 +62,7 @@ export function DataTable<Row>({
                       type="button"
                       className="sort-btn"
                       onClick={() => onSort(c.key)}
-                      title={`Sort by ${c.header}`}
+                      title={c.title ?? `Sort by ${c.header}`}
                     >
                       {c.header}
                       {active ? (

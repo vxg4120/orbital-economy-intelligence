@@ -29,6 +29,9 @@ describe("route table", () => {
     }
     expect(metaFor("/nope").noindex).toBe(true);
   });
+  it("describes the landing as the story page it is, not with the site's catalog line", () => {
+    expect(metaFor("/").description.startsWith("What happened in orbit")).toBe(true);
+  });
 });
 
 describe("metaFor", () => {

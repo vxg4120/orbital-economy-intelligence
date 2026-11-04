@@ -17,6 +17,8 @@ const SIGNAL = "#4da6ff";
 const BAND = "rgba(77, 166, 255, 0.12)";
 const GRID = "#1b212c";
 const EARTH_RADIUS_KM = 6378.137; // sma is a radius; subtract to plot it on the altitude axis
+/** The compact chart's height, so a slot held for it while it loads is the same size. */
+export const LIFETRACK_COMPACT_H = 220;
 
 interface Row {
   day: string;
@@ -83,7 +85,7 @@ export function LifeTrack({
     );
   }
 
-  const height = variant === "compact" ? 220 : 360;
+  const height = variant === "compact" ? LIFETRACK_COMPACT_H : 360;
 
   return (
     <div className="lifetrack">

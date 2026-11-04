@@ -83,7 +83,7 @@ export function Buses() {
     [slug, kind],
   );
   const cohortName = detail.data?.benchmark.name;
-  useDocumentTitle(cohortName ? `${cohortName} · Bus Benchmarks · ${SITE_NAME}` : undefined);
+  useDocumentTitle(cohortName ? `${cohortName} · Bus benchmarks · ${SITE_NAME}` : undefined);
 
   const sortSpec: SortSpec = { key: `sort:${sort}`, dir };
   // A second click on the active column reverses it; a new column starts in its natural
@@ -149,6 +149,7 @@ export function Buses() {
     {
       key: "sort:tto",
       header: "TTO days",
+      title: "Sort by median time to operational (days from launch)",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.median_days_to_operational !== null ? fmtNum(r.median_days_to_operational, 0) : null}</Cell>,
@@ -156,6 +157,7 @@ export function Buses() {
     {
       key: "sort:sk_share",
       header: "SK share",
+      title: "Sort by station-keeping share",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.station_keeping_share_pct !== null ? fmtPct(r.station_keeping_share_pct) : null}</Cell>,
@@ -163,6 +165,7 @@ export function Buses() {
     {
       key: "sort:station_keeping",
       header: "SK p50 km",
+      title: "Sort by station-keeping tightness, cohort median km",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.p50_station_keeping_km !== null ? fmtNum(r.p50_station_keeping_km, 3) : null}</Cell>,
@@ -187,6 +190,7 @@ export function Buses() {
       // reports n, which the definition promises for every metric.
       key: "sort:compliance",
       header: "PMD 5y",
+      title: "Sort by post-mission disposal within 5 years",
       num: true,
       sortable: true,
       render: (r) => (
@@ -204,6 +208,7 @@ export function Buses() {
     {
       key: "sort:coverage",
       header: "GP cov",
+      title: "Sort by GP behavior coverage",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.gp_coverage_pct !== null ? fmtPct(r.gp_coverage_pct) : null}</Cell>,
@@ -214,7 +219,7 @@ export function Buses() {
     <div className="view fadein">
       <header className="vhead">
         <div>
-          <h1 className="vhead__title">Bus Benchmarks</h1>
+          <h1 className="vhead__title">Bus benchmarks</h1>
           <p className="vhead__desc">
             An independent, provenance-tracked scoreboard for spacecraft platforms: fleet,
             time-to-operational, station-keeping, lifetime and disposal, per manufacturer and per
@@ -558,7 +563,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
         ) : (
         <Panel title="Coverage and provenance" meta={`source gcat · run #${detail.provenance?.ingest_run_id ?? "?"}`}>
           <CoverageMeter
-            label="GP behavior data"
+            label="GP coverage"
             pct={b.fleet_total > 0 ? (100 * cv("gp_behavior").n) / b.fleet_total : 0}
             foot={nOf(cv("gp_behavior").n, b.fleet_total)}
           />

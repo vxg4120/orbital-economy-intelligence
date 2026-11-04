@@ -42,7 +42,7 @@ export const REVIEW_GUIDES: Record<string, ReviewGuide> = {
   type_conflict: {
     tldr: "SATCAT says debris, GCAT says payload — is it a real spacecraft or a fragment?",
     paragraphs: [
-      "SATCAT's object type ('PAY', 'R/B', 'DEB') is a coarse tracking classification; small or secondary payloads, subsatellites, and deployed objects are sometimes carried as DEBRIS because they were catalogued as fragments of a parent. GCAT's SatType is a finer, intent-based taxonomy that distinguishes actual payloads from debris even for tiny objects.",
+      "SATCAT's object type ('PAY', 'R/B', 'DEB') is a coarse tracking classification; small or secondary payloads, subsatellites, and deployed objects are sometimes carried as DEBRIS because they were cataloged as fragments of a parent. GCAT's SatType is a finer, intent-based taxonomy that distinguishes actual payloads from debris even for tiny objects.",
       "The classic true-positive here is a deployed subsatellite or a cubesat that SATCAT never reclassified from its debris origin — GCAT calls it a payload because it was a designed spacecraft. The classic false alarm is genuine mission-related debris that GCAT happens to name.",
       "Check the GCAT name and any mission notes: a real payload usually has a program/spacecraft name, a mass, and an operator, whereas debris reads as 'DEB', 'PLAT', or a fragment tag. Orbit and launch context (rideshare manifests) help.",
       "Verdict: correct if the resolved object_type matches what the object physically is; partial if the coarse class is right but the nuance is lost; incorrect if the graph took the wrong classification; unresolvable when the sources genuinely cannot tell payload from debris.",
@@ -60,7 +60,7 @@ export const REVIEW_GUIDES: Record<string, ReviewGuide> = {
   ambiguous_cospar: {
     tldr: "One COSPAR designator maps to several satellites — legit cluster or a bad merge?",
     paragraphs: [
-      "An international designator (COSPAR/COSPAR-piece) is assigned per launch and per catalogued piece; multiple distinct objects from one launch legitimately share the launch designator, and near-identical piece letters can collide across catalogs. So more than one satellite under a designator is often entirely correct.",
+      "An international designator (COSPAR/COSPAR-piece) is assigned per launch and per cataloged piece; multiple distinct objects from one launch legitimately share the launch designator, and near-identical piece letters can collide across catalogs. So more than one satellite under a designator is often entirely correct.",
       "The failure mode to catch is the opposite: two rows that are actually the SAME physical object left un-merged (duplicate identity), or two truly different objects fused under one designator by an over-eager match. Compare the per-object NORAD ids, names, and orbits shown for each satellite in the cluster.",
       "Check whether the objects have separate NORAD numbers and plausibly different names/types (a payload and its rocket body, or two co-passengers) — that supports a legitimate cluster. Identical NORAD/name/orbit across two rows is the red flag for a duplicate that should merge.",
       "Verdict: correct if the multi-mapping reflects genuinely separate objects; partial if some but not all of the cluster is right; incorrect if the graph should have merged (or split) them; unresolvable when the designator data cannot decide.",

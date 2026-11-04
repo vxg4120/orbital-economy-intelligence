@@ -434,6 +434,8 @@ button {
   font-weight: 600;
   font-variation-settings: "SOFT" 0, "WONK" 1;
   letter-spacing: 0.005em;
+  /* display leading: the body's 1.5 made a 27px title a 40px box */
+  line-height: 1.15;
   color: var(--ink);
   margin: 0;
 }
@@ -567,6 +569,9 @@ button {
 .stat__sub {
   font-size: var(--fs-xs);
   color: var(--ink-dim);
+  /* a row of tiles stretches to its tallest; the sub sits on every tile's floor, the numeral
+     keeps its top, so the subs read as one line across the row */
+  margin-top: auto;
 }
 .stat__sub .num {
   color: var(--ink);
@@ -616,10 +621,11 @@ button {
   background: var(--conflict);
 }
 .meter__fill.is-low {
-  background: var(--st-decayed);
+  /* the error red, not the status scale's rust: that hue means a decayed object */
+  background: var(--err);
 }
 .meter__foot {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -910,8 +916,18 @@ button {
   border-color: var(--signal-dim);
 }
 .btn:disabled {
-  opacity: 0.4;
+  /* inert reads by the hollow plate and the faint ink (5.5:1), not by fading to 2:1 */
+  opacity: 1;
+  color: var(--ink-faint);
+  border-color: var(--rule);
+  background: transparent;
   cursor: not-allowed;
+}
+/* in flight: the control stays enabled (disabling it would drop the keyboard's focus) and
+   says so by dimming and the progress cursor; the handler ignores the second click */
+.btn[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
 }
 /* a paged or sorted list reloading in place (useApi keep + Async): the last page stays on
    screen, dimmed and inert, so the pager or sort button that fired it is still there to keep
@@ -947,10 +963,16 @@ button {
   background: var(--surface-2);
 }
 .conflict-row__count {
+  /* a hero numeral, like .stat__value: Fraunces, display leading; the amber stays (this is
+     the conflict count) */
+  font-family: var(--font-display);
   font-size: var(--fs-xl);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--conflict);
   text-align: right;
-  font-weight: 600;
 }
 .conflict-row__body {
   display: flex;
@@ -1004,8 +1026,12 @@ button {
   color: var(--ink-dim);
 }
 .tab:disabled {
-  opacity: 0.45;
-  cursor: default;
+  /* same inert reading as .btn:disabled: faint ink at full opacity, not a 2:1 fade */
+  opacity: 1;
+  color: var(--ink-faint);
+  border-color: var(--rule);
+  background: transparent;
+  cursor: not-allowed;
 }
 .tab:disabled:hover {
   color: var(--ink-faint);
@@ -1013,6 +1039,12 @@ button {
 .tab.is-active {
   color: var(--ink);
   border-bottom-color: var(--signal);
+}
+/* the remembered choice in a disabled strip (the cohort floor while a search ignores it)
+   stays readable but stops looking live */
+.tab:disabled.is-active {
+  color: var(--ink-dim);
+  border-bottom-color: var(--rule-2);
 }
 .tab__count {
   font-size: var(--fs-micro);
@@ -1257,6 +1289,7 @@ button {
   font-size: var(--fs-lg);
   color: var(--ink);
   font-weight: 600;
+  line-height: 1.15;
   margin: 0 0 8px;
 }
 .idhead__badges {
@@ -2091,8 +2124,9 @@ button {
   background: var(--ok);
 }
 .stratum-meter__foot {
-  font-size: var(--fs-micro);
-  color: var(--ink-faint);
+  /* the count is the datum: one step above its label, in ink, like .meter__val */
+  font-size: var(--fs-sm);
+  color: var(--ink);
 }
 
 /* filter row + case list */
@@ -2284,6 +2318,7 @@ button {
   font-size: var(--fs-md);
   color: var(--ink);
   font-weight: 400;
+  line-height: 1.15;
   margin: 0;
 }
 .rc-head__nav {
@@ -2549,7 +2584,7 @@ button {
   text-transform: uppercase;
 }
 .research__q {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   word-break: break-word;
 }
@@ -2675,10 +2710,11 @@ button {
 }
 .verdict-bar__foot {
   margin-top: 7px;
-  min-height: 14px;
+  min-height: 17px;
 }
 .verdict-bar__hint {
-  font-size: var(--fs-micro);
+  /* the workbench's primary legend: 11px is the plate's floor for words */
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   letter-spacing: 0.04em;
 }
@@ -3042,10 +3078,14 @@ button {
   flex-wrap: wrap;
 }
 .kuiper__count {
+  /* hero numeral: Fraunces, like .stat__value */
+  font-family: var(--font-display);
   font-size: var(--fs-xl);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--ink);
-  font-weight: 600;
-  line-height: 1;
 }
 .kuiper__req {
   font-size: var(--fs-xs);
@@ -3165,9 +3205,13 @@ button {
   color: var(--conflict);
 }
 .decay-tile__value {
+  /* hero numeral: Fraunces with the wonk, like .stat__value.is-hero; the amber stays */
+  font-family: var(--font-display);
   font-size: var(--fs-hero);
-  line-height: 1;
-  font-weight: 600;
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--conflict);
 }
 .decay-tile__sub {
@@ -3241,6 +3285,12 @@ button {
 .driver-popover.oei-tour .driver-popover-footer-btn:focus {
   color: var(--ink);
   border-color: var(--signal-dim);
+}
+/* driver.js fades a disabled button to half (2.7:1); faint ink at full opacity reads instead */
+.driver-popover.oei-tour .driver-popover-btn-disabled {
+  opacity: 1;
+  color: var(--ink-faint);
+  border-color: var(--rule);
 }
 /* arrow triangle tinted to the popover surface on whichever side it points */
 .driver-popover.oei-tour .driver-popover-arrow-side-left {
@@ -3561,7 +3611,9 @@ button {
   fill: var(--ink);
 }
 .story-chart .story-chart__year {
-  fill: var(--ink-ghost);
+  /* words take faint (ghost is for marks and the null dash); the year recedes by tracking */
+  fill: var(--ink-faint);
+  letter-spacing: 0.08em;
 }
 .story-chart__grid {
   stroke: var(--rule);

@@ -161,6 +161,9 @@ export function Reachability() {
   }, [spot, minElev, rf, resweep]);
 
   const sweepNow = () => {
+    // the button stays enabled while a sweep is in flight (disabling it would drop the
+    // keyboard's focus); the second press is ignored here instead
+    if (!spot || sweep.loading) return;
     tickRef.current = SWEEP_SECONDS;
     setCountdown(SWEEP_SECONDS);
     resweep();
@@ -171,6 +174,7 @@ export function Reachability() {
       setGeoNote("This browser does not offer geolocation. Type coordinates in by hand.");
       return;
     }
+    if (locating) return;
     setLocating(true);
     setGeoNote(null);
     navigator.geolocation.getCurrentPosition(
@@ -200,7 +204,7 @@ export function Reachability() {
       )} screened · next in ${countdown}s`
     : spot
       ? "first sweep"
-      : "waiting for a location";
+      : "waiting for an observer";
 
   return (
     <div className="view fadein">
@@ -221,11 +225,11 @@ export function Reachability() {
         meta={
           spot
             ? `${fmtNum(spot.lat, 4)}, ${fmtNum(spot.lon, 4)} · min elev ${minElev}°`
-            : "no location set"
+            : "no observer set"
         }
       >
         <div className="reach-controls">
-          <button className="btn btn--go" onClick={useMyLocation} disabled={locating}>
+          <button className="btn btn--go" onClick={useMyLocation} aria-busy={locating || undefined}>
             {locating ? "Locating" : "Use my location"}
           </button>
           <label className="reach-coord">
@@ -275,7 +279,7 @@ export function Reachability() {
               type="button"
               className={`tab${rf === "only" ? " is-active" : ""}`}
               aria-pressed={rf === "only"}
-              title="Only satellites with a catalogued transmitter or FCC license"
+              title="Only satellites with a cataloged transmitter or FCC license"
               onClick={() => setRf("only")}
             >
               RF only
@@ -290,7 +294,7 @@ export function Reachability() {
               All overhead
             </button>
           </div>
-          <button className="btn" onClick={sweepNow} disabled={!spot || sweep.loading}>
+          <button className="btn" onClick={sweepNow} disabled={!spot} aria-busy={sweep.loading || undefined}>
             Sweep now
           </button>
         </div>
@@ -315,7 +319,7 @@ export function Reachability() {
         ) : sweep.data && rows.length === 0 ? (
           <EmptyState
             title="Quiet sky"
-            message={`Nothing${rf === "only" ? " with catalogued RF" : ""} is above ${minElev}° here right now. Low orbits move fast; check back in a minute or two, or lower the elevation floor.`}
+            message={`Nothing${rf === "only" ? " with cataloged RF" : ""} is above ${minElev}° here right now. Low orbits move fast; check back in a minute or two, or lower the elevation floor.`}
           />
         ) : sweep.data ? (
           <>
@@ -459,10 +463,10 @@ function SatDetail({ sat, spot, minElev }: { sat: VisibleSatellite; spot: Spot; 
         <section>
           <div className="reach-detail__head">
             <span className="label">Transmitters · SatNOGS</span>
-            <span className="hint">{fmtInt(sat.satnogs.length)} catalogued</span>
+            <span className="hint">{fmtInt(sat.satnogs.length)} cataloged</span>
           </div>
           {sat.satnogs.length === 0 ? (
-            <p className="hint">No community-catalogued transmitters for this object.</p>
+            <p className="hint">No community-cataloged transmitters for this object.</p>
           ) : (
             <div className="tx-list">
               {sat.satnogs.map((t, i) => (

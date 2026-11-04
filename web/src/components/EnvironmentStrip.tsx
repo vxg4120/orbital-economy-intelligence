@@ -2,7 +2,9 @@ import type { EnvironmentResponse } from "../api/types";
 import { fmtInt } from "../lib/format";
 
 /** The drag environment: daily fleet-median SMA change as downward bars (the atmosphere
- *  taking meters off ~15k LEO orbits), storm days tinted, forward predicted days marked.
+ *  taking meters off ~15k LEO orbits), storm days brighter and outlined (the amber is the
+ *  cross-source conflict hue on this route, so a storm does not wear it), forward predicted
+ *  days marked.
  *  Hand-rolled SVG rather than the chart library: the series is one value per day and the
  *  terminal aesthetic wants bars, a zero line, and nothing else. */
 export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
@@ -81,7 +83,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                     y={zeroY - 1}
                     width={Math.max(2, barW - 2)}
                     height={2}
-                    fill={storm ? "var(--conflict)" : "var(--rule-2)"}
+                    fill={storm ? "var(--signal)" : "var(--rule-2)"}
                     opacity={0.8}
                   >
                     <title>
@@ -90,7 +92,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                     </title>
                   </rect>
                   {storm ? (
-                    <text x={x + barW / 2} y={H - 2} textAnchor="middle" fontSize={8} fill="var(--conflict)">
+                    <text x={x + barW / 2} y={H - 2} textAnchor="middle" fontSize={8} fill="var(--ink-dim)">
                       {r.storm_level}
                     </text>
                   ) : null}
@@ -111,7 +113,8 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                   y={y}
                   width={Math.max(2, barW - 2)}
                   height={Math.max(1, h)}
-                  fill={storm ? "var(--conflict)" : "var(--signal-dim)"}
+                  fill={storm ? "var(--signal)" : "var(--signal-dim)"}
+                  stroke={storm ? "var(--ink-dim)" : "none"}
                   opacity={storm ? 0.95 : 0.65}
                 >
                   <title>
@@ -125,7 +128,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                     y={H - 2}
                     textAnchor="middle"
                     fontSize={8}
-                    fill="var(--conflict)"
+                    fill="var(--ink-dim)"
                   >
                     {r.storm_level}
                   </text>

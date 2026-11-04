@@ -32,7 +32,7 @@ import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { VerdictBadge } from "../components/VerdictBadge";
-import { LifeTrack } from "../components/LifeTrack";
+import { LIFETRACK_COMPACT_H, LifeTrack } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 
 const TOKEN_KEY = "oei_review_token";
@@ -101,23 +101,51 @@ export function ReviewCase() {
 
   if (!idOk) return <EmptyState title="Not found" message={`No case “${caseId}”.`} />;
 
+  const d = detail.data;
   return (
     <div className="view review-case fadein">
+      {/* the head lives outside the case body, so Prev / Next survive the reload they fire: the
+          button that was pressed keeps the keyboard's focus while the next case loads, and the
+          plane keeps its top instead of blanking to a spinner */}
+      <header className="rc-head">
+        <div className="rc-head__main">
+          {d ? (
+            <>
+              {/* the stratum is the page's chapter head (Fraunces, like every other route's h1);
+                  the subject reference is a datum beside it, not the heading */}
+              <h1 className="rc-head__title" data-stratum={d.case_type}>
+                {stratumLabel(d.case_type)}
+              </h1>
+              <span className="rc-head__subject num">{d.subject_ref}</span>
+              {d.verdict !== null ? <VerdictBadge verdict={d.verdict} /> : null}
+            </>
+          ) : (
+            <span className="skeleton" style={{ width: 220 }} aria-hidden="true" />
+          )}
+        </div>
+        <div className="rc-head__nav">
+          <button className="btn" onClick={goPrev} title="Previous (k / ←)">
+            ‹ Prev
+          </button>
+          <span className="rc-head__pos num">
+            {idx >= 0 ? `${idx + 1} of ${queueIds.length}` : `${queueIds.length} unlabeled`}
+          </span>
+          <button className="btn" onClick={goNext} title="Next (j / →)">
+            Next ›
+          </button>
+          <Link className="btn" to={queueHref}>
+            Queue
+          </Link>
+        </div>
+      </header>
+
       {detail.error ? (
         <ErrorState message={detail.error} onRetry={detail.reload} />
-      ) : detail.loading && detail.data === null ? (
-        <Loading label="Loading case" />
-      ) : detail.data ? (
-        <CaseBody
-          detail={detail.data}
-          position={idx >= 0 ? idx + 1 : null}
-          total={queueIds.length}
-          type={type}
-          queueHref={queueHref}
-          onPrev={goPrev}
-          onNext={goNext}
-          onDone={goQueue}
-        />
+      ) : detail.loading && d === null ? (
+        // a skeleton about the height of a case, so the verdict bar's slot does not collapse
+        <Loading label="Loading case" rows={14} />
+      ) : d ? (
+        <CaseBody detail={d} type={type} onPrev={goPrev} onNext={goNext} onDone={goQueue} />
       ) : (
         <EmptyState title="Not found" message={`No case ${id}.`} />
       )}
@@ -127,20 +155,13 @@ export function ReviewCase() {
 
 function CaseBody({
   detail,
-  position,
-  total,
   type,
-  queueHref,
   onPrev,
   onNext,
   onDone,
 }: {
   detail: ReviewCaseDetail;
-  position: number | null;
-  total: number;
   type: string | undefined;
-  /** Back to the queue, with the filter the visitor came from. */
-  queueHref: string;
   onPrev: () => void;
   onNext: () => void;
   onDone: () => void;
@@ -299,32 +320,6 @@ function CaseBody({
 
   return (
     <>
-      <header className="rc-head">
-        <div className="rc-head__main">
-          {/* the stratum is the page's chapter head (Fraunces, like every other route's h1);
-              the subject reference is a datum beside it, not the heading */}
-          <h1 className="rc-head__title" data-stratum={detail.case_type}>
-            {stratumLabel(detail.case_type)}
-          </h1>
-          <span className="rc-head__subject num">{detail.subject_ref}</span>
-          {alreadyLabeled ? <VerdictBadge verdict={detail.verdict} /> : null}
-        </div>
-        <div className="rc-head__nav">
-          <button className="btn" onClick={onPrev} title="Previous (k / ←)">
-            ‹ Prev
-          </button>
-          <span className="rc-head__pos num">
-            {position !== null ? `${position} of ${total}` : `${total} unlabeled`}
-          </span>
-          <button className="btn" onClick={onNext} title="Next (j / →)">
-            Next ›
-          </button>
-          <Link className="btn" to={queueHref}>
-            Queue
-          </Link>
-        </div>
-      </header>
-
       <div className="rc-grid">
         {sats.map((s, i) => (
           <div className="rc-sat" key={s.satellite_id ?? i}>
@@ -342,10 +337,10 @@ function CaseBody({
         ))}
 
         {track.loading && track.data === null && detail.satellite_id !== null ? (
-          // The orbit history arrives after the case itself; hold its slot with a skeleton so
-          // the panels below do not jump when it lands.
+          // The orbit history arrives after the case itself; hold its slot with a skeleton the
+          // size of the chart and its foot line, so the panels below do not jump when it lands.
           <Panel title="Life track" meta="resolving orbit history">
-            <div className="skeleton" style={{ height: 96 }} aria-hidden="true" />
+            <div className="skeleton" style={{ height: LIFETRACK_COMPACT_H + 30 }} aria-hidden="true" />
           </Panel>
         ) : trackData ? (
           <Panel title="Life track" meta="daily orbit — physics vs the catalog">
@@ -774,12 +769,13 @@ function VerdictBar(props: {
         <button
           className="btn btn--submit"
           onClick={props.onSubmit}
-          disabled={props.submitting}
+          aria-busy={props.submitting || undefined}
         >
           {props.submitting ? "Saving…" : props.alreadyLabeled ? "Update ⏎" : "Submit ⏎"}
         </button>
       </div>
-      <div className="verdict-bar__foot">
+      {/* a live region: a submit error replaces the legend here, and a screen reader hears it */}
+      <div className="verdict-bar__foot" aria-live="polite">
         {props.err ? (
           <span className="verdict-bar__err">{props.err}</span>
         ) : (

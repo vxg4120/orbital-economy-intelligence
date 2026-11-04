@@ -9,7 +9,7 @@
       "pattern": "/",
       "end": true,
       "title": "Orbital Economy Terminal",
-      "description": "The Orbital Economy Intelligence terminal: one resolved record per physical satellite, stitched from SATCAT, GCAT and UCS, in a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+      "description": "What happened in orbit in the last 30 days — launch tempo, who owns the active fleet, the constellation race, reentries and space weather — over one resolved record per satellite stitched from SATCAT, GCAT and UCS."
     },
     {
       "pattern": "/resolver/:satelliteId?",
@@ -39,7 +39,7 @@
       "pattern": "/buses/:slug?",
       "end": true,
       "canonicalParams": ["kind"],
-      "title": "Bus Benchmarks · Orbital Economy Terminal",
+      "title": "Bus benchmarks · Orbital Economy Terminal",
       "description": "Spacecraft bus benchmarks per manufacturer and per bus model: fleet size, time to operational, station-keeping, lifetime and disposal, derived from GP element history with provenance and a published methodology."
     },
     {

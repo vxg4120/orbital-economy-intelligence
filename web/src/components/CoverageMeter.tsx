@@ -9,8 +9,9 @@ interface CoverageMeterProps {
 }
 
 /** Horizontal coverage meter. Fill carries severity (signal when healthy,
-    amber < 70, rust < 45); the track is a dim step of the same blue ramp so the
-    state reads across the whole bar (dataviz meter spec). */
+    amber < 70, the error red < 45 — never the status scale, whose rust means a
+    decayed object); the track is a dim step of the same blue ramp so the state
+    reads across the whole bar (dataviz meter spec). */
 export function CoverageMeter({ label, pct, foot }: CoverageMeterProps) {
   const clamped = Math.max(0, Math.min(100, pct));
   const sev = clamped < 45 ? "is-low" : clamped < 70 ? "is-warn" : "";

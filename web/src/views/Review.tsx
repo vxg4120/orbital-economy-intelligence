@@ -44,7 +44,12 @@ export function Review() {
   };
 
   const [startErr, setStartErr] = useState<string | null>(null);
+  // the lookup's pending state: the button says what it is doing, and a second click while
+  // it is in flight does not start a second lookup
+  const [starting, setStarting] = useState(false);
   const startReviewing = async () => {
+    if (starting) return;
+    setStarting(true);
     setStartErr(null);
     try {
       const { next_case_id } = await getReviewNext(type);
@@ -58,6 +63,8 @@ export function Review() {
     } catch (e) {
       const raw = e instanceof Error ? e.message : "The API did not answer.";
       setStartErr(visitorMessage(raw) ?? raw);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -82,8 +89,13 @@ export function Review() {
           </p>
         </div>
         <div className="review-start">
-          <button type="button" className="btn btn--go" onClick={startReviewing}>
-            Start reviewing →
+          <button
+            type="button"
+            className="btn btn--go"
+            onClick={startReviewing}
+            aria-busy={starting || undefined}
+          >
+            {starting ? "Finding a case…" : "Start reviewing →"}
           </button>
           {startErr ? (
             <span className="hint" role="status">
