@@ -286,7 +286,7 @@ Owner: session faraday. Both apps built in fixture mode and screenshotted on eve
 Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` unchanged
 (275 passed). The db suite needs TimescaleDB and could not run in this container.
 - [x] E. The SPA had no automated tests and CI never built it: vitest (3.x, the line that runs on
-      Vite 5) with 19 unit tests over lib/format, seo (route table vs App.tsx, canonical rules)
+      Vite 5) with 20 unit tests over lib/format, seo (route table vs App.tsx, canonical rules)
       and States.visitorMessage; a `web` CI job runs them and then tsc + vite build.
 - [x] F. README: the terminal section listed four views; it lists the eight.
 - [x] G. Web audit (an independent read of every view, component and helper; 25 findings, each

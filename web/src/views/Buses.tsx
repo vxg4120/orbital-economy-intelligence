@@ -51,9 +51,6 @@ export function Buses() {
     kindParam === "manufacturer" || kindParam === "bus" ? kindParam : undefined;
   // a /buses/<slug>?kind=bus deep link opens the matching leaderboard tab, not Manufacturers
   const [group, setGroup] = useState<BusGroup>(kind ?? "manufacturer");
-  useEffect(() => {
-    if (kind) setGroup(kind);
-  }, [kind]);
   const [sort, setSort] = useState<BusSort>("fleet");
   const [dir, setDir] = useState<SortDir>("desc");
   const [minN, setMinN] = useState(5);
@@ -105,6 +102,11 @@ export function Buses() {
     setDir("desc");
     setOffset(0);
   };
+  // A kind flip that arrives by URL (a constituent link, Back/Forward across one) switches the
+  // leaderboard the same way a click on the toggle does: page one, natural sort.
+  useEffect(() => {
+    if (kind && kind !== group) pickGroup(kind);
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns: Column<BusRow>[] = [
     {

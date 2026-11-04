@@ -48,6 +48,15 @@ def test_canonical_percent_encodes_a_param():
     assert canonical_for(routes, m) == "https://orbital.vibcreates.com/operators/A%20B"
 
 
+def test_canonical_keeps_what_the_browser_keeps_in_a_path():
+    # location.pathname leaves + ' ( ) , : @ bare and encodes the space; the client takes that
+    # pathname as its canonical, so the server-rendered one must agree character for character
+    routes = _routes()
+    m = match(routes, "/operators/a+b (c), d:e@f")
+    assert m is not None
+    assert canonical_for(routes, m) == "https://orbital.vibcreates.com/operators/a+b%20(c),%20d:e@f"
+
+
 def test_matched_noindex_route_is_served_without_a_canonical():
     out, status = render_head(SHELL, "/draft", routes=_routes())
     assert status == 200

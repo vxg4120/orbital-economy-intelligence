@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { fmtInt } from "../lib/format";
 
 export interface Column<Row> {
   key: string;
@@ -53,7 +54,7 @@ export function DataTable<Row>({
                 >
                   {sortable ? (
                     // a real button, so the sort is reachable from the keyboard; it inherits
-                    // the header's type and keeps the whole cell as its hit area
+                    // the header's type and fills the cell (the th drops its padding for it)
                     <button
                       type="button"
                       className="sort-btn"
@@ -142,7 +143,7 @@ export function Pager({
   return (
     <div className="pager">
       <span className="num">
-        {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
+        {fmtInt(from)}–{fmtInt(to)} of {fmtInt(total)}
       </span>
       <span className="pager__spacer" />
       <button className="btn" disabled={!canPrev} onClick={() => onOffset(Math.max(0, offset - limit))}>

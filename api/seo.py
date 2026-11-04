@@ -123,9 +123,16 @@ def _generate_path(pattern: str, params: dict[str, str]) -> str:
         if not m:
             out.append(seg)
         elif m.group(1) in params:
-            # percent-encoded, as the client regenerates its canonical from the encoded path
-            out.append(quote(params[m.group(1)], safe=""))
+            # percent-encoded the way the browser encodes location.pathname, which the client
+            # takes as its canonical as-is: the WHATWG path percent-encode set leaves these
+            # sub-delimiters bare (space, quotes, #, ?, {, } and non-ASCII still encode)
+            out.append(quote(params[m.group(1)], safe=_PATH_SAFE))
     return "/" + "/".join(out)
+
+
+# What a browser leaves literal in a path (WHATWG URL, path percent-encode set); % stays out
+# because the ASGI path arrives decoded, so a literal % re-encodes to %25 as the browser kept it.
+_PATH_SAFE = "!$&'()*+,;=:@[]^|"
 
 
 def canonical_for(routes: Routes, m: Match, query_string: str = "") -> str:

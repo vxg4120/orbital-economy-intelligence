@@ -776,6 +776,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .dtable th.is-sortable {
+  padding: 0; /* the button inside carries the cell's padding, so the whole cell is the hit area */
   cursor: pointer;
   user-select: none;
 }
@@ -784,14 +785,23 @@ button {
 }
 /* the header's sort control is a real button (keyboard-reachable) wearing the header's type */
 .dtable th .sort-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: inherit;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+  white-space: inherit;
   color: inherit;
   background: none;
   border: 0;
-  padding: 0;
   cursor: pointer;
+}
+@media (pointer: coarse) {
+  .dtable th .sort-btn {
+    min-height: 44px;
+  }
 }
 .dtable th .sort-btn:hover {
   color: var(--ink-dim);

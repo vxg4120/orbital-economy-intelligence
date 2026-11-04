@@ -244,8 +244,13 @@ function CaseBody({
     // Enter submits from the page body or the verdict bar's fields. On a focused button, link
     // or select it is that control's own activation (Next, Queue, the guide toggle, the nav),
     // which this handler used to swallow and turn into a submit.
+    // A clicked verdict button keeps the focus in Chromium, and Enter on it would only re-select
+    // the same verdict: that one control stays on the page's Enter-submit path.
+    const onVerdict = !!el && el.classList.contains("verdict-btn");
     const onControl =
-      !!el && (el.tagName === "BUTTON" || el.tagName === "A" || el.tagName === "SELECT");
+      !!el &&
+      !onVerdict &&
+      (el.tagName === "BUTTON" || el.tagName === "A" || el.tagName === "SELECT");
     if (e.key === "Enter") {
       if (onControl || e.isComposing) return;
       e.preventDefault();
@@ -281,14 +286,13 @@ function CaseBody({
 
   // Focus the corrected-answer field the moment a correction-requiring verdict is chosen. Not
   // on mount: a dossier-seeded "incorrect" would otherwise put the caret in the input and
-  // disable the c/i/p/u/j/k shortcuts the page advertises until Escape.
-  const mounted = useRef(false);
+  // disable the c/i/p/u/j/k shortcuts the page advertises until Escape. Tracked as the previous
+  // value rather than a mount flag: StrictMode replays the mount effect with refs preserved, and
+  // a flag would then focus on mount after all.
+  const wasCorrection = useRef(needsCorrection);
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-    if (needsCorrection) correctedRef.current?.focus();
+    if (needsCorrection && !wasCorrection.current) correctedRef.current?.focus();
+    wasCorrection.current = needsCorrection;
   }, [needsCorrection]);
 
   const sats: GoldSatelliteEvidence[] = cluster ? ev.satellites : [ev];

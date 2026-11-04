@@ -7,7 +7,7 @@ import { fmtInt, fmtPct } from "../lib/format";
 import { orderStrata, stratumAccuracy, stratumLabel } from "../lib/reviewStrata";
 import { Panel } from "../components/Panel";
 import { Pager } from "../components/DataTable";
-import { Async } from "../components/States";
+import { Async, visitorMessage } from "../components/States";
 import { VerdictBadge } from "../components/VerdictBadge";
 
 const LIMIT = 50;
@@ -53,7 +53,8 @@ export function Review() {
         );
       }
     } catch (e) {
-      setStartErr(e instanceof Error ? e.message : "The API did not answer.");
+      const raw = e instanceof Error ? e.message : "The API did not answer.";
+      setStartErr(visitorMessage(raw) ?? raw);
     }
   };
 

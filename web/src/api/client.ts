@@ -115,7 +115,16 @@ async function realGet<T>(path: string, params?: Record<string, string | number>
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
+      // the API's own words when it gave any (a 422 names the bad parameter); the status line
+      // otherwise, which visitorMessage turns into a sentence
+      let detail = `${res.status} ${res.statusText} for ${path}`;
+      try {
+        const j = (await res.json()) as { detail?: unknown };
+        if (typeof j?.detail === "string") detail = `${res.status} ${j.detail} for ${path}`;
+      } catch {
+        /* non-JSON error body: keep the status line */
+      }
+      throw new ApiError(detail, res.status);
     }
     try {
       return (await res.json()) as T;
