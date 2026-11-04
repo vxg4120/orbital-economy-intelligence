@@ -703,6 +703,8 @@ function VerdictBar(props: {
   alreadyLabeled: boolean;
   onSubmit: () => void;
 }) {
+  // a touch device has no n key to press; the hint stays for a keyboard
+  const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
   return (
     <div className="verdict-bar" role="form" aria-label="Record verdict">
       <div className="verdict-bar__inner">
@@ -749,7 +751,7 @@ function VerdictBar(props: {
             className="vinput"
             value={props.notes}
             onChange={(e) => props.onNotes(e.target.value)}
-            placeholder="Notes — sources, reasoning (press n)"
+            placeholder={coarse ? "Notes — sources, reasoning" : "Notes — sources, reasoning (press n)"}
             aria-label="Notes"
             autoComplete="off"
           />

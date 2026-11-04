@@ -900,6 +900,17 @@ button {
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* a paged or sorted list reloading in place (useApi keep + Async): the last page stays on
+   screen, dimmed and inert, so the pager or sort button that fired it is still there to keep
+   the keyboard's focus and the scroll position */
+.reloading {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.reloading .dtable,
+.reloading .pager {
+  pointer-events: none;
+}
 
 /* conflict link list (Overview) */
 .conflict-list {
@@ -1354,6 +1365,9 @@ button {
 }
 .tl-seg__op {
   font-size: var(--fs-xs);
+  /* the two lines must fit the 28px segment: at the phone sizes 14.4 + 13.2 do, where the
+     default line boxes (18 + 16.5) left the operator name with 11.5px showing */
+  line-height: 1.2;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
@@ -1361,6 +1375,7 @@ button {
 }
 .tl-seg__range {
   font-size: var(--fs-micro);
+  line-height: 1.2;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1397,6 +1412,22 @@ button {
   font-variant-numeric: tabular-nums;
   border-top: 1px solid var(--rule);
   padding-top: 3px;
+}
+/* a transfer past the midpoint hangs its tag to the left of its rule: at 390px the tag ran
+   150px past the track's right edge and scrolled the whole page sideways */
+.tl-boundary--late .tl-boundary__tag {
+  left: auto;
+  right: 4px;
+}
+@media (max-width: 560px) {
+  /* a taller track for the larger phone type; the role column gives the track its width */
+  .tl-track {
+    height: 40px;
+  }
+  .tl-row,
+  .tl-axis {
+    grid-template-columns: 64px 1fr;
+  }
 }
 
 /* =============================================================================
@@ -2031,10 +2062,43 @@ button {
   border: 1px solid var(--rule-2);
   background: var(--surface-2);
   padding: 3px 8px;
+  line-height: 13px; /* <a> and <button> chips both measure 21px */
 }
 .chip--clear:hover {
   border-color: var(--signal-dim);
   color: var(--ink);
+}
+@media (pointer: coarse) {
+  .chip {
+    padding: 8px 10px;
+  }
+}
+/* filings rows: the meta line is a wrapping chip row (the gap spaces the chips, so the spans
+   carry no inline margins) and the details toggle takes the badge column, centred on the row
+   like a status badge. On phones the name and the chips wrap instead of clipping, so the
+   satellite name, date, spec chips and cohort link all stay on the page. */
+.filing-row .result-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.filing-row > .chip--clear {
+  grid-area: badge;
+  align-self: center;
+  justify-self: end;
+}
+@media (max-width: 560px) {
+  .filing-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .filing-row .result-row__name,
+  .filing-row .result-row__meta {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 .case-list {
@@ -2768,6 +2832,44 @@ button {
   }
   .verdict-inputs {
     flex-basis: 100%;
+  }
+}
+/* phones: the bar took 29-31% of the screen. The keyboard legend goes (a phone has no c/i/p/u
+   keys; a submit error still shows in its place), the verdict buttons tile two by two, and the
+   inputs share a row with the submit. */
+@media (max-width: 560px) {
+  .verdict-bar {
+    padding: 8px var(--pad) 8px;
+  }
+  .verdict-bar__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .verdict-btns {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .verdict-btn {
+    justify-content: center;
+  }
+  .verdict-bar__foot {
+    margin-top: 0;
+    min-height: 0;
+  }
+  .verdict-bar__hint {
+    display: none;
+  }
+  .verdict-bar__err {
+    display: block;
+    margin-top: 6px;
+  }
+}
+@media (pointer: coarse) {
+  .verdict-btn {
+    min-height: 44px;
   }
 }
 

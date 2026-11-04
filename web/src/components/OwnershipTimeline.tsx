@@ -92,7 +92,13 @@ export function OwnershipTimeline({ segments }: { segments: OwnershipSegment[] }
             ))}
             {r.role === "owner" &&
               model.boundaries.map((b, i) => (
-                <div className="tl-boundary" key={i} style={{ left: `${b.left}%` }}>
+                // past the midpoint the tag hangs left of its rule (theme.css), so it never
+                // runs out past the track's right edge on a phone
+                <div
+                  className={`tl-boundary${b.left > 50 ? " tl-boundary--late" : ""}`}
+                  key={i}
+                  style={{ left: `${b.left}%` }}
+                >
                   <span className="tl-boundary__tag">⤳ transfer {fmtDate(b.date)}</span>
                 </div>
               ))}

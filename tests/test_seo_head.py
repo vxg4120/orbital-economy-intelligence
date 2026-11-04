@@ -24,16 +24,16 @@ _needs_spa = pytest.mark.skipif(
 
 SHELL = """<!doctype html>
 <html><head>
-    <title>Orbital Economy Intelligence</title>
+    <title>Orbital Economy Terminal</title>
     <meta
       name="description"
       content="root description"
     />
     <link rel="canonical" href="https://orbital.vibcreates.com/" />
-    <meta property="og:title" content="Orbital Economy Intelligence" />
+    <meta property="og:title" content="Orbital Economy Terminal" />
     <meta property="og:description" content="root description" />
     <meta property="og:url" content="https://orbital.vibcreates.com/" />
-    <meta name="twitter:title" content="Orbital Economy Intelligence" />
+    <meta name="twitter:title" content="Orbital Economy Terminal" />
     <meta name="twitter:description" content="root description" />
   </head><body><div id="root"></div></body></html>
 """
@@ -64,7 +64,7 @@ def test_root_keeps_root_metadata():
     html, status = seo.render_head(SHELL, "/", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Orbital Economy Intelligence"
+    assert h["title"] == "Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/"
     assert h["og:url"] == h["canonical"]
     assert h["robots"] is None
@@ -74,7 +74,7 @@ def test_deep_route_with_param_rewrites_every_tag():
     html, status = seo.render_head(SHELL, "/resolver/25544", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Resolver · Orbital Economy Intelligence"
+    assert h["title"] == "Resolver · Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/resolver/25544"
     assert h["og:url"] == h["canonical"]
     assert h["og:title"] == h["twitter:title"] == h["title"]
@@ -93,7 +93,7 @@ def test_static_segment_is_case_insensitive_and_canonical_is_lowercase():
     html, status = seo.render_head(SHELL, "/Buses/Starlink-V2-Mini/", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Intelligence"
+    assert h["title"] == "Bus Benchmarks · Orbital Economy Terminal"
     # The static segment comes from the pattern; the id keeps the case it was asked with.
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/Starlink-V2-Mini"
 
@@ -116,7 +116,7 @@ def test_unmatched_path_is_404_noindex_without_canonical():
         assert h["robots"] == "noindex", path
         assert h["canonical"] is None, path
         assert h["og:url"] is None, path
-        assert h["title"] == "Page not found · Orbital Economy Intelligence"
+        assert h["title"] == "Page not found · Orbital Economy Terminal"
         assert 'data-route-meta' in html
 
 
@@ -159,7 +159,7 @@ def test_deep_link_gets_its_own_head(client):
     r = client.get("/buses/x")
     assert r.status_code == 200
     h = _head(r.text)
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Intelligence"
+    assert h["title"] == "Bus Benchmarks · Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/x"
 
     r = client.get("/buses/starlink-v2-mini?kind=bus")

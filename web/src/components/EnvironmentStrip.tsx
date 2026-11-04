@@ -12,6 +12,12 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
   const observed = days.filter((r) => r.median_dsma_m !== null);
   const latest = env.latest_observed;
   const worst = env.worst_drag_day;
+  // NOAA's bands for the day's peak Kp: 5 is the first storm level (G1), 4 is "active", 3
+  // "unsettled", below that quiet. Every day without a storm level used to read "quiet",
+  // a Kp 4.3 day included.
+  const kp = latest?.kp_max;
+  const band =
+    kp == null ? "" : kp >= 5 ? "storm" : kp >= 4 ? "active" : kp >= 3 ? "unsettled" : "quiet";
 
   const W = 640;
   const H = 96;
@@ -23,7 +29,8 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
 
   return (
     <div>
-      <div className="grid grid--stats">
+      {/* three cells, so the row has no blank fourth column */}
+      <div className="grid grid--3">
         <StatCell
           label="Geomagnetic (latest observed)"
           value={latest ? `Kp ${latest.kp_max ?? "?"}` : "no data"}
@@ -31,7 +38,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
             latest?.storm_level
               ? `${latest.storm_level} storm · Ap peak ${latest.ap_max ?? "?"} · ${latest.day}`
               : latest
-                ? `quiet · Ap ${latest.ap_avg ?? "?"} · ${latest.day}`
+                ? [band, `Ap ${latest.ap_avg ?? "?"}`, latest.day].filter(Boolean).join(" · ")
                 : ""
           }
         />

@@ -70,9 +70,11 @@ export function Buses() {
   const searching = debounced.trim() !== "";
   const effMinN = searching ? 1 : minN;
 
+  // keep: a sort, page or search change dims the board in place instead of unmounting it
   const board = useApi(
     () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined, dir),
     [group, sort, dir, effMinN, offset, debounced],
+    { keep: true },
   );
   const methodology = useApi(() => getBusMethodology(), []);
 

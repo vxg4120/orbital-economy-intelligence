@@ -138,12 +138,16 @@ export function Pager({
 }) {
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + (shown ?? limit), total);
+  // a page past the end (the list shrank since it was counted) has no range to print
+  const empty = shown === 0 && total > 0;
   const canPrev = offset > 0;
   const canNext = offset + limit < total;
   return (
     <div className="pager">
       <span className="num">
-        {fmtInt(from)}–{fmtInt(to)} of {fmtInt(total)}
+        {empty
+          ? `nothing on this page · ${fmtInt(total)} total`
+          : `${fmtInt(from)}–${fmtInt(to)} of ${fmtInt(total)}`}
       </span>
       <span className="pager__spacer" />
       <button className="btn" disabled={!canPrev} onClick={() => onOffset(Math.max(0, offset - limit))}>

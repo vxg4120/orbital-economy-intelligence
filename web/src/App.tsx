@@ -8,6 +8,7 @@ import { RouteMeta } from "./components/RouteMeta";
 import { SourceBadge } from "./components/SourceBadge";
 import { Loading } from "./components/States";
 import { maybeAutoStartTour, startTour } from "./lib/tour";
+import { SITE_NAME } from "./seo";
 
 // Code-split each view so the heavy chart dependency (recharts, Operators only)
 // never inflates the initial bundle.
@@ -92,7 +93,7 @@ export default function App() {
         <div className="topbar__brand">
           <span className="topbar__mark">
             <span className="dot" aria-hidden="true" />
-            Orbital Economy Terminal
+            {SITE_NAME}
           </span>
           <span className="topbar__sub">Identity Graph · Read-only</span>
         </div>

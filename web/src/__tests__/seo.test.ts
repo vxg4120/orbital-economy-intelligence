@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalFor, metaFor, ROUTE_META, SITE_ORIGIN } from "../seo";
+import { canonicalFor, metaFor, ROUTE_META, SITE_NAME, SITE_ORIGIN } from "../seo";
 
 /** The route table drives the tab title, the share tags and the server-rendered head (api/seo.py
     reads the same JSON), so it has to agree with the paths App.tsx serves. */
@@ -21,8 +21,10 @@ describe("route table", () => {
     }
   });
   it("gives every indexable route a title that names the site and a description", () => {
+    // one name everywhere: the plate, the colophon and every tab title say Terminal
+    expect(SITE_NAME).toBe("Orbital Economy Terminal");
     for (const m of ROUTE_META) {
-      expect(m.title).toMatch(/Orbital Economy Intelligence/);
+      expect(m.title.endsWith(SITE_NAME)).toBe(true);
       expect(m.description.length).toBeGreaterThan(40);
     }
     expect(metaFor("/nope").noindex).toBe(true);

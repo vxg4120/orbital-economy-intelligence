@@ -18,7 +18,7 @@ import { CONFLICT_TABS, toConflictTab } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
 import { Cell, DataTable, Pager, type Column } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
-import { Async } from "../components/States";
+import { Async, EmptyState } from "../components/States";
 
 const LIMIT = 50;
 
@@ -32,11 +32,16 @@ export function Conflicts() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [tab]: next }));
 
   const stats = useApi(() => getStats(), []);
-  const page = useApi<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>>(() => {
-    if (tab === "status") return getConflictsStatus(LIMIT, offset);
-    if (tab === "decay") return getConflictsDecay(LIMIT, offset);
-    return getConflictsStale(LIMIT, offset);
-  }, [tab, offset]);
+  // keep: a page or tab change dims the table in place instead of unmounting it with the pager
+  const page = useApi<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>>(
+    () => {
+      if (tab === "status") return getConflictsStatus(LIMIT, offset);
+      if (tab === "decay") return getConflictsDecay(LIMIT, offset);
+      return getConflictsStale(LIMIT, offset);
+    },
+    [tab, offset],
+    { keep: true },
+  );
 
   const open = (satelliteId: number) => navigate(`/resolver/${satelliteId}`);
   const counts = stats.data?.conflicts;
@@ -79,7 +84,13 @@ export function Conflicts() {
         <Async state={page} loadingLabel="Loading conflicts" loadingRows={10}>
           {(data) => (
             <>
-              {tab === "status" ? (
+              {data.rows.length === 0 && data.total > 0 ? (
+                // a page past the end: the list shrank since it was counted
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : tab === "status" ? (
                 <DataTable<StatusConflictRow>
                   columns={STATUS_COLS}
                   rows={data.rows as StatusConflictRow[]}
@@ -101,7 +112,13 @@ export function Conflicts() {
                   onRowClick={(r) => open(r.satellite_id)}
                 />
               )}
-              <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+              <Pager
+                offset={offset}
+                limit={LIMIT}
+                total={data.total}
+                shown={data.rows.length}
+                onOffset={setOffset}
+              />
             </>
           )}
         </Async>

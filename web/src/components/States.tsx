@@ -78,11 +78,21 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-export function EmptyState({ title, message }: { title: string; message?: string }) {
+export function EmptyState({
+  title,
+  message,
+  action,
+}: {
+  title: string;
+  message?: string;
+  /** a control that resolves the emptiness (clear a search), rendered under the message */
+  action?: ReactNode;
+}) {
   return (
     <div className="state">
       <h2 className="state__title">{title}</h2>
       {message ? <span className="state__msg">{message}</span> : null}
+      {action ?? null}
     </div>
   );
 }
@@ -105,5 +115,15 @@ export function Async<T>({
   if (state.loading && state.data === null)
     return <Loading label={loadingLabel} rows={loadingRows} />;
   if (state.data === null) return <EmptyState title="No data" />;
+  // a list that keeps its last page through a reload (useApi keep) renders inside one wrapper
+  // that is there whether or not it is loading: the same element means the same subtree, so
+  // the pager or sort button that fired the reload keeps the keyboard's focus. While it loads
+  // the wrapper dims the page and makes it inert (theme.css .reloading).
+  if (state.keep)
+    return (
+      <div className={state.loading ? "reloading" : undefined} aria-busy={state.loading || undefined}>
+        {children(state.data)}
+      </div>
+    );
   return <>{children(state.data)}</>;
 }

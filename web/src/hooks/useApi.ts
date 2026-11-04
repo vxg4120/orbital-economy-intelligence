@@ -5,6 +5,9 @@ export interface AsyncState<T> {
   loading: boolean;
   error: string | null;
   reload: () => void;
+  /** the last data stays through a reload (see useApi); Async renders it inside one
+      persistent wrapper so the controls inside keep their focus */
+  keep?: boolean;
 }
 
 /**
@@ -13,9 +16,15 @@ export interface AsyncState<T> {
  * typing in the resolver search — never render an out-of-order result. `data` is
  * also cleared at the start of each run so a dep change (e.g. navigating between
  * two objects) never renders the previous result under the new identity while the
- * next one loads.
+ * next one loads. A paged or sorted list passes `keep`: the last page stays in
+ * `data` while the next loads (Async dims it), so the pager and sort buttons that
+ * fired the load stay mounted and keep the keyboard's focus.
  */
-export function useApi<T>(loader: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+export function useApi<T>(
+  loader: () => Promise<T>,
+  deps: unknown[],
+  opts?: { keep?: boolean },
+): AsyncState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +38,7 @@ export function useApi<T>(loader: () => Promise<T>, deps: unknown[]): AsyncState
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setData(null); // drop the prior identity's data so it never shows under a new dep
+    if (!opts?.keep) setData(null); // drop the prior identity's data so it never shows under a new dep
     run()
       .then((result) => {
         if (!cancelled) {
@@ -49,5 +58,5 @@ export function useApi<T>(loader: () => Promise<T>, deps: unknown[]): AsyncState
   }, [run, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return { data, loading, error, reload };
+  return { data, loading, error, reload, keep: opts?.keep };
 }

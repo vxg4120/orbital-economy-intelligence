@@ -214,28 +214,32 @@ export function LaunchTempo({ s }: { s: StoriesResponse }) {
           </svg>
         ) : null}
       </div>
-      <table className="sr-only">
-        <caption>Payloads launched and reentered per month</caption>
-        <thead>
-          <tr>
-            <th scope="col">Month</th>
-            <th scope="col">Launched</th>
-            <th scope="col">Reentered</th>
-          </tr>
-        </thead>
-        <tbody>
-          {months.map((m) => (
-            <tr key={m.month}>
-              <th scope="row">
-                {monthYear(m.month)}
-                {m.partial ? " (so far)" : ""}
-              </th>
-              <td>{m.launched}</td>
-              <td>{m.reentered}</td>
+      {/* the wrapper takes the 1px clip box: a table treats that size as a minimum and, at
+          360px, was the one box reaching past the viewport */}
+      <div className="sr-only">
+        <table>
+          <caption>Payloads launched and reentered per month</caption>
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <th scope="col">Launched</th>
+              <th scope="col">Reentered</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {months.map((m) => (
+              <tr key={m.month}>
+                <th scope="row">
+                  {monthYear(m.month)}
+                  {m.partial ? " (so far)" : ""}
+                </th>
+                <td>{m.launched}</td>
+                <td>{m.reentered}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="hint story__hint">
         Payloads only, counted by launch date and by reentry (decay) date in the resolved catalog.
         {partial ? ` ${monthYear(partial.month)} runs through ${longDate(s.as_of)}.` : ""}
@@ -524,12 +528,14 @@ export function ConstellationRace({ s }: { s: StoriesResponse }) {
                 }
               />
               {start && end ? (
+                // month and full year: "Jul 24" read as a day of the month next to the launch
+                // dates above
                 <div className="race__axis num">
                   <span>
-                    {monthAbbr(start.month)} {start.month.slice(2, 4)}
+                    {monthAbbr(start.month)} {start.month.slice(0, 4)}
                   </span>
                   <span>
-                    {monthAbbr(end.month)} {end.month.slice(2, 4)}
+                    {monthAbbr(end.month)} {end.month.slice(0, 4)}
                   </span>
                 </div>
               ) : null}

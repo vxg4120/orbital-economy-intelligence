@@ -29,7 +29,10 @@ export function Review() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
 
   const stats = useApi(() => getReviewStats(), []);
-  const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset]);
+  // keep: a page or filter change dims the list in place instead of unmounting it with the pager
+  const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset], {
+    keep: true,
+  });
 
   const setFilter = (next: { type?: string; only?: ReviewOnly }) => {
     const p: Record<string, string> = {};

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getFilingDocket, getFilingDocuments, getFilingsMethodology, getPendingFilings } from "../api/client";
 import type { DocketResponse, FilingsMethodology, PendingFiling } from "../api/types";
@@ -46,12 +46,46 @@ export function Filings() {
   const q = params.get("q") ?? "";
   const slug = params.get("applicant_slug") ?? "";
   const [draft, setDraft] = useState(q);
+  // The query lives in the URL (a search is a link). The box commits to it as you type, after
+  // a short pause, like the resolver and the buses, so nobody has to know to press Enter; Enter
+  // commits at once. `committed` is what the URL already holds, so a URL change from outside
+  // (the back button, the clear button) never schedules a stale commit over it.
+  const committed = useRef(q);
+  const commit = (value: string) => {
+    if (value === committed.current) return;
+    committed.current = value;
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("q", value);
+        else next.delete("q");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+  useEffect(() => {
+    if (draft === committed.current) return;
+    const t = setTimeout(() => commit(draft), 250);
+    return () => clearTimeout(t);
+  }, [draft]);
+  useEffect(() => {
+    committed.current = q;
+    setDraft(q);
+  }, [q]);
+  const clearSearch = () => {
+    setDraft("");
+    commit("");
+  };
   // One page offset per filter, so a filter change never first asks for the old page.
   const [offsets, setOffsets] = useState<Record<string, number>>({});
   const filterKey = `${q}|${slug}`;
   const offset = offsets[filterKey] ?? 0;
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
-  const filings = useApi(() => getPendingFilings(q, slug, LIMIT, offset), [q, slug, offset]);
+  // keep: a page or search change dims the list in place instead of swapping it for a spinner
+  const filings = useApi(() => getPendingFilings(q, slug, LIMIT, offset), [q, slug, offset], {
+    keep: true,
+  });
   const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
   return (
@@ -74,10 +108,7 @@ export function Filings() {
         role="search"
         onSubmit={(e) => {
           e.preventDefault();
-          const next = new URLSearchParams(params);
-          if (draft) next.set("q", draft);
-          else next.delete("q");
-          setParams(next, { replace: true });
+          commit(draft);
         }}
       >
         <span className="searchbar__prompt" aria-hidden="true">
@@ -85,7 +116,7 @@ export function Filings() {
         </span>
         <input
           type="search"
-          placeholder="Search applicant, satellite, file number or description, then press Enter"
+          placeholder="Search applicant, satellite, file number or description"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           aria-label="Search pending applications"
@@ -97,11 +128,16 @@ export function Filings() {
             type="button"
             className="chip chip--clear"
             title="Clear cohort filter"
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              next.delete("applicant_slug");
-              setParams(next, { replace: true });
-            }}
+            onClick={() =>
+              setParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("applicant_slug");
+                  return next;
+                },
+                { replace: true },
+              )
+            }
           >
             cohort: {slug} ✕
           </button>
@@ -109,20 +145,39 @@ export function Filings() {
       </form>
 
       <Panel title="Applications" meta="newest first · IBFS bulk data + harvested ICFS documents" flush>
-        <Async state={filings} loadingLabel="Loading pending applications">
+        <Async state={filings} loadingLabel="Loading pending applications" loadingRows={8}>
           {(f) => (
             <>
               <p className="hint" style={{ padding: "8px 14px 0" }}>
                 {fmtInt(f.total)} pending
                 {f.newest_filed ? ` · newest filing ${f.newest_filed}` : ""}
               </p>
-              <p className="hint" style={{ padding: "2px 14px 0" }}>
-                This list is a snapshot. The FCC now takes new satellite applications through
-                ICFS, which this pipeline does not read yet, so nothing filed after the date
-                above appears here, and some of these filings may have been decided since.
-              </p>
+              {f.newest_filed ? (
+                <p className="hint" style={{ padding: "2px 14px 0" }}>
+                  This list is a snapshot. The FCC now takes new satellite applications through
+                  ICFS, which this pipeline does not read yet, so nothing filed after{" "}
+                  <span className="num">{f.newest_filed}</span> appears here, and some of these
+                  filings may have been decided since.
+                </p>
+              ) : null}
               {f.rows.length === 0 ? (
-                <EmptyState title="No pending applications match" />
+                <EmptyState
+                  title={q || slug ? "No pending applications match" : "No pending applications"}
+                  message={
+                    q
+                      ? `Nothing matches “${q}”${slug ? ` in cohort ${slug}` : ""}. Try an applicant, a satellite name or an IBFS file number, or clear the search.`
+                      : slug
+                        ? `Nothing is pending from cohort ${slug}. Clear the cohort filter to see every application.`
+                        : "The pending queue is empty."
+                  }
+                  action={
+                    q ? (
+                      <button type="button" className="chip chip--clear" onClick={clearSearch}>
+                        clear search ✕
+                      </button>
+                    ) : undefined
+                  }
+                />
               ) : (
                 <>
                   <ul className="results">
@@ -155,7 +210,12 @@ export function Filings() {
         <Async state={methodology} loadingLabel="Loading methodology">
           {(m) => (
             <div className="stack" style={{ gap: 10 }}>
-              <p className="hint">{m.purpose}</p>
+              <div>
+                <span className="label">Purpose</span>
+                <p className="hint" style={{ marginTop: 4 }}>
+                  {m.purpose}
+                </p>
+              </div>
               <div>
                 <span className="label">Pipeline</span>
                 <ol className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
@@ -169,7 +229,8 @@ export function Filings() {
                 <ul className="hint" style={{ marginTop: 4, paddingLeft: 18 }}>
                   {Object.entries(m.coverage).map(([k, v]) => (
                     <li key={k}>
-                      {k.replaceAll("_", " ")}: <span className="num">{String(v)}</span>
+                      {coverageLabel(k)}:{" "}
+                      <span className="num">{typeof v === "number" ? fmtInt(v) : String(v)}</span>
                     </li>
                   ))}
                 </ul>
@@ -207,6 +268,16 @@ export function Filings() {
   );
 }
 
+/** A methodology coverage key as a phrase: underscores to spaces, and the proper names the
+    keys spell in lowercase (NGSO, Schedule S, PDF) restored. */
+function coverageLabel(key: string): string {
+  return key
+    .replaceAll("_", " ")
+    .replace(/\bngso\b/gi, "NGSO")
+    .replace(/\bschedule s\b/gi, "Schedule S")
+    .replace(/\bpdf(s?)\b/gi, (_, s: string) => `PDF${s}`);
+}
+
 function FilingRow({ filing: r }: { filing: PendingFiling }) {
   const [open, setOpen] = useState(false);
   return (
@@ -228,23 +299,21 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
             </span>
           ) : null}
         </span>
+        {/* a wrapping chip row (theme.css .filing-row): the gap spaces the chips */}
         <span className="result-row__meta">
           {r.applicant_name}
           {r.applicant_slug ? (
             <Link
               className="chip"
-              style={{ marginLeft: 8 }}
               to={`/buses/${r.applicant_slug}`}
               onClick={(e) => e.stopPropagation()}
             >
               {r.applicant_slug}
             </Link>
           ) : null}
-          <span className="num" style={{ marginLeft: 10 }}>
-            {r.date_filed ?? "undated"}
-          </span>
+          <span className="num">{r.date_filed ?? "undated"}</span>
           {r.documents_n > 0 ? (
-            <span className="num" style={{ marginLeft: 10 }} title="harvested documents">
+            <span className="num" title="harvested documents">
               {r.documents_n} docs
             </span>
           ) : null}
@@ -252,7 +321,6 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
           {r.docket_filings_total && r.docket_filings_total > 1 ? (
             <span
               className="num"
-              style={{ marginLeft: 10 }}
               title={
                 `This callsign's docket: ${r.docket_filings_pending} pending of ` +
                 `${r.docket_filings_total} filings, granted and pending together` +
@@ -263,7 +331,7 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
                 "is implied. Expand the row for the timeline."
               }
             >
-              docket {r.docket_filings_pending}/{r.docket_filings_total}
+              docket {r.docket_filings_pending} of {r.docket_filings_total} pending
             </span>
           ) : null}
         </span>
@@ -306,27 +374,26 @@ function SpecChips({ filing: r }: { filing: PendingFiling }) {
   return (
     <>
       {r.spec_total_satellites ? (
-        <span className="num" style={{ marginLeft: 10 }} title="Total satellites in the active constellation, per Schedule S">
+        <span className="num" title="Total satellites in the active constellation, per Schedule S">
           {r.spec_total_satellites} {r.spec_total_satellites === 1 ? "sat" : "sats"}
         </span>
       ) : null}
-      <span className="num" style={{ marginLeft: 10 }} title="Orbital planes listed in Schedule S">
+      <span className="num" title="Orbital planes listed in Schedule S">
         {r.spec_planes_n} {r.spec_planes_n === 1 ? "plane" : "planes"}
       </span>
       {alt ? (
-        <span className="num" style={{ marginLeft: 10 }} title="Mean altitude across planes, from filed apogee and perigee">
+        <span className="num" title="Mean altitude across planes, from filed apogee and perigee">
           {alt}
         </span>
       ) : null}
       {inc ? (
-        <span className="num" style={{ marginLeft: 10 }} title="Inclination range across planes, as filed">
+        <span className="num" title="Inclination range across planes, as filed">
           {inc}
         </span>
       ) : null}
       {r.spec_implausible_n ? (
         <span
           className="badge"
-          style={{ marginLeft: 8 }}
           title={
             `${r.spec_implausible_n} plane(s) filed an apogee outside 150-50,000 km and are ` +
             "excluded from the altitude range. Not a parse error: Schedule S has no field for a " +
