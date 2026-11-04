@@ -782,6 +782,20 @@ button {
 .dtable th.is-sortable:hover {
   color: var(--ink-dim);
 }
+/* the header's sort control is a real button (keyboard-reachable) wearing the header's type */
+.dtable th .sort-btn {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.dtable th .sort-btn:hover {
+  color: var(--ink-dim);
+}
 .dtable th .sort-caret {
   color: var(--signal);
   margin-left: 4px;
@@ -1911,6 +1925,14 @@ button {
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
+.review-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 40ch;
+  text-align: right;
+}
 .btn--go {
   border-color: var(--signal-dim);
   color: var(--ink);
@@ -2946,10 +2968,6 @@ button {
   border-top: 2px solid var(--conflict);
   color: var(--ink);
   min-height: 100%;
-}
-.decay-tile:hover {
-  text-decoration: none;
-  background: color-mix(in srgb, var(--conflict) 11%, var(--surface));
 }
 .decay-tile__label {
   font-size: var(--fs-micro);

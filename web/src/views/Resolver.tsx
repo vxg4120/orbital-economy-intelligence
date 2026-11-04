@@ -171,7 +171,9 @@ function ResultsList({
       {results.map((r) => (
         <li key={r.satellite_id}>
           <button
+            type="button"
             className={`result-row${activeId === r.satellite_id ? " is-active" : ""}`}
+            aria-current={activeId === r.satellite_id ? "true" : undefined}
             onClick={() => onPick(r.satellite_id)}
           >
             <span className="result-row__name">{r.canonical_name}</span>
@@ -307,7 +309,9 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
             <EmptyState title="No status history" />
           ) : (
             <div className="assert-list">
-              {detail.status_history.map((h, i) => (
+              {[...detail.status_history]
+                .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? ""))
+                .map((h, i) => (
                 <div className="assert-line" key={`${h.source}-${i}`}>
                   <StatusBadge status={h.canonical_status} />
                   <span className="assert-val muted">{fmtDateTime(h.observed_at)}</span>

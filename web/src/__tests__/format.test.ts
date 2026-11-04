@@ -15,6 +15,11 @@ describe("fmtInt / compact", () => {
     expect(compact(4_200_000)).toBe("4.2M");
     expect(compact(1_300_000_000)).toBe("1.3B");
   });
+  it("promotes a value that rounds to 1000 of a unit to the next unit", () => {
+    expect(compact(999_950)).toBe("1M");
+    expect(compact(999_949)).toBe("999.9K");
+    expect(compact(999_950_000)).toBe("1B");
+  });
   it("drops a trailing .0 so a round figure reads 70K, not 70.0K", () => {
     expect(compact(70_000)).toBe("70K");
     expect(compact(-70_000)).toBe("-70K");

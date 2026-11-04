@@ -475,9 +475,20 @@ function mockSubmitVerdict(id: number, body: VerdictSubmit): VerdictResponse {
 }
 
 /* ---- public API ----------------------------------------------------------- */
+// The topbar telemetry, the Overview and the colophon all ask for the stats on the same first
+// render; later callers join the first caller's in-flight request instead of opening their own
+// (a cold /api/stats takes seconds). The promise is dropped once it settles, so a reload still
+// fetches fresh numbers.
+let statsInFlight: Promise<Stats> | null = null;
+
 export function getStats(): Promise<Stats> {
-  if (MOCK) return delay(statsFixture as Stats);
-  return realGet<Stats>("/stats");
+  if (!statsInFlight) {
+    const request = MOCK ? delay(statsFixture as Stats) : realGet<Stats>("/stats");
+    statsInFlight = request.finally(() => {
+      statsInFlight = null;
+    });
+  }
+  return statsInFlight;
 }
 
 export function searchSatellites(q: string): Promise<SearchResponse> {

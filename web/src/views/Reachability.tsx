@@ -49,8 +49,10 @@ function fmtLocal(iso: string): string {
 }
 
 function fmtDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
+  // round once, then split: rounding the remainder on its own gave "6m 60s" for 419.6
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`;
 }
 
@@ -258,7 +260,9 @@ export function Reachability() {
             {MIN_ELEV_OPTIONS.map((e) => (
               <button
                 key={e}
+                type="button"
                 className={`tab${minElev === e ? " is-active" : ""}`}
+                aria-pressed={minElev === e}
                 title={`Only satellites at least ${e}° above the horizon`}
                 onClick={() => setMinElev(e)}
               >
@@ -268,14 +272,18 @@ export function Reachability() {
           </div>
           <div className="tabs tabs--sub" aria-label="RF filter">
             <button
+              type="button"
               className={`tab${rf === "only" ? " is-active" : ""}`}
+              aria-pressed={rf === "only"}
               title="Only satellites with a catalogued transmitter or FCC license"
               onClick={() => setRf("only")}
             >
               RF only
             </button>
             <button
+              type="button"
               className={`tab${rf === "all" ? " is-active" : ""}`}
+              aria-pressed={rf === "all"}
               title="Everything overhead, radio-silent objects included"
               onClick={() => setRf("all")}
             >

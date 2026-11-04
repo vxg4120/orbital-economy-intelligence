@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getConflictsDecay,
@@ -26,11 +26,10 @@ export function Conflicts() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const tab = toConflictTab(params.get("tab"));
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [tab]);
+  // One page offset per tab, so a tab change never first asks for the old page.
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+  const offset = offsets[tab] ?? 0;
+  const setOffset = (next: number) => setOffsets((o) => ({ ...o, [tab]: next }));
 
   const stats = useApi(() => getStats(), []);
   const page = useApi<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>>(() => {
@@ -61,7 +60,9 @@ export function Conflicts() {
             return (
               <button
                 key={t.key}
+                type="button"
                 className={`tab${tab === t.key ? " is-active" : ""}`}
+                aria-pressed={tab === t.key}
                 onClick={() => setParams({ tab: t.key })}
               >
                 {t.tabLabel}

@@ -88,7 +88,10 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW = 13, cellH = 9
             setHover({ altLow, incLow, count, x: e.clientX, y: e.clientY })
           }
           onMouseLeave={() => setHover(null)}
-        />,
+        >
+          {/* the count as text too, for the keyboard, the screen reader and a touch screen */}
+          <title>{`${altLow}–${altLow + ALT_STEP} km · ${incLow}–${incLow + INC_STEP}° · ${fmtInt(count)} objects`}</title>
+        </rect>,
       );
     }
   }
@@ -137,7 +140,7 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW = 13, cellH = 9
 
       <div className="hm-foot">
         <span className="hint">
-          LEO focus · {fmtInt(bins.length)} occupied bins · {ALT_STEP} km × {INC_STEP}° · peak{" "}
+          LEO focus · {fmtInt(lookup.size)} occupied bins · {ALT_STEP} km × {INC_STEP}° · peak{" "}
           <span className="num">{fmtInt(maxCount)}</span> objects
         </span>
         <div className="hm-legend">

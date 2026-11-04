@@ -16,6 +16,7 @@ import {
   stormSentence,
 } from "../lib/stories";
 import { Panel } from "./Panel";
+import { EmptyState } from "./States";
 
 /* =============================================================================
    The landing's story panels. Each one is a headline sentence computed from
@@ -52,6 +53,9 @@ export function LaunchTempo({ s }: { s: StoriesResponse }) {
   const [ref, W] = useWidth<HTMLDivElement>();
   const hatch = useId().replace(/:/g, "");
   const months = s.launches_monthly;
+  if (months.length === 0) {
+    return <EmptyState title="No launch history yet" message="The monthly series is empty." />;
+  }
   const full = months.filter((m) => !m.partial).slice(-12);
   const launched12 = lastTwelve(s, "launched");
   const reentered12 = lastTwelve(s, "reentered");

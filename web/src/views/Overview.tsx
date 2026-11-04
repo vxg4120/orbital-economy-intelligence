@@ -248,7 +248,7 @@ export function Overview() {
         </Async>
         <p className="hint" style={{ marginTop: 10 }}>
           LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
-          <Link to="/operators">Operators</Link> view. Click a shell to read its count.
+          <Link to="/operators">Operators</Link> view. Hover a shell to read its count.
         </p>
       </Panel>
     </div>

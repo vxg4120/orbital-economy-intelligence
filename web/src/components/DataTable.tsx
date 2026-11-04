@@ -49,20 +49,32 @@ export function DataTable<Row>({
                 <th
                   key={c.key}
                   className={`${c.num ? "is-num" : ""}${sortable ? " is-sortable" : ""}`}
-                  onClick={sortable ? () => onSort(c.key) : undefined}
                   aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
-                  {c.header}
-                  {active ? (
-                    <span className="sort-caret" aria-hidden="true">
-                      {sort!.dir === "asc" ? "▲" : "▼"}
-                    </span>
-                  ) : sortable ? (
-                    // a dim ↕ on every other sortable column, so it is clear they sort too
-                    <span className="sort-caret is-idle" aria-hidden="true">
-                      ↕
-                    </span>
-                  ) : null}
+                  {sortable ? (
+                    // a real button, so the sort is reachable from the keyboard; it inherits
+                    // the header's type and keeps the whole cell as its hit area
+                    <button
+                      type="button"
+                      className="sort-btn"
+                      onClick={() => onSort(c.key)}
+                      title={`Sort by ${c.header}`}
+                    >
+                      {c.header}
+                      {active ? (
+                        <span className="sort-caret" aria-hidden="true">
+                          {sort!.dir === "asc" ? "▲" : "▼"}
+                        </span>
+                      ) : (
+                        // a dim ↕ on every other sortable column, so it is clear they sort too
+                        <span className="sort-caret is-idle" aria-hidden="true">
+                          ↕
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    c.header
+                  )}
                 </th>
               );
             })}
@@ -83,6 +95,9 @@ export function DataTable<Row>({
                 onKeyDown={
                   onRowClick
                     ? (e) => {
+                        // a key on a link or control inside the row (a receipt link) is that
+                        // control's own activation, not the row's
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           onRowClick(row);
@@ -110,15 +125,18 @@ export function Pager({
   offset,
   limit,
   total,
+  shown,
   onOffset,
 }: {
   offset: number;
   limit: number;
   total: number;
+  /** Rows on this page, when known: the range then ends where the page really ends. */
+  shown?: number;
   onOffset: (next: number) => void;
 }) {
   const from = total === 0 ? 0 : offset + 1;
-  const to = Math.min(offset + limit, total);
+  const to = Math.min(offset + (shown ?? limit), total);
   const canPrev = offset > 0;
   const canNext = offset + limit < total;
   return (

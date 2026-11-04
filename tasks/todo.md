@@ -289,3 +289,24 @@ Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` 
       Vite 5) with 19 unit tests over lib/format, seo (route table vs App.tsx, canonical rules)
       and States.visitorMessage; a `web` CI job runs them and then tsc + vite build.
 - [x] F. README: the terminal section listed four views; it lists the eight.
+- [x] G. Web audit (an independent read of every view, component and helper; 25 findings, each
+      re-verified in the code before the fix): the Review case's window Enter handler swallowed
+      Enter on every button and link (Next, Queue, the guide, the nav) and ran submit instead;
+      a nested receipt link's Enter bubbled to the clickable row and opened the cohort instead;
+      sortable column headers were click-only (now real buttons); the ownership timeline drew
+      "transfer" marks from operator and manufacturer segments on the owner track and labelled an
+      open-ended record "2028" from the padded geometry (now "present"); "Status history ·
+      latest first" was API order; the "catalog says active, physics says decaying" tile linked
+      to Conflicts, a different dataset (now a figure); the tour forced itself after 3 s with its
+      anchors unmounted (now waits for both anchors, gives up quietly, cancels on unmount); the
+      heatmap caption counted undrawn bins and told visitors to "click"; toggle groups carried no
+      aria-pressed; a link sat inside the Filings row button (now a div with an explicit details
+      toggle); Review case storage access could throw in render; a dossier-seeded verdict stole
+      focus on load and disabled the shortcuts; a failed next-case lookup after a stored verdict
+      read "Submit failed" and a retry would 409; receipt links dropped the bus kind; an aliased
+      slug showed the survivor's figures without saying so; older snapshots rendered "NaN%";
+      "No all cases", a silent Start-reviewing, the queue tab lost on the way back; compact()
+      gave "1000K"; fmtDuration gave "6m 60s"; tab changes fetched the old page offset first;
+      three /api/stats calls per landing (now one in flight); an empty launch series crashed the
+      Overview; positive drag medians clipped and null storm days vanished from the strip; a
+      ?kind=bus deep link left the Manufacturers tab selected.

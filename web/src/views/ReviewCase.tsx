@@ -36,6 +36,32 @@ import { LifeTrack } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 
 const TOKEN_KEY = "oei_review_token";
+
+/** The queue's filter query, carried from the queue to a case and back. */
+function queueQuery(type: string | undefined, only: string | undefined): string {
+  const q = new URLSearchParams();
+  if (type) q.set("type", type);
+  if (only && only !== "unlabeled") q.set("only", only);
+  const str = q.toString();
+  return str ? `?${str}` : "";
+}
+
+/** Storage can throw (Safari with all cookies blocked, a sandboxed frame); the token is a
+    convenience, so a blocked store reads as "no token" rather than a terminal fault. */
+function readStoredToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+function storeToken(tok: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, tok);
+  } catch {
+    /* the verdict is already stored; losing the convenience is fine */
+  }
+}
 const SOURCE_ORDER = ["satcat", "gcat", "ucs", "operator_seed", "spacetrack", "resolve"];
 const ATTR_ORDER = ["name", "owner", "status", "object_type", "decay_date", "launch_date"];
 
@@ -44,6 +70,7 @@ export function ReviewCase() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const type = params.get("type") ?? undefined;
+  const only = params.get("only") ?? undefined;
   const id = caseId ? Number(caseId) : NaN;
   const idOk = Number.isFinite(id);
 
@@ -59,7 +86,8 @@ export function ReviewCase() {
 
   const goTo = (nextId: number) =>
     navigate(`/review/${nextId}${type ? `?type=${type}` : ""}`);
-  const goQueue = () => navigate(`/review${type ? `?type=${type}` : ""}`);
+  const queueHref = `/review${queueQuery(type, only)}`;
+  const goQueue = () => navigate(queueHref);
 
   const idx = queueIds.indexOf(id);
   const goPrev = () => {
@@ -85,6 +113,7 @@ export function ReviewCase() {
           position={idx >= 0 ? idx + 1 : null}
           total={queueIds.length}
           type={type}
+          queueHref={queueHref}
           onPrev={goPrev}
           onNext={goNext}
           onDone={goQueue}
@@ -101,6 +130,7 @@ function CaseBody({
   position,
   total,
   type,
+  queueHref,
   onPrev,
   onNext,
   onDone,
@@ -109,6 +139,8 @@ function CaseBody({
   position: number | null;
   total: number;
   type: string | undefined;
+  /** Back to the queue, with the filter the visitor came from. */
+  queueHref: string;
   onPrev: () => void;
   onNext: () => void;
   onDone: () => void;
@@ -138,7 +170,7 @@ function CaseBody({
   );
   const [corrected, setCorrected] = useState(detail.corrected_answer ?? "");
   const [notes, setNotes] = useState(detail.verdict_notes ?? "");
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
+  const [token, setToken] = useState(() => readStoredToken());
   const [needToken, setNeedToken] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -176,13 +208,7 @@ function CaseBody({
         },
         tok,
       );
-      if (!MOCK && tok) localStorage.setItem(TOKEN_KEY, tok);
-      const { next_case_id } = await getReviewNext(type, detail.case_id);
-      if (next_case_id !== null) {
-        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
-      } else {
-        onDone();
-      }
+      if (!MOCK && tok) storeToken(tok);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Submit failed";
       setErr(msg);
@@ -190,6 +216,21 @@ function CaseBody({
         setNeedToken(true);
         tokenRef.current?.focus();
       }
+      setSubmitting(false);
+      return;
+    }
+    // The verdict is stored. Finding the next case is a separate request: if it fails, the
+    // queue is the honest place to land, not a "Submit failed" over a label that was saved
+    // (a retry would then send overwrite=false and get a 409).
+    try {
+      const { next_case_id } = await getReviewNext(type, detail.case_id);
+      if (next_case_id !== null) {
+        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+      } else {
+        onDone();
+      }
+    } catch {
+      onDone();
     } finally {
       setSubmitting(false);
     }
@@ -200,7 +241,13 @@ function CaseBody({
   kbd.current = (e: KeyboardEvent) => {
     const el = document.activeElement as HTMLElement | null;
     const inInput = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    // Enter submits from the page body or the verdict bar's fields. On a focused button, link
+    // or select it is that control's own activation (Next, Queue, the guide toggle, the nav),
+    // which this handler used to swallow and turn into a submit.
+    const onControl =
+      !!el && (el.tagName === "BUTTON" || el.tagName === "A" || el.tagName === "SELECT");
     if (e.key === "Enter") {
+      if (onControl || e.isComposing) return;
       e.preventDefault();
       void doSubmit();
       return;
@@ -232,8 +279,15 @@ function CaseBody({
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  // Focus the corrected-answer field the moment a correction-requiring verdict is chosen.
+  // Focus the corrected-answer field the moment a correction-requiring verdict is chosen. Not
+  // on mount: a dossier-seeded "incorrect" would otherwise put the caret in the input and
+  // disable the c/i/p/u/j/k shortcuts the page advertises until Escape.
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     if (needsCorrection) correctedRef.current?.focus();
   }, [needsCorrection]);
 
@@ -259,7 +313,7 @@ function CaseBody({
           <button className="btn" onClick={onNext} title="Next (j / →)">
             Next ›
           </button>
-          <Link className="btn" to={`/review${type ? `?type=${type}` : ""}`}>
+          <Link className="btn" to={queueHref}>
             Queue
           </Link>
         </div>
@@ -652,9 +706,11 @@ function VerdictBar(props: {
           {VERDICT_META.map((m) => (
             <button
               key={m.key}
+              type="button"
               className={`verdict-btn ${m.className}${props.verdict === m.key ? " is-active" : ""}${
                 props.suggestedVerdict === m.key ? " is-suggested" : ""
               }`}
+              aria-pressed={props.verdict === m.key}
               onClick={() => props.onVerdict(m.key)}
             >
               <span className="verdict-btn__key">{m.short}</span>

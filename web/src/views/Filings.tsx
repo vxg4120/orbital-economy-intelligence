@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getFilingDocket, getFilingDocuments, getFilingsMethodology, getPendingFilings } from "../api/client";
 import type { DocketResponse, FilingsMethodology, PendingFiling } from "../api/types";
@@ -46,10 +46,11 @@ export function Filings() {
   const q = params.get("q") ?? "";
   const slug = params.get("applicant_slug") ?? "";
   const [draft, setDraft] = useState(q);
-  const [offset, setOffset] = useState(0);
-  useEffect(() => {
-    setOffset(0);
-  }, [q, slug]);
+  // One page offset per filter, so a filter change never first asks for the old page.
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+  const filterKey = `${q}|${slug}`;
+  const offset = offsets[filterKey] ?? 0;
+  const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
   const filings = useApi(() => getPendingFilings(q, slug, LIMIT, offset), [q, slug, offset]);
   const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
@@ -129,7 +130,13 @@ export function Filings() {
                       <FilingRow key={r.filing_key} filing={r} />
                     ))}
                   </ul>
-                  <Pager offset={offset} limit={LIMIT} total={f.total} onOffset={setOffset} />
+                  <Pager
+                    offset={offset}
+                    limit={LIMIT}
+                    total={f.total}
+                    shown={f.rows.length}
+                    onOffset={setOffset}
+                  />
                 </>
               )}
             </>
@@ -204,12 +211,13 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
   const [open, setOpen] = useState(false);
   return (
     <li style={{ borderBottom: "1px solid var(--rule)" }}>
-      <button
-        type="button"
-        className="result-row"
+      {/* The row is a div, not a button: the cohort chip inside it is a link, and interactive
+          content inside a button is invalid HTML that assistive tech handles unevenly. The
+          mouse still toggles anywhere on the row; the keyboard has the explicit toggle. */}
+      <div
+        className="result-row filing-row"
         style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
         onClick={() => setOpen(!open)}
-        aria-expanded={open}
       >
         <span className="result-row__name">
           <span className="mono-hi" title={fileNumberTitle(r)}>{r.file_number}</span>
@@ -259,7 +267,19 @@ function FilingRow({ filing: r }: { filing: PendingFiling }) {
             </span>
           ) : null}
         </span>
-      </button>
+        <button
+          type="button"
+          className="chip chip--clear"
+          aria-expanded={open}
+          aria-label={`${open ? "Hide" : "Show"} details for ${r.file_number}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(!open);
+          }}
+        >
+          {open ? "hide ▴" : "details ▾"}
+        </button>
+      </div>
       {open ? <FilingDetail filing={r} /> : null}
     </li>
   );

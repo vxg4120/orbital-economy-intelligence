@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getReviewCases, getReviewNext, getReviewStats } from "../api/client";
 import type { ReviewOnly, ReviewStats, ReviewStratum } from "../api/types";
@@ -22,11 +22,11 @@ export function Review() {
   const navigate = useNavigate();
   const type = params.get("type") ?? undefined;
   const only = (params.get("only") as ReviewOnly) ?? "unlabeled";
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [type, only]);
+  // One page offset per filter, so a filter change never first asks for the old page.
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+  const filterKey = `${type ?? ""}|${only}`;
+  const offset = offsets[filterKey] ?? 0;
+  const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
 
   const stats = useApi(() => getReviewStats(), []);
   const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset]);
@@ -40,10 +40,20 @@ export function Review() {
     setParams(p);
   };
 
+  const [startErr, setStartErr] = useState<string | null>(null);
   const startReviewing = async () => {
-    const { next_case_id } = await getReviewNext(type);
-    if (next_case_id !== null) {
-      navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+    setStartErr(null);
+    try {
+      const { next_case_id } = await getReviewNext(type);
+      if (next_case_id !== null) {
+        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+      } else {
+        setStartErr(
+          type ? `Nothing left to review in ${stratumLabel(type)}.` : "Nothing left to review.",
+        );
+      }
+    } catch (e) {
+      setStartErr(e instanceof Error ? e.message : "The API did not answer.");
     }
   };
 
@@ -67,9 +77,16 @@ export function Review() {
             accuracy. Keyboard-first — open a case and press c/i/p/u.
           </p>
         </div>
-        <button className="btn btn--go" onClick={startReviewing}>
-          Start reviewing →
-        </button>
+        <div className="review-start">
+          <button type="button" className="btn btn--go" onClick={startReviewing}>
+            Start reviewing →
+          </button>
+          {startErr ? (
+            <span className="hint" role="status">
+              {startErr}
+            </span>
+          ) : null}
+        </div>
       </header>
 
       <Async state={stats} loadingLabel="Loading progress">
@@ -93,7 +110,9 @@ export function Review() {
             {ONLY_TABS.map((t) => (
               <button
                 key={t.key}
+                type="button"
                 className={`tab${only === t.key ? " is-active" : ""}`}
+                aria-pressed={only === t.key}
                 onClick={() => setFilter({ only: t.key })}
               >
                 {t.label}
@@ -119,7 +138,8 @@ export function Review() {
               <div className="state">
                 <h2 className="state__title">Nothing here</h2>
                 <span className="state__msg">
-                  No {only} cases{type ? ` in ${stratumLabel(type)}` : ""}.
+                  {only === "all" ? "No cases" : `No ${only} cases`}
+                  {type ? ` in ${stratumLabel(type)}` : ""}.
                 </span>
               </div>
             ) : (
@@ -135,11 +155,7 @@ export function Review() {
                           <span className="case-row__subject num">
                             {r.subject_ref}
                             {r.has_dossier ? (
-                              <span
-                                className="case-row__dot"
-                                title="AI research ready"
-                                aria-hidden="true"
-                              />
+                              <span className="case-row__dot" title="AI research ready" role="img" aria-label="AI research ready" />
                             ) : null}
                           </span>
                           <span className="case-row__q">{r.question}</span>
@@ -235,7 +251,12 @@ function StratumMeter({
   const pct = total > 0 ? (labeled / total) * 100 : 0;
   const done = total > 0 && labeled >= total;
   return (
-    <button className={`stratum-meter${active ? " is-active" : ""}`} onClick={onClick}>
+    <button
+      type="button"
+      className={`stratum-meter${active ? " is-active" : ""}`}
+      aria-pressed={active}
+      onClick={onClick}
+    >
       <div className="stratum-meter__head">
         <span className="stratum-meter__label">{label}</span>
         {accuracy !== null ? (
