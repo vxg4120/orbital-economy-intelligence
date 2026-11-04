@@ -550,7 +550,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
               {retired?.methodology_version ?? "?"} when the cohort last resolved, and the
               monthly record below is unchanged.
             </p>
-            <p className="hint" style={{ marginTop: 10 }}>
+            <p className="hint">
               Confirm or dispute this attribution: email vibhavgupta2@gmail.com with subject
               {" "}&quot;Bus attribution: {b.name}&quot;.
             </p>
@@ -572,7 +572,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
             pct={b.fleet_total > 0 ? (100 * cv("time_to_operational").n) / b.fleet_total : 0}
             foot={nOf(cv("time_to_operational").n, b.fleet_total)}
           />
-          <p className="hint" style={{ marginTop: 10 }}>
+          <p className="hint">
             Disposal verdicts: {fmtInt(cv("disposal").n)} decidable of {fmtInt(cv("disposal").of)}{" "}
             decayed. Uncertain attributions: {fmtInt(detail.provenance?.uncertain_attributions ?? 0)}.
             Attribution built {fmtDate(detail.provenance?.built_at ?? null)}.
@@ -763,7 +763,7 @@ function MethodologyPanel({ m }: { m: BusMethodology }) {
         </div>
       </div>
 
-      <p className="hint" style={{ marginTop: 10 }}>
+      <p className="hint">
         Inclusion: {m.inclusion} Default cohort floor: n ≥ {m.cohort_minimum}. Refresh: {m.refresh}
       </p>
     </Panel>

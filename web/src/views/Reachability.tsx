@@ -294,13 +294,9 @@ export function Reachability() {
             Sweep now
           </button>
         </div>
-        {geoNote ? (
-          <p className="hint" style={{ marginTop: 10 }}>
-            {geoNote}
-          </p>
-        ) : null}
+        {geoNote ? <p className="hint">{geoNote}</p> : null}
         {badCoord ? (
-          <p className="hint" style={{ marginTop: 10 }}>
+          <p className="hint">
             Coordinates are decimal degrees: latitude -90 to 90, longitude -180 to 180.
           </p>
         ) : null}
@@ -546,7 +542,7 @@ function SatDetail({ sat, spot, minElev }: { sat: VisibleSatellite; spot: Spot; 
               )
             }
           </Async>
-          <p className="hint" style={{ marginTop: 10 }}>
+          <p className="hint">
             Predictions use the element set from {fmtDateTime(sat.element_epoch)}; accuracy drifts
             as elements age.
           </p>

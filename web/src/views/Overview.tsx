@@ -243,10 +243,10 @@ export function Overview() {
       >
         <Async state={congestion} loadingLabel="Loading congestion field">
           {(c) => (
-            <CongestionHeatmap bins={c.bins} maxAltKm={1250} cellW={12} cellH={8} />
+            <CongestionHeatmap bins={c.bins} maxAltKm={1250} cellH={8} />
           )}
         </Async>
-        <p className="hint" style={{ marginTop: 10 }}>
+        <p className="hint">
           LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
           <Link to="/operators">Operators</Link> view. Hover a shell to read its count.
         </p>

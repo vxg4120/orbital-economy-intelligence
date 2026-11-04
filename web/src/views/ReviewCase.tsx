@@ -301,10 +301,12 @@ function CaseBody({
     <>
       <header className="rc-head">
         <div className="rc-head__main">
-          <span className="case-row__type" data-stratum={detail.case_type}>
+          {/* the stratum is the page's chapter head (Fraunces, like every other route's h1);
+              the subject reference is a datum beside it, not the heading */}
+          <h1 className="rc-head__title" data-stratum={detail.case_type}>
             {stratumLabel(detail.case_type)}
-          </span>
-          <h1 className="rc-head__subject num">{detail.subject_ref}</h1>
+          </h1>
+          <span className="rc-head__subject num">{detail.subject_ref}</span>
           {alreadyLabeled ? <VerdictBadge verdict={detail.verdict} /> : null}
         </div>
         <div className="rc-head__nav">

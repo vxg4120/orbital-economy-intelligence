@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CongestionBin } from "../api/types";
 import { fmtInt } from "../lib/format";
+import { useWidth } from "../hooks/useWidth";
 
 /* Sequential blue ramp (theme --seq-1..6). Near-zero recedes to the surface;
    density climbs light→bright. Buckets are log-scaled because orbital shells are
@@ -22,7 +23,6 @@ interface HoverCell {
 interface Props {
   bins: CongestionBin[];
   maxAltKm?: number;
-  cellW?: number;
   cellH?: number;
 }
 
@@ -32,8 +32,11 @@ function bucket(count: number, max: number): number {
   return Math.min(RAMP.length - 1, Math.max(0, Math.ceil(t * RAMP.length) - 1));
 }
 
-export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW = 13, cellH = 9 }: Props) {
+export function CongestionHeatmap({ bins, maxAltKm = 2000, cellH = 9 }: Props) {
   const [hover, setHover] = useState<HoverCell | null>(null);
+  // the plot is sized from its container (like LaunchTempo): on a phone the whole 0-180° axis
+  // fits the panel instead of a third of it hiding past an undiscoverable drag
+  const [ref, W] = useWidth<HTMLDivElement>();
 
   const { lookup, maxCount } = useMemo(() => {
     const map = new Map<string, number>();
@@ -52,6 +55,7 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW = 13, cellH = 9
   const mT = 6;
   const mB = 36;
   const mR = 8;
+  const cellW = Math.max(6, Math.floor((W - mL - mR) / cols));
   const plotW = cols * cellW;
   const plotH = rows * cellH;
   const w = mL + plotW + mR;
@@ -98,7 +102,7 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW = 13, cellH = 9
 
   return (
     <div className="heatmap">
-      <div className="heatmap__plot">
+      <div className="heatmap__plot" ref={ref}>
         <svg className="hm-svg" width={w} height={h} role="img" aria-label="Orbital congestion by altitude and inclination">
           {/* y ticks + labels */}
           {yTicks.map((a) => {

@@ -138,6 +138,13 @@ a:hover {
   outline: 1.5px solid var(--signal);
   outline-offset: 1px;
 }
+/* inside a scroller (overflow-x: auto clips to its box) a ring drawn 1px outside the control
+   shows as two side ticks at best; these draw it inside the control instead */
+.tabs .tab:focus-visible,
+.rail .navlink:focus-visible,
+.table-wrap tr:focus-visible {
+  outline-offset: -2px;
+}
 ::selection {
   background: var(--signal-wash);
 }
@@ -434,7 +441,7 @@ button {
   font-size: var(--fs-sm);
   color: var(--ink-dim);
   margin: 4px 0 0;
-  max-width: 68ch;
+  max-width: 72ch;
 }
 
 /* =============================================================================
@@ -448,9 +455,13 @@ button {
 }
 .panel__head {
   display: flex;
-  align-items: center;
+  /* a head that fits keeps title and meta on one line, baselines aligned; one that does not
+     (tablet columns) drops the meta under the title instead of wrapping both mid-phrase */
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  row-gap: 2px;
   padding: 10px 14px;
   /* ledger double rule: hairline plus a second hairline 3px below */
   border-bottom: 1px solid var(--rule);
@@ -477,6 +488,8 @@ button {
   vertical-align: 2px;
 }
 .panel__meta {
+  margin-left: auto;
+  text-align: right;
   font-size: var(--fs-micro);
   letter-spacing: 0.05em;
   color: var(--ink-faint);
@@ -1013,6 +1026,18 @@ button {
   color: var(--signal);
   border-color: var(--signal-dim);
 }
+/* under 900px a strip can run past its box with the scrollbar hidden; the right-edge fade is
+   the cue that more tabs sit past the last visible one (the nav rail does the same) */
+@media (max-width: 900px) {
+  .tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  }
+  .tabs .tab:last-child {
+    /* room to scroll the last tab out from under the fade */
+    margin-right: 32px;
+  }
+}
 
 .conflict-headline {
   margin: 0;
@@ -1043,7 +1068,10 @@ button {
   padding: 0 12px;
 }
 .searchbar:focus-within {
+  /* the input inside is borderless and ringless; the wrapper wears the focus ring */
   border-color: var(--signal-dim);
+  outline: 1.5px solid var(--signal);
+  outline-offset: 1px;
 }
 .searchbar__prompt {
   color: var(--signal);
@@ -1085,6 +1113,13 @@ button {
 }
 .resolver-detail {
   min-width: 0;
+}
+/* tablets: the detail column is about 400px wide, so the assertions/status pair stacks instead
+   of squeezing into two 190px columns with three-line heads and dates breaking mid-token */
+@media (max-width: 1200px) {
+  .resolver-grid .grid--2 {
+    grid-template-columns: 1fr;
+  }
 }
 .results {
   list-style: none;
@@ -1581,7 +1616,13 @@ button {
 .state__msg {
   font-size: var(--fs-xs);
   color: var(--ink-faint);
-  max-width: 46ch;
+  max-width: 48ch;
+}
+/* an echoed query keeps the visitor's own case inside the uppercase title */
+.state__q {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
 }
 .state--error .state__title {
   color: var(--err);
@@ -1657,6 +1698,10 @@ button {
   color: var(--ink-faint);
   /* panel footnotes ran 170 characters a line at 1440 */
   max-width: 80ch;
+}
+/* the closing note under a chart or table: one step below it, the same in every panel */
+.panel__body > .hint:last-child {
+  margin-top: 12px;
 }
 .crosswalk-src {
   padding: 10px 12px;
@@ -1928,6 +1973,15 @@ button {
   .navlink {
     /* block only: inline padding stays with the width-based rules (tightened at 560px) */
     padding-block: 12px;
+  }
+  /* the resolver's example links were 17px tall: the link box grows to the touch floor */
+  .example-list {
+    gap: 0;
+  }
+  .example-list li a {
+    display: block;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 }
 
@@ -2211,10 +2265,25 @@ button {
   flex-wrap: wrap;
   min-width: 0;
 }
-.rc-head__subject {
+.rc-head__title {
+  /* the stratum is the chapter head (Fraunces, wonk on, like every view's h1); the queue's
+     chip tick survives as the signal rule on its left */
+  margin: 0;
+  font-family: var(--font-display);
   font-size: var(--fs-lg);
-  color: var(--ink);
   font-weight: 600;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  line-height: 1.15;
+}
+.rc-head__title[data-stratum] {
+  border-left: 2px solid var(--signal-dim);
+  padding-left: 10px;
+}
+.rc-head__subject {
+  /* the subject is a datum: mono, one step under the title */
+  font-size: var(--fs-md);
+  color: var(--ink);
+  font-weight: 400;
   margin: 0;
 }
 .rc-head__nav {
@@ -2575,7 +2644,6 @@ button {
   font: inherit;
   font-size: var(--fs-sm);
   padding: 8px 10px;
-  outline: none;
 }
 .vinput:focus {
   border-color: var(--signal-dim);
@@ -2586,6 +2654,15 @@ button {
 .vinput--token {
   flex: 0 1 180px;
   border-color: color-mix(in srgb, var(--conflict) 40%, var(--rule-2));
+}
+/* phones: iOS zooms the page into a focused control whose text is under 16px. Class
+   specificity, after the base rules: an element rule would lose to .vinput */
+@media (max-width: 560px) {
+  .vinput,
+  .searchbar input,
+  .searchbar--inline input {
+    font-size: 16px;
+  }
 }
 .btn--submit {
   padding: 8px 16px;
@@ -3337,7 +3414,11 @@ button {
   color: var(--ink-faint);
 }
 .colophon a {
-  color: var(--ink-faint);
+  /* a link, not a label: one ink step up and the receipt's dotted rule */
+  color: var(--ink-dim);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 3px;
 }
 .colophon a:hover {
   color: var(--signal);
@@ -3353,6 +3434,13 @@ button {
   .receipt-link {
     padding: 8px 4px;
     margin: -8px -4px;
+  }
+  /* inline links in table cells and the colophon: 17px and 14px tall on a phone */
+  .dtable td a.mono-hi,
+  .colophon a {
+    display: inline-block;
+    padding: 10px 0;
+    margin: -10px 0;
   }
   .driver-popover.oei-tour .driver-popover-footer-btn {
     padding: 10px 14px;
@@ -3405,7 +3493,7 @@ button {
   color: var(--ink-faint);
 }
 .story__hint {
-  margin: 14px 0 0;
+  margin: 12px 0 0;
 }
 .stories-row {
   align-items: start;
@@ -3719,18 +3807,21 @@ button {
   border-top: 3px double var(--rule-2);
 }
 .underhood__title {
+  /* an h2: one step under the view's Fraunces h1 (it sat at the same 27px) */
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: 560;
   font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: 0.005em;
+  line-height: 1.15;
   color: var(--ink);
 }
 .underhood__desc {
   font-size: var(--fs-sm);
   color: var(--ink-dim);
   margin: 4px 0 0;
-  max-width: 68ch;
+  max-width: 72ch;
 }
 
 .sr-only {

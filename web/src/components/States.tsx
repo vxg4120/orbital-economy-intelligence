@@ -83,7 +83,8 @@ export function EmptyState({
   message,
   action,
 }: {
-  title: string;
+  /** a node, so a title can echo the visitor's query in its own case (.state__q) */
+  title: ReactNode;
   message?: string;
   /** a control that resolves the emptiness (clear a search), rendered under the message */
   action?: ReactNode;
