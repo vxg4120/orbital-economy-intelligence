@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { OwnershipSegment } from "../api/types";
-import { fmtDate, fmtRangeEnd } from "../lib/format";
+import { fmtDate, fmtRangeEnd, fmtYear } from "../lib/format";
 import { EmptyState } from "./States";
 
 const DAY = 86_400_000;
@@ -85,8 +85,16 @@ export function OwnershipTimeline({ segments }: { segments: OwnershipSegment[] }
                 )} · source ${s.seg.source}`}
               >
                 <span className="tl-seg__op">{s.seg.operator_name}</span>
+                {/* a segment too narrow for two full dates shows their years instead (theme.css
+                    picks the form from the label's own width); the full dates stay in the
+                    title and in the status table */}
                 <span className="tl-seg__range num">
-                  {fmtDate(s.seg.valid_from)} → {fmtRangeEnd(s.seg.valid_to)}
+                  <span className="tl-seg__range-full">
+                    {fmtDate(s.seg.valid_from)} → {fmtRangeEnd(s.seg.valid_to)}
+                  </span>
+                  <span className="tl-seg__range-short">
+                    {fmtYear(s.seg.valid_from)} → {s.seg.valid_to ? fmtYear(s.seg.valid_to) : "now"}
+                  </span>
                 </span>
               </div>
             ))}

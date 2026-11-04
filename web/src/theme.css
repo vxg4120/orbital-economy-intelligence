@@ -1447,6 +1447,27 @@ button {
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  /* a range that still does not fit ends in an ellipsis, not mid-token */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* the query container for its own two forms (below) */
+  container-type: inline-size;
+}
+/* a segment too narrow for its two full dates shows their years: on a phone
+   "2020-03-21 → 2023-09-28" was cut to "2020-03-21 → 2023-" in a 114px segment. The query
+   reads the label's own width in its own type (23 characters of tabular dates, one to spare),
+   so the swap follows the record and the font, not the viewport */
+.tl-seg__range-short {
+  display: none;
+}
+@container (max-width: 24ch) {
+  .tl-seg__range-full {
+    display: none;
+  }
+  .tl-seg__range-short {
+    display: inline;
+  }
 }
 .tl-boundary {
   position: absolute;
@@ -2983,6 +3004,10 @@ button {
 @media (pointer: coarse) {
   .verdict-btn {
     min-height: 44px;
+  }
+  /* a phone has no c/i/p/u keys: the key caps go with the legend */
+  .verdict-btn__key {
+    display: none;
   }
 }
 

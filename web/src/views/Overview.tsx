@@ -243,7 +243,7 @@ export function Overview() {
       >
         <Async state={congestion} loadingLabel="Loading congestion field">
           {(c) => (
-            <CongestionHeatmap bins={c.bins} maxAltKm={1250} cellH={8} />
+            <CongestionHeatmap bins={c.bins} maxAltKm={1250} cellW={12} cellH={8} />
           )}
         </Async>
         <p className="hint">

@@ -23,6 +23,8 @@ interface HoverCell {
 interface Props {
   bins: CongestionBin[];
   maxAltKm?: number;
+  /** Cell width when the panel has room; a narrower panel shrinks the cells (never under 6px). */
+  cellW?: number;
   cellH?: number;
 }
 
@@ -32,10 +34,12 @@ function bucket(count: number, max: number): number {
   return Math.min(RAMP.length - 1, Math.max(0, Math.ceil(t * RAMP.length) - 1));
 }
 
-export function CongestionHeatmap({ bins, maxAltKm = 2000, cellH = 9 }: Props) {
+export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW: maxCellW = 13, cellH = 9 }: Props) {
   const [hover, setHover] = useState<HoverCell | null>(null);
   // the plot is sized from its container (like LaunchTempo): on a phone the whole 0-180° axis
-  // fits the panel instead of a third of it hiding past an undiscoverable drag
+  // fits the panel instead of a third of it hiding past an undiscoverable drag. The designed
+  // cell width is the ceiling, so a wide panel keeps the near-square cells rather than
+  // stretching them into dashes
   const [ref, W] = useWidth<HTMLDivElement>();
 
   const { lookup, maxCount } = useMemo(() => {
@@ -55,7 +59,7 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellH = 9 }: Props) {
   const mT = 6;
   const mB = 36;
   const mR = 8;
-  const cellW = Math.max(6, Math.floor((W - mL - mR) / cols));
+  const cellW = Math.max(6, Math.min(maxCellW, Math.floor((W - mL - mR) / cols)));
   const plotW = cols * cellW;
   const plotH = rows * cellH;
   const w = mL + plotW + mR;

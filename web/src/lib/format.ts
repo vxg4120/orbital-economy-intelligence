@@ -65,3 +65,9 @@ export function fmtDateTime(iso: string | null | undefined): string {
 export function fmtRangeEnd(iso: string | null | undefined): string {
   return iso ? fmtDate(iso) : "present";
 }
+
+/** ISO date or null -> its year, or em dash. */
+export function fmtYear(iso: string | null | undefined): string {
+  if (!iso) return DASH;
+  return iso.slice(0, 4);
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compact, DASH, fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct, fmtRangeEnd } from "../lib/format";
+import { compact, DASH, fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct, fmtRangeEnd, fmtYear } from "../lib/format";
 
 describe("fmtInt / compact", () => {
   it("renders null as the em dash, never a blank", () => {
@@ -43,6 +43,11 @@ describe("dates", () => {
   it("fmtDateTime renders in UTC regardless of the host zone and passes junk through", () => {
     expect(fmtDateTime("2026-07-08T04:24:00+02:00")).toBe("2026-07-08 02:24 UTC");
     expect(fmtDateTime("not a date")).toBe("not a date");
+  });
+  it("fmtYear keeps the year alone for a narrow timeline segment", () => {
+    expect(fmtYear("2020-03-21")).toBe("2020");
+    expect(fmtYear("2026-07-08T04:24:00+00:00")).toBe("2026");
+    expect(fmtYear(null)).toBe(DASH);
   });
   it("an open-ended range end reads as present", () => {
     expect(fmtRangeEnd(null)).toBe("present");

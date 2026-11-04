@@ -37,6 +37,11 @@ import { EmptyState, ErrorState, Loading } from "../components/States";
 
 const TOKEN_KEY = "oei_review_token";
 
+/** A touch device has no c/i/p/u or n keys: the copy that names them stays for a keyboard. */
+function coarsePointer(): boolean {
+  return typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+}
+
 /** The queue's filter query, carried from the queue to a case and back. */
 function queueQuery(type: string | undefined, only: string | undefined): string {
   const q = new URLSearchParams();
@@ -206,7 +211,7 @@ function CaseBody({
   async function doSubmit() {
     if (submitting) return;
     if (!verdict) {
-      setErr("Pick a verdict — c / i / p / u.");
+      setErr(coarsePointer() ? "Pick a verdict." : "Pick a verdict — c / i / p / u.");
       return;
     }
     const tok = token.trim();
@@ -700,8 +705,7 @@ function VerdictBar(props: {
   alreadyLabeled: boolean;
   onSubmit: () => void;
 }) {
-  // a touch device has no n key to press; the hint stays for a keyboard
-  const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  const coarse = coarsePointer();
   return (
     <div className="verdict-bar" role="form" aria-label="Record verdict">
       <div className="verdict-bar__inner">
