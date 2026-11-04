@@ -174,6 +174,8 @@ def test_landing_is_served_from_the_static_shell_that_matches_the_table(client):
     assert h["title"] == root["title"] == h["og:title"] == h["twitter:title"]
     assert h["description"] == root["description"] == h["og:description"] == h["twitter:description"]
     assert _attr(r.text, r'property="og:site_name" content="([^"]*)"') == table["site"]["name"]
+    # rendered like every route, never the dist file verbatim: no heuristic caching past a deploy
+    assert r.headers.get("cache-control") == "no-cache"
 
 
 @_needs_spa

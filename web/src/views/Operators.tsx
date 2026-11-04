@@ -16,7 +16,7 @@ import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
 import { REGIME_ORDER } from "../lib/status";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column, type SortSpec } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column, type SortSpec } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
 import { Async, EmptyState, ErrorState, Loading } from "../components/States";
@@ -117,7 +117,7 @@ export function Operators() {
         <Async state={league} loadingLabel="Loading operators" loadingRows={10}>
           {(data) => (
             <>
-              {data.rows.length === 0 && data.total > 0 ? (
+              {pastTheEnd(data.rows.length, data.total) ? (
                 // a page past the end: the list shrank since it was counted
                 <EmptyState
                   title="Nothing on this page"

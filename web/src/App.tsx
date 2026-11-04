@@ -8,6 +8,7 @@ import { RouteMeta } from "./components/RouteMeta";
 import { SourceBadge } from "./components/SourceBadge";
 import { Loading } from "./components/States";
 import { maybeAutoStartTour, startTour } from "./lib/tour";
+import { revealFocus } from "./lib/revealFocus";
 import { SITE_NAME } from "./seo";
 
 // Code-split each view so the heavy chart dependency (recharts, Operators only)
@@ -85,6 +86,7 @@ function Telemetry() {
 
 export default function App() {
   useEffect(() => maybeAutoStartTour(), []);
+  useEffect(() => revealFocus(), []);
 
   return (
     <div className="app">

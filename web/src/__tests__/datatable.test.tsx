@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Pager } from "../components/DataTable";
+import { Pager, pastTheEnd } from "../components/DataTable";
 import { Async } from "../components/States";
 
 const noop = () => {};
@@ -50,6 +50,11 @@ describe("Pager", () => {
     };
     expect(presses(0)).toEqual([50]);
     expect(presses(50)).toEqual([0]);
+  });
+  it("names a page past the end only when the list still has rows", () => {
+    expect(pastTheEnd(0, 1435)).toBe(true);
+    expect(pastTheEnd(0, 0)).toBe(false);
+    expect(pastTheEnd(14, 1435)).toBe(false);
   });
   it("makes Next inert on a page past the end", () => {
     const html = renderToStaticMarkup(<Pager offset={50} limit={50} total={1435} shown={0} onOffset={noop} />);

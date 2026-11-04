@@ -6,7 +6,7 @@ import { useApi } from "../hooks/useApi";
 import { fmtInt } from "../lib/format";
 import { emptyCopy } from "../lib/filingsCopy";
 import { Panel } from "../components/Panel";
-import { Pager } from "../components/DataTable";
+import { Pager, pastTheEnd } from "../components/DataTable";
 import { Async, EmptyState } from "../components/States";
 
 const LIMIT = 100;
@@ -174,7 +174,7 @@ export function Filings() {
                   filings may have been decided since.
                 </p>
               ) : null}
-              {f.rows.length === 0 && f.total > 0 ? (
+              {pastTheEnd(f.rows.length, f.total) ? (
                 // a page past the end: the list shrank since it was counted
                 <EmptyState
                   title="Nothing on this page"

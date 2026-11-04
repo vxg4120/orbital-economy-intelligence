@@ -1070,6 +1070,10 @@ button {
    four-tab strip with its counts overflows; over a strip that fits (every strip here, at these
    widths) the fade covers an empty end and is all but invisible */
 @media (max-width: 1024px) {
+  .tabs .tab {
+    /* a tab reached by keyboard scrolls clear of the fade (App.tsx reveals the focus) */
+    scroll-margin-inline-end: 32px;
+  }
   .tabs {
     -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
     mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
@@ -1849,6 +1853,10 @@ button {
   }
   .rail::-webkit-scrollbar {
     display: none;
+  }
+  .rail .navlink {
+    /* a view link reached by keyboard scrolls clear of the fade (App.tsx reveals the focus) */
+    scroll-margin-inline-end: 40px;
   }
   .rail__nav {
     flex-direction: row;
@@ -2750,9 +2758,10 @@ button {
   flex: 0 1 180px;
   border-color: color-mix(in srgb, var(--conflict) 40%, var(--rule-2));
 }
-/* phones: iOS zooms the page into a focused control whose text is under 16px. Class
-   specificity, after the base rules: an element rule would lose to .vinput */
-@media (max-width: 560px) {
+/* phones: iOS zooms the page into a focused control whose text is under 16px (a phone in
+   landscape is wider than 560px, so the device trait counts too). Class specificity, after the
+   base rules: an element rule would lose to .vinput */
+@media (max-width: 560px), (pointer: coarse) {
   .vinput,
   .searchbar input,
   .searchbar--inline input {
@@ -3543,10 +3552,10 @@ button {
   color: var(--ink-faint);
 }
 .colophon a {
-  /* a link, not a label: one ink step up and the receipt's dotted rule */
+  /* a link, not a label: one ink step up and the receipt's dotted rule, in an ink that reads */
   color: var(--ink-dim);
   text-decoration: underline dotted;
-  text-decoration-color: var(--rule-2);
+  text-decoration-color: var(--ink-faint);
   text-underline-offset: 3px;
 }
 .colophon a:hover {
@@ -3570,12 +3579,26 @@ button {
   .btn--submit {
     padding-block: 11px;
   }
-  /* inline links in table cells and the colophon: 17px and 14px tall on a phone */
-  .dtable td a.mono-hi,
-  .colophon a {
+  /* inline links grow their tap box (17px and 14px tall on a phone before). In a table cell
+     the negative margin keeps the row where it was (the cell's own padding holds the box); in
+     the colophon the lines sit 4px apart, so there the box pushes the lines apart instead of
+     lying over the next line's link. */
+  .dtable td a.mono-hi {
     display: inline-block;
     padding: 10px 0;
     margin: -10px 0;
+  }
+  .colophon a {
+    display: inline-block;
+    padding: 10px 0;
+  }
+  /* the pinned cell truncates with an ellipsis, which cannot shorten an atomic inline: a link
+     in it truncates itself on a narrow phone */
+  .table-wrap--sticky-first td:first-child a.mono-hi {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
   }
   .driver-popover.oei-tour .driver-popover-footer-btn {
     padding: 10px 14px;

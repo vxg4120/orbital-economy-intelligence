@@ -6,7 +6,7 @@ import { useApi } from "../hooks/useApi";
 import { fmtInt, fmtPct } from "../lib/format";
 import { orderStrata, stratumAccuracy, stratumLabel } from "../lib/reviewStrata";
 import { Panel } from "../components/Panel";
-import { Pager } from "../components/DataTable";
+import { Pager, pastTheEnd } from "../components/DataTable";
 import { Async, EmptyState, visitorMessage } from "../components/States";
 import { coarsePointer } from "../lib/pointer";
 import { VerdictBadge } from "../components/VerdictBadge";
@@ -156,7 +156,7 @@ export function Review() {
 
         <Async state={page} loadingLabel="Loading cases" loadingRows={10}>
           {(data) =>
-            data.rows.length === 0 && data.total > 0 ? (
+            pastTheEnd(data.rows.length, data.total) ? (
               // a page past the end: the queue shrank under the visitor (anyone's label takes a
               // case out of the unlabeled queue), so say so and keep the way back
               <>

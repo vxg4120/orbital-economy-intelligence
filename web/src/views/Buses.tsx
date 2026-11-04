@@ -19,7 +19,7 @@ import { SITE_NAME, useDocumentTitle } from "../seo";
 import { fmtDate, fmtInt, fmtNum, fmtPct } from "../lib/format";
 import { naturalDir, type SortDir } from "../lib/busSort";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column, type SortSpec } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column, type SortSpec } from "../components/DataTable";
 import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
 import { StatusBadge } from "../components/StatusBadge";
@@ -299,7 +299,7 @@ export function Buses() {
         <Async state={board} loadingLabel="Loading leaderboard" loadingRows={10}>
           {(data) => (
             <>
-              {data.rows.length === 0 && data.total > 0 ? (
+              {pastTheEnd(data.rows.length, data.total) ? (
                 // a page past the end: the board shrank since it was counted
                 <EmptyState
                   title="Nothing on this page"

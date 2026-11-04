@@ -124,6 +124,12 @@ export function DataTable<Row>({
   );
 }
 
+/** A page past the end: the list shrank since it was counted, so there is no range to print
+    and nothing further to page to. Shared by the pager and the views' empty-page branch. */
+export function pastTheEnd(shown: number, total: number): boolean {
+  return shown === 0 && total > 0;
+}
+
 /** A right-aligned pager for LIMIT/OFFSET endpoints. At either end the button goes inert with
     aria-disabled, not `disabled`: Chromium blurs a control the moment it is disabled, so the
     Prev just pressed to reach page one (or the Next that lands on the last page) would drop the
@@ -144,14 +150,15 @@ export function Pager({
 }) {
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + (shown ?? limit), total);
-  // a page past the end (the list shrank since it was counted) has no range to print
-  const empty = shown === 0 && total > 0;
+  const empty = shown !== undefined && pastTheEnd(shown, total);
   const canPrev = offset > 0;
   // nothing lies past a page that is already past the end
   const canNext = offset + limit < total && shown !== 0;
   return (
     <div className="pager">
-      <span className="num">
+      {/* a status region: a screen reader hears the new range when a page lands (the dimmed
+          reload itself is silent) */}
+      <span className="num" role="status">
         {empty
           ? `nothing on this page · ${fmtInt(total)} total`
           : `${fmtInt(from)}–${fmtInt(to)} of ${fmtInt(total)}`}

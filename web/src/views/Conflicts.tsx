@@ -16,7 +16,7 @@ import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtInt } from "../lib/format";
 import { CONFLICT_TABS, toConflictTab, type ConflictTab } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { Async, EmptyState } from "../components/States";
 
@@ -97,7 +97,7 @@ export function Conflicts() {
         <Async state={page} loadingLabel="Loading conflicts" loadingRows={10}>
           {(data) => (
             <>
-              {data.rows.length === 0 && data.total > 0 ? (
+              {pastTheEnd(data.rows.length, data.total) ? (
                 // a page past the end: the list shrank since it was counted
                 <EmptyState
                   title="Nothing on this page"
