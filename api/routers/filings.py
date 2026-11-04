@@ -35,7 +35,7 @@ def pending(
     q: str | None = Query(None, max_length=80),
     applicant_slug: str | None = Query(None, max_length=80),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     """Pending applications, newest first. q searches call sign, file number, station name,
     applicant and description; applicant_slug filters to applications filed by one Bus

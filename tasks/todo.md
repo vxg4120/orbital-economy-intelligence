@@ -310,3 +310,15 @@ Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` 
       three /api/stats calls per landing (now one in flight); an empty launch series crashed the
       Overview; positive drag medians clipped and null storm days vanished from the strip; a
       ?kind=bus deep link left the Manufacturers tab selected.
+- [x] H. API audit (an independent read of both services, several findings reproduced through
+      TestClient with a stubbed database): /api/satellites/search?q=² answered 500 because
+      str.isdigit() accepts "²" and int() rejects it (ASCII digits only now; LIKE metacharacters
+      in a name search are literal); a non-ASCII X-Review-Token raised TypeError inside
+      hmac.compare_digest (a 500 instead of a 401: compared as bytes now); page offsets above
+      int8 reached Postgres as NUMERIC and failed (bounded); the server canonical for a param
+      with a space or quote carried it raw while the client's carried the percent-encoded form
+      (percent-encoded on both sides; the escaping test moved with it); a matched route marked
+      noindex would have shipped a canonical (served without one and with the robots tag);
+      orbital sent no CORS headers while exo allowed any origin to GET (the same read-only
+      policy now); the README and the app description called the service read-only while the
+      token-guarded verdict route writes (they say so).

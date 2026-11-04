@@ -120,10 +120,13 @@ def test_unmatched_path_is_404_noindex_without_canonical():
         assert 'data-route-meta' in html
 
 
-def test_values_are_html_escaped():
+def test_param_values_are_percent_encoded_and_attributes_escaped():
+    """A path param goes back out percent-encoded (the client regenerates its canonical from
+    the encoded pathname, so both sides agree), and the attribute is HTML-safe either way."""
     html, _ = seo.render_head(SHELL, '/resolver/a"b', "", ROUTES)
-    assert '/resolver/a&quot;b' in html
+    assert "/resolver/a%22b" in html
     assert '/resolver/a"b' not in html
+    assert "/resolver/a&quot;b" not in html
 
 
 def test_every_app_route_is_in_the_table():

@@ -134,8 +134,8 @@ early re-pull attempt — the ledger recorded it as `error`, exactly as designed
 
 A read-only **mission-control terminal** over the identity graph — the interview demo that makes the
 resolution layer *visible*: crosswalks, provenance, temporal ownership, and the disagreements between
-catalogs, not just headline totals. A FastAPI JSON service (`api/`, read-only — every query
-parameterized and LIMIT-bounded) reads the live graph through the existing `common/db.py`, and a
+catalogs, not just headline totals. A FastAPI JSON service (`api/`, every query parameterized and
+LIMIT-bounded; every GET read-only, the one write being the token-guarded review verdict) reads the live graph through the existing `common/db.py`, and a
 Vite + React + TypeScript SPA (`web/`) renders it as a dark, monospace instrument. In single-process
 demo mode the API serves the built SPA at `/`, so the whole terminal runs from one port.
 

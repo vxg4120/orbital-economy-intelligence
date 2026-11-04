@@ -76,7 +76,7 @@ _LEAGUE_COUNT_SQL = _LEAGUE_CTE + (
 def league_table(
     db=Depends(get_db),
     limit: int = Query(100, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
     sort: str = Query("fleet"),
 ):
     order = _SORTS.get(sort)

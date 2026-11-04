@@ -700,7 +700,7 @@ def leaderboard(
     sort: str = Query("fleet"),
     min_n: int = Query(5, ge=1, le=100000),
     limit: int = Query(100, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
     q: str | None = Query(None, max_length=80),
     state: str = Query("all", pattern="^(all|anchored)$"),
     dir: str | None = Query(None, pattern="^(asc|desc)$"),
@@ -731,7 +731,7 @@ def provenance(
     metric: str = Query("fleet"),
     kind: str | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
     role: str = Query("prime", pattern="^(prime|participated)$"),
 ):
     return provenance_rows(db, slug, metric, kind, limit, offset, role)

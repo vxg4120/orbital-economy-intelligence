@@ -9,6 +9,7 @@ import contextlib
 import pathlib
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api import cache
 from api.routers import (
@@ -41,9 +42,22 @@ async def _lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="Orbital Economy Terminal API",
-    description="Read-only JSON API over the satellite identity graph and fact layer.",
+    description=(
+        "JSON API over the satellite identity graph and fact layer. Every GET is read-only and "
+        "parameterized; the one write, the token-guarded review verdict, is documented in "
+        "api/routers/review.py."
+    ),
     version="1.0.0",
     lifespan=_lifespan,
+)
+
+# Same policy as ExoDossier: any origin may read the catalog (GET only, no credentials), so a
+# third-party page or agent that reads exo's API can read this one the same way.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 app.include_router(stats.router, prefix="/api")
