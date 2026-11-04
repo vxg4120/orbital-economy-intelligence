@@ -412,3 +412,6 @@ Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` 
       tests that would need a DOM environment, the "Submit ⏎" glyph on touch (the soft
       keyboard's return does submit), and the API's "Bus Benchmarks methodology" document
       heading on GitHub.
+- [x] L. The 404 page opens with the chapter head like every other view (it was an empty state
+      with no h1, the one route whose heading outline differed): "Page not found" as the h1,
+      the path in the description, the two ways back beneath.
