@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "updated_at": "2026-07-23",
-  "title": "Bus Benchmarks methodology",
+  "title": "Bus benchmarks methodology",
   "doc_url": "https://github.com/vxg4120/orbital-economy-intelligence/blob/main/docs/BUS_BENCHMARKS_METHODOLOGY.md",
   "purpose": "An independent, provenance-tracked performance scoreboard for satellite buses (spacecraft platforms) by manufacturer and bus model, computed from public catalog and orbital element data.",
   "data_sources": [
@@ -69,7 +69,7 @@
     },
     {
       "key": "coverage",
-      "label": "Behavior coverage",
+      "label": "GP coverage",
       "definition": "Share of the attributed fleet with at least one day of GP behavior data in sat_daily. All behavior metrics are computed only over this observed slice, which is LEO-biased.",
       "source": "sat_daily continuous aggregate"
     }

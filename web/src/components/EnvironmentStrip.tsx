@@ -2,23 +2,37 @@ import type { EnvironmentResponse } from "../api/types";
 import { fmtInt } from "../lib/format";
 
 /** The drag environment: daily fleet-median SMA change as downward bars (the atmosphere
- *  taking meters off ~15k LEO orbits), storm days tinted, forward predicted days marked.
+ *  taking meters off ~15k LEO orbits), storm days brighter and outlined (the amber is the
+ *  cross-source conflict hue on this route, so a storm does not wear it), forward predicted
+ *  days marked.
  *  Hand-rolled SVG rather than the chart library: the series is one value per day and the
  *  terminal aesthetic wants bars, a zero line, and nothing else. */
 export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
-  const observed = env.rows.filter((r) => r.median_dsma_m !== null);
+  // Every day keeps its slot on the axis, so a storm day with no median (too few observed
+  // satellites) is a gap with its storm label, not a day that silently vanishes.
+  const days = env.rows;
+  const observed = days.filter((r) => r.median_dsma_m !== null);
   const latest = env.latest_observed;
   const worst = env.worst_drag_day;
+  // NOAA's bands for the day's peak Kp: 5 is the first storm level (G1), 4 is "active", 3
+  // "unsettled", below that quiet. Every day without a storm level used to read "quiet",
+  // a Kp 4.3 day included.
+  const kp = latest?.kp_max;
+  const band =
+    kp == null ? "" : kp >= 5 ? "storm" : kp >= 4 ? "active" : kp >= 3 ? "unsettled" : "quiet";
 
   const W = 640;
   const H = 96;
   const zeroY = 18; // room above the zero line for the rare positive median
+  const roomBelow = H - zeroY - 14;
+  const roomAbove = zeroY - 2;
   const maxDrop = Math.max(20, ...observed.map((r) => Math.abs(r.median_dsma_m ?? 0)));
-  const barW = observed.length > 0 ? Math.min(10, (W - 4) / observed.length) : 10;
+  const barW = days.length > 0 ? Math.min(10, (W - 4) / days.length) : 10;
 
   return (
     <div>
-      <div className="grid grid--stats">
+      {/* three cells, so the row has no blank fourth column */}
+      <div className="grid grid--3">
         <StatCell
           label="Geomagnetic (latest observed)"
           value={latest ? `Kp ${latest.kp_max ?? "?"}` : "no data"}
@@ -26,7 +40,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
             latest?.storm_level
               ? `${latest.storm_level} storm · Ap peak ${latest.ap_max ?? "?"} · ${latest.day}`
               : latest
-                ? `quiet · Ap ${latest.ap_avg ?? "?"} · ${latest.day}`
+                ? [band, `Ap ${latest.ap_avg ?? "?"}`, latest.day].filter(Boolean).join(" · ")
                 : ""
           }
         />
@@ -56,12 +70,42 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
           style={{ display: "block", marginTop: 8 }}
         >
           <line x1={0} y1={zeroY} x2={W} y2={zeroY} stroke="var(--rule)" strokeWidth={1} />
-          {observed.map((r, i) => {
-            const v = r.median_dsma_m ?? 0;
-            const h = (Math.abs(v) / maxDrop) * (H - zeroY - 14);
-            const x = 2 + i * ((W - 4) / observed.length);
-            const y = v <= 0 ? zeroY : zeroY - h;
+          {days.map((r, i) => {
+            const x = 2 + i * ((W - 4) / days.length);
             const storm = r.storm_level !== null;
+            const v = r.median_dsma_m;
+            if (v === null) {
+              // no median that day: a hairline tick on the zero line, labelled if it stormed
+              return (
+                <g key={r.day}>
+                  <rect
+                    x={x}
+                    y={zeroY - 1}
+                    width={Math.max(2, barW - 2)}
+                    height={2}
+                    fill={storm ? "var(--signal)" : "var(--rule-2)"}
+                    opacity={0.8}
+                  >
+                    <title>
+                      {`${r.day}: no fleet median` +
+                        (r.storm_level ? ` (${r.storm_level} storm, Kp ${r.kp_max})` : "")}
+                    </title>
+                  </rect>
+                  {storm ? (
+                    <text x={x + barW / 2} y={H - 2} textAnchor="middle" fontSize={8} fill="var(--ink-dim)">
+                      {r.storm_level}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            }
+            // a drop scales to the room below the zero line; a rise (rare, small) to the room
+            // above it, and never past the top edge
+            const h =
+              v <= 0
+                ? (Math.abs(v) / maxDrop) * roomBelow
+                : Math.min(roomAbove, (v / maxDrop) * roomBelow);
+            const y = v <= 0 ? zeroY : zeroY - h;
             return (
               <g key={r.day}>
                 <rect
@@ -69,7 +113,8 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                   y={y}
                   width={Math.max(2, barW - 2)}
                   height={Math.max(1, h)}
-                  fill={storm ? "var(--conflict)" : "var(--signal-dim)"}
+                  fill={storm ? "var(--signal)" : "var(--signal-dim)"}
+                  stroke={storm ? "var(--ink-dim)" : "none"}
                   opacity={storm ? 0.95 : 0.65}
                 >
                   <title>
@@ -83,7 +128,7 @@ export function EnvironmentStrip({ env }: { env: EnvironmentResponse }) {
                     y={H - 2}
                     textAnchor="middle"
                     fontSize={8}
-                    fill="var(--conflict)"
+                    fill="var(--ink-dim)"
                   >
                     {r.storm_level}
                   </text>

@@ -265,3 +265,153 @@ kind param in its canonical (slugs collide across kinds), /Resolver/25544/ norma
 /api/stories, /api/health, lightcurves processed 58, all unchanged; box 35%.
 Not done: prerendered per-route bodies (only heads are per-route); the share cards are
 screenshots dated 2026-10-19 and will drift; Search Console verification token still blank.
+
+# Look-and-feel and consistency batch, 2026-11-04 (Vib: "keep going … check for bugs,
+# check for inconsistencies … make it really, really good")
+Owner: session faraday. Both apps built in fixture mode and screenshotted on every route at
+1440 and 375 px (no console errors, no horizontal overflow on either app before or after).
+- [x] A. Filings was the one view without the chapter head: it opened on "Pl. 01" with an
+      unstyled native input (`className="input"` has no rule in theme.css). Now the standard
+      .vhead title + description, the Resolver's .searchbar (Enter submits), and the pipeline
+      copy moved up into the description.
+- [x] B. Deep links title the tab by entity, as exo's Target view does: "ISS (ZARYA) · Resolver",
+      "SpaceX · Operators", "Starlink V2M · Bus Benchmarks", "cospar:1966-116B · Review"
+      (seo.ts useDocumentTitle; the route table still feeds the share-card tags).
+- [x] C. Visitor-facing fetch errors: a 404 / 429 / 5xx / other 4xx no longer shows the raw
+      "404 Not Found for /satellite/1" line (exo's mapping ported, with the API's own detail
+      text passed through for a 4xx that has one), and a 2xx body that is not JSON reads as
+      "answered with something that is not data" instead of the parser's words.
+- [x] D. Verified, no change: the Review case's verdict bar looked to cover Pl. 05/06 in
+      full-page captures, but it is position: sticky and sits in flow once reached.
+Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` unchanged
+(275 passed). The db suite needs TimescaleDB and could not run in this container.
+- [x] E. The SPA had no automated tests and CI never built it: vitest (3.x, the line that runs on
+      Vite 5) with 20 unit tests over lib/format, seo (route table vs App.tsx, canonical rules)
+      and States.visitorMessage; a `web` CI job runs them and then tsc + vite build.
+- [x] F. README: the terminal section listed four views; it lists the eight.
+- [x] G. Web audit (an independent read of every view, component and helper; 25 findings, each
+      re-verified in the code before the fix): the Review case's window Enter handler swallowed
+      Enter on every button and link (Next, Queue, the guide, the nav) and ran submit instead;
+      a nested receipt link's Enter bubbled to the clickable row and opened the cohort instead;
+      sortable column headers were click-only (now real buttons); the ownership timeline drew
+      "transfer" marks from operator and manufacturer segments on the owner track and labelled an
+      open-ended record "2028" from the padded geometry (now "present"); "Status history ·
+      latest first" was API order; the "catalog says active, physics says decaying" tile linked
+      to Conflicts, a different dataset (now a figure); the tour forced itself after 3 s with its
+      anchors unmounted (now waits for both anchors, gives up quietly, cancels on unmount); the
+      heatmap caption counted undrawn bins and told visitors to "click"; toggle groups carried no
+      aria-pressed; a link sat inside the Filings row button (now a div with an explicit details
+      toggle); Review case storage access could throw in render; a dossier-seeded verdict stole
+      focus on load and disabled the shortcuts; a failed next-case lookup after a stored verdict
+      read "Submit failed" and a retry would 409; receipt links dropped the bus kind; an aliased
+      slug showed the survivor's figures without saying so; older snapshots rendered "NaN%";
+      "No all cases", a silent Start-reviewing, the queue tab lost on the way back; compact()
+      gave "1000K"; fmtDuration gave "6m 60s"; tab changes fetched the old page offset first;
+      three /api/stats calls per landing (now one in flight); an empty launch series crashed the
+      Overview; positive drag medians clipped and null storm days vanished from the strip; a
+      ?kind=bus deep link left the Manufacturers tab selected.
+- [x] H. API audit (an independent read of both services, several findings reproduced through
+      TestClient with a stubbed database): /api/satellites/search?q=² answered 500 because
+      str.isdigit() accepts "²" and int() rejects it (ASCII digits only now; LIKE metacharacters
+      in a name search are literal); a non-ASCII X-Review-Token raised TypeError inside
+      hmac.compare_digest (a 500 instead of a 401: compared as bytes now); page offsets above
+      int8 reached Postgres as NUMERIC and failed (bounded); the server canonical for a param
+      with a space or quote carried it raw while the client's carried the percent-encoded form
+      (percent-encoded on both sides; the escaping test moved with it); a matched route marked
+      noindex would have shipped a canonical (served without one and with the robots tag);
+      orbital sent no CORS headers while exo allowed any origin to GET (the same read-only
+      policy now); the README and the app description called the service read-only while the
+      token-guarded verdict route writes (they say so).
+
+- [x] I. Adversarial review of the branch itself (three independent refuters per finding; what
+      survived, orbital's share): Enter after a mouse click on a verdict button re-selected it
+      instead of submitting (the clicked button keeps focus in Chromium, and the new control
+      guard treated it as a control; verdict buttons are exempt); the corrected-answer autofocus
+      tracked a mount flag that StrictMode's effect replay defeated (it tracks the previous
+      verdict now); the sort button fills its header cell so the whole cell is the hit area
+      (44 px tall on touch screens); the pager formats en-US like every other number; a ?kind=
+      flip that arrives by URL resets the leaderboard page and sort the way the toggle does; a
+      failed "Start reviewing" reads as visitor words; a non-2xx answer carries the API's own
+      detail when it gave one; the server canonical mirrors the browser's pathname encoding
+      (the WHATWG path set leaves + ' ( ) , : @ bare), with a test. Refuted and left alone: the
+      `only` carry in the review nav, grid rounding in the heatmap, the "20 hits" cap wording,
+      row links on the league tables.
+- [x] J. Design pass (24 items from a ranked plan scored by two reviewers for look, feel and
+      consistency across both apps, in three batches; then an independent verifier measured
+      every item against a build of the base commit, two fix rounds closed what it found, a
+      parity pass aligned the shared behaviour with ExoDossier, and one last fix closed the
+      verifier's final finding; everything measured with Playwright at 1440, 1024, 390 and
+      360 px; the final sweep of 17 routes x 2 widths has scrollWidth == clientWidth, no
+      console errors and one h1 per page). One name: the site is "Orbital Economy Terminal"
+      on the plate, in the colophon, in every route title, the 404, index.html and the
+      JSON-LD; the project stays "Orbital Economy Intelligence". Lists reload in place:
+      useApi({ keep, keepKey }) keeps the paged lists mounted and dimmed while a page, sort or
+      search loads (focus and scroll hold), a tab that picks another list shows the loader
+      (a kept page had rendered under the new tab's columns), a failed reload's Retry shows
+      the loader, the pager's end buttons are aria-disabled so landing on page one keeps the
+      focus, and a page past the end reads "Nothing on this page" instead of "41–40 of 214"
+      (8 vitest cases). Phones: Filings rows wrap instead of clipping the spec chip; the
+      ownership timeline fits (the transfer tag ran 17 px past the page) and narrow segments
+      show years through a container query, ellipsis last; the verdict bar is a 2x2 grid of
+      44 px buttons without the legend or the key caps and says "Pick a verdict." on touch;
+      the sr-only stories table no longer widens the page; tab strips fade where they scroll
+      (to 1024 px, where the rail leaves a 615–714 px column); the congestion heatmap fits
+      its cells to the panel on phones (6–7 px), keeps the designed 12–13 px on desktop and
+      marks itself scrollable with a fade below that; focus rings draw inside their scroller
+      and the pinned first cell paints its share; inputs are 16 px. Tablet: panel heads wrap
+      to a one-line title over a right-aligned meta at 1024; the resolver detail grid goes to
+      one column; the space-weather row is three columns. Type: hero counts are Fraunces like
+      every stat value; "Under the hood" steps to 19 px; display titles on a 1.15 line-height;
+      72ch / 48ch measures; the 10 px classes are 11 px; closing notes share one rule. Honest
+      states: disabled controls are legible (5.2–5.5:1, were 2.0–2.8:1); waiting controls
+      stay enabled with aria-busy so focus never falls to body; the review case head and its
+      nav are hoisted above the loading case; the life-track placeholder is the chart's own
+      block, so the Q&A panels no longer jump when the history lands (148 px before, 44 px on
+      phones after the first fix, 0 now); the coverage meter's low band is the error red, not
+      the status rust; storm bands are signal blue, not conflict amber. Copy: the case h1 is
+      the case type with the subject beside it; "7 ids · by source", "1 id"; the search field
+      says what it takes; no-match states quote the query; "Schedule S tech report PDFs",
+      "docket 9 of 28 pending"; full measure names on bus sort buttons; "cataloged",
+      "observer", "Bus benchmarks"; "Jul 2024" on the race axis; the Kp band in the
+      space-weather sub; the landing description says what the page shows.
+- [x] K. Code review of the design diff (six readers per repo — state logic, markup and a11y,
+      CSS cascade, copy and docs, tests and gates, API and shell — each measured in the
+      browser; 43 findings for this repo, hand-triaged, 41 fixed). Keyboard: a list reloading
+      in place was inert for the mouse only, so Enter on the pager kept paging through the
+      request (the kept wrapper swallows clicks while it loads); the case h1 was the stratum
+      alone, so every case in a stratum had the same heading (the subject rides inside it now);
+      the live region announced the keyboard legend on every submit (only the error is live);
+      the legend hid under 560 px while the key caps hid on a coarse pointer (both on touch
+      now); resolver result rows drew their ring outside their scroller; the search bar rang
+      for the cohort chip inside it; a control scrolled under a pinned column stayed hidden on
+      focus. Lists: Buses and Review got the past-the-end page and a no-match state (the board
+      showed a header-only table and "0–0 of 0"); Filings' debounced commit read the
+      keystroke's params and re-applied a cohort chip cleared during the pause, its kept page's
+      empty copy named the filter still loading, and "clear search" dropped the focus to the
+      body. Phones: the 320 px verdict bar ran the notes field under Submit; inert tabs painted
+      a 2px bar in the active slot; a busy button fell to 3.3:1; go/submit buttons stayed 36 px
+      on touch; label chips got button padding. Copy: one name for the GP coverage metric and
+      the methodology document; "present" on the short timeline; "1 id"; the Filings
+      methodology meta links the document it named; the landing's JSON-LD, the README
+      screenshot caption and "catalogued" in two docs and the audit report. Tests: the static
+      shell is held to the route table on both sides (vitest reads index.html; the dist-backed
+      Python test reads GET /); the pure seo tests read the source table; the landing
+      description is a relation, not a prefix; new tests for the Kp band, inert pager ends, the
+      shared life-track foot, coarsePointer, the Filings copy and the resolver result states
+      (45 vitest cases). A second wave from the ExoDossier readers, mirrored here: while a kept
+      page reloads the pager printed a range true of neither the rows on screen nor the page in
+      flight (it names the page in flight now), Next stayed live on a page past the end, and a
+      failed page turn dropped the focus to the body (Retry takes it). Found on the sibling app
+      and shared here: the colophon's touch tap boxes lay over the next line's links (a tap
+      could open the other link; the box pushes the lines apart now) and its dotted rule was
+      1.5:1 (5.5:1); a tab or view link focused by keyboard scrolls clear of its strip's fade;
+      the pager's range is a status region; one past-the-end predicate for the pager and five
+      views; the 16 px control floor follows the device, not the width; GET / was the one shell
+      served verbatim from web/dist with no cache header (Starlette normalises the root to
+      "."), so it renders like every route now and every rendered shell is no-cache. Left: hook
+      tests that would need a DOM environment, the "Submit ⏎" glyph on touch (the soft
+      keyboard's return does submit), and the API's "Bus Benchmarks methodology" document
+      heading on GitHub.
+- [x] L. The 404 page opens with the chapter head like every other view (it was an empty state
+      with no h1, the one route whose heading outline differed): "Page not found" as the h1,
+      the path in the description, the two ways back beneath.

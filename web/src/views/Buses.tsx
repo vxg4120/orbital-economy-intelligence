@@ -15,14 +15,23 @@ import type {
   BusSort,
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { fmtDate, fmtInt, fmtNum, fmtPct } from "../lib/format";
 import { naturalDir, type SortDir } from "../lib/busSort";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column, type SortSpec } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column, type SortSpec } from "../components/DataTable";
 import { StatTile } from "../components/StatTile";
 import { CoverageMeter } from "../components/CoverageMeter";
 import { StatusBadge } from "../components/StatusBadge";
 import { Async, EmptyState, ErrorState, Loading } from "../components/States";
+
+/** A snapshot metric as a number, or null when the snapshot never carried it (an older
+    methodology): Number(undefined) is NaN and would have rendered "NaN%". */
+function metricNum(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
 
 const LIMIT = 50;
 const MIN_N_OPTIONS = [1, 5, 25, 100];
@@ -37,7 +46,11 @@ export function Buses() {
   const [search] = useSearchParams();
   const navigate = useNavigate();
 
-  const [group, setGroup] = useState<BusGroup>("manufacturer");
+  const kindParam = search.get("kind");
+  const kind: BusGroup | undefined =
+    kindParam === "manufacturer" || kindParam === "bus" ? kindParam : undefined;
+  // a /buses/<slug>?kind=bus deep link opens the matching leaderboard tab, not Manufacturers
+  const [group, setGroup] = useState<BusGroup>(kind ?? "manufacturer");
   const [sort, setSort] = useState<BusSort>("fleet");
   const [dir, setDir] = useState<SortDir>("desc");
   const [minN, setMinN] = useState(5);
@@ -57,19 +70,21 @@ export function Buses() {
   const searching = debounced.trim() !== "";
   const effMinN = searching ? 1 : minN;
 
+  // keep: a sort, page, floor or search change dims the board in place instead of unmounting it;
+  // keyed by the group, so the other leaderboard opens with the loader, not this one's rows
   const board = useApi(
     () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined, dir),
     [group, sort, dir, effMinN, offset, debounced],
+    { keep: true, keepKey: group },
   );
   const methodology = useApi(() => getBusMethodology(), []);
 
-  const kindParam = search.get("kind");
-  const kind: BusGroup | undefined =
-    kindParam === "manufacturer" || kindParam === "bus" ? kindParam : undefined;
   const detail = useApi<BusDetail | null>(
     () => (slug ? getBus(slug, kind) : Promise.resolve(null)),
     [slug, kind],
   );
+  const cohortName = detail.data?.benchmark.name;
+  useDocumentTitle(cohortName ? `${cohortName} · Bus benchmarks · ${SITE_NAME}` : undefined);
 
   const sortSpec: SortSpec = { key: `sort:${sort}`, dir };
   // A second click on the active column reverses it; a new column starts in its natural
@@ -90,19 +105,27 @@ export function Buses() {
     setDir("desc");
     setOffset(0);
   };
+  // A kind flip that arrives by URL (a constituent link, Back/Forward across one) switches the
+  // leaderboard the same way a click on the toggle does: page one, natural sort.
+  useEffect(() => {
+    if (kind && kind !== group) pickGroup(kind);
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns: Column<BusRow>[] = [
+  // The columns read the group from the board itself (BusesResponse.group), not from the toggle,
+  // so the header, the sub-label and the receipt links always describe the rows they sit on
+  // (the hook drops the kept rows when the group changes; this covers the render in between).
+  const columnsFor = (g: BusGroup): Column<BusRow>[] => [
     {
       key: "sort:name",
-      header: group === "manufacturer" ? "Manufacturer" : "Bus model",
+      header: g === "manufacturer" ? "Manufacturer" : "Bus model",
       sortable: true,
       render: (r) => (
         <span>
           <span className="mono-hi">{r.name}</span>
-          {group === "manufacturer" && r.manufacturer_country ? (
+          {g === "manufacturer" && r.manufacturer_country ? (
             <span className="muted"> · {r.manufacturer_country}</span>
           ) : null}
-          {group === "bus" && r.primary_manufacturer ? (
+          {g === "bus" && r.primary_manufacturer ? (
             <span className="muted"> · {r.primary_manufacturer}</span>
           ) : null}
         </span>
@@ -116,7 +139,7 @@ export function Buses() {
       render: (r) => (
         <a
           className="receipt-link"
-          href={`/api/buses/${r.slug}/provenance?metric=fleet`}
+          href={`/api/buses/${r.slug}/provenance?metric=fleet&kind=${g}`}
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -130,6 +153,7 @@ export function Buses() {
     {
       key: "sort:tto",
       header: "TTO days",
+      title: "Sort by median time to operational (days from launch)",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.median_days_to_operational !== null ? fmtNum(r.median_days_to_operational, 0) : null}</Cell>,
@@ -137,6 +161,7 @@ export function Buses() {
     {
       key: "sort:sk_share",
       header: "SK share",
+      title: "Sort by station-keeping share",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.station_keeping_share_pct !== null ? fmtPct(r.station_keeping_share_pct) : null}</Cell>,
@@ -144,6 +169,7 @@ export function Buses() {
     {
       key: "sort:station_keeping",
       header: "SK p50 km",
+      title: "Sort by station-keeping tightness, cohort median km",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.p50_station_keeping_km !== null ? fmtNum(r.p50_station_keeping_km, 3) : null}</Cell>,
@@ -168,6 +194,7 @@ export function Buses() {
       // reports n, which the definition promises for every metric.
       key: "sort:compliance",
       header: "PMD 5y",
+      title: "Sort by post-mission disposal within 5 years",
       num: true,
       sortable: true,
       render: (r) => (
@@ -185,6 +212,7 @@ export function Buses() {
     {
       key: "sort:coverage",
       header: "GP cov",
+      title: "Sort by GP coverage",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.gp_coverage_pct !== null ? fmtPct(r.gp_coverage_pct) : null}</Cell>,
@@ -195,7 +223,7 @@ export function Buses() {
     <div className="view fadein">
       <header className="vhead">
         <div>
-          <h1 className="vhead__title">Bus Benchmarks</h1>
+          <h1 className="vhead__title">Bus benchmarks</h1>
           <p className="vhead__desc">
             An independent, provenance-tracked scoreboard for spacecraft platforms: fleet,
             time-to-operational, station-keeping, lifetime and disposal, per manufacturer and per
@@ -219,13 +247,17 @@ export function Buses() {
         <div className="review-filters">
           <div className="tabs tabs--sub">
             <button
+              type="button"
               className={`tab${group === "manufacturer" ? " is-active" : ""}`}
+              aria-pressed={group === "manufacturer"}
               onClick={() => pickGroup("manufacturer")}
             >
               Manufacturers
             </button>
             <button
+              type="button"
               className={`tab${group === "bus" ? " is-active" : ""}`}
+              aria-pressed={group === "bus"}
               onClick={() => pickGroup("bus")}
             >
               Bus models
@@ -249,7 +281,9 @@ export function Buses() {
             {MIN_N_OPTIONS.map((n) => (
               <button
                 key={n}
+                type="button"
                 className={`tab${minN === n ? " is-active" : ""}`}
+                aria-pressed={minN === n}
                 disabled={searching}
                 title={searching ? "Search matches all cohort sizes" : undefined}
                 onClick={() => {
@@ -265,17 +299,51 @@ export function Buses() {
         <Async state={board} loadingLabel="Loading leaderboard" loadingRows={10}>
           {(data) => (
             <>
-              <DataTable<BusRow>
-                columns={columns}
-                rows={data.rows}
-                rowKey={(r) => r.slug}
-                onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${group}`)}
-                sort={sortSpec}
-                onSort={onSort}
-                zebra
-                stickyFirst
-              />
-              <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+              {pastTheEnd(data.rows.length, data.total) ? (
+                // a page past the end: the board shrank since it was counted
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : data.rows.length === 0 ? (
+                // a search or a floor that nothing clears: say so instead of a header-only table
+                <EmptyState
+                  title={
+                    searching ? (
+                      <>
+                        No cohorts match <q className="state__q">{debounced.trim()}</q>
+                      </>
+                    ) : (
+                      "No cohorts at this floor"
+                    )
+                  }
+                  message={
+                    searching
+                      ? "Try a manufacturer or bus-model name, or clear the search."
+                      : "Lower the cohort floor to see smaller fleets."
+                  }
+                />
+              ) : (
+                <DataTable<BusRow>
+                  columns={columnsFor(data.group)}
+                  rows={data.rows}
+                  rowKey={(r) => r.slug}
+                  onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${data.group}`)}
+                  sort={sortSpec}
+                  onSort={onSort}
+                  zebra
+                  stickyFirst
+                />
+              )}
+              {data.total > 0 ? (
+                <Pager
+                  offset={offset}
+                  limit={LIMIT}
+                  total={data.total}
+                  shown={board.loading ? undefined : data.rows.length}
+                  onOffset={setOffset}
+                />
+              ) : null}
             </>
           )}
         </Async>
@@ -302,6 +370,8 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
   // section that reads live receipts is skipped rather than rendered against nothing.
   const retired = detail.retired ?? null;
   const cov = detail.provenance?.metric_coverage ?? null;
+  // a metric the provenance does not cover reads as 0 of 0, never as a crash
+  const cv = (k: string) => cov?.[k] ?? { n: 0, of: 0 };
   const history = useApi(() => getBusHistory(slug, detail.kind), [slug, detail.kind]);
 
   return (
@@ -316,6 +386,12 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
             and they are <strong>not current</strong>.
           </p>
         </Panel>
+      ) : null}
+      {detail.aliased_from ? (
+        <p className="hint">
+          Opened as <span className="mono-hi">{detail.aliased_from}</span>, a slug that merged
+          into this cohort; the figures below are the survivor&rsquo;s.
+        </p>
       ) : null}
       <div className="idhead">
         <div>
@@ -344,7 +420,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
           value={
             <a
               className="receipt-link"
-              href={`/api/buses/${slug}/provenance?metric=fleet`}
+              href={`/api/buses/${slug}/provenance?metric=fleet&kind=${detail.kind}`}
               target="_blank"
               rel="noreferrer"
               title={`Reconciles against ${fmtInt(b.fleet_total)} receipt rows, one per satellite`}
@@ -517,7 +593,7 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
               {retired?.methodology_version ?? "?"} when the cohort last resolved, and the
               monthly record below is unchanged.
             </p>
-            <p className="hint" style={{ marginTop: 10 }}>
+            <p className="hint">
               Confirm or dispute this attribution: email vibhavgupta2@gmail.com with subject
               {" "}&quot;Bus attribution: {b.name}&quot;.
             </p>
@@ -525,22 +601,22 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
         ) : (
         <Panel title="Coverage and provenance" meta={`source gcat · run #${detail.provenance?.ingest_run_id ?? "?"}`}>
           <CoverageMeter
-            label="GP behavior data"
-            pct={b.fleet_total > 0 ? (100 * cov.gp_behavior.n) / b.fleet_total : 0}
-            foot={nOf(cov.gp_behavior.n, b.fleet_total)}
+            label="GP coverage"
+            pct={b.fleet_total > 0 ? (100 * cv("gp_behavior").n) / b.fleet_total : 0}
+            foot={nOf(cv("gp_behavior").n, b.fleet_total)}
           />
           <CoverageMeter
             label="Station-keeping observable"
-            pct={b.fleet_total > 0 ? (100 * cov.station_keeping.n) / b.fleet_total : 0}
-            foot={nOf(cov.station_keeping.n, b.fleet_total)}
+            pct={b.fleet_total > 0 ? (100 * cv("station_keeping").n) / b.fleet_total : 0}
+            foot={nOf(cv("station_keeping").n, b.fleet_total)}
           />
           <CoverageMeter
             label="Time-to-operational cohort"
-            pct={b.fleet_total > 0 ? (100 * cov.time_to_operational.n) / b.fleet_total : 0}
-            foot={nOf(cov.time_to_operational.n, b.fleet_total)}
+            pct={b.fleet_total > 0 ? (100 * cv("time_to_operational").n) / b.fleet_total : 0}
+            foot={nOf(cv("time_to_operational").n, b.fleet_total)}
           />
-          <p className="hint" style={{ marginTop: 10 }}>
-            Disposal verdicts: {fmtInt(cov.disposal.n)} decidable of {fmtInt(cov.disposal.of)}{" "}
+          <p className="hint">
+            Disposal verdicts: {fmtInt(cv("disposal").n)} decidable of {fmtInt(cv("disposal").of)}{" "}
             decayed. Uncertain attributions: {fmtInt(detail.provenance?.uncertain_attributions ?? 0)}.
             Attribution built {fmtDate(detail.provenance?.built_at ?? null)}.
           </p>
@@ -573,14 +649,10 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
                       {h.snapshots.map((s) => (
                         <tr key={s.snapshot_month}>
                           <td className="num">{fmtDate(s.snapshot_month)}</td>
-                          <td className="is-num">{fmtInt(Number(s.metrics.fleet_total))}</td>
-                          <td className="is-num">{fmtInt(Number(s.metrics.fleet_on_orbit))}</td>
+                          <td className="is-num">{fmtInt(metricNum(s.metrics.fleet_total))}</td>
+                          <td className="is-num">{fmtInt(metricNum(s.metrics.fleet_on_orbit))}</td>
                           <td className="is-num">
-                            <Cell>
-                              {s.metrics.station_keeping_share_pct !== null
-                                ? fmtPct(Number(s.metrics.station_keeping_share_pct))
-                                : null}
-                            </Cell>
+                            <Cell>{fmtPct(metricNum(s.metrics.station_keeping_share_pct))}</Cell>
                           </td>
                           <td>v{s.methodology_version}</td>
                         </tr>
@@ -628,7 +700,9 @@ function ReceiptsPanel({ slug, kind }: { slug: string; kind: BusGroup }) {
           {RECEIPT_METRICS.map((m) => (
             <button
               key={m.key}
+              type="button"
               className={`tab${metric === m.key ? " is-active" : ""}`}
+              aria-pressed={metric === m.key}
               onClick={() => {
                 setMetric(m.key);
                 setOffset(0);
@@ -684,7 +758,7 @@ function ReceiptsPanel({ slug, kind }: { slug: string; kind: BusGroup }) {
             <div className="panel__body" style={{ paddingTop: 8, paddingBottom: 8 }}>
               <span className="hint">Cohort: {data.cohort}.</span>
             </div>
-            <Pager offset={offset} limit={limit} total={data.total} onOffset={setOffset} />
+            <Pager offset={offset} limit={limit} total={data.total} shown={data.rows.length} onOffset={setOffset} />
           </>
         )}
       </Async>
@@ -732,7 +806,7 @@ function MethodologyPanel({ m }: { m: BusMethodology }) {
         </div>
       </div>
 
-      <p className="hint" style={{ marginTop: 10 }}>
+      <p className="hint">
         Inclusion: {m.inclusion} Default cohort floor: n ≥ {m.cohort_minimum}. Refresh: {m.refresh}
       </p>
     </Panel>

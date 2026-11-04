@@ -4,6 +4,7 @@ The pure tests run on a small inline shell against the real route table in web/p
 need no build. The TestClient tests need the built SPA at web/dist and are skipped without it.
 """
 
+import json
 import pathlib
 import re
 import warnings
@@ -24,21 +25,23 @@ _needs_spa = pytest.mark.skipif(
 
 SHELL = """<!doctype html>
 <html><head>
-    <title>Orbital Economy Intelligence</title>
+    <title>Orbital Economy Terminal</title>
     <meta
       name="description"
       content="root description"
     />
     <link rel="canonical" href="https://orbital.vibcreates.com/" />
-    <meta property="og:title" content="Orbital Economy Intelligence" />
+    <meta property="og:title" content="Orbital Economy Terminal" />
     <meta property="og:description" content="root description" />
     <meta property="og:url" content="https://orbital.vibcreates.com/" />
-    <meta name="twitter:title" content="Orbital Economy Intelligence" />
+    <meta name="twitter:title" content="Orbital Economy Terminal" />
     <meta name="twitter:description" content="root description" />
   </head><body><div id="root"></div></body></html>
 """
 
-ROUTES = seo.load_routes()
+# the source table, never the built copy under web/dist (which can lag an edit to public/)
+_PUBLIC_ROUTES = pathlib.Path(__file__).resolve().parent.parent / "web" / "public" / "seo-routes.json"
+ROUTES = seo.load_routes(_PUBLIC_ROUTES)
 
 
 def _attr(html, pattern):
@@ -52,19 +55,24 @@ def _head(html):
         "description": _attr(html, r'name="description"\s+content="([^"]*)"'),
         "canonical": _attr(html, r'<link rel="canonical" href="([^"]*)"'),
         "og:title": _attr(html, r'property="og:title" content="([^"]*)"'),
-        "og:description": _attr(html, r'property="og:description" content="([^"]*)"'),
+        "og:description": _attr(html, r'property="og:description"\s+content="([^"]*)"'),
         "og:url": _attr(html, r'property="og:url" content="([^"]*)"'),
         "twitter:title": _attr(html, r'name="twitter:title" content="([^"]*)"'),
-        "twitter:description": _attr(html, r'name="twitter:description" content="([^"]*)"'),
+        "twitter:description": _attr(html, r'name="twitter:description"\s+content="([^"]*)"'),
         "robots": _attr(html, r'name="robots" content="([^"]*)"'),
     }
 
 
-def test_root_keeps_root_metadata():
+def test_root_gets_the_landing_description():
     html, status = seo.render_head(SHELL, "/", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Orbital Economy Intelligence"
+    assert h["title"] == "Orbital Economy Terminal"
+    # the landing is a story page, so its description is its own, not the site's catalog line
+    table = json.loads(_PUBLIC_ROUTES.read_text())
+    root = next(r for r in table["routes"] if r["pattern"] == "/")
+    assert h["description"] == root["description"]
+    assert h["description"] != table["site"]["description"]
     assert h["canonical"] == "https://orbital.vibcreates.com/"
     assert h["og:url"] == h["canonical"]
     assert h["robots"] is None
@@ -74,7 +82,7 @@ def test_deep_route_with_param_rewrites_every_tag():
     html, status = seo.render_head(SHELL, "/resolver/25544", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Resolver · Orbital Economy Intelligence"
+    assert h["title"] == "Resolver · Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/resolver/25544"
     assert h["og:url"] == h["canonical"]
     assert h["og:title"] == h["twitter:title"] == h["title"]
@@ -93,7 +101,7 @@ def test_static_segment_is_case_insensitive_and_canonical_is_lowercase():
     html, status = seo.render_head(SHELL, "/Buses/Starlink-V2-Mini/", "", ROUTES)
     h = _head(html)
     assert status == 200
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Intelligence"
+    assert h["title"] == "Bus benchmarks · Orbital Economy Terminal"
     # The static segment comes from the pattern; the id keeps the case it was asked with.
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/Starlink-V2-Mini"
 
@@ -116,14 +124,17 @@ def test_unmatched_path_is_404_noindex_without_canonical():
         assert h["robots"] == "noindex", path
         assert h["canonical"] is None, path
         assert h["og:url"] is None, path
-        assert h["title"] == "Page not found · Orbital Economy Intelligence"
+        assert h["title"] == "Page not found · Orbital Economy Terminal"
         assert 'data-route-meta' in html
 
 
-def test_values_are_html_escaped():
+def test_param_values_are_percent_encoded_and_attributes_escaped():
+    """A path param goes back out percent-encoded (the client regenerates its canonical from
+    the encoded pathname, so both sides agree), and the attribute is HTML-safe either way."""
     html, _ = seo.render_head(SHELL, '/resolver/a"b', "", ROUTES)
-    assert '/resolver/a&quot;b' in html
+    assert "/resolver/a%22b" in html
     assert '/resolver/a"b' not in html
+    assert "/resolver/a&quot;b" not in html
 
 
 def test_every_app_route_is_in_the_table():
@@ -152,11 +163,27 @@ def test_unknown_path_is_a_real_404_that_still_renders_the_spa(client):
 
 
 @_needs_spa
+def test_landing_is_served_from_the_static_shell_that_matches_the_table(client):
+    # the root path never goes through render_head (the static mount serves index.html as it
+    # is), so the hand-edited shell has to carry the "/" entry and the site name itself
+    r = client.get("/")
+    assert r.status_code == 200
+    h = _head(r.text)
+    table = json.loads(_PUBLIC_ROUTES.read_text())
+    root = next(x for x in table["routes"] if x["pattern"] == "/")
+    assert h["title"] == root["title"] == h["og:title"] == h["twitter:title"]
+    assert h["description"] == root["description"] == h["og:description"] == h["twitter:description"]
+    assert _attr(r.text, r'property="og:site_name" content="([^"]*)"') == table["site"]["name"]
+    # rendered like every route, never the dist file verbatim: no heuristic caching past a deploy
+    assert r.headers.get("cache-control") == "no-cache"
+
+
+@_needs_spa
 def test_deep_link_gets_its_own_head(client):
     r = client.get("/buses/x")
     assert r.status_code == 200
     h = _head(r.text)
-    assert h["title"] == "Bus Benchmarks · Orbital Economy Intelligence"
+    assert h["title"] == "Bus benchmarks · Orbital Economy Terminal"
     assert h["canonical"] == "https://orbital.vibcreates.com/buses/x"
 
     r = client.get("/buses/starlink-v2-mini?kind=bus")

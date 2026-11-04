@@ -35,7 +35,7 @@ def pending(
     q: str | None = Query(None, max_length=80),
     applicant_slug: str | None = Query(None, max_length=80),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     """Pending applications, newest first. q searches call sign, file number, station name,
     applicant and description; applicant_slug filters to applications filed by one Bus
@@ -189,6 +189,7 @@ _METHODOLOGY = {
     "title": "FCC Pending Filings: Methodology",
     "version": "filings-methodology/1.0",
     "as_of": "2026-08-24",
+    "doc_url": "https://github.com/vxg4120/orbital-economy-intelligence/blob/main/docs/FCC_FILINGS_METHODOLOGY.md",
     "purpose": (
         "Explain how the pending-filings pipeline turns FCC bulk data and filed attachments "
         "into served, page-cited technical specs, and state plainly what it covers and where it fails."

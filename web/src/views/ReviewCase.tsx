@@ -18,6 +18,7 @@ import type {
 } from "../api/types";
 import { isCosparEvidence } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import {
   NEEDS_CORRECTION,
   VERDICT_META,
@@ -31,10 +32,37 @@ import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { VerdictBadge } from "../components/VerdictBadge";
-import { LifeTrack } from "../components/LifeTrack";
+import { LIFETRACK_COMPACT_H, LifeTrack, LifeTrackFoot } from "../components/LifeTrack";
 import { EmptyState, ErrorState, Loading } from "../components/States";
+import { coarsePointer } from "../lib/pointer";
 
 const TOKEN_KEY = "oei_review_token";
+
+/** The queue's filter query, carried from the queue to a case and back. */
+function queueQuery(type: string | undefined, only: string | undefined): string {
+  const q = new URLSearchParams();
+  if (type) q.set("type", type);
+  if (only && only !== "unlabeled") q.set("only", only);
+  const str = q.toString();
+  return str ? `?${str}` : "";
+}
+
+/** Storage can throw (Safari with all cookies blocked, a sandboxed frame); the token is a
+    convenience, so a blocked store reads as "no token" rather than a terminal fault. */
+function readStoredToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+function storeToken(tok: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, tok);
+  } catch {
+    /* the verdict is already stored; losing the convenience is fine */
+  }
+}
 const SOURCE_ORDER = ["satcat", "gcat", "ucs", "operator_seed", "spacetrack", "resolve"];
 const ATTR_ORDER = ["name", "owner", "status", "object_type", "decay_date", "launch_date"];
 
@@ -43,6 +71,7 @@ export function ReviewCase() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const type = params.get("type") ?? undefined;
+  const only = params.get("only") ?? undefined;
   const id = caseId ? Number(caseId) : NaN;
   const idOk = Number.isFinite(id);
 
@@ -50,13 +79,16 @@ export function ReviewCase() {
     () => (idOk ? getReviewCase(id) : Promise.resolve(null)),
     [id],
   );
+  const subject = detail.data?.subject_ref;
+  useDocumentTitle(subject ? `${subject} · Review · ${SITE_NAME}` : undefined);
   // The ordered unlabeled queue for this filter, for position (n of N) + j/k navigation.
   const queue = useApi(() => getReviewCases(type, "unlabeled", 500, 0), [type]);
   const queueIds = useMemo(() => (queue.data?.rows ?? []).map((r) => r.case_id), [queue.data]);
 
   const goTo = (nextId: number) =>
     navigate(`/review/${nextId}${type ? `?type=${type}` : ""}`);
-  const goQueue = () => navigate(`/review${type ? `?type=${type}` : ""}`);
+  const queueHref = `/review${queueQuery(type, only)}`;
+  const goQueue = () => navigate(queueHref);
 
   const idx = queueIds.indexOf(id);
   const goPrev = () => {
@@ -70,22 +102,52 @@ export function ReviewCase() {
 
   if (!idOk) return <EmptyState title="Not found" message={`No case “${caseId}”.`} />;
 
+  const d = detail.data;
   return (
     <div className="view review-case fadein">
+      {/* the head lives outside the case body, so Prev / Next survive the reload they fire: the
+          button that was pressed keeps the keyboard's focus while the next case loads, and the
+          plane keeps its top instead of blanking to a spinner */}
+      <header className="rc-head">
+        <div className="rc-head__main">
+          {d ? (
+            <>
+              {/* the stratum is the page's chapter head (Fraunces, like every other route's h1)
+                  and the subject reference rides inside it as a datum, so each case's heading
+                  is its own (a heading list would otherwise repeat the stratum eight times) */}
+              <h1 className="rc-head__title" data-stratum={d.case_type}>
+                {stratumLabel(d.case_type)}{" "}
+                <span className="rc-head__subject num">{d.subject_ref}</span>
+              </h1>
+              {d.verdict !== null ? <VerdictBadge verdict={d.verdict} /> : null}
+            </>
+          ) : (
+            <span className="skeleton" style={{ width: 220 }} aria-hidden="true" />
+          )}
+        </div>
+        <div className="rc-head__nav">
+          <button className="btn" onClick={goPrev} title="Previous (k / ←)">
+            ‹ Prev
+          </button>
+          <span className="rc-head__pos num">
+            {idx >= 0 ? `${idx + 1} of ${queueIds.length}` : `${queueIds.length} unlabeled`}
+          </span>
+          <button className="btn" onClick={goNext} title="Next (j / →)">
+            Next ›
+          </button>
+          <Link className="btn" to={queueHref}>
+            Queue
+          </Link>
+        </div>
+      </header>
+
       {detail.error ? (
         <ErrorState message={detail.error} onRetry={detail.reload} />
-      ) : detail.loading && detail.data === null ? (
-        <Loading label="Loading case" />
-      ) : detail.data ? (
-        <CaseBody
-          detail={detail.data}
-          position={idx >= 0 ? idx + 1 : null}
-          total={queueIds.length}
-          type={type}
-          onPrev={goPrev}
-          onNext={goNext}
-          onDone={goQueue}
-        />
+      ) : detail.loading && d === null ? (
+        // a skeleton about the height of a case, so the verdict bar's slot does not collapse
+        <Loading label="Loading case" rows={14} />
+      ) : d ? (
+        <CaseBody detail={d} type={type} onPrev={goPrev} onNext={goNext} onDone={goQueue} />
       ) : (
         <EmptyState title="Not found" message={`No case ${id}.`} />
       )}
@@ -95,16 +157,12 @@ export function ReviewCase() {
 
 function CaseBody({
   detail,
-  position,
-  total,
   type,
   onPrev,
   onNext,
   onDone,
 }: {
   detail: ReviewCaseDetail;
-  position: number | null;
-  total: number;
   type: string | undefined;
   onPrev: () => void;
   onNext: () => void;
@@ -135,7 +193,7 @@ function CaseBody({
   );
   const [corrected, setCorrected] = useState(detail.corrected_answer ?? "");
   const [notes, setNotes] = useState(detail.verdict_notes ?? "");
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
+  const [token, setToken] = useState(() => readStoredToken());
   const [needToken, setNeedToken] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -150,7 +208,7 @@ function CaseBody({
   async function doSubmit() {
     if (submitting) return;
     if (!verdict) {
-      setErr("Pick a verdict — c / i / p / u.");
+      setErr(coarsePointer() ? "Pick a verdict." : "Pick a verdict — c / i / p / u.");
       return;
     }
     const tok = token.trim();
@@ -173,13 +231,7 @@ function CaseBody({
         },
         tok,
       );
-      if (!MOCK && tok) localStorage.setItem(TOKEN_KEY, tok);
-      const { next_case_id } = await getReviewNext(type, detail.case_id);
-      if (next_case_id !== null) {
-        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
-      } else {
-        onDone();
-      }
+      if (!MOCK && tok) storeToken(tok);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Submit failed";
       setErr(msg);
@@ -187,6 +239,21 @@ function CaseBody({
         setNeedToken(true);
         tokenRef.current?.focus();
       }
+      setSubmitting(false);
+      return;
+    }
+    // The verdict is stored. Finding the next case is a separate request: if it fails, the
+    // queue is the honest place to land, not a "Submit failed" over a label that was saved
+    // (a retry would then send overwrite=false and get a 409).
+    try {
+      const { next_case_id } = await getReviewNext(type, detail.case_id);
+      if (next_case_id !== null) {
+        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+      } else {
+        onDone();
+      }
+    } catch {
+      onDone();
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +264,18 @@ function CaseBody({
   kbd.current = (e: KeyboardEvent) => {
     const el = document.activeElement as HTMLElement | null;
     const inInput = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    // Enter submits from the page body or the verdict bar's fields. On a focused button, link
+    // or select it is that control's own activation (Next, Queue, the guide toggle, the nav),
+    // which this handler used to swallow and turn into a submit.
+    // A clicked verdict button keeps the focus in Chromium, and Enter on it would only re-select
+    // the same verdict: that one control stays on the page's Enter-submit path.
+    const onVerdict = !!el && el.classList.contains("verdict-btn");
+    const onControl =
+      !!el &&
+      !onVerdict &&
+      (el.tagName === "BUTTON" || el.tagName === "A" || el.tagName === "SELECT");
     if (e.key === "Enter") {
+      if (onControl || e.isComposing) return;
       e.preventDefault();
       void doSubmit();
       return;
@@ -229,39 +307,21 @@ function CaseBody({
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  // Focus the corrected-answer field the moment a correction-requiring verdict is chosen.
+  // Focus the corrected-answer field the moment a correction-requiring verdict is chosen. Not
+  // on mount: a dossier-seeded "incorrect" would otherwise put the caret in the input and
+  // disable the c/i/p/u/j/k shortcuts the page advertises until Escape. Tracked as the previous
+  // value rather than a mount flag: StrictMode replays the mount effect with refs preserved, and
+  // a flag would then focus on mount after all.
+  const wasCorrection = useRef(needsCorrection);
   useEffect(() => {
-    if (needsCorrection) correctedRef.current?.focus();
+    if (needsCorrection && !wasCorrection.current) correctedRef.current?.focus();
+    wasCorrection.current = needsCorrection;
   }, [needsCorrection]);
 
   const sats: GoldSatelliteEvidence[] = cluster ? ev.satellites : [ev];
 
   return (
     <>
-      <header className="rc-head">
-        <div className="rc-head__main">
-          <span className="case-row__type" data-stratum={detail.case_type}>
-            {stratumLabel(detail.case_type)}
-          </span>
-          <h1 className="rc-head__subject num">{detail.subject_ref}</h1>
-          {alreadyLabeled ? <VerdictBadge verdict={detail.verdict} /> : null}
-        </div>
-        <div className="rc-head__nav">
-          <button className="btn" onClick={onPrev} title="Previous (k / ←)">
-            ‹ Prev
-          </button>
-          <span className="rc-head__pos num">
-            {position !== null ? `${position} of ${total}` : `${total} unlabeled`}
-          </span>
-          <button className="btn" onClick={onNext} title="Next (j / →)">
-            Next ›
-          </button>
-          <Link className="btn" to={`/review${type ? `?type=${type}` : ""}`}>
-            Queue
-          </Link>
-        </div>
-      </header>
-
       <div className="rc-grid">
         {sats.map((s, i) => (
           <div className="rc-sat" key={s.satellite_id ?? i}>
@@ -279,10 +339,16 @@ function CaseBody({
         ))}
 
         {track.loading && track.data === null && detail.satellite_id !== null ? (
-          // The orbit history arrives after the case itself; hold its slot with a skeleton so
-          // the panels below do not jump when it lands.
+          // The orbit history arrives after the case itself; hold its slot with the chart's own
+          // block (a skeleton the chart's height over the real foot line), so the panels below do
+          // not jump when it lands at any width. The counts on the right are not known yet.
           <Panel title="Life track" meta="resolving orbit history">
-            <div className="skeleton" style={{ height: 96 }} aria-hidden="true" />
+            <div className="lifetrack" aria-hidden="true">
+              <div className="skeleton" style={{ height: LIFETRACK_COMPACT_H }} />
+              <LifeTrackFoot
+                right={(!cluster && ev.norad_id !== null ? `NORAD ${ev.norad_id} · ` : "") + "… d · … pts"}
+              />
+            </div>
           </Panel>
         ) : trackData ? (
           <Panel title="Life track" meta="daily orbit — physics vs the catalog">
@@ -642,6 +708,7 @@ function VerdictBar(props: {
   alreadyLabeled: boolean;
   onSubmit: () => void;
 }) {
+  const coarse = coarsePointer();
   return (
     <div className="verdict-bar" role="form" aria-label="Record verdict">
       <div className="verdict-bar__inner">
@@ -649,9 +716,11 @@ function VerdictBar(props: {
           {VERDICT_META.map((m) => (
             <button
               key={m.key}
+              type="button"
               className={`verdict-btn ${m.className}${props.verdict === m.key ? " is-active" : ""}${
                 props.suggestedVerdict === m.key ? " is-suggested" : ""
               }`}
+              aria-pressed={props.verdict === m.key}
               onClick={() => props.onVerdict(m.key)}
             >
               <span className="verdict-btn__key">{m.short}</span>
@@ -686,7 +755,7 @@ function VerdictBar(props: {
             className="vinput"
             value={props.notes}
             onChange={(e) => props.onNotes(e.target.value)}
-            placeholder="Notes — sources, reasoning (press n)"
+            placeholder={coarse ? "Notes — sources, reasoning" : "Notes — sources, reasoning (press n)"}
             aria-label="Notes"
             autoComplete="off"
           />
@@ -707,15 +776,18 @@ function VerdictBar(props: {
         <button
           className="btn btn--submit"
           onClick={props.onSubmit}
-          disabled={props.submitting}
+          aria-busy={props.submitting || undefined}
         >
           {props.submitting ? "Saving…" : props.alreadyLabeled ? "Update ⏎" : "Submit ⏎"}
         </button>
       </div>
+      {/* only the error is live: a screen reader hears a submit error, and never the legend
+          re-entering the region after one clears (the legend is outside it) */}
       <div className="verdict-bar__foot">
-        {props.err ? (
-          <span className="verdict-bar__err">{props.err}</span>
-        ) : (
+        <span className="verdict-bar__err" role="status" aria-live="polite">
+          {props.err ?? ""}
+        </span>
+        {props.err ? null : (
           <span className="verdict-bar__hint">
             c/i/p/u verdict · n notes · Enter submit → auto-advance · j/k prev/next
           </span>

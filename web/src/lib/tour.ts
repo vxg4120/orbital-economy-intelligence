@@ -89,24 +89,34 @@ export function startTour(): void {
   d.drive();
 }
 
-/** Poll briefly for an anchor to mount (Overview data is async), then run once. */
-function whenReady(selector: string, run: () => void, tries = 20): void {
-  if (document.querySelector(selector) || tries <= 0) {
-    run();
-    return;
-  }
-  window.setTimeout(() => whenReady(selector, run, tries - 1), 150);
+/** Wait for the anchors to mount (Overview data is async; a cold API can take ten seconds),
+    then run once. Gives up quietly when they never appear, rather than driving a tour whose
+    steps point at nothing. Returns a cancel for the caller's unmount. */
+function whenReady(selectors: string[], run: () => void, tries = 80): () => void {
+  let timer = 0;
+  const tick = (left: number) => {
+    if (selectors.every((sel) => document.querySelector(sel))) {
+      run();
+      return;
+    }
+    if (left <= 0) return;
+    timer = window.setTimeout(() => tick(left - 1), 150);
+  };
+  tick(tries);
+  return () => window.clearTimeout(timer);
 }
 
-/** Auto-start on the first visit only, and only on the Overview landing page. */
-export function maybeAutoStartTour(): void {
+/** Auto-start on the first visit only, and only on the Overview landing page. The flag is
+    written when the tour actually starts, so a visit that left before the data landed gets the
+    tour next time. Returns a cancel so navigating away stops the wait. */
+export function maybeAutoStartTour(): () => void {
   try {
-    if (localStorage.getItem(TOUR_FLAG)) return;
+    if (localStorage.getItem(TOUR_FLAG)) return () => {};
   } catch {
-    return; // storage blocked → don't nag, don't crash
+    return () => {}; // storage blocked → don't nag, don't crash
   }
-  if (window.location.pathname !== "/") return;
-  whenReady('[data-tour="stats"]', () => {
+  if (window.location.pathname !== "/") return () => {};
+  return whenReady(['[data-tour="stats"]', '[data-tour="conflicts"]'], () => {
     try {
       localStorage.setItem(TOUR_FLAG, "1");
     } catch {

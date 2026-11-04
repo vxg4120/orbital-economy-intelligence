@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getReviewCases, getReviewNext, getReviewStats } from "../api/client";
 import type { ReviewOnly, ReviewStats, ReviewStratum } from "../api/types";
@@ -6,8 +6,9 @@ import { useApi } from "../hooks/useApi";
 import { fmtInt, fmtPct } from "../lib/format";
 import { orderStrata, stratumAccuracy, stratumLabel } from "../lib/reviewStrata";
 import { Panel } from "../components/Panel";
-import { Pager } from "../components/DataTable";
-import { Async } from "../components/States";
+import { Pager, pastTheEnd } from "../components/DataTable";
+import { Async, EmptyState, visitorMessage } from "../components/States";
+import { coarsePointer } from "../lib/pointer";
 import { VerdictBadge } from "../components/VerdictBadge";
 
 const LIMIT = 50;
@@ -22,14 +23,19 @@ export function Review() {
   const navigate = useNavigate();
   const type = params.get("type") ?? undefined;
   const only = (params.get("only") as ReviewOnly) ?? "unlabeled";
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [type, only]);
+  // One page offset per filter, so a filter change never first asks for the old page.
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+  const filterKey = `${type ?? ""}|${only}`;
+  const offset = offsets[filterKey] ?? 0;
+  const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
 
   const stats = useApi(() => getReviewStats(), []);
-  const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset]);
+  // keep: a page change dims the list in place instead of unmounting it with the pager; keyed by
+  // the filter, so another queue (labeled, a stratum) opens with the loader, not this one's rows
+  const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset], {
+    keep: true,
+    keepKey: filterKey,
+  });
 
   const setFilter = (next: { type?: string; only?: ReviewOnly }) => {
     const p: Record<string, string> = {};
@@ -40,10 +46,28 @@ export function Review() {
     setParams(p);
   };
 
+  const [startErr, setStartErr] = useState<string | null>(null);
+  // the lookup's pending state: the button says what it is doing, and a second click while
+  // it is in flight does not start a second lookup
+  const [starting, setStarting] = useState(false);
   const startReviewing = async () => {
-    const { next_case_id } = await getReviewNext(type);
-    if (next_case_id !== null) {
-      navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+    if (starting) return;
+    setStarting(true);
+    setStartErr(null);
+    try {
+      const { next_case_id } = await getReviewNext(type);
+      if (next_case_id !== null) {
+        navigate(`/review/${next_case_id}${type ? `?type=${type}` : ""}`);
+      } else {
+        setStartErr(
+          type ? `Nothing left to review in ${stratumLabel(type)}.` : "Nothing left to review.",
+        );
+      }
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : "The API did not answer.";
+      setStartErr(visitorMessage(raw) ?? raw);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -64,12 +88,27 @@ export function Review() {
             The arbitration workbench for the {stats.data ? fmtInt(stats.data.overall.total) : "gold"}
             {" "}hard cases. Each is a resolved identity decision the graph made under conflicting
             sources; you record the verdict that turns coverage into an honest, per-failure-mode
-            accuracy. Keyboard-first — open a case and press c/i/p/u.
+            accuracy.{" "}
+            {coarsePointer()
+              ? "Open a case and pick a verdict."
+              : "Keyboard-first — open a case and press c/i/p/u."}
           </p>
         </div>
-        <button className="btn btn--go" onClick={startReviewing}>
-          Start reviewing →
-        </button>
+        <div className="review-start">
+          <button
+            type="button"
+            className="btn btn--go"
+            onClick={startReviewing}
+            aria-busy={starting || undefined}
+          >
+            {starting ? "Finding a case…" : "Start reviewing →"}
+          </button>
+          {startErr ? (
+            <span className="hint" role="status">
+              {startErr}
+            </span>
+          ) : null}
+        </div>
       </header>
 
       <Async state={stats} loadingLabel="Loading progress">
@@ -93,7 +132,9 @@ export function Review() {
             {ONLY_TABS.map((t) => (
               <button
                 key={t.key}
+                type="button"
                 className={`tab${only === t.key ? " is-active" : ""}`}
+                aria-pressed={only === t.key}
                 onClick={() => setFilter({ only: t.key })}
               >
                 {t.label}
@@ -113,13 +154,24 @@ export function Review() {
           recorded. The stratum meters count labels only, so they stay at zero until you decide.
         </p>
 
-        <Async state={page} loadingLabel="Loading cases">
+        <Async state={page} loadingLabel="Loading cases" loadingRows={10}>
           {(data) =>
-            data.rows.length === 0 ? (
+            pastTheEnd(data.rows.length, data.total) ? (
+              // a page past the end: the queue shrank under the visitor (anyone's label takes a
+              // case out of the unlabeled queue), so say so and keep the way back
+              <>
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The queue changed since it was counted. Go back a page."
+                />
+                <Pager offset={offset} limit={LIMIT} total={data.total} shown={0} onOffset={setOffset} />
+              </>
+            ) : data.rows.length === 0 ? (
               <div className="state">
                 <h2 className="state__title">Nothing here</h2>
                 <span className="state__msg">
-                  No {only} cases{type ? ` in ${stratumLabel(type)}` : ""}.
+                  {only === "all" ? "No cases" : `No ${only} cases`}
+                  {type ? ` in ${stratumLabel(type)}` : ""}.
                 </span>
               </div>
             ) : (
@@ -135,11 +187,7 @@ export function Review() {
                           <span className="case-row__subject num">
                             {r.subject_ref}
                             {r.has_dossier ? (
-                              <span
-                                className="case-row__dot"
-                                title="AI research ready"
-                                aria-hidden="true"
-                              />
+                              <span className="case-row__dot" title="AI research ready" role="img" aria-label="AI research ready" />
                             ) : null}
                           </span>
                           <span className="case-row__q">{r.question}</span>
@@ -155,7 +203,13 @@ export function Review() {
                     </li>
                   ))}
                 </ul>
-                <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+                <Pager
+                  offset={offset}
+                  limit={LIMIT}
+                  total={data.total}
+                  shown={page.loading ? undefined : data.rows.length}
+                  onOffset={setOffset}
+                />
               </>
             )
           }
@@ -235,7 +289,12 @@ function StratumMeter({
   const pct = total > 0 ? (labeled / total) * 100 : 0;
   const done = total > 0 && labeled >= total;
   return (
-    <button className={`stratum-meter${active ? " is-active" : ""}`} onClick={onClick}>
+    <button
+      type="button"
+      className={`stratum-meter${active ? " is-active" : ""}`}
+      aria-pressed={active}
+      onClick={onClick}
+    >
       <div className="stratum-meter__head">
         <span className="stratum-meter__label">{label}</span>
         {accuracy !== null ? (

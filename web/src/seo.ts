@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { matchPath } from "react-router-dom";
 import seoRoutes from "../public/seo-routes.json";
 
@@ -125,4 +126,14 @@ export function applyRouteMeta(pathname: string, search = ""): void {
     return l;
   });
   setMeta('meta[property="og:url"]', "content", canonical, propertyMeta("og:url"));
+}
+
+/** A view that knows more than the route table (a resolved satellite's name, an operator, a bus
+ *  cohort) narrows the tab title through here. RouteMeta writes the route title first on every
+ *  navigation, so the override only has to win within its own render; nothing is restored on the
+ *  way out, and the share-card tags keep the route's generic copy. */
+export function useDocumentTitle(override: string | undefined) {
+  useEffect(() => {
+    if (override) document.title = override;
+  }, [override]);
 }

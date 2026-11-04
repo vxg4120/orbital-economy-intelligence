@@ -13,8 +13,17 @@ export function compact(n: number | null | undefined): string {
   if (n === null || n === undefined) return DASH;
   const abs = Math.abs(n);
   if (abs < 10_000) return n.toLocaleString("en-US");
-  if (abs < 1_000_000) return trim(n / 1_000) + "K";
-  if (abs < 1_000_000_000) return trim(n / 1_000_000) + "M";
+  // round before choosing the unit: 999,950 is "1M", not "1000K"
+  const units: [number, string][] = [
+    [1_000, "K"],
+    [1_000_000, "M"],
+    [1_000_000_000, "B"],
+  ];
+  for (let i = 0; i < units.length; i++) {
+    const [div, suffix] = units[i];
+    const next = units[i + 1];
+    if (!next || Math.abs(Math.round((n / div) * 10) / 10) < 1000) return trim(n / div) + suffix;
+  }
   return trim(n / 1_000_000_000) + "B";
 }
 
@@ -55,4 +64,10 @@ export function fmtDateTime(iso: string | null | undefined): string {
 /** "Present" for an open-ended (null) valid_to. */
 export function fmtRangeEnd(iso: string | null | undefined): string {
   return iso ? fmtDate(iso) : "present";
+}
+
+/** ISO date or null -> its year, or em dash. */
+export function fmtYear(iso: string | null | undefined): string {
+  if (!iso) return DASH;
+  return iso.slice(0, 4);
 }

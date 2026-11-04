@@ -115,9 +115,23 @@ async function realGet<T>(path: string, params?: Record<string, string | number>
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
+      // the API's own words when it gave any (a 422 names the bad parameter); the status line
+      // otherwise, which visitorMessage turns into a sentence
+      let detail = `${res.status} ${res.statusText} for ${path}`;
+      try {
+        const j = (await res.json()) as { detail?: unknown };
+        if (typeof j?.detail === "string") detail = `${res.status} ${j.detail} for ${path}`;
+      } catch {
+        /* non-JSON error body: keep the status line */
+      }
+      throw new ApiError(detail, res.status);
     }
-    return (await res.json()) as T;
+    try {
+      return (await res.json()) as T;
+    } catch {
+      // a proxy's HTML error page served with a 200, or a truncated body
+      throw new ApiError(`Not JSON from the API for ${path}`, res.status);
+    }
   } catch (err) {
     if (controller.signal.aborted) {
       throw new ApiError(
@@ -470,9 +484,20 @@ function mockSubmitVerdict(id: number, body: VerdictSubmit): VerdictResponse {
 }
 
 /* ---- public API ----------------------------------------------------------- */
+// The topbar telemetry, the Overview and the colophon all ask for the stats on the same first
+// render; later callers join the first caller's in-flight request instead of opening their own
+// (a cold /api/stats takes seconds). The promise is dropped once it settles, so a reload still
+// fetches fresh numbers.
+let statsInFlight: Promise<Stats> | null = null;
+
 export function getStats(): Promise<Stats> {
-  if (MOCK) return delay(statsFixture as Stats);
-  return realGet<Stats>("/stats");
+  if (!statsInFlight) {
+    const request = MOCK ? delay(statsFixture as Stats) : realGet<Stats>("/stats");
+    statsInFlight = request.finally(() => {
+      statsInFlight = null;
+    });
+  }
+  return statsInFlight;
 }
 
 export function searchSatellites(q: string): Promise<SearchResponse> {

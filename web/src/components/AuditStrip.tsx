@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { AuditSummary } from "../api/types";
 import { compact, fmtInt, fmtNum, fmtPct } from "../lib/format";
 import { daysToReach, deadlineStatus, monthYear, plusDays } from "../lib/deadline";
@@ -165,14 +164,17 @@ function LingeringLeaderboard({ summary }: { summary: AuditSummary }) {
   );
 }
 
+/** A figure, not a link: no view lists these objects (the Conflicts tabs are cross-catalog
+    disagreements, a different dataset), so a link there landed on the wrong rows. */
 function DecayTile({ count }: { count: number }) {
   return (
-    <Link to="/conflicts" className="decay-tile" title="Objects the catalog calls ACTIVE that have left their plateau and are still sinking — open Conflicts">
+    <div
+      className="decay-tile"
+      title="Objects the catalog calls ACTIVE whose daily orbit has left its plateau and is still sinking, from the GP element history"
+    >
       <span className="decay-tile__label">catalog says active, physics says decaying</span>
       <span className="decay-tile__value num">{fmtInt(count)}</span>
-      <span className="decay-tile__sub">
-        objects in post-plateau decay <span className="decay-tile__arrow" aria-hidden="true">→</span>
-      </span>
-    </Link>
+      <span className="decay-tile__sub">objects in post-plateau decay</span>
+    </div>
   );
 }

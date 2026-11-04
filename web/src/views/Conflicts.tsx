@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getConflictsDecay,
@@ -14,30 +14,47 @@ import type {
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtDate, fmtInt } from "../lib/format";
-import { CONFLICT_TABS, toConflictTab } from "../lib/conflicts";
+import { CONFLICT_TABS, toConflictTab, type ConflictTab } from "../lib/conflicts";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
-import { Async } from "../components/States";
+import { Async, EmptyState } from "../components/States";
 
 const LIMIT = 50;
+
+/** One page of a tab's list, tagged with the tab it answers for (see the useApi below). */
+type ConflictPage = Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow> & {
+  tab: ConflictTab;
+};
 
 export function Conflicts() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const tab = toConflictTab(params.get("tab"));
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [tab]);
+  // One page offset per tab, so a tab change never first asks for the old page.
+  const [offsets, setOffsets] = useState<Record<string, number>>({});
+  const offset = offsets[tab] ?? 0;
+  const setOffset = (next: number) => setOffsets((o) => ({ ...o, [tab]: next }));
 
   const stats = useApi(() => getStats(), []);
-  const page = useApi<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>>(() => {
-    if (tab === "status") return getConflictsStatus(LIMIT, offset);
-    if (tab === "decay") return getConflictsDecay(LIMIT, offset);
-    return getConflictsStale(LIMIT, offset);
-  }, [tab, offset]);
+  // keep: a page change dims the table in place instead of unmounting it with the pager;
+  // keyed by the tab, so a tab change shows the loader, not the old tab's rows under new headers.
+  // Each page still carries the tab it answers for: the columns and the pager below read
+  // data.tab, so a kept page is never paired with another tab's columns, not even for the render
+  // between the tab change and the hook dropping it.
+  const page = useApi<ConflictPage>(
+    () => {
+      const rows: Promise<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>> =
+        tab === "status"
+          ? getConflictsStatus(LIMIT, offset)
+          : tab === "decay"
+            ? getConflictsDecay(LIMIT, offset)
+            : getConflictsStale(LIMIT, offset);
+      return rows.then((d) => ({ ...d, tab }));
+    },
+    [tab, offset],
+    { keep: true, keepKey: tab },
+  );
 
   const open = (satelliteId: number) => navigate(`/resolver/${satelliteId}`);
   const counts = stats.data?.conflicts;
@@ -61,7 +78,9 @@ export function Conflicts() {
             return (
               <button
                 key={t.key}
+                type="button"
                 className={`tab${tab === t.key ? " is-active" : ""}`}
+                aria-pressed={tab === t.key}
                 onClick={() => setParams({ tab: t.key })}
               >
                 {t.tabLabel}
@@ -78,14 +97,20 @@ export function Conflicts() {
         <Async state={page} loadingLabel="Loading conflicts" loadingRows={10}>
           {(data) => (
             <>
-              {tab === "status" ? (
+              {pastTheEnd(data.rows.length, data.total) ? (
+                // a page past the end: the list shrank since it was counted
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : data.tab === "status" ? (
                 <DataTable<StatusConflictRow>
                   columns={STATUS_COLS}
                   rows={data.rows as StatusConflictRow[]}
                   rowKey={(r) => r.satellite_id}
                   onRowClick={(r) => open(r.satellite_id)}
                 />
-              ) : tab === "decay" ? (
+              ) : data.tab === "decay" ? (
                 <DataTable<DecayConflictRow>
                   columns={DECAY_COLS}
                   rows={data.rows as DecayConflictRow[]}
@@ -100,7 +125,13 @@ export function Conflicts() {
                   onRowClick={(r) => open(r.satellite_id)}
                 />
               )}
-              <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+              <Pager
+                offset={offsets[data.tab] ?? 0}
+                limit={LIMIT}
+                total={data.total}
+                shown={page.loading ? undefined : data.rows.length}
+                onOffset={setOffset}
+              />
             </>
           )}
         </Async>

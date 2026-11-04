@@ -175,7 +175,7 @@ def count_decay_conflicts(db) -> int:
 def conflicts_status(
     db=Depends(get_db),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     all_rows = _status_rows_cache.get(db)
     return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}
@@ -185,7 +185,7 @@ def conflicts_status(
 def conflicts_stale_owners(
     db=Depends(get_db),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     all_rows = _stale_rows_cache.get(db)
     return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}
@@ -195,7 +195,7 @@ def conflicts_stale_owners(
 def conflicts_decay(
     db=Depends(get_db),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     all_rows = _decay_rows_cache.get(db)
     return {"rows": all_rows[offset:offset + limit], "total": len(all_rows)}

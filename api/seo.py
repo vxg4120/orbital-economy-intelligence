@@ -19,7 +19,7 @@ import json
 import pathlib
 import re
 from dataclasses import dataclass, field
-from urllib.parse import parse_qs, urlencode
+from urllib.parse import parse_qs, quote, urlencode
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent / "web"
 _ROUTE_FILES = (_ROOT / "dist" / "seo-routes.json", _ROOT / "public" / "seo-routes.json")
@@ -123,8 +123,16 @@ def _generate_path(pattern: str, params: dict[str, str]) -> str:
         if not m:
             out.append(seg)
         elif m.group(1) in params:
-            out.append(params[m.group(1)])
+            # percent-encoded the way the browser encodes location.pathname, which the client
+            # takes as its canonical as-is: the WHATWG path percent-encode set leaves these
+            # sub-delimiters bare (space, quotes, #, ?, {, } and non-ASCII still encode)
+            out.append(quote(params[m.group(1)], safe=_PATH_SAFE))
     return "/" + "/".join(out)
+
+
+# What a browser leaves literal in a path (WHATWG URL, path percent-encode set); % stays out
+# because the ASGI path arrives decoded, so a literal % re-encodes to %25 as the browser kept it.
+_PATH_SAFE = "!$&'()*+,;=:@[]^|"
 
 
 def canonical_for(routes: Routes, m: Match, query_string: str = "") -> str:
@@ -189,9 +197,18 @@ def render_head(shell: str, path: str, query_string: str = "", routes: Routes | 
         )
         return out, 404
 
-    canonical = canonical_for(routes, m, query_string)
     out = _apply_text(shell, m.route.title, m.route.description)
     out = _ROBOTS.sub("", out)
+    if m.route.noindex:
+        # a matched route the table keeps out of the index: served, but with no canonical and
+        # the robots tag, as the client does for the same entry
+        out = _CANONICAL.sub("", out)
+        out = _OG_URL_TAG.sub("", out)
+        out = out.replace(
+            "</head>", '<meta name="robots" content="noindex" data-route-meta />\n  </head>', 1
+        )
+        return out, 200
+    canonical = canonical_for(routes, m, query_string)
     esc = html.escape(canonical, quote=True)
     out = _CANONICAL.sub(f'<link rel="canonical" href="{esc}" />\n    ', out, count=1)
     out = _set(out, "og:url", canonical)

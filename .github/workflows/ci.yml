@@ -2,12 +2,13 @@ name: CI
 
 # Orbital Economy Intelligence CI.
 #
-# Two jobs:
+# Three jobs:
 #   lint-and-unit  — ruff + the network-free unit tests (no database needed). Fast gate.
 #   db             — spins up a real TimescaleDB pg17 service container, migrates, applies the
 #                    metrics layer, runs the FULL suite (including @pytest.mark.db tests), then
 #                    regenerates the Data Quality report from the committed synthetic fixtures and
 #                    uploads it as a build artifact.
+#   web            — the SPA: pnpm install, the vitest unit tests, then tsc + vite build.
 #
 # The repo is local-only today; this file runs whenever the project is eventually pushed to GitHub.
 # No live network pulls ever happen in CI — HTTP is mocked with the small fixtures in tests/.
@@ -129,3 +130,30 @@ jobs:
         with:
           name: dq-report
           path: docs/reports/dq_report.md
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Type-check and build
+        run: pnpm build

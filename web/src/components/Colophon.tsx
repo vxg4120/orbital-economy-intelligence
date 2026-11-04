@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBusMethodology, getStats } from "../api/client";
+import { SITE_NAME } from "../seo";
 
 /** The plate's edge-notes: every view closes under a double rule with the record's
  *  provenance in one engraved line — methodology version, freshest ingest, sources,
@@ -32,7 +33,7 @@ export function Colophon() {
 
   return (
     <div className="colophon">
-      <span>Orbital Economy Terminal</span>
+      <span>{SITE_NAME}</span>
       <span>
         methodology <span className="num">v{line?.version ?? "—"}</span> ·{" "}
         <a href="/api/buses/methodology" target="_blank" rel="noreferrer">

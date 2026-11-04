@@ -122,7 +122,7 @@ def review_cases(
     type: str | None = Query(None, description="filter to one case_type / stratum"),
     only: str = Query("unlabeled", pattern="^(unlabeled|labeled|all)$"),
     limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=1_000_000),
 ):
     """Paginated case list in stable (case_type, case_id) order. Returns {rows, total}."""
     where: list[str] = []
@@ -232,7 +232,13 @@ def _require_token(token: str | None) -> None:
     (a server with no token configured cannot be matched, so it too rejects with 401).
     """
     expected = os.environ.get("REVIEW_TOKEN")
-    if not expected or not token or not hmac.compare_digest(token, expected):
+    # compared as bytes: compare_digest on str raises TypeError for a non-ASCII header value
+    # (Starlette decodes header bytes as latin-1), which surfaced as a 500 instead of a 401
+    if (
+        not expected
+        or not token
+        or not hmac.compare_digest(token.encode("utf-8"), expected.encode("utf-8"))
+    ):
         raise HTTPException(status_code=401, detail="invalid or missing review token")
 
 

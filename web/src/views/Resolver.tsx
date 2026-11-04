@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { getSatellite, getSatelliteTrack, searchSatellites } from "../api/client";
 import type { Assertion, Identifier, SatelliteDetail } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum } from "../lib/format";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
@@ -62,6 +63,8 @@ export function Resolver() {
     () => (idNum !== null ? getSatellite(idNum) : Promise.resolve(null)),
     [idNum],
   );
+  const satName = detail.data?.satellite.canonical_name;
+  useDocumentTitle(satName ? `${satName} · Resolver · ${SITE_NAME}` : undefined);
 
   return (
     <div className="view fadein">
@@ -84,7 +87,7 @@ export function Resolver() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name, NORAD id, or COSPAR (e.g. Starlink, 25544, 1998-067A)"
-          aria-label="Search satellites"
+          aria-label="Search objects by name, NORAD or COSPAR"
           autoComplete="off"
           spellCheck={false}
         />
@@ -100,6 +103,7 @@ export function Resolver() {
             debounced={debounced}
             loading={search.loading}
             error={search.error}
+            reload={search.reload}
             results={search.data?.results ?? []}
             activeId={idNum}
             onPick={(id) => navigate(`/resolver/${id}`)}
@@ -129,10 +133,27 @@ export function Resolver() {
   );
 }
 
-function ResultsList({
+/** The worked examples: the idle list, and the way back from a search that found nothing. */
+function Examples() {
+  return (
+    <div className="results-empty">
+      <span className="label">Try an example</span>
+      <ul className="example-list">
+        {EXAMPLES.map((e) => (
+          <li key={e.id}>
+            <Link to={`/resolver/${e.id}`}>{e.label}</Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function ResultsList({
   debounced,
   loading,
   error,
+  reload,
   results,
   activeId,
   onPick,
@@ -140,35 +161,42 @@ function ResultsList({
   debounced: string;
   loading: boolean;
   error: string | null;
+  reload: () => void;
   results: { satellite_id: number; norad_id: number | null; canonical_name: string; canonical_status: string | null; operator_name: string | null }[];
   activeId: number | null;
   onPick: (id: number) => void;
 }) {
-  if (!debounced.trim()) {
-    return (
-      <div className="results-empty">
-        <span className="label">Try an example</span>
-        <ul className="example-list">
-          {EXAMPLES.map((e) => (
-            <li key={e.id}>
-              <Link to={`/resolver/${e.id}`}>{e.label}</Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-  if (error) return <ErrorState message={error} />;
-  if (loading) return <Loading label="Searching" />;
+  if (!debounced.trim()) return <Examples />;
+  // retyping the same query does not re-run the search, so a failure needs its Retry
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+  // a skeleton about the height of a short result list, so the panel does not collapse to a
+  // spinner on every keystroke
+  if (loading) return <Loading label="Searching" rows={4} />;
   if (results.length === 0)
-    return <EmptyState title="No matches" message={`Nothing matches “${debounced}”.`} />;
+    // Echo the query (in its own case: the title is uppercased), say which forms resolve, and put
+    // the examples back — the placeholder that listed them is hidden once something is typed.
+    return (
+      <>
+        <EmptyState
+          title={
+            <>
+              No matches for <q className="state__q">{debounced}</q>
+            </>
+          }
+          message="Search takes a name, a NORAD catalog number or a COSPAR designator — e.g. Starlink, 25544, 1998-067A."
+        />
+        <Examples />
+      </>
+    );
 
   return (
     <ul className="results">
       {results.map((r) => (
         <li key={r.satellite_id}>
           <button
+            type="button"
             className={`result-row${activeId === r.satellite_id ? " is-active" : ""}`}
+            aria-current={activeId === r.satellite_id ? "true" : undefined}
             onClick={() => onPick(r.satellite_id)}
           >
             <span className="result-row__name">{r.canonical_name}</span>
@@ -234,7 +262,11 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
         </div>
       </div>
 
-      <Panel title="Identifier crosswalk" meta={`${detail.identifiers.length} rows · by source`} flush>
+      <Panel
+        title="Identifier crosswalk"
+        meta={`${detail.identifiers.length === 1 ? "1 id" : `${detail.identifiers.length} ids`} · by source`}
+        flush
+      >
         {crosswalk.length === 0 ? (
           <EmptyState title="No identifiers" />
         ) : (
@@ -243,7 +275,7 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
               <div className="crosswalk-src" key={source}>
                 <div className="crosswalk-src__head">
                   <SourceBadge source={source} />
-                  <span className="hint">{ids.length} ids</span>
+                  <span className="hint">{ids.length === 1 ? "1 id" : `${ids.length} ids`}</span>
                 </div>
                 {ids.map((id, i) => (
                   <div className="idpair" key={`${id.id_type}-${i}`}>
@@ -304,7 +336,9 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
             <EmptyState title="No status history" />
           ) : (
             <div className="assert-list">
-              {detail.status_history.map((h, i) => (
+              {[...detail.status_history]
+                .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? ""))
+                .map((h, i) => (
                 <div className="assert-line" key={`${h.source}-${i}`}>
                   <StatusBadge status={h.canonical_status} />
                   <span className="assert-val muted">{fmtDateTime(h.observed_at)}</span>

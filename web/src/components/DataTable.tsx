@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
+import { fmtInt } from "../lib/format";
 
 export interface Column<Row> {
   key: string;
   header: string;
+  /** The sort button's tooltip; defaults to "Sort by <header>", so an abbreviated header
+      spells itself out here. */
+  title?: string;
   num?: boolean;
   sortable?: boolean;
   render: (row: Row) => ReactNode;
@@ -49,20 +53,32 @@ export function DataTable<Row>({
                 <th
                   key={c.key}
                   className={`${c.num ? "is-num" : ""}${sortable ? " is-sortable" : ""}`}
-                  onClick={sortable ? () => onSort(c.key) : undefined}
                   aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
-                  {c.header}
-                  {active ? (
-                    <span className="sort-caret" aria-hidden="true">
-                      {sort!.dir === "asc" ? "▲" : "▼"}
-                    </span>
-                  ) : sortable ? (
-                    // a dim ↕ on every other sortable column, so it is clear they sort too
-                    <span className="sort-caret is-idle" aria-hidden="true">
-                      ↕
-                    </span>
-                  ) : null}
+                  {sortable ? (
+                    // a real button, so the sort is reachable from the keyboard; it inherits
+                    // the header's type and fills the cell (the th drops its padding for it)
+                    <button
+                      type="button"
+                      className="sort-btn"
+                      onClick={() => onSort(c.key)}
+                      title={c.title ?? `Sort by ${c.header}`}
+                    >
+                      {c.header}
+                      {active ? (
+                        <span className="sort-caret" aria-hidden="true">
+                          {sort!.dir === "asc" ? "▲" : "▼"}
+                        </span>
+                      ) : (
+                        // a dim ↕ on every other sortable column, so it is clear they sort too
+                        <span className="sort-caret is-idle" aria-hidden="true">
+                          ↕
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    c.header
+                  )}
                 </th>
               );
             })}
@@ -83,6 +99,9 @@ export function DataTable<Row>({
                 onKeyDown={
                   onRowClick
                     ? (e) => {
+                        // a key on a link or control inside the row (a receipt link) is that
+                        // control's own activation, not the row's
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           onRowClick(row);
@@ -105,32 +124,62 @@ export function DataTable<Row>({
   );
 }
 
-/** A right-aligned pager for LIMIT/OFFSET endpoints. */
+/** A page past the end: the list shrank since it was counted, so there is no range to print
+    and nothing further to page to. Shared by the pager and the views' empty-page branch. */
+export function pastTheEnd(shown: number, total: number): boolean {
+  return shown === 0 && total > 0;
+}
+
+/** A right-aligned pager for LIMIT/OFFSET endpoints. At either end the button goes inert with
+    aria-disabled, not `disabled`: Chromium blurs a control the moment it is disabled, so the
+    Prev just pressed to reach page one (or the Next that lands on the last page) would drop the
+    keyboard focus to the body as the page arrives. */
 export function Pager({
   offset,
   limit,
   total,
+  shown,
   onOffset,
 }: {
   offset: number;
   limit: number;
   total: number;
+  /** Rows on this page, when known: the range then ends where the page really ends. */
+  shown?: number;
   onOffset: (next: number) => void;
 }) {
   const from = total === 0 ? 0 : offset + 1;
-  const to = Math.min(offset + limit, total);
+  const to = Math.min(offset + (shown ?? limit), total);
+  const empty = shown !== undefined && pastTheEnd(shown, total);
   const canPrev = offset > 0;
-  const canNext = offset + limit < total;
+  // nothing lies past a page that is already past the end
+  const canNext = offset + limit < total && shown !== 0;
   return (
     <div className="pager">
-      <span className="num">
-        {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
+      {/* a status region: a screen reader hears the new range when a page lands (the dimmed
+          reload itself is silent) */}
+      <span className="num" role="status">
+        {empty
+          ? `nothing on this page · ${fmtInt(total)} total`
+          : `${fmtInt(from)}–${fmtInt(to)} of ${fmtInt(total)}`}
       </span>
       <span className="pager__spacer" />
-      <button className="btn" disabled={!canPrev} onClick={() => onOffset(Math.max(0, offset - limit))}>
+      <button
+        className="btn"
+        aria-disabled={!canPrev || undefined}
+        onClick={() => {
+          if (canPrev) onOffset(Math.max(0, offset - limit));
+        }}
+      >
         ‹ Prev
       </button>
-      <button className="btn" disabled={!canNext} onClick={() => onOffset(offset + limit)}>
+      <button
+        className="btn"
+        aria-disabled={!canNext || undefined}
+        onClick={() => {
+          if (canNext) onOffset(offset + limit);
+        }}
+      >
         Next ›
       </button>
     </div>

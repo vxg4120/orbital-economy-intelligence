@@ -138,6 +138,14 @@ a:hover {
   outline: 1.5px solid var(--signal);
   outline-offset: 1px;
 }
+/* inside a scroller (overflow-x: auto clips to its box) a ring drawn 1px outside the control
+   shows as two side ticks at best; these draw it inside the control instead */
+.tabs .tab:focus-visible,
+.rail .navlink:focus-visible,
+.results .result-row:focus-visible,
+.table-wrap tr:focus-visible {
+  outline-offset: -2px;
+}
 ::selection {
   background: var(--signal-wash);
 }
@@ -427,6 +435,8 @@ button {
   font-weight: 600;
   font-variation-settings: "SOFT" 0, "WONK" 1;
   letter-spacing: 0.005em;
+  /* display leading: the body's 1.5 made a 27px title a 40px box */
+  line-height: 1.15;
   color: var(--ink);
   margin: 0;
 }
@@ -434,7 +444,7 @@ button {
   font-size: var(--fs-sm);
   color: var(--ink-dim);
   margin: 4px 0 0;
-  max-width: 68ch;
+  max-width: 72ch;
 }
 
 /* =============================================================================
@@ -448,9 +458,13 @@ button {
 }
 .panel__head {
   display: flex;
-  align-items: center;
+  /* a head that fits keeps title and meta on one line, baselines aligned; one that does not
+     (tablet columns) drops the meta under the title instead of wrapping both mid-phrase */
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  row-gap: 2px;
   padding: 10px 14px;
   /* ledger double rule: hairline plus a second hairline 3px below */
   border-bottom: 1px solid var(--rule);
@@ -477,6 +491,8 @@ button {
   vertical-align: 2px;
 }
 .panel__meta {
+  margin-left: auto;
+  text-align: right;
   font-size: var(--fs-micro);
   letter-spacing: 0.05em;
   color: var(--ink-faint);
@@ -554,6 +570,9 @@ button {
 .stat__sub {
   font-size: var(--fs-xs);
   color: var(--ink-dim);
+  /* a row of tiles stretches to its tallest; the sub sits on every tile's floor, the numeral
+     keeps its top, so the subs read as one line across the row */
+  margin-top: auto;
 }
 .stat__sub .num {
   color: var(--ink);
@@ -603,10 +622,11 @@ button {
   background: var(--conflict);
 }
 .meter__fill.is-low {
-  background: var(--st-decayed);
+  /* the error red, not the status scale's rust: that hue means a decayed object */
+  background: var(--err);
 }
 .meter__foot {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -776,10 +796,34 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .dtable th.is-sortable {
+  padding: 0; /* the button inside carries the cell's padding, so the whole cell is the hit area */
   cursor: pointer;
   user-select: none;
 }
 .dtable th.is-sortable:hover {
+  color: var(--ink-dim);
+}
+/* the header's sort control is a real button (keyboard-reachable) wearing the header's type */
+.dtable th .sort-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .dtable th .sort-btn {
+    min-height: 44px;
+  }
+}
+.dtable th .sort-btn:hover {
   color: var(--ink-dim);
 }
 .dtable th .sort-caret {
@@ -868,13 +912,39 @@ button {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--ink);
   border-color: var(--signal-dim);
 }
-.btn:disabled {
-  opacity: 0.4;
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  /* inert reads by the hollow plate and the faint ink (5.5:1), not by fading to 2:1. The pager's
+     end buttons go inert with aria-disabled (DataTable): a control disabled under the keyboard
+     focus drops it to the body */
+  opacity: 1;
+  color: var(--ink-faint);
+  border-color: var(--rule);
+  background: transparent;
   cursor: not-allowed;
+}
+/* in flight: the control stays enabled (disabling it would drop the keyboard's focus) and
+   says so by dimming and the progress cursor; the handler ignores the second click */
+.btn[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
+  /* full ink under the fade: the plain button's dim ink would drop to 3.3:1 at 0.6 */
+  color: var(--ink);
+}
+/* a paged or sorted list reloading in place (useApi keep + Async): the last page stays on
+   screen, dimmed and inert, so the pager or sort button that fired it is still there to keep
+   the keyboard's focus and the scroll position */
+.reloading {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.reloading .dtable,
+.reloading .pager {
+  pointer-events: none;
 }
 
 /* conflict link list (Overview) */
@@ -899,10 +969,16 @@ button {
   background: var(--surface-2);
 }
 .conflict-row__count {
+  /* a hero numeral, like .stat__value: Fraunces, display leading; the amber stays (this is
+     the conflict count) */
+  font-family: var(--font-display);
   font-size: var(--fs-xl);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--conflict);
   text-align: right;
-  font-weight: 600;
 }
 .conflict-row__body {
   display: flex;
@@ -956,8 +1032,12 @@ button {
   color: var(--ink-dim);
 }
 .tab:disabled {
-  opacity: 0.45;
-  cursor: default;
+  /* same inert reading as .btn:disabled: faint ink at full opacity, not a 2:1 fade (no
+     border colour: a tab's only border is the 2px bar that marks the active one) */
+  opacity: 1;
+  color: var(--ink-faint);
+  background: transparent;
+  cursor: not-allowed;
 }
 .tab:disabled:hover {
   color: var(--ink-faint);
@@ -965,6 +1045,12 @@ button {
 .tab.is-active {
   color: var(--ink);
   border-bottom-color: var(--signal);
+}
+/* the remembered choice in a disabled strip (the cohort floor while a search ignores it)
+   stays readable but stops looking live */
+.tab:disabled.is-active {
+  color: var(--ink-dim);
+  border-bottom-color: var(--rule-2);
 }
 .tab__count {
   font-size: var(--fs-micro);
@@ -977,6 +1063,25 @@ button {
 .tab.is-active .tab__count {
   color: var(--signal);
   border-color: var(--signal-dim);
+}
+/* a strip can run past its box with the scrollbar hidden; the right-edge fade is the cue that
+   more tabs sit past the last visible one (the nav rail does the same). From 1024px down, as in
+   the sibling app: beside the rail the main column is 615–738px between 901 and 1024px, where a
+   four-tab strip with its counts overflows; over a strip that fits (every strip here, at these
+   widths) the fade covers an empty end and is all but invisible */
+@media (max-width: 1024px) {
+  .tabs .tab {
+    /* a tab reached by keyboard scrolls clear of the fade (App.tsx reveals the focus) */
+    scroll-margin-inline-end: 32px;
+  }
+  .tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  }
+  .tabs .tab:last-child {
+    /* room to scroll the last tab out from under the fade */
+    margin-right: 32px;
+  }
 }
 
 .conflict-headline {
@@ -1007,8 +1112,12 @@ button {
   background: var(--surface);
   padding: 0 12px;
 }
-.searchbar:focus-within {
+.searchbar:has(input:focus-visible) {
+  /* the input inside is borderless and ringless; the wrapper wears its focus ring, and only
+     the input's (a chip inside the bar, as on Filings, rings itself) */
   border-color: var(--signal-dim);
+  outline: 1.5px solid var(--signal);
+  outline-offset: 1px;
 }
 .searchbar__prompt {
   color: var(--signal);
@@ -1022,6 +1131,8 @@ button {
   font: inherit;
   font-size: var(--fs-md);
   padding: 12px 0;
+}
+.searchbar input:focus-visible {
   outline: none;
 }
 .searchbar input::placeholder {
@@ -1050,6 +1161,13 @@ button {
 }
 .resolver-detail {
   min-width: 0;
+}
+/* tablets: the detail column is about 400px wide, so the assertions/status pair stacks instead
+   of squeezing into two 190px columns with three-line heads and dates breaking mid-token */
+@media (max-width: 1200px) {
+  .resolver-grid .grid--2 {
+    grid-template-columns: 1fr;
+  }
 }
 .results {
   list-style: none;
@@ -1187,6 +1305,7 @@ button {
   font-size: var(--fs-lg);
   color: var(--ink);
   font-weight: 600;
+  line-height: 1.15;
   margin: 0 0 8px;
 }
 .idhead__badges {
@@ -1330,6 +1449,9 @@ button {
 }
 .tl-seg__op {
   font-size: var(--fs-xs);
+  /* the two lines must fit the 28px segment: at the phone sizes 14.4 + 13.2 do, where the
+     default line boxes (18 + 16.5) left the operator name with 11.5px showing */
+  line-height: 1.2;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
@@ -1337,9 +1459,31 @@ button {
 }
 .tl-seg__range {
   font-size: var(--fs-micro);
+  line-height: 1.2;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  /* a range that still does not fit ends in an ellipsis, not mid-token */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* the query container for its own two forms (below) */
+  container-type: inline-size;
+}
+/* a segment too narrow for its two full dates shows their years: on a phone
+   "2020-03-21 → 2023-09-28" was cut to "2020-03-21 → 2023-" in a 114px segment. The query
+   reads the label's own width in its own type (23 characters of tabular dates, one to spare),
+   so the swap follows the record and the font, not the viewport */
+.tl-seg__range-short {
+  display: none;
+}
+@container (max-width: 24ch) {
+  .tl-seg__range-full {
+    display: none;
+  }
+  .tl-seg__range-short {
+    display: inline;
+  }
 }
 .tl-boundary {
   position: absolute;
@@ -1374,6 +1518,22 @@ button {
   border-top: 1px solid var(--rule);
   padding-top: 3px;
 }
+/* a transfer past the midpoint hangs its tag to the left of its rule: at 390px the tag ran
+   150px past the track's right edge and scrolled the whole page sideways */
+.tl-boundary--late .tl-boundary__tag {
+  left: auto;
+  right: 4px;
+}
+@media (max-width: 560px) {
+  /* a taller track for the larger phone type; the role column gives the track its width */
+  .tl-track {
+    height: 40px;
+  }
+  .tl-row,
+  .tl-axis {
+    grid-template-columns: 64px 1fr;
+  }
+}
 
 /* =============================================================================
    CongestionHeatmap
@@ -1386,6 +1546,18 @@ button {
 .heatmap__plot {
   position: relative;
   overflow-x: auto;
+}
+/* the plot sizes its cells to the panel (CongestionHeatmap); when even 6px cells overflow, the
+   component marks the scroller and the right edge fades over a 32px allowance so the last column
+   can scroll out from under the fade, as the nav strip and the tab strips do. Keyed on the
+   overflow, not a viewport width: a fade over a plot that fits would hide its last column. */
+.heatmap__plot.is-scroll {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+.heatmap__plot.is-scroll .hm-svg {
+  padding-right: 32px;
+  box-sizing: content-box;
 }
 .hm-svg {
   display: block;
@@ -1526,7 +1698,13 @@ button {
 .state__msg {
   font-size: var(--fs-xs);
   color: var(--ink-faint);
-  max-width: 46ch;
+  max-width: 48ch;
+}
+/* an echoed query keeps the visitor's own case inside the uppercase title */
+.state__q {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
 }
 .state--error .state__title {
   color: var(--err);
@@ -1603,6 +1781,10 @@ button {
   /* panel footnotes ran 170 characters a line at 1440 */
   max-width: 80ch;
 }
+/* the closing note under a chart or table: one step below it, the same in every panel */
+.panel__body > .hint:last-child {
+  margin-top: 12px;
+}
 .crosswalk-src {
   padding: 10px 12px;
   border-bottom: 1px solid var(--rule);
@@ -1671,6 +1853,10 @@ button {
   }
   .rail::-webkit-scrollbar {
     display: none;
+  }
+  .rail .navlink {
+    /* a view link reached by keyboard scrolls clear of the fade (App.tsx reveals the focus) */
+    scroll-margin-inline-end: 40px;
   }
   .rail__nav {
     flex-direction: row;
@@ -1823,6 +2009,11 @@ button {
   }
   /* tables that name their rows in the first column (the buses leaderboard) keep that
      column pinned while the metrics scroll under it */
+  .table-wrap--sticky-first {
+    /* a control that scrolled under the pinned column (a receipt link) comes back out from
+       under it when it takes the focus */
+    scroll-padding-inline-start: 44vw;
+  }
   .table-wrap--sticky-first th:first-child,
   .table-wrap--sticky-first td:first-child {
     position: sticky;
@@ -1840,6 +2031,13 @@ button {
   .table-wrap--sticky-first tbody tr.is-link:hover td:first-child {
     background: var(--surface-3);
     box-shadow: inset 2px 0 0 var(--signal), 1px 0 0 var(--rule-2);
+  }
+  /* the pinned cell sits above the row and its opaque background hides the row's focus ring, so
+     the ring is painted on the cell as well (with the hairline kept); after the hover rule, which
+     would otherwise win while the focused row is also hovered */
+  .table-wrap--sticky-first tbody tr:focus-visible td:first-child,
+  .table-wrap--sticky-first tbody tr.is-link:focus-visible td:first-child {
+    box-shadow: inset 0 0 0 1.5px var(--signal), 1px 0 0 var(--rule-2);
   }
 }
 
@@ -1873,6 +2071,15 @@ button {
   .navlink {
     /* block only: inline padding stays with the width-based rules (tightened at 560px) */
     padding-block: 12px;
+  }
+  /* the resolver's example links were 17px tall: the link box grows to the touch floor */
+  .example-list {
+    gap: 0;
+  }
+  .example-list li a {
+    display: block;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 }
 
@@ -1910,6 +2117,14 @@ button {
   padding: 0 5px;
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
+}
+.review-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 40ch;
+  text-align: right;
 }
 .btn--go {
   border-color: var(--signal-dim);
@@ -1974,8 +2189,9 @@ button {
   background: var(--ok);
 }
 .stratum-meter__foot {
-  font-size: var(--fs-micro);
-  color: var(--ink-faint);
+  /* the count is the datum: one step above its label, in ink, like .meter__val */
+  font-size: var(--fs-sm);
+  color: var(--ink);
 }
 
 /* filter row + case list */
@@ -1999,10 +2215,45 @@ button {
   border: 1px solid var(--rule-2);
   background: var(--surface-2);
   padding: 3px 8px;
+  line-height: 13px; /* <a> and <button> chips both measure 21px */
 }
 .chip--clear:hover {
   border-color: var(--signal-dim);
   color: var(--ink);
+}
+@media (pointer: coarse) {
+  /* the chips that are links or buttons; a plain label chip (the source key) stays small */
+  a.chip,
+  button.chip {
+    padding: 8px 10px;
+  }
+}
+/* filings rows: the meta line is a wrapping chip row (the gap spaces the chips, so the spans
+   carry no inline margins) and the details toggle takes the badge column, centred on the row
+   like a status badge. On phones the name and the chips wrap instead of clipping, so the
+   satellite name, date, spec chips and cohort link all stay on the page. */
+.filing-row .result-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.filing-row > .chip--clear {
+  grid-area: badge;
+  align-self: center;
+  justify-self: end;
+}
+@media (max-width: 560px) {
+  .filing-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .filing-row .result-row__name,
+  .filing-row .result-row__meta {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 .case-list {
@@ -2115,11 +2366,28 @@ button {
   flex-wrap: wrap;
   min-width: 0;
 }
-.rc-head__subject {
-  font-size: var(--fs-lg);
-  color: var(--ink);
-  font-weight: 600;
+.rc-head__title {
+  /* the stratum is the chapter head (Fraunces, wonk on, like every view's h1); the queue's
+     chip tick survives as the signal rule on its left */
   margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  line-height: 1.15;
+}
+.rc-head__title[data-stratum] {
+  border-left: 2px solid var(--signal-dim);
+  padding-left: 10px;
+}
+.rc-head__subject {
+  /* the subject is a datum inside the title: mono, one step under it, a word-space apart */
+  font-size: var(--fs-md);
+  color: var(--ink);
+  font-weight: 400;
+  font-variation-settings: normal;
+  line-height: 1.15;
+  margin: 0 0 0 8px;
 }
 .rc-head__nav {
   display: flex;
@@ -2384,7 +2652,7 @@ button {
   text-transform: uppercase;
 }
 .research__q {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   word-break: break-word;
 }
@@ -2479,7 +2747,6 @@ button {
   font: inherit;
   font-size: var(--fs-sm);
   padding: 8px 10px;
-  outline: none;
 }
 .vinput:focus {
   border-color: var(--signal-dim);
@@ -2490,6 +2757,16 @@ button {
 .vinput--token {
   flex: 0 1 180px;
   border-color: color-mix(in srgb, var(--conflict) 40%, var(--rule-2));
+}
+/* phones: iOS zooms the page into a focused control whose text is under 16px (a phone in
+   landscape is wider than 560px, so the device trait counts too). Class specificity, after the
+   base rules: an element rule would lose to .vinput */
+@media (max-width: 560px), (pointer: coarse) {
+  .vinput,
+  .searchbar input,
+  .searchbar--inline input {
+    font-size: 16px;
+  }
 }
 .btn--submit {
   padding: 8px 16px;
@@ -2502,16 +2779,22 @@ button {
 }
 .verdict-bar__foot {
   margin-top: 7px;
-  min-height: 14px;
+  min-height: 17px;
 }
 .verdict-bar__hint {
-  font-size: var(--fs-micro);
+  /* the workbench's primary legend: 11px is the plate's floor for words */
+  font-size: var(--fs-xs);
   color: var(--ink-faint);
   letter-spacing: 0.04em;
 }
 .verdict-bar__err {
   font-size: var(--fs-xs);
   color: var(--err);
+}
+/* the live region is always in the DOM so an error is announced when it lands; empty, it
+   takes no room */
+.verdict-bar__err:empty {
+  display: none;
 }
 .state--sm {
   padding: 16px;
@@ -2738,6 +3021,58 @@ button {
     flex-basis: 100%;
   }
 }
+/* phones: the bar took 29-31% of the screen. The keyboard legend goes (a phone has no c/i/p/u
+   keys; a submit error still shows in its place), the verdict buttons tile two by two, and the
+   inputs share a row with the submit. */
+@media (max-width: 560px) {
+  .verdict-bar {
+    padding: 8px var(--pad) 8px;
+  }
+  .verdict-bar__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .verdict-inputs {
+    /* the base 220px floor pushed the inputs under the Submit on a 320px-class phone */
+    min-width: 0;
+  }
+  .verdict-btns {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .verdict-btn {
+    justify-content: center;
+  }
+  .verdict-bar__foot {
+    margin-top: 0;
+    min-height: 0;
+  }
+  .verdict-bar__hint {
+    display: none;
+  }
+  .verdict-bar__err {
+    display: block;
+    margin-top: 6px;
+  }
+}
+@media (pointer: coarse) {
+  .verdict-btn {
+    min-height: 44px;
+  }
+  /* a touch device has no c/i/p/u keys: the key caps go, and so does the legend that names
+     them (the width rule above covers phones; this covers a touch tablet) */
+  .verdict-btn__key,
+  .verdict-bar__hint {
+    display: none;
+  }
+  .verdict-bar__foot {
+    margin-top: 0;
+    min-height: 0;
+  }
+}
 
 /* screen-level error boundary fallback (main.tsx) — a visible stop, never a black page */
 .fault {
@@ -2831,10 +3166,14 @@ button {
   flex-wrap: wrap;
 }
 .kuiper__count {
+  /* hero numeral: Fraunces, like .stat__value */
+  font-family: var(--font-display);
   font-size: var(--fs-xl);
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--ink);
-  font-weight: 600;
-  line-height: 1;
 }
 .kuiper__req {
   font-size: var(--fs-xs);
@@ -2947,10 +3286,6 @@ button {
   color: var(--ink);
   min-height: 100%;
 }
-.decay-tile:hover {
-  text-decoration: none;
-  background: color-mix(in srgb, var(--conflict) 11%, var(--surface));
-}
 .decay-tile__label {
   font-size: var(--fs-micro);
   letter-spacing: 0.09em;
@@ -2958,9 +3293,13 @@ button {
   color: var(--conflict);
 }
 .decay-tile__value {
+  /* hero numeral: Fraunces with the wonk, like .stat__value.is-hero; the amber stays */
+  font-family: var(--font-display);
   font-size: var(--fs-hero);
-  line-height: 1;
-  font-weight: 600;
+  font-weight: 580;
+  font-variation-settings: "SOFT" 0, "WONK" 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
   color: var(--conflict);
 }
 .decay-tile__sub {
@@ -3034,6 +3373,12 @@ button {
 .driver-popover.oei-tour .driver-popover-footer-btn:focus {
   color: var(--ink);
   border-color: var(--signal-dim);
+}
+/* driver.js fades a disabled button to half (2.7:1); faint ink at full opacity reads instead */
+.driver-popover.oei-tour .driver-popover-btn-disabled {
+  opacity: 1;
+  color: var(--ink-faint);
+  border-color: var(--rule);
 }
 /* arrow triangle tinted to the popover surface on whichever side it points */
 .driver-popover.oei-tour .driver-popover-arrow-side-left {
@@ -3207,7 +3552,11 @@ button {
   color: var(--ink-faint);
 }
 .colophon a {
-  color: var(--ink-faint);
+  /* a link, not a label: one ink step up and the receipt's dotted rule, in an ink that reads */
+  color: var(--ink-dim);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ink-faint);
+  text-underline-offset: 3px;
 }
 .colophon a:hover {
   color: var(--signal);
@@ -3223,6 +3572,33 @@ button {
   .receipt-link {
     padding: 8px 4px;
     margin: -8px -4px;
+  }
+  /* the go and submit variants set their own padding after the .btn rule above, so they
+     stayed 36px tall on touch; the same height as every other button here */
+  .btn--go,
+  .btn--submit {
+    padding-block: 11px;
+  }
+  /* inline links grow their tap box (17px and 14px tall on a phone before). In a table cell
+     the negative margin keeps the row where it was (the cell's own padding holds the box); in
+     the colophon the lines sit 4px apart, so there the box pushes the lines apart instead of
+     lying over the next line's link. */
+  .dtable td a.mono-hi {
+    display: inline-block;
+    padding: 10px 0;
+    margin: -10px 0;
+  }
+  .colophon a {
+    display: inline-block;
+    padding: 10px 0;
+  }
+  /* the pinned cell truncates with an ellipsis, which cannot shorten an atomic inline: a link
+     in it truncates itself on a narrow phone */
+  .table-wrap--sticky-first td:first-child a.mono-hi {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
   }
   .driver-popover.oei-tour .driver-popover-footer-btn {
     padding: 10px 14px;
@@ -3275,7 +3651,7 @@ button {
   color: var(--ink-faint);
 }
 .story__hint {
-  margin: 14px 0 0;
+  margin: 12px 0 0;
 }
 .stories-row {
   align-items: start;
@@ -3343,7 +3719,9 @@ button {
   fill: var(--ink);
 }
 .story-chart .story-chart__year {
-  fill: var(--ink-ghost);
+  /* words take faint (ghost is for marks and the null dash); the year recedes by tracking */
+  fill: var(--ink-faint);
+  letter-spacing: 0.08em;
 }
 .story-chart__grid {
   stroke: var(--rule);
@@ -3589,18 +3967,21 @@ button {
   border-top: 3px double var(--rule-2);
 }
 .underhood__title {
+  /* an h2: one step under the view's Fraunces h1 (it sat at the same 27px) */
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: 560;
   font-variation-settings: "SOFT" 0, "WONK" 1;
+  letter-spacing: 0.005em;
+  line-height: 1.15;
   color: var(--ink);
 }
 .underhood__desc {
   font-size: var(--fs-sm);
   color: var(--ink-dim);
   margin: 4px 0 0;
-  max-width: 68ch;
+  max-width: 72ch;
 }
 
 .sr-only {

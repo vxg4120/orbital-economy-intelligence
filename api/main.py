@@ -9,6 +9,7 @@ import contextlib
 import pathlib
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api import cache
 from api.routers import (
@@ -41,9 +42,22 @@ async def _lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="Orbital Economy Terminal API",
-    description="Read-only JSON API over the satellite identity graph and fact layer.",
+    description=(
+        "JSON API over the satellite identity graph and fact layer. Every GET is read-only and "
+        "parameterized; the one write, the token-guarded review verdict, is documented in "
+        "api/routers/review.py."
+    ),
     version="1.0.0",
     lifespan=_lifespan,
+)
+
+# Same policy as ExoDossier: any origin may read the catalog (GET only, no credentials), so a
+# third-party page or agent that reads exo's API can read this one the same way.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 app.include_router(stats.router, prefix="/api")
@@ -98,6 +112,11 @@ if (_WEB_DIST / "index.html").exists():
 
             # ``path`` is relative to the mount ('/'), so /api/nope -> 'api/nope'.
             is_api = path == "api" or path.startswith("api/")
+            # Starlette normalises the mount root to "." before this call, so without this GET /
+            # was the one shell served verbatim from web/dist (its build-time head, no cache
+            # header) rather than rendered like every other path
+            if not is_api and path in ("", ".", "index.html"):
+                return self._shell("", scope)
             try:
                 response = await super().get_response(path, scope)
             except StarletteHTTPException as exc:
@@ -113,6 +132,7 @@ if (_WEB_DIST / "index.html").exists():
             body, status = seo.render_head(
                 _SHELL, "/" + path, scope.get("query_string", b""), _ROUTES
             )
-            return HTMLResponse(body, status_code=status)
+            # never heuristically cached: a deploy renames the hashed assets the shell loads
+            return HTMLResponse(body, status_code=status, headers={"cache-control": "no-cache"})
 
     app.mount("/", _SpaStaticFiles(directory=str(_WEB_DIST), html=True), name="spa")

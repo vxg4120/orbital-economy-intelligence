@@ -87,14 +87,18 @@ _RESOLVED_COLS = """
 @router.get("/search")
 def search(db=Depends(get_db), q: str = Query(..., min_length=1)):
     q = q.strip()
-    if q.isdigit():
+    # str.isdigit() is true for "²" and "١", which int() rejects (a 500) or reads as another
+    # number; a NORAD id is ASCII digits
+    if re.fullmatch(r"[0-9]{1,18}", q):
         where, params, order = "s.norad_id = %(norad)s", {"norad": int(q)}, "s.satellite_id"
     elif _COSPAR_RE.match(q):
         where, params, order = "upper(s.cospar_id) = upper(%(cospar)s)", {"cospar": q}, \
             "s.norad_id NULLS LAST, s.satellite_id"
     else:
+        # "%" or "_" in a name search means those characters, not "everything"
+        esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         where = "s.canonical_name ILIKE %(contains)s"
-        params = {"contains": f"%{q}%", "prefix": f"{q}%"}
+        params = {"contains": f"%{esc}%", "prefix": f"{esc}%"}
         order = "(s.canonical_name ILIKE %(prefix)s) DESC, s.canonical_name, s.satellite_id"
 
     with db.cursor() as cur:

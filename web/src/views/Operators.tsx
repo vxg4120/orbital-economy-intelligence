@@ -12,10 +12,11 @@ import {
 import { getCongestion, getOperator, getOperators } from "../api/client";
 import type { OperatorDetail, OperatorRow, OperatorSort } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
 import { REGIME_ORDER } from "../lib/status";
 import { Panel } from "../components/Panel";
-import { Cell, DataTable, Pager, type Column, type SortSpec } from "../components/DataTable";
+import { Cell, DataTable, Pager, pastTheEnd, type Column, type SortSpec } from "../components/DataTable";
 import { StatusBadge } from "../components/StatusBadge";
 import { CongestionHeatmap } from "../components/CongestionHeatmap";
 import { Async, EmptyState, ErrorState, Loading } from "../components/States";
@@ -48,7 +49,9 @@ export function Operators() {
 
   const [sort, setSort] = useState<OperatorSort>("fleet");
   const [offset, setOffset] = useState(0);
-  const league = useApi(() => getOperators(LIMIT, offset, sort), [sort, offset]);
+  // keep: a sort or page change dims the table in place instead of unmounting it with the
+  // sort button or pager that was just activated
+  const league = useApi(() => getOperators(LIMIT, offset, sort), [sort, offset], { keep: true });
   const congestion = useApi(() => getCongestion(), []);
 
   // A non-numeric param (e.g. /operators/foo) must not fire GET /api/operators/NaN; treat it as
@@ -59,6 +62,8 @@ export function Operators() {
     () => (idNum !== null ? getOperator(idNum) : Promise.resolve(null)),
     [idNum],
   );
+  const opName = detail.data?.operator.canonical_name;
+  useDocumentTitle(opName ? `${opName} · Operators · ${SITE_NAME}` : undefined);
 
   const sortSpec: SortSpec = { key: `sort:${sort}`, dir: sort === "name" ? "asc" : "desc" };
   const onSort = (key: string) => {
@@ -112,16 +117,30 @@ export function Operators() {
         <Async state={league} loadingLabel="Loading operators" loadingRows={10}>
           {(data) => (
             <>
-              <DataTable<OperatorRow>
-                columns={columns}
-                rows={data.rows}
-                rowKey={(r) => r.operator_id}
-                onRowClick={(r) => navigate(`/operators/${r.operator_id}`)}
-                sort={sortSpec}
-                onSort={onSort}
-                zebra
+              {pastTheEnd(data.rows.length, data.total) ? (
+                // a page past the end: the list shrank since it was counted
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : (
+                <DataTable<OperatorRow>
+                  columns={columns}
+                  rows={data.rows}
+                  rowKey={(r) => r.operator_id}
+                  onRowClick={(r) => navigate(`/operators/${r.operator_id}`)}
+                  sort={sortSpec}
+                  onSort={onSort}
+                  zebra
+                />
+              )}
+              <Pager
+                offset={offset}
+                limit={LIMIT}
+                total={data.total}
+                shown={league.loading ? undefined : data.rows.length}
+                onOffset={setOffset}
               />
-              <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
             </>
           )}
         </Async>

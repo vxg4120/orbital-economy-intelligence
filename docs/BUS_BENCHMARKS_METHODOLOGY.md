@@ -50,7 +50,7 @@ series (`metrics/caggs.sql`).
   slot occupants in another without moving any key), which is why the permanent id outranks
   every crosswalk and the join rule is published per row.
 * Counting convention: this scoreboard counts spacecraft that have launched and been
-  catalogued. It does not count buses that a manufacturer has built or delivered but that have
+  cataloged. It does not count buses that a manufacturer has built or delivered but that have
   not flown, and it does not count hosted payloads riding on someone else's bus as separate
   spacecraft. A manufacturer's own published total may therefore exceed the fleet shown here.
 * Provisional identifications: a spacecraft that has not yet been assigned a permanent NORAD
