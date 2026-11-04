@@ -70,11 +70,12 @@ export function Buses() {
   const searching = debounced.trim() !== "";
   const effMinN = searching ? 1 : minN;
 
-  // keep: a sort, page or search change dims the board in place instead of unmounting it
+  // keep: a sort, page, floor or search change dims the board in place instead of unmounting it;
+  // keyed by the group, so the other leaderboard opens with the loader, not this one's rows
   const board = useApi(
     () => getBuses(group, sort, effMinN, LIMIT, offset, searching ? debounced : undefined, dir),
     [group, sort, dir, effMinN, offset, debounced],
-    { keep: true },
+    { keep: true, keepKey: group },
   );
   const methodology = useApi(() => getBusMethodology(), []);
 
@@ -110,9 +111,9 @@ export function Buses() {
     if (kind && kind !== group) pickGroup(kind);
   }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The columns read the group from the board itself (BusesResponse.group), not from the toggle:
-  // while the other group loads, the kept rows are still this one's, so the header, the
-  // sub-label and the receipt links keep describing the rows they sit on.
+  // The columns read the group from the board itself (BusesResponse.group), not from the toggle,
+  // so the header, the sub-label and the receipt links always describe the rows they sit on
+  // (the hook drops the kept rows when the group changes; this covers the render in between).
   const columnsFor = (g: BusGroup): Column<BusRow>[] => [
     {
       key: "sort:name",

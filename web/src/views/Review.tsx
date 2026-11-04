@@ -29,9 +29,11 @@ export function Review() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
 
   const stats = useApi(() => getReviewStats(), []);
-  // keep: a page or filter change dims the list in place instead of unmounting it with the pager
+  // keep: a page change dims the list in place instead of unmounting it with the pager; keyed by
+  // the filter, so another queue (labeled, a stratum) opens with the loader, not this one's rows
   const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset], {
     keep: true,
+    keepKey: filterKey,
   });
 
   const setFilter = (next: { type?: string; only?: ReviewOnly }) => {
@@ -148,7 +150,7 @@ export function Review() {
           recorded. The stratum meters count labels only, so they stay at zero until you decide.
         </p>
 
-        <Async state={page} loadingLabel="Loading cases">
+        <Async state={page} loadingLabel="Loading cases" loadingRows={10}>
           {(data) =>
             data.rows.length === 0 ? (
               <div className="state">

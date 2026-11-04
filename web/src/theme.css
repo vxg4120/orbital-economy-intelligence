@@ -911,12 +911,15 @@ button {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--ink);
   border-color: var(--signal-dim);
 }
-.btn:disabled {
-  /* inert reads by the hollow plate and the faint ink (5.5:1), not by fading to 2:1 */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  /* inert reads by the hollow plate and the faint ink (5.5:1), not by fading to 2:1. The pager's
+     end buttons go inert with aria-disabled (DataTable): a control disabled under the keyboard
+     focus drops it to the body */
   opacity: 1;
   color: var(--ink-faint);
   border-color: var(--rule);
@@ -1058,9 +1061,12 @@ button {
   color: var(--signal);
   border-color: var(--signal-dim);
 }
-/* under 900px a strip can run past its box with the scrollbar hidden; the right-edge fade is
-   the cue that more tabs sit past the last visible one (the nav rail does the same) */
-@media (max-width: 900px) {
+/* a strip can run past its box with the scrollbar hidden; the right-edge fade is the cue that
+   more tabs sit past the last visible one (the nav rail does the same). From 1024px down, as in
+   the sibling app: beside the rail the main column is 615–738px between 901 and 1024px, where a
+   four-tab strip with its counts overflows; over a strip that fits (every strip here, at these
+   widths) the fade covers an empty end and is all but invisible */
+@media (max-width: 1024px) {
   .tabs {
     -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
     mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
@@ -1117,6 +1123,8 @@ button {
   font: inherit;
   font-size: var(--fs-md);
   padding: 12px 0;
+}
+.searchbar input:focus-visible {
   outline: none;
 }
 .searchbar input::placeholder {
@@ -1530,6 +1538,18 @@ button {
 .heatmap__plot {
   position: relative;
   overflow-x: auto;
+}
+/* the plot sizes its cells to the panel (CongestionHeatmap); when even 6px cells overflow, the
+   component marks the scroller and the right edge fades over a 32px allowance so the last column
+   can scroll out from under the fade, as the nav strip and the tab strips do. Keyed on the
+   overflow, not a viewport width: a fade over a plot that fits would hide its last column. */
+.heatmap__plot.is-scroll {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+.heatmap__plot.is-scroll .hm-svg {
+  padding-right: 32px;
+  box-sizing: content-box;
 }
 .hm-svg {
   display: block;
@@ -1994,6 +2014,13 @@ button {
   .table-wrap--sticky-first tbody tr.is-link:hover td:first-child {
     background: var(--surface-3);
     box-shadow: inset 2px 0 0 var(--signal), 1px 0 0 var(--rule-2);
+  }
+  /* the pinned cell sits above the row and its opaque background hides the row's focus ring, so
+     the ring is painted on the cell as well (with the hairline kept); after the hover rule, which
+     would otherwise win while the focused row is also hovered */
+  .table-wrap--sticky-first tbody tr:focus-visible td:first-child,
+  .table-wrap--sticky-first tbody tr.is-link:focus-visible td:first-child {
+    box-shadow: inset 0 0 0 1.5px var(--signal), 1px 0 0 var(--rule-2);
   }
 }
 

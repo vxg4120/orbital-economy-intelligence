@@ -124,7 +124,10 @@ export function DataTable<Row>({
   );
 }
 
-/** A right-aligned pager for LIMIT/OFFSET endpoints. */
+/** A right-aligned pager for LIMIT/OFFSET endpoints. At either end the button goes inert with
+    aria-disabled, not `disabled`: Chromium blurs a control the moment it is disabled, so the
+    Prev just pressed to reach page one (or the Next that lands on the last page) would drop the
+    keyboard focus to the body as the page arrives. */
 export function Pager({
   offset,
   limit,
@@ -153,10 +156,22 @@ export function Pager({
           : `${fmtInt(from)}–${fmtInt(to)} of ${fmtInt(total)}`}
       </span>
       <span className="pager__spacer" />
-      <button className="btn" disabled={!canPrev} onClick={() => onOffset(Math.max(0, offset - limit))}>
+      <button
+        className="btn"
+        aria-disabled={!canPrev || undefined}
+        onClick={() => {
+          if (canPrev) onOffset(Math.max(0, offset - limit));
+        }}
+      >
         ‹ Prev
       </button>
-      <button className="btn" disabled={!canNext} onClick={() => onOffset(offset + limit)}>
+      <button
+        className="btn"
+        aria-disabled={!canNext || undefined}
+        onClick={() => {
+          if (canNext) onOffset(offset + limit);
+        }}
+      >
         Next ›
       </button>
     </div>

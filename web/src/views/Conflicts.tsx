@@ -37,9 +37,11 @@ export function Conflicts() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [tab]: next }));
 
   const stats = useApi(() => getStats(), []);
-  // keep: a page or tab change dims the table in place instead of unmounting it with the pager.
-  // Each page carries the tab it answers for: while a new tab loads, the kept page is still the
-  // last tab's, so the columns and the pager below read data.tab, never the live tab.
+  // keep: a page change dims the table in place instead of unmounting it with the pager;
+  // keyed by the tab, so a tab change shows the loader, not the old tab's rows under new headers.
+  // Each page still carries the tab it answers for: the columns and the pager below read
+  // data.tab, so a kept page is never paired with another tab's columns, not even for the render
+  // between the tab change and the hook dropping it.
   const page = useApi<ConflictPage>(
     () => {
       const rows: Promise<Paginated<StatusConflictRow | DecayConflictRow | StaleOwnerRow>> =
@@ -51,7 +53,7 @@ export function Conflicts() {
       return rows.then((d) => ({ ...d, tab }));
     },
     [tab, offset],
-    { keep: true },
+    { keep: true, keepKey: tab },
   );
 
   const open = (satelliteId: number) => navigate(`/resolver/${satelliteId}`);

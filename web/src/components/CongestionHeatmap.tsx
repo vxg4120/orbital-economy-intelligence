@@ -39,7 +39,8 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW: maxCellW = 13,
   // the plot is sized from its container (like LaunchTempo): on a phone the whole 0-180° axis
   // fits the panel instead of a third of it hiding past an undiscoverable drag. The designed
   // cell width is the ceiling, so a wide panel keeps the near-square cells rather than
-  // stretching them into dashes
+  // stretching them into dashes; a plot that still overflows (even 6px cells need 270px) marks
+  // its scroller for the edge fade (theme.css .heatmap__plot.is-scroll)
   const [ref, W] = useWidth<HTMLDivElement>();
 
   const { lookup, maxCount } = useMemo(() => {
@@ -64,6 +65,8 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW: maxCellW = 13,
   const plotH = rows * cellH;
   const w = mL + plotW + mR;
   const h = mT + plotH + mB;
+  // W is 0 until the first measurement, which lands before paint
+  const scrolls = W > 0 && w > W;
 
   const xTicks = [0, 30, 60, 90, 120, 150, 180];
   const yTicks: number[] = [];
@@ -106,7 +109,7 @@ export function CongestionHeatmap({ bins, maxAltKm = 2000, cellW: maxCellW = 13,
 
   return (
     <div className="heatmap">
-      <div className="heatmap__plot" ref={ref}>
+      <div className={`heatmap__plot${scrolls ? " is-scroll" : ""}`} ref={ref}>
         <svg className="hm-svg" width={w} height={h} role="img" aria-label="Orbital congestion by altitude and inclination">
           {/* y ticks + labels */}
           {yTicks.map((a) => {
