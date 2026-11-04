@@ -175,7 +175,7 @@ separately, with its own citations, in filing-date order.
   remains a reading of a filing rather than a catalog observation. Totals such as the 5,246
   proposed satellites appear inside the filings feature with their denominators attached, and
   they do not enter the platform's headline fleet or behavior metrics, which count only
-  spacecraft that have launched and been catalogued.
+  spacecraft that have launched and been cataloged.
 
 ## 7. Corrections
 

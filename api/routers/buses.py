@@ -113,7 +113,7 @@ _PROVENANCE_METRICS = {
 METHODOLOGY = {
     "version": METHODOLOGY_VERSION,
     "updated_at": METHODOLOGY_UPDATED,
-    "title": "Bus Benchmarks methodology",
+    "title": "Bus benchmarks methodology",
     "doc_url": METHODOLOGY_DOC_URL,
     "purpose": (
         "An independent, provenance-tracked performance scoreboard for satellite buses "
@@ -211,7 +211,7 @@ METHODOLOGY = {
         },
         {
             "key": "coverage",
-            "label": "Behavior coverage",
+            "label": "GP coverage",
             "definition": "Share of the attributed fleet with at least one day of GP behavior "
                           "data in sat_daily. All behavior metrics are computed only over this "
                           "observed slice, which is LEO-biased.",

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import indexHtml from "../../index.html?raw";
+import seoRoutes from "../../public/seo-routes.json";
 import { canonicalFor, metaFor, ROUTE_META, SITE_NAME, SITE_ORIGIN } from "../seo";
 
 /** The route table drives the tab title, the share tags and the server-rendered head (api/seo.py
@@ -30,7 +32,29 @@ describe("route table", () => {
     expect(metaFor("/nope").noindex).toBe(true);
   });
   it("describes the landing as the story page it is, not with the site's catalog line", () => {
-    expect(metaFor("/").description.startsWith("What happened in orbit")).toBe(true);
+    expect(metaFor("/").description).not.toBe(seoRoutes.site.description);
+  });
+});
+
+/** The static shell carries hand-copied duplicates of the root entry, and the server rewrites
+    only some of them per route (never og:site_name or the JSON-LD name), so the file has to
+    agree with the table: this is what holds "one name everywhere" and the root description. */
+describe("index.html", () => {
+  const root = metaFor("/");
+  const content = (key: string) =>
+    new RegExp(`<meta\\s+(?:name|property)="${key}"\\s+content="([^"]*)"`, "s").exec(indexHtml)?.[1];
+  it("titles the shell with the root entry and names the site in og:site_name", () => {
+    expect(/<title>([^<]*)<\/title>/.exec(indexHtml)?.[1]).toBe(root.title);
+    expect(content("og:title")).toBe(root.title);
+    expect(content("twitter:title")).toBe(root.title);
+    expect(content("og:site_name")).toBe(SITE_NAME);
+    expect(indexHtml).toContain(`"@type": "WebSite"`);
+    expect(indexHtml).toContain(`"name": "${SITE_NAME}"`);
+  });
+  it("carries the root description in all three description metas", () => {
+    expect(content("description")).toBe(root.description);
+    expect(content("og:description")).toBe(root.description);
+    expect(content("twitter:description")).toBe(root.description);
   });
 });
 

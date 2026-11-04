@@ -715,7 +715,7 @@ def generate_report(conn, period_end: dt.date | None = None, period_months: int 
     t = basis["totals"]
     out.append("\n## 1. Data basis\n")
     out.append(
-        f"\nThe identity graph resolves **{t['satellites']:,}** catalogued objects from "
+        f"\nThe identity graph resolves **{t['satellites']:,}** cataloged objects from "
         f"**{t['assertions']:,}** field-level source assertions into "
         f"**{t['identifiers']:,}** cross-source identifiers, across **{t['operators']:,}** operators "
         f"linked by **{t['operator_relationships']:,}** M&A/hierarchy relationships. Behavioral "
@@ -942,7 +942,7 @@ def generate_report(conn, period_end: dt.date | None = None, period_months: int 
         "propulsion class, and says so; a rigorous per-object disposal-mode classifier awaits the "
         "oracle.\n"
         "3. **Classified and untracked objects are unobservable.** The audit sees only publicly "
-        "catalogued objects with published element sets; maneuvering or classified assets that "
+        "cataloged objects with published element sets; maneuvering or classified assets that "
         "withhold GP data cannot be verified here.\n"
         "4. **Single-source physics.** Orbital history is Space-Track GP (and CelesTrak GP for the "
         "current window) only; there is no independent radar/optical cross-check of the element sets "
