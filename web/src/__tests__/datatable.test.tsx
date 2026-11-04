@@ -36,6 +36,21 @@ describe("Pager", () => {
     expect(last).toContain('<button class="btn">‹ Prev');
     expect(last).toContain('aria-disabled="true">Next ›');
   });
+  // an aria-disabled button is still focusable and still fires onClick, so the handlers carry
+  // the guard the disabled attribute used to provide (Pager has no hooks, so it is called as a
+  // plain function here and its buttons' handlers are invoked directly)
+  it("ignores activation of an inert end button", () => {
+    const presses = (offset: number) => {
+      const calls: number[] = [];
+      const tree = Pager({ offset, limit: 50, total: 60, shown: 50, onOffset: (n) => calls.push(n) });
+      const [, , prev, next] = tree.props.children;
+      prev.props.onClick();
+      next.props.onClick();
+      return calls;
+    };
+    expect(presses(0)).toEqual([50]);
+    expect(presses(50)).toEqual([0]);
+  });
 });
 
 /** A list refetching with useApi's `keep` stays on screen, dimmed and marked busy, so the pager

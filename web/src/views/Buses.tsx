@@ -212,7 +212,7 @@ export function Buses() {
     {
       key: "sort:coverage",
       header: "GP cov",
-      title: "Sort by GP behavior coverage",
+      title: "Sort by GP coverage",
       num: true,
       sortable: true,
       render: (r) => <Cell>{r.gp_coverage_pct !== null ? fmtPct(r.gp_coverage_pct) : null}</Cell>,
@@ -299,17 +299,51 @@ export function Buses() {
         <Async state={board} loadingLabel="Loading leaderboard" loadingRows={10}>
           {(data) => (
             <>
-              <DataTable<BusRow>
-                columns={columnsFor(data.group)}
-                rows={data.rows}
-                rowKey={(r) => r.slug}
-                onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${data.group}`)}
-                sort={sortSpec}
-                onSort={onSort}
-                zebra
-                stickyFirst
-              />
-              <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+              {data.rows.length === 0 && data.total > 0 ? (
+                // a page past the end: the board shrank since it was counted
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : data.rows.length === 0 ? (
+                // a search or a floor that nothing clears: say so instead of a header-only table
+                <EmptyState
+                  title={
+                    searching ? (
+                      <>
+                        No cohorts match <q className="state__q">{debounced.trim()}</q>
+                      </>
+                    ) : (
+                      "No cohorts at this floor"
+                    )
+                  }
+                  message={
+                    searching
+                      ? "Try a manufacturer or bus-model name, or clear the search."
+                      : "Lower the cohort floor to see smaller fleets."
+                  }
+                />
+              ) : (
+                <DataTable<BusRow>
+                  columns={columnsFor(data.group)}
+                  rows={data.rows}
+                  rowKey={(r) => r.slug}
+                  onRowClick={(r) => navigate(`/buses/${r.slug}?kind=${data.group}`)}
+                  sort={sortSpec}
+                  onSort={onSort}
+                  zebra
+                  stickyFirst
+                />
+              )}
+              {data.total > 0 ? (
+                <Pager
+                  offset={offset}
+                  limit={LIMIT}
+                  total={data.total}
+                  shown={data.rows.length}
+                  onOffset={setOffset}
+                />
+              ) : null}
             </>
           )}
         </Async>
@@ -724,7 +758,7 @@ function ReceiptsPanel({ slug, kind }: { slug: string; kind: BusGroup }) {
             <div className="panel__body" style={{ paddingTop: 8, paddingBottom: 8 }}>
               <span className="hint">Cohort: {data.cohort}.</span>
             </div>
-            <Pager offset={offset} limit={limit} total={data.total} onOffset={setOffset} />
+            <Pager offset={offset} limit={limit} total={data.total} shown={data.rows.length} onOffset={setOffset} />
           </>
         )}
       </Async>

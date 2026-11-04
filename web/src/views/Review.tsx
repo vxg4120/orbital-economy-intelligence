@@ -7,7 +7,8 @@ import { fmtInt, fmtPct } from "../lib/format";
 import { orderStrata, stratumAccuracy, stratumLabel } from "../lib/reviewStrata";
 import { Panel } from "../components/Panel";
 import { Pager } from "../components/DataTable";
-import { Async, visitorMessage } from "../components/States";
+import { Async, EmptyState, visitorMessage } from "../components/States";
+import { coarsePointer } from "../lib/pointer";
 import { VerdictBadge } from "../components/VerdictBadge";
 
 const LIMIT = 50;
@@ -87,7 +88,10 @@ export function Review() {
             The arbitration workbench for the {stats.data ? fmtInt(stats.data.overall.total) : "gold"}
             {" "}hard cases. Each is a resolved identity decision the graph made under conflicting
             sources; you record the verdict that turns coverage into an honest, per-failure-mode
-            accuracy. Keyboard-first — open a case and press c/i/p/u.
+            accuracy.{" "}
+            {coarsePointer()
+              ? "Open a case and pick a verdict."
+              : "Keyboard-first — open a case and press c/i/p/u."}
           </p>
         </div>
         <div className="review-start">
@@ -152,7 +156,17 @@ export function Review() {
 
         <Async state={page} loadingLabel="Loading cases" loadingRows={10}>
           {(data) =>
-            data.rows.length === 0 ? (
+            data.rows.length === 0 && data.total > 0 ? (
+              // a page past the end: the queue shrank under the visitor (anyone's label takes a
+              // case out of the unlabeled queue), so say so and keep the way back
+              <>
+                <EmptyState
+                  title="Nothing on this page"
+                  message="The queue changed since it was counted. Go back a page."
+                />
+                <Pager offset={offset} limit={LIMIT} total={data.total} shown={0} onOffset={setOffset} />
+              </>
+            ) : data.rows.length === 0 ? (
               <div className="state">
                 <h2 className="state__title">Nothing here</h2>
                 <span className="state__msg">
@@ -189,7 +203,7 @@ export function Review() {
                     </li>
                   ))}
                 </ul>
-                <Pager offset={offset} limit={LIMIT} total={data.total} onOffset={setOffset} />
+                <Pager offset={offset} limit={LIMIT} total={data.total} shown={data.rows.length} onOffset={setOffset} />
               </>
             )
           }

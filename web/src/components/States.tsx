@@ -122,7 +122,22 @@ export function Async<T>({
   // the wrapper dims the page and makes it inert (theme.css .reloading).
   if (state.keep)
     return (
-      <div className={state.loading ? "reloading" : undefined} aria-busy={state.loading || undefined}>
+      <div
+        className={state.loading ? "reloading" : undefined}
+        aria-busy={state.loading || undefined}
+        // pointer-events: none (theme.css) stops the mouse while the page loads; this stops the
+        // keyboard the same way (Enter and Space arrive as a click), so a second press on Next
+        // cannot page past the request in flight. Not `inert`: that would take the focus away
+        // from the very button the wrapper exists to keep it on.
+        onClickCapture={
+          state.loading
+            ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            : undefined
+        }
+      >
         {children(state.data)}
       </div>
     );

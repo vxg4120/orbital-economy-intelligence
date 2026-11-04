@@ -189,6 +189,7 @@ _METHODOLOGY = {
     "title": "FCC Pending Filings: Methodology",
     "version": "filings-methodology/1.0",
     "as_of": "2026-08-24",
+    "doc_url": "https://github.com/vxg4120/orbital-economy-intelligence/blob/main/docs/FCC_FILINGS_METHODOLOGY.md",
     "purpose": (
         "Explain how the pending-filings pipeline turns FCC bulk data and filed attachments "
         "into served, page-cited technical specs, and state plainly what it covers and where it fails."

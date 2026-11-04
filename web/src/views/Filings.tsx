@@ -4,6 +4,7 @@ import { getFilingDocket, getFilingDocuments, getFilingsMethodology, getPendingF
 import type { DocketResponse, FilingsMethodology, PendingFiling } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtInt } from "../lib/format";
+import { emptyCopy } from "../lib/filingsCopy";
 import { Panel } from "../components/Panel";
 import { Pager } from "../components/DataTable";
 import { Async, EmptyState } from "../components/States";
@@ -51,18 +52,20 @@ export function Filings() {
   // commits at once. `committed` is what the URL already holds, so a URL change from outside
   // (the back button, the clear button) never schedules a stale commit over it.
   const committed = useRef(q);
+  // The live URL, read when a commit fires: the debounce timer holds the commit from the
+  // keystroke's render, and the functional form of setParams would hand it that render's
+  // params, so a cohort chip cleared during the pause came back with the query.
+  const paramsRef = useRef(params);
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
   const commit = (value: string) => {
     if (value === committed.current) return;
     committed.current = value;
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (value) next.set("q", value);
-        else next.delete("q");
-        return next;
-      },
-      { replace: true },
-    );
+    const next = new URLSearchParams(paramsRef.current);
+    if (value) next.set("q", value);
+    else next.delete("q");
+    setParams(next, { replace: true });
   };
   useEffect(() => {
     if (draft === committed.current) return;
@@ -73,19 +76,27 @@ export function Filings() {
     committed.current = q;
     setDraft(q);
   }, [q]);
+  const inputRef = useRef<HTMLInputElement>(null);
   const clearSearch = () => {
     setDraft("");
     commit("");
+    // the "clear search" button sits in the empty state, which unmounts with the search: the
+    // box takes the focus so it does not fall to the body
+    inputRef.current?.focus();
   };
   // One page offset per filter, so a filter change never first asks for the old page.
   const [offsets, setOffsets] = useState<Record<string, number>>({});
   const filterKey = `${q}|${slug}`;
   const offset = offsets[filterKey] ?? 0;
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
-  // keep: a page or search change dims the list in place instead of swapping it for a spinner
-  const filings = useApi(() => getPendingFilings(q, slug, LIMIT, offset), [q, slug, offset], {
-    keep: true,
-  });
+  // keep: a page or search change dims the list in place instead of swapping it for a spinner.
+  // Each page carries the filter it answered for, so a kept page's empty-state copy describes
+  // that page, never the filter that is still loading.
+  const filings = useApi(
+    () => getPendingFilings(q, slug, LIMIT, offset).then((d) => ({ ...d, q, slug })),
+    [q, slug, offset],
+    { keep: true },
+  );
   const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
   return (
@@ -115,6 +126,7 @@ export function Filings() {
           ⌕
         </span>
         <input
+          ref={inputRef}
           type="search"
           placeholder="Search applicant, satellite, file number or description"
           value={draft}
@@ -146,7 +158,9 @@ export function Filings() {
 
       <Panel title="Applications" meta="newest first · IBFS bulk data + harvested ICFS documents" flush>
         <Async state={filings} loadingLabel="Loading pending applications" loadingRows={8}>
-          {(f) => (
+          {(f) => {
+            const empty = f.rows.length === 0 && f.total === 0 ? emptyCopy(f.q, f.slug) : null;
+            return (
             <>
               <p className="hint" style={{ padding: "8px 14px 0" }}>
                 {fmtInt(f.total)} pending
@@ -160,18 +174,18 @@ export function Filings() {
                   filings may have been decided since.
                 </p>
               ) : null}
-              {f.rows.length === 0 ? (
+              {f.rows.length === 0 && f.total > 0 ? (
+                // a page past the end: the list shrank since it was counted
                 <EmptyState
-                  title={q || slug ? "No pending applications match" : "No pending applications"}
-                  message={
-                    q
-                      ? `Nothing matches “${q}”${slug ? ` in cohort ${slug}` : ""}. Try an applicant, a satellite name or an IBFS file number, or clear the search.`
-                      : slug
-                        ? `Nothing is pending from cohort ${slug}. Clear the cohort filter to see every application.`
-                        : "The pending queue is empty."
-                  }
+                  title="Nothing on this page"
+                  message="The list changed since it was counted. Go back a page."
+                />
+              ) : empty ? (
+                <EmptyState
+                  title={empty.title}
+                  message={empty.message}
                   action={
-                    q ? (
+                    empty.clearable ? (
                       <button type="button" className="chip chip--clear" onClick={clearSearch}>
                         clear search ✕
                       </button>
@@ -179,32 +193,35 @@ export function Filings() {
                   }
                 />
               ) : (
-                <>
-                  <ul className="results">
-                    {f.rows.map((r) => (
-                      <FilingRow key={r.filing_key} filing={r} />
-                    ))}
-                  </ul>
-                  <Pager
-                    offset={offset}
-                    limit={LIMIT}
-                    total={f.total}
-                    shown={f.rows.length}
-                    onOffset={setOffset}
-                  />
-                </>
+                <ul className="results">
+                  {f.rows.map((r) => (
+                    <FilingRow key={r.filing_key} filing={r} />
+                  ))}
+                </ul>
               )}
+              {f.total > 0 ? (
+                <Pager
+                  offset={offset}
+                  limit={LIMIT}
+                  total={f.total}
+                  shown={f.rows.length}
+                  onOffset={setOffset}
+                />
+              ) : null}
             </>
-          )}
+            );
+          }}
         </Async>
       </Panel>
 
       <Panel
         title="Methodology"
         meta={
-          methodology.data
-            ? `${methodology.data.version} · as of ${methodology.data.as_of} · full doc on GitHub`
-            : undefined
+          methodology.data ? (
+            <a href={methodology.data.doc_url} target="_blank" rel="noreferrer">
+              {methodology.data.version} · as of {methodology.data.as_of} · full doc on GitHub →
+            </a>
+          ) : undefined
         }
       >
         <Async state={methodology} loadingLabel="Loading methodology">

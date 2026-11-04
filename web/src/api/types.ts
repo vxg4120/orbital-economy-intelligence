@@ -720,6 +720,8 @@ export interface FilingsMethodology {
   title: string;
   version: string;
   as_of: string;
+  /** The living definitions on GitHub (docs/FCC_FILINGS_METHODOLOGY.md). */
+  doc_url: string;
   purpose: string;
   data_sources: { name: string; role: string; url: string }[];
   pipeline: string[];
