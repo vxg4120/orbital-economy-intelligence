@@ -54,53 +54,60 @@ export function Filings() {
   const methodology = useApi<FilingsMethodology>(() => getFilingsMethodology(), []);
 
   return (
-    <div className="stack">
-      <Panel
-        title="Pending FCC applications"
-        meta="the pre-launch pipeline · IBFS bulk data + harvested ICFS documents"
-      >
-        <p className="hint">
-          Space-station applications filed with the FCC and not yet granted, denied, dismissed
-          or surrendered. Filed-to-launch lead runs months to years (Starlink Gen1 filed 14
-          months ahead; Kuiper 39), so nothing here exists in any tracking catalog yet.
-          Builder-cohort chips link to the scoreboard page whose corporate group filed.
-        </p>
-        <form
-          style={{ marginTop: 10, display: "flex", gap: 8 }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const next = new URLSearchParams(params);
-            if (draft) next.set("q", draft);
-            else next.delete("q");
-            setParams(next, { replace: true });
-          }}
-        >
-          <input
-            className="input"
-            style={{ maxWidth: 420 }}
-            placeholder="Search applicant, satellite, file number, description"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label="Search pending applications"
-          />
-          {slug ? (
-            <button
-              type="button"
-              className="chip"
-              title="Clear cohort filter"
-              onClick={() => {
-                const next = new URLSearchParams(params);
-                next.delete("applicant_slug");
-                setParams(next, { replace: true });
-              }}
-            >
-              cohort: {slug} ✕
-            </button>
-          ) : null}
-        </form>
-      </Panel>
+    <div className="view fadein">
+      <header className="vhead">
+        <div>
+          <h1 className="vhead__title">Filings</h1>
+          <p className="vhead__desc">
+            The pre-launch pipeline: space-station applications filed with the FCC and not yet
+            granted, denied, dismissed or surrendered. Filed-to-launch lead runs months to years
+            (Starlink Gen1 filed 14 months ahead; Kuiper 39), so nothing here exists in any
+            tracking catalog yet. Builder-cohort chips link to the scoreboard page whose
+            corporate group filed.
+          </p>
+        </div>
+      </header>
 
-      <Panel title="Applications" meta="newest first" flush>
+      <form
+        className="searchbar"
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const next = new URLSearchParams(params);
+          if (draft) next.set("q", draft);
+          else next.delete("q");
+          setParams(next, { replace: true });
+        }}
+      >
+        <span className="searchbar__prompt" aria-hidden="true">
+          ⌕
+        </span>
+        <input
+          type="search"
+          placeholder="Search applicant, satellite, file number or description, then press Enter"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          aria-label="Search pending applications"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {slug ? (
+          <button
+            type="button"
+            className="chip chip--clear"
+            title="Clear cohort filter"
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.delete("applicant_slug");
+              setParams(next, { replace: true });
+            }}
+          >
+            cohort: {slug} ✕
+          </button>
+        ) : null}
+      </form>
+
+      <Panel title="Applications" meta="newest first · IBFS bulk data + harvested ICFS documents" flush>
         <Async state={filings} loadingLabel="Loading pending applications">
           {(f) => (
             <>

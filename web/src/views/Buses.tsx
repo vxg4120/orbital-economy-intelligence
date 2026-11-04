@@ -15,6 +15,7 @@ import type {
   BusSort,
 } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { fmtDate, fmtInt, fmtNum, fmtPct } from "../lib/format";
 import { naturalDir, type SortDir } from "../lib/busSort";
 import { Panel } from "../components/Panel";
@@ -70,6 +71,8 @@ export function Buses() {
     () => (slug ? getBus(slug, kind) : Promise.resolve(null)),
     [slug, kind],
   );
+  const cohortName = detail.data?.benchmark.name;
+  useDocumentTitle(cohortName ? `${cohortName} · Bus Benchmarks · ${SITE_NAME}` : undefined);
 
   const sortSpec: SortSpec = { key: `sort:${sort}`, dir };
   // A second click on the active column reverses it; a new column starts in its natural

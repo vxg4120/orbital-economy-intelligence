@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { getSatellite, getSatelliteTrack, searchSatellites } from "../api/client";
 import type { Assertion, Identifier, SatelliteDetail } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum } from "../lib/format";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
@@ -62,6 +63,8 @@ export function Resolver() {
     () => (idNum !== null ? getSatellite(idNum) : Promise.resolve(null)),
     [idNum],
   );
+  const satName = detail.data?.satellite.canonical_name;
+  useDocumentTitle(satName ? `${satName} · Resolver · ${SITE_NAME}` : undefined);
 
   return (
     <div className="view fadein">

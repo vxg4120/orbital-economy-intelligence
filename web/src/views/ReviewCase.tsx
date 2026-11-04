@@ -18,6 +18,7 @@ import type {
 } from "../api/types";
 import { isCosparEvidence } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import {
   NEEDS_CORRECTION,
   VERDICT_META,
@@ -50,6 +51,8 @@ export function ReviewCase() {
     () => (idOk ? getReviewCase(id) : Promise.resolve(null)),
     [id],
   );
+  const subject = detail.data?.subject_ref;
+  useDocumentTitle(subject ? `${subject} · Review · ${SITE_NAME}` : undefined);
   // The ordered unlabeled queue for this filter, for position (n of N) + j/k navigation.
   const queue = useApi(() => getReviewCases(type, "unlabeled", 500, 0), [type]);
   const queueIds = useMemo(() => (queue.data?.rows ?? []).map((r) => r.case_id), [queue.data]);

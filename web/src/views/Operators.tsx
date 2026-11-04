@@ -12,6 +12,7 @@ import {
 import { getCongestion, getOperator, getOperators } from "../api/client";
 import type { OperatorDetail, OperatorRow, OperatorSort } from "../api/types";
 import { useApi } from "../hooks/useApi";
+import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
 import { REGIME_ORDER } from "../lib/status";
 import { Panel } from "../components/Panel";
@@ -59,6 +60,8 @@ export function Operators() {
     () => (idNum !== null ? getOperator(idNum) : Promise.resolve(null)),
     [idNum],
   );
+  const opName = detail.data?.operator.canonical_name;
+  useDocumentTitle(opName ? `${opName} · Operators · ${SITE_NAME}` : undefined);
 
   const sortSpec: SortSpec = { key: `sort:${sort}`, dir: sort === "name" ? "asc" : "desc" };
   const onSort = (key: string) => {

@@ -117,7 +117,12 @@ async function realGet<T>(path: string, params?: Record<string, string | number>
     if (!res.ok) {
       throw new ApiError(`${res.status} ${res.statusText} for ${path}`, res.status);
     }
-    return (await res.json()) as T;
+    try {
+      return (await res.json()) as T;
+    } catch {
+      // a proxy's HTML error page served with a 200, or a truncated body
+      throw new ApiError(`Not JSON from the API for ${path}`, res.status);
+    }
   } catch (err) {
     if (controller.signal.aborted) {
       throw new ApiError(

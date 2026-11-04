@@ -265,3 +265,23 @@ kind param in its canonical (slugs collide across kinds), /Resolver/25544/ norma
 /api/stories, /api/health, lightcurves processed 58, all unchanged; box 35%.
 Not done: prerendered per-route bodies (only heads are per-route); the share cards are
 screenshots dated 2026-10-19 and will drift; Search Console verification token still blank.
+
+# Look-and-feel and consistency batch, 2026-11-04 (Vib: "keep going … check for bugs,
+# check for inconsistencies … make it really, really good")
+Owner: session faraday. Both apps built in fixture mode and screenshotted on every route at
+1440 and 375 px (no console errors, no horizontal overflow on either app before or after).
+- [x] A. Filings was the one view without the chapter head: it opened on "Pl. 01" with an
+      unstyled native input (`className="input"` has no rule in theme.css). Now the standard
+      .vhead title + description, the Resolver's .searchbar (Enter submits), and the pipeline
+      copy moved up into the description.
+- [x] B. Deep links title the tab by entity, as exo's Target view does: "ISS (ZARYA) · Resolver",
+      "SpaceX · Operators", "Starlink V2M · Bus Benchmarks", "cospar:1966-116B · Review"
+      (seo.ts useDocumentTitle; the route table still feeds the share-card tags).
+- [x] C. Visitor-facing fetch errors: a 404 / 429 / 5xx / other 4xx no longer shows the raw
+      "404 Not Found for /satellite/1" line (exo's mapping ported, with the API's own detail
+      text passed through for a 4xx that has one), and a 2xx body that is not JSON reads as
+      "answered with something that is not data" instead of the parser's words.
+- [x] D. Verified, no change: the Review case's verdict bar looked to cover Pl. 05/06 in
+      full-page captures, but it is position: sticky and sits in flow once reached.
+Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` unchanged
+(275 passed). The db suite needs TimescaleDB and could not run in this container.
