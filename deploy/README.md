@@ -167,8 +167,8 @@ and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention
 per-run assertion ledger, `source_assertion`, grew the same way (about 88 MB a day); it was
 replaced by the `claim` table (one row per claim with its run range, 161 MB, see
 [docs/specs/assertion-model.md](../docs/specs/assertion-model.md)) and renamed
-`source_assertion_runs_20261012` on 2026-10-12. Drop it after 2026-10-19, outside the windows,
-then `VACUUM`:
+`source_assertion_runs_20261012` on 2026-10-12. It was dropped on 2026-11-11 with the command
+below (DROP returns the files at once, so no VACUUM was needed; disk went from 39% to 33%):
 
 ```bash
 docker compose exec -T db psql -U oei -d oei -c 'DROP TABLE source_assertion_runs_20261012'
@@ -176,6 +176,9 @@ df -h /
 ```
 
 #### Rolling the ledger back (before the drop)
+
+The table was dropped on 2026-11-11, so this procedure is history. A rollback now starts from
+a Hetzner backup image older than that date.
 
 The renamed table is frozen at the rename and has no foreign key to `satellite`, so a week
 of merges may leave rows pointing at deleted shells, and it holds no run after the rename.

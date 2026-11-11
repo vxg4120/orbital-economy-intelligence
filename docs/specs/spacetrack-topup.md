@@ -157,16 +157,23 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   lists `oei_spacetrack` after `oei_ingest_all` and before `oei_build_graph`.
 - [x] `SPACETRACK_IDENTITY= SPACETRACK_PASSWORD= python scripts/spacetrack_topup.py; echo $?`
   prints one line and `0`.
-- [ ] Deployed (orchestrator): after the rebuild and migration, with blank credentials,
+- [x] Deployed (orchestrator): after the rebuild and migration, with blank credentials,
   `grep -A1 "step oei_spacetrack\|spacetrack_topup" deploy/refresh.log | tail -3` shows the
-  "not set; skipping" line and `exit 0`.
-- [ ] First live night (after Vib pastes the credentials): `SELECT status, rows_ingested,
+  "not set; skipping" line and `exit 0`. Superseded on 2026-11-11: the credentials were set
+  on the first night (2026-10-16), so production never ran blank; every step since exits 0.
+- [x] First live night (after Vib pastes the credentials): `SELECT status, rows_ingested,
   notes FROM ingest_run WHERE source='spacetrack' AND endpoint IN ('gp_history_topup','decay')
   ORDER BY ingest_run_id DESC LIMIT 2` shows two 'ok' rows with rows_ingested > 0, and
   `SELECT through FROM spacetrack_cursor` is within an hour of that night's step.
-- [ ] Rate check on the first live night: `SELECT count(*), max(finished_at) - min(started_at)
+  Measured 2026-11-11: ok rows on every night since 2026-10-16 (27 each for decay and
+  gp_history_topup, the other 26 each are the 07:10 run's by-design `skipped_fresh`, no
+  errors); last night 45,772 element sets and 414 decay messages. The cursor reads 17:11 for
+  a 19:11 step, because the window ends at `now - 2 h` (review I-2); the criterion's "within
+  an hour" predates that change and should read "within two hours and a few minutes".
+- [x] Rate check on the first live night: `SELECT count(*), max(finished_at) - min(started_at)
   FROM ingest_run WHERE source='spacetrack' AND started_at > now() - interval '1 day'` is at
-  most 250 requests over at least 3 s each.
+  most 250 requests over at least 3 s each. Measured 2026-11-11: 130 ledger rows in the last
+  day; the step took 396 to 585 s for 126 batches, about 4.6 s each.
 - [ ] **Next step, resolver wiring:** `spacetrack_decay` is a claims feed (one value per NORAD
   id from the newest run, read through `v_claim` via the 'satcat' NORAD link), and a db test
   shows a satellite with SATCAT decay 2024-01-01 and a Space-Track actual decay 2024-01-02
@@ -240,3 +247,7 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   before the pacer can sleep, so right after a pacer sleep the 3 s spacing comes from the
   pacer's sliding window, not the throttle. The fake-clock test shows at most 20 a minute;
   harmless, recorded so a future change to either keeps both bounds tested.
+- 2026-11-11 (Claude, space-ed): the three live-night criteria are checked against production
+  (above). The feed has run green every evening since 2026-10-16 and adds 7 to 10 minutes to
+  the nightly, so the M-2 time-budget question is not urgent. The resolver wiring is the open
+  next step; with the feed live, the window-versus-snapshot question decides its shape first.

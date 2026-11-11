@@ -218,6 +218,6 @@ nearly all of it copies.
   errors, all data-dependent tests on an empty database), and the branch passed 390 tests
   against the base's 372.
 - 2026-10-12 (Claude): Phase 2 closed. `source_assertion` was replaced by the `claim` table
-  (docs/specs/assertion-model.md) and renamed `source_assertion_runs_20261012`; it is dropped
-  after 2026-10-19. The "never prune `source_assertion` by run" rule is moot; the large-sort
+  (docs/specs/assertion-model.md) and renamed `source_assertion_runs_20261012`; it was dropped
+  on 2026-11-11. The "never prune `source_assertion` by run" rule is moot; the large-sort
   rule stays for the renamed table while it exists.

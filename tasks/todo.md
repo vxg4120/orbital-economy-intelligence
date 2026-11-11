@@ -148,7 +148,8 @@ Condition met: nine green nightlies on the claim table (2026-10-07 19:10 to 2026
 - [x] Codex verify against the spec; findings resolved.
 - [x] Deploy outside the windows: pull, rebuild oei-api, migrate; verify views, resolver
       timing (criterion 6), site; spec criteria 5-7 and decision log; memory; peers told.
-- [ ] After 2026-10-19: `DROP TABLE source_assertion_runs_20261012`, VACUUM, df.
+- [x] After 2026-10-19: `DROP TABLE source_assertion_runs_20261012`, df. Done 2026-11-11 20:44
+      UTC by space-ed: 5 GB freed, box 39% -> 33%; claim endpoints 200 afterwards.
 
 Review: deployed 2026-10-12 00:36 UTC (main a8f783d), migration applied on production in the
 same minute; v_current_claim 704,324 rows, progress unchanged, sites and the conflicts, satellite
@@ -415,3 +416,51 @@ Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` 
 - [x] L. The 404 page opens with the chapter head like every other view (it was an empty state
       with no h1, the one route whose heading outline differed): "Page not found" as the h1,
       the path in the description, the two ways back beneath.
+
+# Stopping point, 2026-11-11 21:00 UTC (space-ed; Vib: "get to a good stopping point with next steps clearly documented")
+
+## Done today
+- [x] PR #1 in both repos (the cloud session's review, design and code-review passes, merged on
+      GitHub on 2026-11-04) was merged but never deployed; the box ran the 2026-10-19 code.
+      Gates first: orbital build, 47 vitest, 284 pytest passed (309 skipped, the db-dependent
+      ones); exo build, 41 vitest, pytest green. Deployed 20:38 UTC (space 964752d, exodossier
+      ee95827); no migrations. Live: titles read "Orbital Economy Terminal", deep links 200 with
+      their own titles, unknown paths 404, every API endpoint 200; a headless pass over 8 routes
+      at 1440 and 390 px found one h1 each, no horizontal overflow, no console errors.
+- [x] Favicons (space b717c92, exodossier ef45e6d): neither shell declared an icon, so tabs
+      showed the browser default and every first visit logged a 404. SVG marks in each app's
+      own colours, live and served as image/svg+xml.
+- [x] The retired ledger `source_assertion_runs_20261012` dropped (see the 2026-10-12 section):
+      5 GB freed, box 39% -> 33%.
+- [x] Space-Track live-night criteria checked against production (spec updated): green every
+      evening since 2026-10-16, no errors, about 130 requests a day.
+- [x] The merged `space-wt-claims` worktree and its branch removed.
+
+## Health at the stopping point
+Both nightlies exit 0 on every step (19:10 run 2026-11-11 finished 19:27). Box 33% disk,
+backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
+
+## Next steps, in order
+1. **Space-Track decay -> resolver wiring** (docs/specs/spacetrack-topup.md, last unchecked
+   criterion). The feed is live, so this is the next real engineering step. Decide the
+   window-versus-snapshot question in the spec's Open questions first (pull all Historical
+   decay messages daily, so absences mean something), then make `spacetrack_decay` a claims
+   feed and add the db test the criterion names. Needs a spec read before code.
+2. **Share cards** (`web/public/og.png` in both apps, `deploy/landing/og.png`): dated screenshots
+   from 2026-10-19, before the "Orbital Economy Terminal" rename and the design pass. Retake
+   from the live sites at 1200x630.
+3. **Tiny box cleanups**: `zz_bus_before` and `zz_gcat_links_before` (40 kB each, before-state
+   from 2026-10-07, long verified) can be dropped outside the windows.
+4. **Prerendered per-route bodies** for crawlers (heads are per-route already; bodies are the
+   SPA shell). Only worth it if Search Console shows the pages are not being indexed.
+5. **Stray branch** `codex/audit-followup-20260917` (2 commits from 2026-09-17, docs about the
+   Caddy mount); read it and merge or delete.
+
+## Still Vib's
+- Google Search Console: verify the three hosts and paste the token where the comment in each
+  index.html says (web/index.html in both apps, deploy/landing/index.html).
+- The untracked `page.html` in the repo root is a saved third-party marketing page from
+  2026-10-15; delete it or say what it is for.
+- Space-Track open questions: a weekly "reentering soon" pull (TIP and 60-day predictions), and
+  whether to backfill the July gap.
+- Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
