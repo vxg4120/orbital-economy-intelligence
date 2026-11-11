@@ -155,6 +155,8 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   2026-10-08 19:10, was a network blip on two unrelated feeds, gates passed); migration 0024
   renamed it `source_assertion_runs_20261012`. The DROP is scheduled after 2026-10-19 (the
   one-week reversibility constraint), then VACUUM; about 5 GB returns to the box.
+  Dropped 2026-11-11 20:44 UTC (no dependents, no code references, last night's backup image
+  holds a copy): disk 39% -> 33%, oei database 6.5 GB.
 
 ## Open questions
 - (Vib) Approve option 3, or prefer the lighter option 2 as a stopgap.
@@ -217,8 +219,8 @@ it say on a date" are both one cheap query, with no reader able to tell the diff
   crosswalk key type (`operator_confirmed`) was "always current" under `claim_is_current`; the
   views reach a satellite only through a crosswalk link, so such a channel needs a link type of
   its own before it can carry claims. No rows exist, so nothing changes today; recorded so the
-  correction channel is designed with the view in mind. Open: DROP the renamed table after
-  2026-10-19, then VACUUM.
+  correction channel is designed with the view in mind. The renamed table was dropped on
+  2026-11-11 (see criterion 7).
 - 2026-10-12 (Claude, after Codex) — Two findings on the retirement, both taken. (1) The
   renamed table is not a rollback by itself: merges in the week delete shells its rows point
   at (the foreign key is gone), and it receives no new runs. The rollback is written as a
