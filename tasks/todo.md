@@ -459,8 +459,8 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 ## Still Vib's
 - Google Search Console: verify the three hosts and paste the token where the comment in each
   index.html says (web/index.html in both apps, deploy/landing/index.html).
-- The untracked `page.html` in the repo root is a saved third-party marketing page from
-  2026-10-15; delete it or say what it is for.
+- [x] The untracked `page.html` (a saved OpenHands marketing page from 2026-10-15, left over from
+  the job search) was moved to the Trash on 2026-11-12 at Vib's OK.
 - Space-Track open questions: a weekly "reentering soon" pull (TIP and 60-day predictions), and
   whether to backfill the July gap.
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
