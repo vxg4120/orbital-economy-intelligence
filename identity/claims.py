@@ -51,7 +51,42 @@ FEEDS = [
     ("raw_gcat_satcat", "gcat", "jcat", _GCAT_ATTRS),
     ("raw_ucs", "ucs", "row_key", _UCS_ATTRS),
 ]
-SOURCES = tuple(source for _, source, _, _ in FEEDS)
+
+# Space-Track's actual decays (docs/specs/spacetrack-topup.md, migration 0028). Each landing
+# holds only the last 30 days of Historical messages, so every OK landing is first folded, oldest
+# first, into spacetrack_decay_message (every message ever seen), and the feed is that table's
+# best surviving message per object, recorded as an ordinary snapshot keyed by NORAD id.
+SPACETRACK_DECAY = "spacetrack_decay"
+# A landing's window is "MSG_EPOCH > now-30" on Space-Track's clock. A message missing from a
+# landing is withdrawn only when its epoch is inside the window with a day to spare: nearer the
+# edge it may simply have aged out between Space-Track's clock and the landing's start.
+_WITHDRAW_INSIDE = "29 days"
+
+_FOLD_SEEN_SQL = """
+INSERT INTO spacetrack_decay_message AS m
+    (norad_cat_id, msg_epoch, decay_epoch, decay_date, precedence, source, first_run, last_run)
+SELECT DISTINCT ON (norad_cat_id, msg_epoch, decay_epoch, precedence, source)
+       norad_cat_id, msg_epoch, decay_epoch, decay_date, precedence, source,
+       %(run)s, %(run)s
+FROM raw_spacetrack_decay
+WHERE ingest_run_id = %(run)s AND msg_type = 'Historical'
+ON CONFLICT ON CONSTRAINT spacetrack_decay_message_uq
+DO UPDATE SET last_run = EXCLUDED.last_run, withdrawn_run = NULL
+"""
+_FOLD_WITHDRAWN_SQL = f"""
+UPDATE spacetrack_decay_message m SET withdrawn_run = %(run)s
+WHERE m.withdrawn_run IS NULL AND m.last_run < %(run)s
+  AND m.msg_epoch > (SELECT started_at FROM ingest_run WHERE ingest_run_id = %(run)s)
+                    - interval '{_WITHDRAW_INSIDE}'
+"""
+_SNAPSHOT_SQL = """
+SELECT DISTINCT ON (norad_cat_id) norad_cat_id::text, 'decay_date', decay_date::text
+FROM spacetrack_decay_message
+WHERE withdrawn_run IS NULL AND decay_date IS NOT NULL
+ORDER BY norad_cat_id, precedence ASC NULLS LAST, msg_epoch DESC NULLS LAST, decay_date DESC
+"""
+
+SOURCES = tuple(source for _, source, _, _ in FEEDS) + (SPACETRACK_DECAY,)
 
 
 def lock(cur, source: str) -> None:
@@ -159,7 +194,46 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
     return record(conn, source, run, observed_at, rows)
 
 
+def _unfolded_runs(cur, after: int | None) -> list[int]:
+    """The OK decay landings newer than `after` that carry rows, oldest first. A landing with
+    no rows is never folded: it is no evidence that every message in its window was withdrawn."""
+    cur.execute(
+        "SELECT DISTINCT r.ingest_run_id FROM raw_spacetrack_decay r "
+        "JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id "
+        "WHERE i.status = 'ok' AND r.ingest_run_id > %s ORDER BY 1",
+        (after if after is not None else 0,),
+    )
+    return [row[0] for row in cur.fetchall()]
+
+
+def record_spacetrack_decay(conn) -> tuple[int, int]:
+    """Fold every unfolded OK decay landing into spacetrack_decay_message, oldest first (on the
+    first night, every retained one), then record the best surviving message per object as the
+    `spacetrack_decay` snapshot at the newest landing. Returns (closed, opened): (0, 0) with
+    nothing new."""
+    with conn.cursor() as cur:
+        lock(cur, SPACETRACK_DECAY)
+        before = progress(cur, SPACETRACK_DECAY)
+        runs = _unfolded_runs(cur, before[0] if before else None)
+        if not runs:
+            return 0, 0
+        for run in runs:
+            cur.execute(_FOLD_SEEN_SQL, {"run": run})
+            cur.execute(_FOLD_WITHDRAWN_SQL, {"run": run})
+        newest = runs[-1]
+        cur.execute("SELECT max(loaded_at) FROM raw_spacetrack_decay WHERE ingest_run_id = %s",
+                    (newest,))
+        observed_at = cur.fetchone()[0]
+        cur.execute(_SNAPSHOT_SQL)
+        rows = cur.fetchall()
+    if not rows:
+        return 0, 0
+    return record(conn, SPACETRACK_DECAY, newest, observed_at, rows)
+
+
 def record_all(conn) -> dict[str, tuple[int, int]]:
-    """The nightly: every feed's newest snapshot."""
-    return {source: record_feed(conn, table, source, key_expr, attrs)
-            for table, source, key_expr, attrs in FEEDS}
+    """The nightly: every snapshot feed's newest run, then the folded Space-Track decays."""
+    stats = {source: record_feed(conn, table, source, key_expr, attrs)
+             for table, source, key_expr, attrs in FEEDS}
+    stats[SPACETRACK_DECAY] = record_spacetrack_decay(conn)
+    return stats
