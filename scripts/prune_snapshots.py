@@ -64,6 +64,13 @@ SNAPSHOT_TABLES = [
 ]
 
 
+# Tables whose landings a claims step folds into a lasting record (identity/claims.py), with
+# the feed whose claim_progress.last_run says how far it got. A landing past that point was
+# never folded (the build failed that night), and pruning it would lose its messages for good,
+# so it is kept until the feed has read it. Before the first fold nothing is dropped.
+FOLDED_BY = {"raw_spacetrack_decay": "spacetrack_decay"}
+
+
 @dataclass(frozen=True)
 class Run:
     """One ingest run's rows in one table, with its ledger entry (status and started_at are None
@@ -75,9 +82,11 @@ class Run:
     rows: int
 
 
-def runs_to_drop(runs: list[Run], keep_latest: int = KEEP_LATEST) -> list[Run]:
+def runs_to_drop(runs: list[Run], keep_latest: int = KEEP_LATEST,
+                 folded_through: int | None = None) -> list[Run]:
     """The runs that the policy drops, from the runs present in one table. Everything not
-    returned is kept, so every doubt keeps."""
+    returned is kept, so every doubt keeps. With `folded_through` (a folded table, FOLDED_BY),
+    only runs at or before it can drop."""
     if keep_latest < 2:
         raise ValueError("keep_latest must be at least 2: identity/churn.py compares two runs")
     ok = sorted((r for r in runs if r.status == "ok"), key=lambda r: r.run_id)
@@ -94,7 +103,20 @@ def runs_to_drop(runs: list[Run], keep_latest: int = KEEP_LATEST) -> list[Run]:
         r
         for r in runs
         if r.status in FINISHED and r.run_id < newest_ok and r.run_id not in keep
+        and (folded_through is None or r.run_id <= folded_through)
     ]
+
+
+def folded_through(conn, table: str) -> int | None:
+    """The last run the table's folding feed has read (0 before its first fold), or None for a
+    table nobody folds."""
+    source = FOLDED_BY.get(table)
+    if source is None:
+        return None
+    with conn.cursor() as cur:
+        cur.execute("SELECT last_run FROM claim_progress WHERE source = %s", (source,))
+        row = cur.fetchone()
+    return row[0] if row else 0
 
 
 def runs_in(conn, table: str) -> list[Run]:
@@ -177,7 +199,7 @@ def prune_table(conn, table: str, mode: str) -> tuple[list[Run], list[Run]]:
         if mode == "compact":
             cur.execute(f"LOCK TABLE {table} IN ACCESS EXCLUSIVE MODE")
     runs = runs_in(conn, table)
-    drop = runs_to_drop(runs)
+    drop = runs_to_drop(runs, folded_through=folded_through(conn, table))
     if drop and mode == "compact":
         compact(conn, table, runs, drop)
     elif drop and mode == "delete":

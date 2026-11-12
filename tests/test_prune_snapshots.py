@@ -59,6 +59,37 @@ def test_a_run_newer_than_the_newest_ok_run_is_never_touched():
     assert _ids(runs_to_drop(runs)) == [2, 3]
 
 
+def test_a_folded_table_drops_only_runs_its_feed_has_folded():
+    """raw_spacetrack_decay landings are folded into spacetrack_decay_message by the claims
+    step; a landing the step never reached (build_graph failed) must outlive the prune, or its
+    messages are lost. Before the first fold nothing is dropped."""
+    runs = [_run(1, 9, 1), _run(2, 9, 2), _run(3, 9, 3), _run(4, 9, 4), _run(5, 9, 5),
+            _run(6, 9, 6), _run(7, 9, 7)]
+    # 1 opens September and 5-7 are the newest three, so the policy alone drops 2-4.
+    assert _ids(runs_to_drop(runs)) == [2, 3, 4]
+    assert _ids(runs_to_drop(runs, folded_through=3)) == [2, 3]
+    assert _ids(runs_to_drop(runs, folded_through=0)) == []
+
+
+def test_the_decay_landings_are_guarded_by_their_feed():
+    assert prune_snapshots.FOLDED_BY == {"raw_spacetrack_decay": "spacetrack_decay"}
+
+
+@pytest.mark.db
+def test_prune_reads_the_feeds_progress_for_a_folded_table(db_conn):
+    with db_conn.cursor() as cur:
+        cur.execute("DELETE FROM claim_progress WHERE source = 'spacetrack_decay'")
+        assert prune_snapshots.folded_through(db_conn, "raw_spacetrack_decay") == 0
+        assert prune_snapshots.folded_through(db_conn, "raw_satcat") is None
+        cur.execute("INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
+                    "VALUES ('spacetrack', 'decay', now(), now(), 'ok') RETURNING ingest_run_id")
+        run = cur.fetchone()[0]
+        cur.execute("INSERT INTO claim_progress (source, last_run, observed_at) "
+                    "VALUES ('spacetrack_decay', %s, now())", (run,))
+        assert prune_snapshots.folded_through(db_conn, "raw_spacetrack_decay") == run
+    db_conn.rollback()
+
+
 def test_an_older_run_still_in_flight_is_kept():
     """Codex verify, 2026-09-29: two ingests overlap and the newer one finishes first. The older
     one has committed its rows but not yet recorded 'ok', so its id is below the newest OK run.
@@ -219,3 +250,33 @@ def test_a_dry_run_changes_nothing_and_names_itself(monkeypatch, capsys):
     assert out[-1].startswith("prune_snapshots: would drop ")
     assert not any("deleted" in line or "compacted" in line for line in out)
 
+
+
+@pytest.mark.db
+def test_the_nightly_prune_keeps_decay_landings_the_feed_has_not_folded(db_conn):
+    """Through prune_table, the nightly's own path: seven September landings, the feed folded
+    through the third, so of the policy's 2-4 only 2 and 3 go."""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("DELETE FROM raw_spacetrack_decay")
+            cur.execute("DELETE FROM claim_progress WHERE source = 'spacetrack_decay'")
+            ids = []
+            for day in range(1, 8):
+                cur.execute(
+                    "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
+                    "VALUES ('spacetrack', 'decay', %s, %s, 'ok') RETURNING ingest_run_id",
+                    (datetime(2026, 9, day, 19, tzinfo=UTC),) * 2,
+                )
+                run = cur.fetchone()[0]
+                ids.append(run)
+                cur.execute("INSERT INTO raw_spacetrack_decay (norad_cat_id, payload, "
+                            "ingest_run_id) VALUES (1, '{}', %s)", (run,))
+            cur.execute("INSERT INTO claim_progress (source, last_run, observed_at) "
+                        "VALUES ('spacetrack_decay', %s, now())", (ids[2],))
+        _, dropped = prune_snapshots.prune_table(db_conn, "raw_spacetrack_decay", "delete")
+        assert [r.run_id for r in dropped] == ids[1:3]
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT ingest_run_id FROM raw_spacetrack_decay ORDER BY 1")
+            assert [r[0] for r in cur.fetchall()] == [ids[0]] + ids[3:]
+    finally:
+        db_conn.rollback()
