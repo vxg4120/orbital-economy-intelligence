@@ -475,8 +475,13 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
       1,008 messages folded (181 superseded), 631 claims opened, all 631 reach a satellite and
       all 631 satellites show Space-Track's date; /api/satellites lists it beside SATCAT and
       GCAT; /api/conflicts/decay total 4,332.
-- The prune can delete a decay landing that a failed build_graph never folded (bounded at about
-  a day of epochs; see the spec's Edge cases). Guard it only if build_graph ever fails for days.
+- [x] The prune could delete a decay landing a failed build_graph never folded: guarded
+      2026-11-12 (FOLDED_BY in scripts/prune_snapshots.py; space a033089, deployed; prod dry
+      run clean). README now says the full suite needs `make metrics` as well as the migrations.
+- [x] Status lag after the wiring: 628 of the 631 Space-Track-decayed satellites read DECAYED,
+      3 PARTIAL (decayed 2026-11-11). No Space-Track status source needed.
+- Note: exodossier CI lists a run for ef45e6d (2026-11-11) as queued with no jobs; GitHub says
+  it is completed when asked to cancel. A ghost entry; later runs on the same code are green.
 
 ## Still Vib's
 - Google Search Console: verify the three hosts and paste the token where the comment in each
@@ -486,6 +491,11 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 - Space-Track open questions: a weekly "reentering soon" pull (TIP and 60-day predictions), and
   whether to backfill the July gap.
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
+- **UCS is not in production** (never ingested: the loader is an optional seed and the box has
+  no UCS file), yet the Overview page and the route descriptions say "stitched from SATCAT,
+  GCAT and UCS" and UCS has a provenance chip. Either load the frozen May 2023 UCS export
+  (UCS is first in name precedence and second in owner, so thousands of names and some owners
+  would change; measure on a copy first) or drop UCS from the copy. Vib's call.
 - Product call (spec decision log 2026-11-12): one Space-Track message outranks SATCAT and GCAT
   together. NORAD 48587 resolves to 2024-01-07 from Space-Track while both catalogs say
   2025-01-07. Keep Space-Track first, or add a plausibility rule?
