@@ -471,8 +471,10 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
       and deleted locally and on origin.
 
 ## After 2026-11-12, open
-- Verify the first Space-Track fold after the 19:10 nightly: `spacetrack_decay` claims about
-  626, conflicts/decay grows, nightly steps exit 0.
+- [x] First Space-Track fold verified after the 2026-11-12 19:10 nightly: every step exit 0;
+      1,008 messages folded (181 superseded), 631 claims opened, all 631 reach a satellite and
+      all 631 satellites show Space-Track's date; /api/satellites lists it beside SATCAT and
+      GCAT; /api/conflicts/decay total 4,332.
 - The prune can delete a decay landing that a failed build_graph never folded (bounded at about
   a day of epochs; see the spec's Edge cases). Guard it only if build_graph ever fails for days.
 
