@@ -151,8 +151,8 @@ export function Overview() {
         <h2 className="underhood__title">Under the hood</h2>
         <p className="underhood__desc">
           A read-only window on the identity graph: one resolved object per physical satellite,
-          stitched from SATCAT, GCAT and UCS. These are its coverage and the disagreements the
-          resolver had to adjudicate.
+          stitched from SATCAT, GCAT and Space-Track decay messages. These are its coverage and the
+          disagreements the resolver had to adjudicate.
         </p>
       </header>
 
