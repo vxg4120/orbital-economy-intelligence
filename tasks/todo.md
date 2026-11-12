@@ -448,21 +448,33 @@ Gates: `pnpm build` clean (tsc + vite); `ruff check .` and `pytest -m "not db"` 
 Both nightlies exit 0 on every step (19:10 run 2026-11-11 finished 19:27). Box 33% disk,
 backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 
-## Next steps, in order
-1. **Space-Track decay -> resolver wiring** (docs/specs/spacetrack-topup.md, last unchecked
-   criterion). The feed is live, so this is the next real engineering step. Decide the
-   window-versus-snapshot question in the spec's Open questions first (pull all Historical
-   decay messages daily, so absences mean something), then make `spacetrack_decay` a claims
-   feed and add the db test the criterion names. Needs a spec read before code.
-2. **Share cards** (`web/public/og.png` in both apps, `deploy/landing/og.png`): dated screenshots
-   from 2026-10-19, before the "Orbital Economy Terminal" rename and the design pass. Retake
-   from the live sites at 1200x630.
-3. **Tiny box cleanups**: `zz_bus_before` and `zz_gcat_links_before` (40 kB each, before-state
-   from 2026-10-07, long verified) can be dropped outside the windows.
-4. **Prerendered per-route bodies** for crawlers (heads are per-route already; bodies are the
-   SPA shell). Only worth it if Search Console shows the pages are not being indexed.
-5. **Stray branch** `codex/audit-followup-20260917` (2 commits from 2026-09-17, docs about the
-   Caddy mount); read it and merge or delete.
+## Next steps, in order (all five done 2026-11-12 by space-ed, Vib: "Yes let's do those things")
+- [x] 1. **Space-Track decay -> resolver wiring.** Migration 0028 + identity/claims.py: every OK
+      decay landing is folded into `spacetrack_decay_message` (each message ever seen; a message
+      is withdrawn only when a newer landing's window covers its epoch), and the best surviving
+      message per object is the `spacetrack_decay` snapshot feed, joined through the SATCAT NORAD
+      link (a second v_claim branch; timed on prod, within noise). Two independent reviews: the
+      first cut ("windowed" feed) let an aged-out better message lose to a worse one and could
+      never retract a withdrawal; rebuilt as above. 12 tests, five mutants caught. Rolled-back
+      dry run on prod: 626 objects claimed, 133 displayed decay dates change (80 by one day).
+      Deployed 15:16 UTC (space 440adb7, migration applied); the first fold runs in the
+      2026-11-12 19:10 nightly.
+- [x] 2. **Share cards** retaken from the live sites (tour suppressed), deployed (space fb30603,
+      exodossier f87c5c0). The landing card has no dated numbers and was left alone.
+- [x] 3. **Box cleanups**: `zz_bus_before`, `zz_gcat_links_before` dropped (no dependents).
+- [x] 4. **Prerendered bodies.** A site: search found neither app indexed, and AI crawlers run
+      no script, so each route's server-rendered shell now carries its h1, description and links
+      to every section inside #root; React clears it on first render and the shell hides it
+      while script runs. Reviewed (no important findings; minors fixed), checked in Chrome with
+      and without JavaScript, live (space 763471b, exodossier 5975c43).
+- [x] 5. **Stray branch** `codex/audit-followup-20260917` merged (September verification notes)
+      and deleted locally and on origin.
+
+## After 2026-11-12, open
+- Verify the first Space-Track fold after the 19:10 nightly: `spacetrack_decay` claims about
+  626, conflicts/decay grows, nightly steps exit 0.
+- The prune can delete a decay landing that a failed build_graph never folded (bounded at about
+  a day of epochs; see the spec's Edge cases). Guard it only if build_graph ever fails for days.
 
 ## Still Vib's
 - Google Search Console: verify the three hosts and paste the token where the comment in each
@@ -472,3 +484,6 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 - Space-Track open questions: a weekly "reentering soon" pull (TIP and 60-day predictions), and
   whether to backfill the July gap.
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
+- Product call (spec decision log 2026-11-12): one Space-Track message outranks SATCAT and GCAT
+  together. NORAD 48587 resolves to 2024-01-07 from Space-Track while both catalogs say
+  2025-01-07. Keep Space-Track first, or add a plausibility rule?
