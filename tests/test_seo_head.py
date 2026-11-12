@@ -159,7 +159,8 @@ def test_unknown_path_is_a_real_404_that_still_renders_the_spa(client):
     h = _head(r.text)
     assert h["robots"] == "noindex"
     assert h["canonical"] is None
-    assert '<div id="root"></div>' in r.text
+    # the SPA still mounts on #root, which now carries the not-found prerender for crawlers
+    assert '<div id="root"><div class="prerender"><h1>Page not found</h1>' in r.text
 
 
 @_needs_spa
@@ -189,3 +190,57 @@ def test_deep_link_gets_its_own_head(client):
     r = client.get("/buses/starlink-v2-mini?kind=bus")
     assert r.status_code == 200
     assert _head(r.text)["canonical"] == "https://orbital.vibcreates.com/buses/starlink-v2-mini?kind=bus"
+
+
+# ---- the prerendered body --------------------------------------------------------------------
+# Crawlers that run no script (most AI crawlers, link unfurlers) saw an empty <div id="root">.
+# The server fills it with the route's heading, description and links to every section; React
+# clears it on its first render, and the shell hides it while script runs, so people never see it.
+
+
+def _body(html):
+    return html[html.index('<div id="root">'):]
+
+
+def test_root_body_names_the_site_and_links_every_indexable_section():
+    out, _ = seo.render_head(SHELL, "/", routes=ROUTES)
+    body = _body(out)
+    assert "<h1>Orbital Economy Terminal</h1>" in body
+    assert html_escape(ROUTES.routes[0].description) in body
+    links = re.findall(r'<a href="([^"]+)">', body)
+    expected = [seo._generate_path(r.pattern, {}) for r in ROUTES.routes if not r.noindex]
+    assert links == expected and "/" in links and "/buses" in links
+
+
+def test_a_deep_route_body_carries_its_own_heading_and_description():
+    out, status = seo.render_head(SHELL, "/buses/starlink-v2-mini", routes=ROUTES)
+    route = seo.match(ROUTES, "/buses").route
+    assert status == 200
+    assert "<h1>Bus benchmarks</h1>" in _body(out)
+    assert html_escape(route.description) in _body(out)
+
+
+def test_an_unknown_path_body_says_not_found_and_still_links_home():
+    out, status = seo.render_head(SHELL, "/nope", routes=ROUTES)
+    assert status == 404
+    assert "<h1>Page not found</h1>" in _body(out)
+    assert '<a href="/">' in _body(out)
+
+
+def test_the_body_is_filled_once_and_the_root_element_survives():
+    out, _ = seo.render_head(SHELL, "/conflicts", routes=ROUTES)
+    assert out.count('<div id="root">') == 1 and out.count('class="prerender"') == 1
+    again, _ = seo.render_head(out, "/conflicts", routes=ROUTES)
+    assert again.count('class="prerender"') == 1
+
+
+def test_the_shell_hides_the_prerendered_body_while_script_runs():
+    shell = (pathlib.Path(__file__).resolve().parent.parent / "web" / "index.html").read_text()
+    assert re.search(r'classList\.add\("js"\)', shell)
+    assert re.search(r"\.js \.prerender\s*\{\s*display:\s*none", shell)
+
+
+def html_escape(s):
+    import html
+
+    return html.escape(s, quote=True)
