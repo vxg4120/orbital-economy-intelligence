@@ -137,7 +137,7 @@ export default function App() {
           <div className="srckey">
             <SourceBadge source="satcat" />
             <SourceBadge source="gcat" />
-            <SourceBadge source="ucs" />
+            <SourceBadge source="spacetrack" />
             <SourceBadge source="resolve" />
           </div>
           {MOCK ? <span className="hint">Fixtures — API offline</span> : null}

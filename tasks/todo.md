@@ -497,11 +497,13 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 - Space-Track open questions: a weekly "reentering soon" pull (TIP and 60-day predictions), and
   whether to backfill the July gap.
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
-- **UCS is not in production** (never ingested: the loader is an optional seed and the box has
-  no UCS file), yet the Overview page and the route descriptions say "stitched from SATCAT,
-  GCAT and UCS" and UCS has a provenance chip. Either load the frozen May 2023 UCS export
-  (UCS is first in name precedence and second in owner, so thousands of names and some owners
-  would change; measure on a copy first) or drop UCS from the copy. Vib's call.
-- Product call (spec decision log 2026-11-12): one Space-Track message outranks SATCAT and GCAT
-  together. NORAD 48587 resolves to 2024-01-07 from Space-Track while both catalogs say
-  2025-01-07. Keep Space-Track first, or add a plausibility rule?
+- [x] **UCS is not in production** (never ingested: the loader is an optional seed and the box has
+  no UCS file), yet the copy claimed it. Settled 2026-11-12 at Vib's "proceed how you see fit":
+  the copy now names only the sources in production (SATCAT, GCAT and Space-Track decay
+  messages) on the Overview, the route descriptions, the JSON-LD, the vibcreates.com entry and
+  the rail's provenance key. The loader and the precedence slots stay. Loading the frozen May
+  2023 export remains possible later; it would change thousands of names, so measure on a copy.
+- [x] Product call on NORAD 48587, settled 2026-11-12 with a narrow rule (spec decision log): a
+  Space-Track message is set aside when SATCAT and GCAT agree to within a day and the message is
+  more than 30 days off. On production that is 48587 alone, a one-year typo. Precedence is
+  otherwise unchanged and the claim stays on /conflicts.

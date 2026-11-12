@@ -292,3 +292,14 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   the outage and prune gaps above. Product question for Vib: NORAD 48587 shows that one
   Space-Track message outranks SATCAT and GCAT together; a plausibility rule (for example,
   prefer the catalogs when both agree and Space-Track differs by a year) is possible.
+- 2026-11-12 (Claude, at Vib's "proceed how you see fit"): the NORAD 48587 question settled with
+  a narrow rule rather than a change of precedence. Measured on production first: of 631 objects
+  with a Space-Track date, 493 match SATCAT exactly; where SATCAT and GCAT agree to within a day
+  and the message differs, there are 10 objects, nine of them 2 to 11 days apart (the ordinary
+  spread between a message and the catalogs) and one, 48587, exactly 366 days apart, the same
+  day a year early. `identity/resolve.py` now sets a message aside when SATCAT and GCAT agree to
+  within `CATALOGS_AGREE_DAYS` (1) and the message is more than `MESSAGE_OUTLIER_DAYS` (30) from
+  SATCAT; it runs after the GCAT phase filter, so only a GCAT decay date can outvote a message.
+  The claim stays on the record and on /conflicts, and `decay_messages_outvoted` in the resolver
+  stats counts the objects each night (1 expected). A corrected message from Space-Track would
+  supersede the bad one through the fold, and the rule would then stop firing on its own.

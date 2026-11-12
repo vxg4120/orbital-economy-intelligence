@@ -345,3 +345,47 @@ def test_a_gcat_phase_date_is_a_decay_only_under_a_decayed_phase(db_conn):
         assert ("gcat", "R?") not in stats["unmapped_status"]
     finally:
         db_conn.rollback()
+
+
+@pytest.mark.db
+def test_a_decay_message_both_catalogs_contradict_is_outvoted(db_conn):
+    """A Space-Track decay message outranks SATCAT and GCAT, except when the two catalogs
+    agree with each other and the message is more than a month from them (NORAD 48587 on
+    2026-11-12: the message says 2024-01-07, both catalogs 2025-01-07). The ordinary spread of
+    a few days keeps the message's precedence, and so does a message the catalogs do not
+    jointly contradict: they disagree with each other, or only one of them has a date."""
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("INSERT INTO status_mapping (source, source_value, canonical_status) "
+                        "VALUES ('gcat', 'R', 'DECAYED') ON CONFLICT DO NOTHING")
+            run = _run(cur)
+            typo, spread, split, lone = (
+                _sat(cur, n) for n in (970000121, 970000122, 970000123, 970000124))
+            cases = {
+                typo: ("2024-01-07", "2025-01-07", "2025 Jan  7 0055"),
+                spread: ("2024-04-09", "2024-03-29", "2024 Mar 29?"),
+                split: ("2024-01-07", "2025-01-07", "2025 Mar  1"),
+                lone: ("2024-01-07", "2025-01-07", None),
+            }
+            for sat, (message, satcat, gcat) in cases.items():
+                norad = str(970000121 + [typo, spread, split, lone].index(sat))
+                seed_claim(cur, sat, "satcat", "decay_date", satcat, run, key=norad)
+                if gcat is not None:
+                    seed_claim(cur, sat, "gcat", "status", "R", run, key=f"S{norad}")
+                    seed_claim(cur, sat, "gcat", "decay_date", gcat, run, key=f"S{norad}")
+                # a message reaches its satellite through the SATCAT NORAD link (v_claim)
+                seed_claim(cur, None, "spacetrack_decay", "decay_date", message, run, key=norad)
+        stats = {}
+        resolve._resolve_decay_date(db_conn, ["spacetrack_decay", "satcat", "gcat"], stats)
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT satellite_id, decay_date FROM satellite WHERE satellite_id = ANY(%s) "
+                        "ORDER BY 1", ([typo, spread, split, lone],))
+            assert cur.fetchall() == [(typo, dt.date(2025, 1, 7)), (spread, dt.date(2024, 4, 9)),
+                                      (split, dt.date(2024, 1, 7)), (lone, dt.date(2024, 1, 7))]
+            # the outvoted message stays on the record
+            cur.execute("SELECT value FROM v_current_claim WHERE satellite_id = %s "
+                        "AND source = 'spacetrack_decay'", (typo,))
+            assert cur.fetchall() == [("2024-01-07",)]
+        assert stats["decay_messages_outvoted"] == 1
+    finally:
+        db_conn.rollback()

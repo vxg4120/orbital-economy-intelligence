@@ -136,7 +136,28 @@ def _gcat_ddate_is_decay(conn) -> dict[int, bool]:
                 for sat, status in cur.fetchall()}
 
 
-def _resolve_decay_date(conn, order) -> None:
+# A Space-Track decay message is set aside when both catalogs contradict it: SATCAT and GCAT
+# agree with each other to within CATALOGS_AGREE_DAYS and the message is more than
+# MESSAGE_OUTLIER_DAYS from SATCAT. On 2026-11-12 this held for one object of 631, NORAD 48587,
+# whose correction message of 2026-10-19 says 2024-01-07 where both catalogs say 2025-01-07: the
+# same day a year early. The next largest gap where the catalogs agree was 11 days, the ordinary
+# spread between a message and the catalogs, and those messages keep their precedence. The
+# message's claim stays on the record and on the Conflicts page; only the card's date changes.
+CATALOGS_AGREE_DAYS = 1
+MESSAGE_OUTLIER_DAYS = 30
+
+
+def _contradicted_by_catalogs(by_source: dict) -> bool:
+    if not {"spacetrack_decay", "satcat", "gcat"} <= by_source.keys():
+        return False
+    st, sc, gc = (parse_date_loose(by_source[s][0]) for s in ("spacetrack_decay", "satcat", "gcat"))
+    if st is None or sc is None or gc is None:
+        return False
+    return (abs((sc - gc).days) <= CATALOGS_AGREE_DAYS
+            and abs((st - sc).days) > MESSAGE_OUTLIER_DAYS)
+
+
+def _resolve_decay_date(conn, order, stats=None) -> None:
     data = _assertions(conn, "decay_date")
     is_decay = _gcat_ddate_is_decay(conn)
     phase_dates = [sat for sat, by_source in data.items()
@@ -145,6 +166,12 @@ def _resolve_decay_date(conn, order) -> None:
         del data[sat]["gcat"]
         if not data[sat]:
             del data[sat]
+    # after the phase filter, so only a GCAT date that is a decay can outvote a message
+    outvoted = [sat for sat, by_source in data.items() if _contradicted_by_catalogs(by_source)]
+    for sat in outvoted:
+        del data[sat]["spacetrack_decay"]
+    if stats is not None:
+        stats["decay_messages_outvoted"] = len(outvoted)
     with conn.cursor() as cur:
         for sat_id, by_source in data.items():
             picked = _pick(by_source, order)
@@ -325,7 +352,7 @@ def resolve(conn, precedence_path=None) -> dict:
     stats: dict = {}
     _resolve_name(conn, prec["name"])
     _resolve_object_type(conn, prec["object_type"])
-    _resolve_decay_date(conn, prec["decay_date"])
+    _resolve_decay_date(conn, prec["decay_date"], stats)
     _resolve_status(conn, prec["status"], stats)
     _resolve_owner(conn, prec["owner"], stats)
     stats["display_name_overrides"] = _apply_display_name_overrides(conn)

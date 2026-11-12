@@ -7,6 +7,6 @@
 # phases; they simply have nothing to contribute now, so the next source wins.
 owner: [operator_seed, gcat, ucs, satcat]        # curated seed beats catalogs; commercial > coarse code
 status: [gcat, satcat, ucs]                       # GCAT authoritative for decay; falls through for live ops
-decay_date: [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT
+decay_date: [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT; a message both catalogs contradict is set aside (resolve.py)
 object_type: [gcat, satcat]                        # GCAT taxonomy preferred
 name: [ucs, gcat, satcat]                          # commercial names beat uplink/catalog names
