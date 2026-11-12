@@ -480,6 +480,12 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
       run clean). README now says the full suite needs `make metrics` as well as the migrations.
 - [x] Status lag after the wiring: 628 of the 631 Space-Track-decayed satellites read DECAYED,
       3 PARTIAL (decayed 2026-11-11). No Space-Track status source needed.
+- [x] IndexNow (Bing, Yandex and the other IndexNow engines; ChatGPT search reads Bing's index):
+      key file `8772f058e23a0521b19e03d2f3b9b89c.txt` at the root of all three hosts (deploy/landing, web/public in both
+      apps), and every sitemap URL submitted 2026-11-12 20:51 UTC: 3 + 8 + 6 URLs, all 202.
+      Resubmit after a sitemap change with a POST to https://api.indexnow.org/indexnow
+      ({host, key, keyLocation, urlList}). Google does not take IndexNow; Search Console is
+      still Vib's.
 - Note: exodossier CI lists a run for ef45e6d (2026-11-11) as queued with no jobs; GitHub says
   it is completed when asked to cancel. A ghost entry; later runs on the same code are green.
 
