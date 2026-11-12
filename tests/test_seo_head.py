@@ -244,3 +244,21 @@ def html_escape(s):
     import html
 
     return html.escape(s, quote=True)
+
+
+def test_every_prerendered_link_resolves_to_an_indexable_route():
+    out, _ = seo.render_head(SHELL, "/", routes=ROUTES)
+    for href in re.findall(r'<a href="([^"]+)">', _body(out)):
+        m = seo.match(ROUTES, href)
+        assert m is not None and not m.route.noindex, href
+
+
+def test_a_root_div_with_attributes_or_whitespace_is_still_filled_and_keeps_them():
+    shell = SHELL.replace('<div id="root"></div>', '<div id="root" class="app">\n  </div>')
+    out, _ = seo.render_head(shell, "/conflicts", routes=ROUTES)
+    assert '<div id="root" class="app"><div class="prerender"><h1>Conflicts</h1>' in out
+
+
+def test_a_browser_without_modules_keeps_the_prerender():
+    shell = (pathlib.Path(__file__).resolve().parent.parent / "web" / "index.html").read_text()
+    assert re.search(r'<script nomodule>[^<]*classList\.remove\("js"\)', shell)

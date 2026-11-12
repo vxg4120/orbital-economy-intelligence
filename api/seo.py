@@ -235,7 +235,9 @@ def _apply_text(shell: str, title: str, description: str) -> str:
 # what the route's head already says, so the two never disagree.
 
 _ROOT_DIV = re.compile(
-    r'<div id="root">(?:<div class="prerender">.*?<!-- /prerender --></div>)?</div>', re.S
+    r'<div id="root"(?P<attrs>[^>]*)>\s*(?:<div class="prerender">.*?<!-- /prerender --></div>)?'
+    r"\s*</div>",
+    re.S,
 )
 
 
@@ -247,16 +249,18 @@ def _heading(routes: Routes, title: str) -> str:
 def _fill_root(shell: str, routes: Routes, title: str, description: str) -> str:
     links = []
     for r in routes.routes:
-        if r.noindex:
+        # a route that needs an id has no page of its own to link to
+        if r.noindex or any(_PARAM.match(seg) and not seg.endswith("?")
+                            for seg in r.pattern.strip("/").split("/")):
             continue
         path = _generate_path(r.pattern, {})
         label = "Overview" if path == "/" else _heading(routes, r.title)
         links.append(f'<li><a href="{html.escape(path, quote=True)}">{html.escape(label)}</a></li>')
     block = (
-        '<div id="root"><div class="prerender">'
+        '<div id="root"{attrs}><div class="prerender">'
         f"<h1>{html.escape(_heading(routes, title))}</h1>"
         f"<p>{html.escape(description)}</p>"
         f'<nav aria-label="{html.escape(routes.site_name, quote=True)}"><ul>{"".join(links)}</ul></nav>'
         "<!-- /prerender --></div></div>"
     )
-    return _ROOT_DIV.sub(lambda _m: block, shell, count=1)
+    return _ROOT_DIV.sub(lambda m: block.replace("{attrs}", m.group("attrs"), 1), shell, count=1)
