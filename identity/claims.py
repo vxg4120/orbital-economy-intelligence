@@ -51,7 +51,24 @@ FEEDS = [
     ("raw_gcat_satcat", "gcat", "jcat", _GCAT_ATTRS),
     ("raw_ucs", "ucs", "row_key", _UCS_ATTRS),
 ]
-SOURCES = tuple(source for _, source, _, _ in FEEDS)
+
+# Space-Track's actual decays (docs/specs/spacetrack-topup.md, migration 0028): a WINDOWED feed.
+# Each run carries only the Historical messages whose MSG_EPOCH falls in the last 30 days, so an
+# object missing from a run has aged out of the window, not been retracted (a decay is
+# permanent); only a new date for the same object closes the old claim. One claim per object:
+# the lowest PRECEDENCE ("more recent data"), then the newest MSG_EPOCH, as
+# v_spacetrack_decay_actual orders them. Keys are NORAD ids, which v_claim joins through the
+# SATCAT NORAD link.
+SPACETRACK_DECAY = "spacetrack_decay"
+_SPACETRACK_DECAY_TABLE = "raw_spacetrack_decay"
+_SPACETRACK_DECAY_SQL = """
+SELECT DISTINCT ON (norad_cat_id) norad_cat_id::text, 'decay_date', decay_date::text
+FROM raw_spacetrack_decay
+WHERE ingest_run_id = %(run)s AND msg_type = 'Historical' AND decay_date IS NOT NULL
+ORDER BY norad_cat_id, precedence ASC NULLS LAST, msg_epoch DESC NULLS LAST
+"""
+
+SOURCES = tuple(source for _, source, _, _ in FEEDS) + (SPACETRACK_DECAY,)
 
 
 def lock(cur, source: str) -> None:
@@ -65,9 +82,13 @@ def progress(cur, source: str):
     return cur.fetchone()
 
 
-def record(conn, source: str, run: int, observed_at, rows):
+def record(conn, source: str, run: int, observed_at, rows, windowed: bool = False):
     """Reconcile the open claims of `source` with `rows`, the (key, attribute, value) triples
     its run `run` asserts, observed at `observed_at`. Returns (closed, opened).
+
+    A snapshot feed's run is its whole set, so a claim it no longer makes is closed. A
+    `windowed` feed's run covers only part of its keys, so only a claim whose (key, attribute)
+    the run asserts with another value is closed; an absent key is left open.
 
     Refused, returning (0, 0): a run at or before the feed's last recorded one (recording out
     of order would close everything a newer run makes; recording twice must change nothing),
@@ -88,13 +109,19 @@ def record(conn, source: str, run: int, observed_at, rows):
             for key, attribute, value in rows:
                 cp.write_row((key, attribute, value))
         # Close what the run no longer makes: closed at this run, last observed at the previous.
+        in_window = (
+            "AND EXISTS (SELECT 1 FROM _claims_run w "
+            "WHERE w.source_key = c.source_key AND w.attribute = c.attribute)"
+            if windowed else ""
+        )
         cur.execute(
-            """
+            f"""
             UPDATE claim c SET closed_run = %(run)s, observed_to = %(seen)s
             WHERE c.source = %(source)s AND c.closed_run IS NULL
               AND NOT EXISTS (SELECT 1 FROM _claims_run r
                               WHERE r.source_key = c.source_key AND r.attribute = c.attribute
                                 AND r.value = c.value)
+              {in_window}
             """,
             {"run": run, "seen": before[1] if before else observed_at, "source": source},
         )
@@ -159,7 +186,27 @@ def record_feed(conn, table, source, key_expr, attrs) -> tuple[int, int]:
     return record(conn, source, run, observed_at, rows)
 
 
+def record_spacetrack_decay(conn) -> tuple[int, int]:
+    """Record the newest OK Space-Track decay landing as the windowed `spacetrack_decay` feed.
+    Returns (closed, opened): (0, 0) with no landing or nothing new."""
+    run = _latest_run(conn, _SPACETRACK_DECAY_TABLE)
+    if run is None:
+        return 0, 0
+    with conn.cursor() as cur:
+        before = progress(cur, SPACETRACK_DECAY)
+        if before is not None and run <= before[0]:
+            return 0, 0
+        cur.execute(f"SELECT max(loaded_at) FROM {_SPACETRACK_DECAY_TABLE} "
+                    "WHERE ingest_run_id = %s", (run,))
+        observed_at = cur.fetchone()[0]
+        cur.execute(_SPACETRACK_DECAY_SQL, {"run": run})
+        rows = cur.fetchall()
+    return record(conn, SPACETRACK_DECAY, run, observed_at, rows, windowed=True)
+
+
 def record_all(conn) -> dict[str, tuple[int, int]]:
-    """The nightly: every feed's newest snapshot."""
-    return {source: record_feed(conn, table, source, key_expr, attrs)
-            for table, source, key_expr, attrs in FEEDS}
+    """The nightly: every snapshot feed's newest run, then the windowed Space-Track decays."""
+    stats = {source: record_feed(conn, table, source, key_expr, attrs)
+             for table, source, key_expr, attrs in FEEDS}
+    stats[SPACETRACK_DECAY] = record_spacetrack_decay(conn)
+    return stats
