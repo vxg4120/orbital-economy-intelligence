@@ -116,6 +116,13 @@
        verification token into a tag here:
          <meta name="google-site-verification" content="TOKEN">
        The tag is left out while there is no token, because an empty one is noise. -->
+  <!-- The server prerenders each route's heading, description and section links inside #root
+       for crawlers that run no script (api/seo.py); React clears it on its first render. While
+       script runs it stays hidden, so nobody sees it flash before the app paints. -->
+  <style>.prerender { padding: 16px; max-width: 72ch; } .js .prerender { display: none; }</style>
+  <script>document.documentElement.classList.add("js");</script>
+  <!-- a browser without module support never mounts the app, so it keeps the prerender -->
+  <script nomodule>document.documentElement.classList.remove("js");</script>
   <script>
     (function () {
       var ids = { ga4: "", clarity: "", fingerprint: "" };

@@ -189,6 +189,7 @@ def render_head(shell: str, path: str, query_string: str = "", routes: Routes | 
         title = nf.title if nf else f"Page not found · {routes.site_name}"
         desc = nf.description if nf else "Nothing resolves at this address."
         out = _apply_text(shell, title, desc)
+        out = _fill_root(out, routes, title, desc)
         out = _CANONICAL.sub("", out)
         out = _OG_URL_TAG.sub("", out)
         out = _ROBOTS.sub("", out)
@@ -198,6 +199,7 @@ def render_head(shell: str, path: str, query_string: str = "", routes: Routes | 
         return out, 404
 
     out = _apply_text(shell, m.route.title, m.route.description)
+    out = _fill_root(out, routes, m.route.title, m.route.description)
     out = _ROBOTS.sub("", out)
     if m.route.noindex:
         # a matched route the table keeps out of the index: served, but with no canonical and
@@ -223,3 +225,42 @@ def _apply_text(shell: str, title: str, description: str) -> str:
     out = _set(out, "twitter:title", title)
     out = _set(out, "twitter:description", description)
     return out
+
+
+# ---- body prerendering ----------------------------------------------------------------------
+# Crawlers that run no script (most AI crawlers, link unfurlers, plain HTTP readers) saw an empty
+# <div id="root">. It is filled with the route's heading, its description and a link to every
+# indexable section. React clears the root's content on its first render, and the shell hides
+# .prerender while script runs (index.html), so people never see it; what a crawler reads is
+# what the route's head already says, so the two never disagree.
+
+_ROOT_DIV = re.compile(
+    r'<div id="root"(?P<attrs>[^>]*)>\s*(?:<div class="prerender">.*?<!-- /prerender --></div>)?'
+    r"\s*</div>",
+    re.S,
+)
+
+
+def _heading(routes: Routes, title: str) -> str:
+    suffix = f" · {routes.site_name}"
+    return title[: -len(suffix)] if title.endswith(suffix) else title
+
+
+def _fill_root(shell: str, routes: Routes, title: str, description: str) -> str:
+    links = []
+    for r in routes.routes:
+        # a route that needs an id has no page of its own to link to
+        if r.noindex or any(_PARAM.match(seg) and not seg.endswith("?")
+                            for seg in r.pattern.strip("/").split("/")):
+            continue
+        path = _generate_path(r.pattern, {})
+        label = "Overview" if path == "/" else _heading(routes, r.title)
+        links.append(f'<li><a href="{html.escape(path, quote=True)}">{html.escape(label)}</a></li>')
+    block = (
+        '<div id="root"{attrs}><div class="prerender">'
+        f"<h1>{html.escape(_heading(routes, title))}</h1>"
+        f"<p>{html.escape(description)}</p>"
+        f'<nav aria-label="{html.escape(routes.site_name, quote=True)}"><ul>{"".join(links)}</ul></nav>'
+        "<!-- /prerender --></div></div>"
+    )
+    return _ROOT_DIV.sub(lambda m: block.replace("{attrs}", m.group("attrs"), 1), shell, count=1)
