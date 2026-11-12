@@ -4,7 +4,7 @@
 decay landing.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-10-16
+**Last updated:** 2026-11-12
 
 ## Goal
 The 12-month `gp_history` backfill was loaded once from the July seed (production's newest
@@ -132,11 +132,13 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   returns CREATION_DATE as `YYYY-MM-DDTHH:MM:SS`, and the top-up sends the same form; this has
   not been tried live (no account). If the first live night returns an error stub or rejects
   the range, the ledger row is 'error' and the cursor stays put, so nothing is lost.
-- **A decay window that excludes an old decay.** Objects that decayed more than 30 days before
-  the newest run fall out of `v_spacetrack_decay_actual`. Once the resolver reads it, their
-  `decay_date` falls back to SATCAT, which by then carries the date (CelesTrak's SATCAT takes
-  decays from the same 18 SDS catalog). The next-step wiring must not treat leaving the window
-  as a retraction (see Open questions).
+- **A decay window that excludes an old decay.** Objects whose message is older than 30 days
+  fall out of `v_spacetrack_decay_actual`, but not out of the claims: every landing is folded
+  into `spacetrack_decay_message`, which keeps each message ever seen, so the object keeps its
+  Space-Track claim. A message is withdrawn only when a newer landing's window covers its epoch
+  (with a day to spare for the clock difference) and it is missing; in the first fold on
+  production all 177 such messages were superseded copies (same object, newer MSG_EPOCH), and
+  no object lost its last message.
 - **Several Historical messages per object.** The view keeps the lowest PRECEDENCE ("lower
   PRECEDENCE values indicate more recent data") and then the newest MSG_EPOCH.
 - **HTTP 200 throttle stubs** are already retried and then raised by the client, so a
@@ -174,18 +176,22 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   FROM ingest_run WHERE source='spacetrack' AND started_at > now() - interval '1 day'` is at
   most 250 requests over at least 3 s each. Measured 2026-11-11: 130 ledger rows in the last
   day; the step took 396 to 585 s for 126 batches, about 4.6 s each.
-- [ ] **Next step, resolver wiring:** `spacetrack_decay` is a claims feed (one value per NORAD
+- [x] **Next step, resolver wiring:** `spacetrack_decay` is a claims feed (one value per NORAD
   id from the newest run, read through `v_claim` via the 'satcat' NORAD link), and a db test
   shows a satellite with SATCAT decay 2024-01-01 and a Space-Track actual decay 2024-01-02
   resolving to 2024-01-02, with the Space-Track claim listed on `/api/satellites/<id>`; an
   `EXPLAIN (ANALYZE, BUFFERS)` of `v_current_claim` on production is no slower than before by
-  more than 10%.
+  more than 10%. Done 2026-11-12 (migration 0028, identity/claims.py, tests/
+  test_spacetrack_decay_claims.py, 11 tests, four mutants each caught). Timed on production
+  inside a rolled-back transaction, old view against new, three runs each: status 249 vs 254 ms,
+  decay_date 180 vs 178 ms, owner 274 vs 266 ms, satellite detail 22 vs 20 ms (noise).
 
 ## Open questions
 - (Vib) **Predictions.** TIP messages (1 / hour) and 60-day predictions (1 / week) are in the
   same DECAY class. Worth a separate weekly pull for a "reentering soon" view?
 - (Vib) **The July gap backfill** (Edge cases): run it once the account exists?
-- (Claude) **Window vs. snapshot for the decay feed.** A 30-day window makes the claims feed
+- (Claude, SETTLED 2026-11-12: snapshot, built locally by folding landings, no extra pull)
+  **Window vs. snapshot for the decay feed.** A 30-day window makes the claims feed
   close a claim when its object ages out. Either the next step pulls every Historical message
   (one daily query of the whole decay history, still within 1 / day) so the feed is a real
   snapshot, or the claims writer learns that a windowed feed's absences are not retractions.
@@ -251,3 +257,25 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   (above). The feed has run green every evening since 2026-10-16 and adds 7 to 10 minutes to
   the nightly, so the M-2 time-budget question is not urgent. The resolver wiring is the open
   next step; with the feed live, the window-versus-snapshot question decides its shape first.
+- 2026-11-12 (Claude, space-ed): resolver wiring shipped. The first cut recorded each landing
+  as a "windowed" feed (absent keys left open). An independent review found two real defects in
+  that: a better message (lower PRECEDENCE) that aged out was replaced by a worse one still in
+  the window, flipping the resolved date, and a message withdrawn inside the window could never
+  be retracted, while it outranks SATCAT. Both come from treating one 30-day landing as the
+  record. The fix is the snapshot option without a second pull: `spacetrack_decay_message`
+  accumulates every message, folding OK landings oldest first (all retained ones on the first
+  night), and the claim is the best surviving message per object, recorded as an ordinary
+  snapshot so a withdrawal closes it and the resolver's retraction falls back to SATCAT. The
+  choice gained a total order (`decay_date DESC` last) here and in `v_spacetrack_decay_actual`.
+  Lesson: a feed that only ever sends a window is not a snapshot, and "absent" means different
+  things inside and outside the window; keep the record locally rather than inferring it.
+- 2026-11-12 (Claude): dry run of the first fold on production (rolled back): 996 messages from
+  the five retained landings, 177 superseded, 626 objects claimed, all matched to a satellite;
+  133 displayed decay dates change, 80 of them by one day. The largest: NORAD 48587, where
+  Space-Track's correction message of 2026-10-19 says 2024-01-07 and SATCAT and GCAT say
+  2025-01-07; Space-Track wins by precedence and the disagreement shows on the Conflicts page.
+  Expected knock-ons: more decay-date conflicts on /conflicts and in /api/stats, and a
+  `spacetrack_decay` row in the report's unmatched section. Status is not taken from
+  Space-Track, so a fresh decay can show a date while SATCAT still says operational for a day
+  or two. Open (M-5, unchanged): a NORAD id with several current satcat links gives the claim
+  to every one of them through v_claim, while `v_spacetrack_decay_actual` shows the lowest.
