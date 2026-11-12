@@ -7,8 +7,10 @@ than runlog.DAILY's 20, which would let two pulls land inside one 24-hour span. 
 not pulled: the 60-day predictions inside the same class are limited to one query a week
 (docs/specs/spacetrack-topup.md, Open questions).
 
-The view v_spacetrack_decay_actual reads the newest OK run of this table. The resolver does not
-read it yet; that is the spec's next step.
+The view v_spacetrack_decay_actual reads the newest OK run of this table. The resolver reads
+these messages through identity/claims.py, which folds every OK landing into
+spacetrack_decay_message and records the best surviving message per object as the
+`spacetrack_decay` claims feed (migration 0028).
 """
 
 from __future__ import annotations

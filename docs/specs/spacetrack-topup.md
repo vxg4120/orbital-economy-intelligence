@@ -139,6 +139,13 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   (with a day to spare for the clock difference) and it is missing; in the first fold on
   production all 177 such messages were superseded copies (same object, newer MSG_EPOCH), and
   no object lost its last message.
+- **Gaps the local record cannot fill.** A nightly outage longer than 30 days loses the
+  decay messages whose epochs fell in the gap (those objects fall back to SATCAT's date), and
+  pruning can delete a landing that a failed build_graph never folded, which costs at most
+  about a day of epochs at a month boundary thanks to the overlapping windows and the monthly
+  keepers. A night on which Space-Track briefly leaves messages out withdraws them and the next
+  night reopens them: churn that heals itself. A snapshot with no surviving message at all
+  records nothing (record() refuses an empty run), so the folds repeat until one does.
 - **Several Historical messages per object.** The view keeps the lowest PRECEDENCE ("lower
   PRECEDENCE values indicate more recent data") and then the newest MSG_EPOCH.
 - **HTTP 200 throttle stubs** are already retried and then raised by the client, so a
@@ -279,3 +286,9 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   Space-Track, so a fresh decay can show a date while SATCAT still says operational for a day
   or two. Open (M-5, unchanged): a NORAD id with several current satcat links gives the claim
   to every one of them through v_claim, while `v_spacetrack_decay_actual` shows the lowest.
+- 2026-11-12 (review, second pass): no defects in the fold. Added a test for a withdrawn
+  message that comes back (dropping the line that clears the withdrawal had passed every test)
+  and tightened the revision and empty-landing tests. Recorded as edge cases rather than fixed:
+  the outage and prune gaps above. Product question for Vib: NORAD 48587 shows that one
+  Space-Track message outranks SATCAT and GCAT together; a plausibility rule (for example,
+  prefer the catalogs when both agree and Space-Track differs by a year) is possible.

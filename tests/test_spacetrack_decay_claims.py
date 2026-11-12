@@ -175,14 +175,41 @@ def test_a_message_withdrawn_inside_the_window_is_retracted(conn):
 
 
 def test_a_revised_date_replaces_the_old_one(conn):
+    """The old message is withdrawn (its epoch is inside the newer window) and the new one, at
+    the same precedence, would win on epoch anyway: the claim moves to the revised date. The
+    revision is at a WORSE precedence here, so only the withdrawal can move it."""
     with conn.cursor() as cur:
         r1 = _run(cur, started=NOW - dt.timedelta(days=1))
-        _decay(cur, r1, NORAD_A, "2026-11-01")
-        r2 = _run(cur)
-        _decay(cur, r2, NORAD_A, "2026-11-02", msg_epoch=RECENT + dt.timedelta(days=1))
+        _decay(cur, r1, NORAD_A, "2026-11-01", precedence=1)
     assert claims.record_spacetrack_decay(conn) == (0, 1)
     with conn.cursor() as cur:
+        r2 = _run(cur)
+        _decay(cur, r2, NORAD_A, "2026-11-02", precedence=2,
+               msg_epoch=RECENT + dt.timedelta(days=1))
+    assert claims.record_spacetrack_decay(conn) == (1, 1)
+    with conn.cursor() as cur:
         assert _open(cur) == [(str(NORAD_A), "2026-11-02")]
+
+
+def test_a_withdrawn_message_that_comes_back_reopens_its_claim(conn):
+    """A message missing for one landing (withdrawn) and carried again by the next is live again:
+    its withdrawal is cleared, not kept forever."""
+    with conn.cursor() as cur:
+        r1 = _run(cur, started=NOW - dt.timedelta(days=2))
+        _decay(cur, r1, NORAD_A, "2026-11-01")
+        _decay(cur, r1, NORAD_B, "2026-11-03")
+    assert claims.record_spacetrack_decay(conn) == (0, 2)
+    with conn.cursor() as cur:
+        r2 = _run(cur, started=NOW - dt.timedelta(days=1))
+        _decay(cur, r2, NORAD_B, "2026-11-03")
+    assert claims.record_spacetrack_decay(conn) == (1, 0)
+    with conn.cursor() as cur:
+        r3 = _run(cur)
+        _decay(cur, r3, NORAD_A, "2026-11-01")
+        _decay(cur, r3, NORAD_B, "2026-11-03")
+    assert claims.record_spacetrack_decay(conn) == (0, 1)
+    with conn.cursor() as cur:
+        assert _open(cur) == [(str(NORAD_A), "2026-11-01"), (str(NORAD_B), "2026-11-03")]
 
 
 def test_an_empty_landing_withdraws_nothing(conn):
@@ -195,7 +222,7 @@ def test_an_empty_landing_withdraws_nothing(conn):
         _run(cur)
         cur.execute("SELECT count(*) FROM spacetrack_decay_message WHERE withdrawn_run IS NULL")
         assert cur.fetchone()[0] == 1
-    claims.record_spacetrack_decay(conn)
+    assert claims.record_spacetrack_decay(conn) == (0, 0)
     with conn.cursor() as cur:
         assert _open(cur) == [(str(NORAD_A), "2026-11-01")]
         cur.execute("SELECT count(*) FROM spacetrack_decay_message WHERE withdrawn_run IS NULL")
