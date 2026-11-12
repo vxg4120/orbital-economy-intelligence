@@ -2,20 +2,20 @@
   "site": {
     "name": "Orbital Economy Terminal",
     "origin": "https://orbital.vibcreates.com",
-    "description": "The Orbital Economy Intelligence terminal: one resolved record per physical satellite, stitched from SATCAT, GCAT and UCS, in a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
+    "description": "The Orbital Economy Intelligence terminal: one resolved record per physical satellite, stitched from SATCAT, GCAT and Space-Track decay messages, in a read-only public catalog with identifier crosswalks, operator attribution, cross-source conflicts, bus benchmarks, reachability and pending FCC filings."
   },
   "routes": [
     {
       "pattern": "/",
       "end": true,
       "title": "Orbital Economy Terminal",
-      "description": "What happened in orbit in the last 30 days — launch tempo, who owns the active fleet, the constellation race, reentries and space weather — over one resolved record per satellite stitched from SATCAT, GCAT and UCS."
+      "description": "What happened in orbit in the last 30 days — launch tempo, who owns the active fleet, the constellation race, reentries and space weather — over one resolved record per satellite stitched from SATCAT, GCAT and Space-Track decay messages."
     },
     {
       "pattern": "/resolver/:satelliteId?",
       "end": true,
       "title": "Resolver · Orbital Economy Terminal",
-      "description": "Search the resolved satellite catalog and read one object's full identity: every source's identifier crosswalk, its ownership over time, and where SATCAT, GCAT and UCS disagree."
+      "description": "Search the resolved satellite catalog and read one object's full identity: every source's identifier crosswalk, its ownership over time, and where SATCAT, GCAT and Space-Track disagree."
     },
     {
       "pattern": "/conflicts",

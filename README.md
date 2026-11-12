@@ -215,8 +215,9 @@ The public repo ships **code, schema, and derived aggregates/reports only** — 
   "second opinion" — its own object ids, its own status/phase taxonomy, and often better ownership
   attribution than SATCAT. The disagreements between the two are the seed corpus for the conflict
   report.
-- **UCS Satellite Database** — frozen since **May 2023**; used only as a historical seed for operator
-  name-matching, never as current truth.
+- **UCS Satellite Database** — frozen since **May 2023**. The loader (`ingest/ucs_seed.py`) and its
+  place in `identity/precedence.yml` are kept for a historical operator seed, but no UCS export is
+  loaded in production, so no live value comes from UCS and the public copy does not claim it.
 - **Space-Track**: the user agreement restricts redistribution — **no raw Space-Track dumps live in
   this repo.** The `spacetrack_client` batches queries with `CREATION_DATE` windows and backoff for
   the Phase 2 history backfill; ingest once into the local database, then query only your own copy.
