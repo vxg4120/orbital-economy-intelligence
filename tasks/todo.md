@@ -507,3 +507,34 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
   Space-Track message is set aside when SATCAT and GCAT agree to within a day and the message is
   more than 30 days off. On production that is 48587 alone, a one-year typo. Precedence is
   otherwise unchanged and the claim stays on /conflicts.
+
+## Next session (paused 2026-11-12 23:58 UTC for a terminal restart)
+Nothing is running: no workflow, no background job, no uncommitted change in either repo.
+- [ ] After the 2026-11-13 07:10 UTC nightly, NORAD 48587 resolves to a decay date of
+      2025-01-07 (`SELECT decay_date FROM satellite WHERE norad_id = 48587` on the box, and its
+      resolver page). The rolled-back dry run on production changed exactly that one row. The
+      nightly summary does not print `decay_messages_outvoted`, so read the row itself.
+- [ ] Independent review (Claude reviewer agents; Codex is paused) of the merges that have not had
+      one: 7e3a8ca (the outvote rule), 4907f3c (UCS out of the copy) and a033089 (the prune
+      guard). Lenses: the rule's correctness, every consumer of decay_date (the Conflicts page,
+      the stories, the review cases), and any UCS claim left in either app, the landing or the
+      methodology text.
+- [ ] Spec reconciliation. These open criteria look shipped but were never checked off. Verify
+      each against production, then check it off with evidence or do what is left:
+      landing-stories.md (10, the same list in both repos), gcat-sibling-links.md (4),
+      raw-retention.md (2; the second may be moot since the ledger was retired),
+      lightcurves-wave2.md in exodossier (1), and items 6, 7 and 8 under "Needs a decision from
+      Vib" plus the Space-Track account line at the top (creds have been set since 2026-10-16).
+      fcc-filings.md has one real deliverable left, the changelog draft in Vib's voice.
+- [ ] Copy-truth audit of vibcreates.com, orbital and exo: check every factual claim (sources,
+      numbers, refresh cadence) against the live API, since the UCS claim showed that this kind
+      of defect exists.
+- Found while scouting, no action needed: the API never computes a winning source from
+  precedence.yml (satellites.py mentions it only in a docstring), so the outvote rule cannot
+  make the API disagree with the card. scripts/review.py still lists ucs in SOURCE_ORDER, which
+  only orders review cases. OpenSEO holds only the Mattress Central project, so it has no
+  Search Console data for vibcreates.
+- Planned shape (ultracode is on): one workflow with three independent branches (review, spec
+  reconciliation, copy audit), read-only on the box with a statement timeout, and every finding
+  adversarially verified before anything changes. Box work stays out of 07:10 to 07:25 and
+  19:10 to 19:25 UTC.
