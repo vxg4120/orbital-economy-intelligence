@@ -185,7 +185,7 @@ make migrate      # apply db/migrations/*.sql
 make metrics report
 
 # Housekeeping
-make test         # full pytest suite (unit + db); run against a freshly-migrated db
+make test         # full pytest suite (unit + db); migrate AND `make metrics` first, as CI does
 make lint         # ruff
 ```
 
@@ -193,7 +193,8 @@ make lint         # ruff
 a local Postgres). Tests marked `@pytest.mark.db` skip cleanly when the database is unreachable; no
 test ever touches the network (HTTP is mocked with fixtures). CI (`.github/workflows/ci.yml`) runs
 ruff + the network-free unit tests, then a database job that migrates a `timescaledb:latest-pg17`
-service container, runs the full suite, and uploads a DQ report built from the synthetic fixtures.
+service container, applies the metrics layer (`scripts/apply_metrics.py`; the bus and benchmark
+views live there, not in the migrations), runs the full suite, and uploads a DQ report built from the synthetic fixtures.
 
 > **Note:** `make test` expects a freshly-migrated (empty) database — the db-backed tests self-isolate
 > via reserved id ranges and transaction rollback, which assumes a clean ledger. Run the live
