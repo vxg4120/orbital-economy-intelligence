@@ -133,6 +133,14 @@ desktop/mobile browser evidence passed. See tasks/independent-followup-review.md
 Live404 was repaired independently by Claude and confirmed by public GET; directory
 mount adoption and API release remain operator-owned. No production actions by Codex.
 
+Public follow-up: the new mobile menu markup and Active sort are now observable
+live. Four conflict page requests returned200 in about0.65s with consistent totals.
+The exact active Caddy mount and deployment revision remain operator evidence.
+
+Operator completion recorded in CannMenus handoff: space `bf8c6ed` deployed with
+the permanent Caddy directory mount. Codex's independent public behavior checks
+passed. Source verification and operator release for this Space batch are complete.
+
 ## 2026-10-12 — Retire the per-run assertion ledger (assertion-model.md, criterion 7)
 
 Condition met: nine green nightlies on the claim table (2026-10-07 19:10 to 2026-10-11 19:10).

@@ -64,3 +64,14 @@ not. The operator independently recreated Caddy against the existing mount.
 GET checks, including random unknown path and trailing slash404 with5764-byte HTML.
 The directory mount and mobile aria fix are still source changes awaiting adoption.
 Codex performed no production mutation. Local manual Caddy server stopped after tests.
+
+## Later public follow-up
+
+The public homepage subsequently served the new `id="menu-toggle"` markup and
+retained `yr:'2014'`. The menu source change is now observable live. The permanent
+Caddy directory mount is an operator-state check, not something HTML can prove.
+
+Operator handoff subsequently confirms deployment of merged space release `bf8c6ed`,
+including the Caddy directory mount and preserved volumes. The mount is operator-
+reported evidence; styled404, mobile markup and Orbital behavior were independently
+verified by Codex public GET checks. All follow-up landing source changes are released.
