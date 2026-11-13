@@ -23,7 +23,9 @@ Built from one polite pull each of CelesTrak SATCAT (69,705 objects) and Jonatha
 - **69,878 canonical satellites** resolved across the two catalogs.
 - **99.75%** of GCAT objects carrying a NORAD id link to their SATCAT twin (deterministic NORAD /
   COSPAR matching).
-- **100%** of on-orbit payloads carry **≥2 source identifiers** — the "graph, not a list" number.
+- **94.5%** of on-orbit payloads are listed in both SATCAT and GCAT, so they carry identifiers
+  from two independent catalogs. Most of the rest are the newest launches, which GCAT has not
+  added yet.
 - **35 status disagreements** where SATCAT still lists an object as ACTIVE/INACTIVE while GCAT has
   already recorded its reentry (DECAYED). *Nobody agrees on what state a satellite is in.*
 - **4,229 decay-date conflicts** across sources (compared on parsed dates, not string formatting).
@@ -141,14 +143,14 @@ demo mode the API serves the built SPA at `/`, so the whole terminal runs from o
 
 **Eight views:**
 
-- **Overview (`/`)** — what happened in orbit in the last 30 days as data stories (launch tempo, who owns the active fleet, the constellation race, reentries, space weather), then the graph under the hood: stat tiles, coverage meters, open conflicts, the ingest-run ledger and the congestion field.
-- **Resolver (`/resolver`)** — search any object by name, NORAD, or COSPAR and read its full identity card: identifier crosswalk grouped by source, the SCD2 ownership timeline, the daily orbit life track, status history, and conflicting assertions flagged amber.
-- **Conflicts (`/conflicts`)** — the DQ report made browsable: status disagreements, decay-date conflicts, and stale post-M&A owners, each row deep-linking into the resolver.
-- **Operators (`/operators`)** — the MSO league table with a per-operator panel: parent/child hierarchy, fleet-by-status and by-regime mix, acquisition history, and the full orbital-congestion field.
-- **Review (`/review`)** — the arbitration workbench for the hard identity cases the graph resolved under conflicting sources; a recorded verdict turns coverage into per-failure-mode accuracy. Keyboard-first.
-- **Buses (`/buses`)** — provenance-tracked benchmarks per manufacturer and per bus model (fleet, time to operational, station-keeping, lifetime, disposal), with receipts down to the source rows and the versioned methodology.
-- **Reachability (`/reachability`)** — every satellite above a spot on Earth right now from the latest GP elements, the transmitters each one carries (SatNOGS), and the next passes.
-- **Filings (`/filings`)** — pending FCC space-station applications from IBFS bulk data and harvested ICFS documents: the pre-launch pipeline of satellites that exist in no tracking catalog yet.
+- **Overview (`/`)**: data stories about what is happening in orbit: launches and reentries over the last 30 days, who owns the active fleet today, the constellation race and space weather, then the graph under the hood: stat tiles, coverage meters, open conflicts, the ingest-run ledger and the congestion field.
+- **Resolver (`/resolver`)**: search any object by name, NORAD, or COSPAR and read its full identity card: identifier crosswalk grouped by source, the SCD2 ownership timeline, the daily orbit life track, status history, and conflicting assertions flagged amber.
+- **Conflicts (`/conflicts`)**: the DQ report made browsable: status disagreements, decay-date conflicts, and stale post-M&A owners, each row deep-linking into the resolver.
+- **Operators (`/operators`)**: the MSO league table with a per-operator panel: parent/child hierarchy, fleet-by-status and by-regime mix, acquisition history, and the full orbital-congestion field.
+- **Review (`/review`)**: the arbitration workbench for the hard identity cases the graph resolved under conflicting sources; a recorded verdict turns coverage into per-failure-mode accuracy. Keyboard-first.
+- **Buses (`/buses`)**: provenance-tracked benchmarks per manufacturer and per bus model (fleet, time to operational, station-keeping, lifetime, disposal), with receipts down to the source rows and the versioned methodology.
+- **Reachability (`/reachability`)**: nearly every active satellite above a spot on Earth right now, computed from each one's latest element set when that set is no more than 14 days old, the transmitters each one carries (SatNOGS), and the next passes.
+- **Filings (`/filings`)**: pending FCC space-station applications from IBFS bulk data and harvested ICFS documents: mostly the pre-launch pipeline of satellites that exist in no tracking catalog yet, although a modification or a special temporary authority can concern a satellite that is already in orbit.
 
 ```bash
 make fe            # build the SPA, then serve the API + app from one process

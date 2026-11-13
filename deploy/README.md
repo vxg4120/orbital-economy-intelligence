@@ -42,7 +42,7 @@ stable option; splitting across serverless services wouldn't remove that DB cost
 | `bootstrap.sh` | one-time box setup (Docker, clone repos) |
 | `seed/dump-local.sh` | **on laptop** — dump oei + exo to `seed/*.dump` |
 | `seed/restore-remote.sh` | **on box** — restore the dumps into the cluster |
-| `nightly-refresh.sh` | cron job: refresh both catalogs nightly |
+| `nightly-refresh.sh` | cron job: refresh both catalogs twice a day (07:10 and 19:10 UTC) |
 | `landing-snapshot.sh` | **before a landing deploy**: re-bake the landing's cached numbers from `/live/*`, then commit |
 
 The two app images are built from `../Dockerfile` (space) and `../../exodossier/Dockerfile`,
@@ -161,8 +161,9 @@ cd ~/apps/space/deploy && docker compose up -d --build
 ### Disk and snapshot retention
 
 Every ingest run lands a full copy of its source in the `raw_*` tables. The nightly's last oei
-step, `scripts/prune_snapshots.py --apply`, keeps the newest 3 OK runs per table plus the first
-run of each month and deletes the other finished runs, so the tables stop growing. The policy
+step, `scripts/prune_snapshots.py --apply`, keeps the newest 3 OK runs per table, the first
+run of each month and every decay landing that the claims step has not folded yet, and deletes
+the other finished runs, so the tables stop growing. The policy
 and its reasons are in [docs/specs/raw-retention.md](../docs/specs/raw-retention.md). The
 per-run assertion ledger, `source_assertion`, grew the same way (about 88 MB a day); it was
 replaced by the `claim` table (one row per claim with its run range, 161 MB, see

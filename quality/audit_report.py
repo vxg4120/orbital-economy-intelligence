@@ -44,7 +44,7 @@ KUIPER_SHELL_KM = 630.0  # nominal operational shell altitude
 SHELL_TOL_KM = 15.0  # +/- band that counts as "at the operational shell"
 STABLE_SMA_STDDEV_KM = 5.0  # 30-day rolling sma stddev below this = station-keeping locked
 DECAYING_PERIGEE_KM = 300.0  # perigee at/below this on a live bird = decaying, not raising
-FCC_50PCT_MILESTONE = 1618  # FCC 50% deployment milestone: operational satellites required...
+FCC_50PCT_MILESTONE = 1616  # FCC 50% milestone per DA 26-553: satellites required in orbit...
 FCC_50PCT_DUE = dt.date(2026, 7, 30)  # ...by this date
 
 # --- Benchmark operator sets ----------------------------------------------------------------

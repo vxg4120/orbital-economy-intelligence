@@ -26,6 +26,8 @@ The identity graph resolves **69,878** catalogued objects from **613,421** field
 
 *Methodology (one paragraph).* Each source (CelesTrak SATCAT, GCAT, Space-Track GP, UCS) is ingested to an append-only assertion ledger with full provenance; a per-attribute precedence resolver (`identity/precedence.yml`) picks a canonical value while every losing assertion stays queryable (disagreements are data, not errors). Orbital behavior is derived purely from published two-line/GP element sets: semi-major axis, perigee and apogee follow from mean motion and eccentricity (Earth mu = 398600.4418 km^3/s^2). No operator telemetry, filing, or press statement is trusted as input. See the annex for the full provenance model and honest limitations.
 
+*Correction (2026-11).* UCS was never loaded, and Space-Track GP elements did not feed the resolved claims. The claim sources were SATCAT and GCAT, as the table above shows. The FCC's order DA 26-553 also sets the July 2026 obligation at 1,616 satellites rather than the 1,618 used below; the shortfall changes by two and the conclusion does not.
+
 ## 2. Deployment-milestone verification — Amazon Project Kuiper
 
 **FCC 50% deployment milestone: 1,618 satellites operational, due 2026-07-30** (≈18 days after this report's data date).
