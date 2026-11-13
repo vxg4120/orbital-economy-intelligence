@@ -216,9 +216,55 @@ describe("Congestion exposure panel", () => {
     expect(tied(7, 7, 2, 2)).toBe(
       "2 shells each hold 7 of its objects, and none holds more. One of the most crowded of them is from 450 to 500 km at 50 to 55 degrees of inclination, where 7 of its objects have the shell to themselves.",
     );
-    expect(tied(1, 1, 5, 5)).toBe(
-      "No shell holds more than one of its objects. One of the most crowded of its shells is from 450 to 500 km at 50 to 55 degrees of inclination, where its object has the shell to itself.",
+    expect(tied(1, 3, 5, 2)).toBe(
+      "No shell holds more than one of its objects. One of the most crowded of its shells is from 450 to 500 km at 50 to 55 degrees of inclination, where its object shares the shell with 2 other objects.",
     );
+    // Every object alone: the split says so, and no shell is singled out as crowded.
+    const allAlone = split(0, 0, 0, { fleet_in_field: 5, main_shell: shell(1, 1, 5, 5) });
+    expect(congestionSentences(allAlone).main).toBe("");
+    expect(renderDetail(detail({ congestion: allAlone }))).not.toContain("most crowded");
+  });
+
+  /* Review 2026-11-13, third pass: below 1 per object a tenth is too coarse to split. */
+  it("gives the split in tenths of the total below 1 per object", () => {
+    // 40% own: one decimal would have printed "almost none of them its own".
+    expect(congestionSentences(split(0.1, 0.04)).share).toBe(
+      "Each one shares its shell with about 0.1 other tracked objects on average, 4 in 10 of them its own and 6 in 10 belonging to other operators.",
+    );
+    expect(congestionSentences(split(0.1, 0.06)).share).toBe(
+      "Each one shares its shell with about 0.1 other tracked objects on average, 6 in 10 of them its own and 4 in 10 belonging to other operators.",
+    );
+    expect(congestionSentences(split(0.5, 0.5)).share).toBe(
+      "Each one shares its shell with about 0.5 other tracked objects on average, all of them its own.",
+    );
+    // The neighbours are named without numbers there.
+    const small = split(0.1, 0.04, 0, {
+      top_neighbours: [{ operator_id: 9008, canonical_name: "OP2", per_satellite: 0.06 }],
+    });
+    expect(namedNeighbours(small)).toEqual([{ operator_id: 9008, canonical_name: "OP2", shown: null }]);
+    const html = renderDetail(detail({ congestion: small }));
+    expect(html).toContain('the largest number comes from <span><a href="/operators/9008">OP2</a></span>.');
+  });
+
+  it("rounds the named shares down when rounding would make them exceed their part", () => {
+    // 11 = 1 own + 3 named (1.5 each) + 7 with no owner on record; 2 + 2 would exceed 3.
+    const over = split(11, 1, 7, {
+      top_neighbours: [
+        { operator_id: 9009, canonical_name: "OP3", per_satellite: 1.5 },
+        { operator_id: 9010, canonical_name: "OP4", per_satellite: 1.5 },
+      ],
+    });
+    expect(congestionSentences(over).share).toContain("3 belonging to other operators");
+    expect(namedNeighbours(over).map((n) => n.shown)).toEqual(["1", "1"]);
+    // Equal shares that fit stay equal, as in the ALPHA seed.
+    const fits = split(6.5, 1.5, 1.5, {
+      top_neighbours: [
+        { operator_id: 70, canonical_name: "BETA", per_satellite: 1.25 },
+        { operator_id: 30, canonical_name: "GAMMA", per_satellite: 0.75 },
+        { operator_id: 50, canonical_name: "THETA", per_satellite: 0.75 },
+      ],
+    });
+    expect(namedNeighbours(fits).map((n) => n.shown)).toEqual(["1.3", "0.8", "0.8"]);
   });
 
   it("does not credit objects with no owner on record to other operators", () => {

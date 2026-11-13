@@ -332,47 +332,70 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
   );
 }
 
-/** The split of the average a reader sees, at the precision shown: whole numbers from 10 up,
-    and always for a lone object, whose counts are exact; one decimal below 10. Its own part, the
-    other operators' part and the part with no owner on record are rounded by largest remainder,
-    so the parts shown add up to the total shown, and a part that is truly 0 never gets a unit. */
-export function shareParts(c: OperatorCongestion): {
-  total: number;
-  own: number;
-  others: number;
-  unattributed: number;
-  /** Rounds a value to the precision shown. */
-  round: (n: number) => number;
-  /** Formats a value already rounded to the precision shown. */
-  text: (n: number) => string;
-} {
-  const whole = c.fleet_in_field === 1 || Math.round(c.neighbours_per_satellite * 10) / 10 >= 10;
-  const scale = whole ? 1 : 10;
-  const scaled = [
-    c.own_per_satellite,
-    c.others_per_satellite - c.unattributed_per_satellite,
-    c.unattributed_per_satellite,
-  ].map((n) => (n > 1e-9 ? n * scale : 0));
-  const units = scaled.map(Math.floor);
-  let spare = Math.round(c.neighbours_per_satellite * scale) - units.reduce((a, b) => a + b, 0);
-  // The units lost to flooring go to the parts with the largest remainders, never to a part
-  // that is 0.
-  const byRemainder = [0, 1, 2]
-    .filter((i) => scaled[i] > 0)
-    .sort((i, j) => scaled[j] - units[j] - (scaled[i] - units[i]) || i - j);
+/** Rounds non-negative values to whole units that add up to `target`: each is floored, and
+    the units left over go to the largest remainders, never to a value that is 0. */
+function largestRemainder(values: number[], target: number): number[] {
+  const units = values.map(Math.floor);
+  let spare = target - units.reduce((a, b) => a + b, 0);
+  const byRemainder = values
+    .map((_, i) => i)
+    .filter((i) => values[i] > 0)
+    .sort((i, j) => values[j] - units[j] - (values[i] - units[i]) || i - j);
   for (const i of byRemainder) {
     if (spare <= 0) break;
     units[i] += 1;
     spare -= 1;
   }
-  const [own, others, unattributed] = units.map((u) => u / scale);
+  return units;
+}
+
+/** The split of the average a reader sees: its own part, the other operators' part and the
+    part with no owner on record, rounded by largest remainder so that the parts shown add up to
+    the whole shown and a part that is truly 0 never gets a unit. The total is shown in whole
+    numbers from 10 up (and always for a lone object, whose counts are exact) and to one decimal
+    below. Below 1 a tenth of an object is too coarse to split, so the parts are given as
+    proportions of the total, in tenths ("4 in 10 of them its own"). `full` is what the parts add
+    up to: the total, or 10 for proportions. */
+export function shareParts(c: OperatorCongestion): {
+  total: number;
+  full: number;
+  own: number;
+  others: number;
+  unattributed: number;
+  proportional: boolean;
+  /** The total as shown. */
+  totalText: string;
+  /** Rounds and floors a value to the precision of an average shown. */
+  round: (n: number) => number;
+  floor: (n: number) => number;
+  /** Formats a part. */
+  text: (n: number) => string;
+} {
+  const n = c.neighbours_per_satellite;
+  const raw = [
+    c.own_per_satellite,
+    c.others_per_satellite - c.unattributed_per_satellite,
+    c.unattributed_per_satellite,
+  ].map((v) => (v > 1e-9 ? v : 0));
+  const whole = c.fleet_in_field === 1 || Math.round(n * 10) / 10 >= 10;
+  const scale = whole ? 1 : 10;
+  const total = Math.round(n * scale) / scale;
+  const proportional = !whole && total > 0 && total < 1;
+  const units = proportional
+    ? largestRemainder(raw.map((v) => (v / n) * 10), 10)
+    : largestRemainder(raw.map((v) => v * scale), Math.round(n * scale));
+  const [own, others, unattributed] = proportional ? units : units.map((u) => u / scale);
   return {
-    total: units.reduce((a, b) => a + b, 0) / scale,
+    total: proportional ? total : units.reduce((a, b) => a + b, 0) / scale,
+    full: proportional ? 10 : units.reduce((a, b) => a + b, 0) / scale,
     own,
     others,
     unattributed,
-    round: (n: number) => Math.round(n * scale) / scale,
-    text: (n: number) => (whole ? fmtInt(n) : n.toFixed(1)),
+    proportional,
+    totalText: whole ? fmtInt(total) : total.toFixed(1),
+    round: (v: number) => Math.round(v * scale) / scale,
+    floor: (v: number) => Math.floor(v * scale + 1e-9) / scale,
+    text: (v: number) => (proportional ? `${v} in 10` : whole ? fmtInt(v) : v.toFixed(1)),
   };
 }
 
@@ -419,7 +442,7 @@ export function congestionSentences(c: OperatorCongestion): {
     share = "Fewer than 1 in 20 of them shares its shell with another tracked object.";
   } else {
     const parts =
-      p.own === p.total
+      p.own === p.full
         ? [c.others_per_satellite > 1e-9 ? "nearly all of them its own" : "all of them its own"]
         : [
             p.own > 0
@@ -430,7 +453,7 @@ export function congestionSentences(c: OperatorCongestion): {
             ...(p.others > 0 ? [`${p.text(p.others)} belonging to other operators`] : []),
             ...(p.unattributed > 0 ? [`${p.text(p.unattributed)} with no owner on record`] : []),
           ];
-    share = `Each one shares its shell with about ${p.text(p.total)} other tracked objects on average, ${listed(parts)}.`;
+    share = `Each one shares its shell with about ${p.totalText} other tracked objects on average, ${listed(parts)}.`;
   }
 
   const b = c.main_shell;
@@ -448,6 +471,9 @@ export function congestionSentences(c: OperatorCongestion): {
     main =
       `Its shell is ${shell}, ` +
       (rest === 0 ? "and it has the shell to itself." : `and it shares that shell with ${withRest}.`);
+  } else if (b.operator_objects === 1 && rest === 0) {
+    // Every object alone in its shell: the split already says so, and no shell stands out.
+    main = "";
   } else if (b.operator_objects === 1) {
     main =
       `No shell holds more than one of its objects. ${crowded("its shells")} ${shell}, ` +
@@ -467,18 +493,24 @@ export function congestionSentences(c: OperatorCongestion): {
   return { where, share, main };
 }
 
-/** The other operators named under the split, each with its share at the precision shown:
-    only when the split shows the other operators a part, only those whose share does not round
-    to 0, and never more than that part. */
+/** The other operators named under the split, each with its share at the precision of an
+    average shown: only when the split shows the other operators a part, and only those whose
+    share does not round to 0. Rounded shares that would add up to more than that part are
+    rounded down instead, which never exceeds it and keeps equal shares equal. Below a total of
+    1 the split is in proportions, and the names are given without numbers. */
 export function namedNeighbours(
   c: OperatorCongestion,
-): { operator_id: number; canonical_name: string; shown: string }[] {
+): { operator_id: number; canonical_name: string; shown: string | null }[] {
   const p = shareParts(c);
   if (p.others === 0) return [];
-  return c.top_neighbours
-    .map((n) => ({ ...n, rounded: Math.min(p.round(n.per_satellite), p.others) }))
-    .filter((n) => n.rounded > 0)
-    .map((n) => ({ operator_id: n.operator_id, canonical_name: n.canonical_name, shown: p.text(n.rounded) }));
+  const named = (shown: (v: number) => string | null, keep: (v: number) => boolean) =>
+    c.top_neighbours
+      .filter((n) => keep(n.per_satellite))
+      .map((n) => ({ operator_id: n.operator_id, canonical_name: n.canonical_name, shown: shown(n.per_satellite) }));
+  if (p.proportional) return named(() => null, (v) => v > 1e-9);
+  const rounded = c.top_neighbours.map((n) => p.round(n.per_satellite));
+  const fit = rounded.reduce((a, b) => a + b, 0) <= p.others + 1e-9 ? p.round : p.floor;
+  return named((v) => p.text(fit(v)), (v) => fit(v) > 0);
 }
 
 function CongestionExposure({ c }: { c: OperatorCongestion }) {
@@ -496,15 +528,19 @@ function CongestionExposure({ c }: { c: OperatorCongestion }) {
           {top.map((n, i) => (
             <span key={n.operator_id}>
               {i === 0 ? "" : i === top.length - 1 ? " and " : ", "}
-              <Link to={`/operators/${n.operator_id}`}>{n.canonical_name}</Link> (
-              <span className="num">{n.shown}</span>
-              {i === 0 ? " per object" : ""})
+              <Link to={`/operators/${n.operator_id}`}>{n.canonical_name}</Link>
+              {n.shown === null ? null : (
+                <>
+                  {" "}(<span className="num">{n.shown}</span>
+                  {i === 0 ? " per object" : ""})
+                </>
+              )}
             </span>
           ))}
           .
         </p>
       ) : null}
-      <p>{s.main}</p>
+      {s.main ? <p>{s.main}</p> : null}
       <p className="hint">
         A shell is a band 50 km deep and 5 degrees of inclination wide that circles the whole
         Earth, so two objects in one shell can be on opposite sides of the planet: this measures

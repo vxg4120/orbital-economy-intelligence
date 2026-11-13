@@ -111,3 +111,10 @@ Labs satellite shared its shell with about 963 objects from other operators.
   neighbour shares are shown at the split's precision and never above the part they come
   from. `main_shell` gained `tied_shells` and `tied_crowded_shells`, so a tie is stated and
   not hidden behind "the shell holding the most".
+- 2026-11-13 (Claude, third pass by the same reviewer, which fuzzed 200,000 synthetic
+  operators): below 1 per object a tenth of an object is too coarse to split ("almost none of
+  them its own" for a true 40%), so the parts are given there as tenths of the total ("4 in 10
+  of them its own") and the neighbours are named without numbers. Rounded neighbour shares
+  could add up to more than their part, so when they would they are all rounded down instead.
+  An operator whose objects are all alone gets no main-shell sentence, since no shell stands
+  out.
