@@ -28,6 +28,8 @@ The identity graph resolves **69,878** catalogued objects from **613,421** field
 
 *Correction (2026-11).* UCS was never loaded, and Space-Track GP elements did not feed the resolved claims. The claim sources were SATCAT and GCAT, as the table above shows. The FCC's order DA 26-553 also sets the July 2026 obligation at 1,616 satellites rather than the 1,618 used below; the shortfall changes by two and the conclusion does not.
 
+*Correction (2026-11-13).* The decay-date figures in sections 5 and 6 below counted GCAT phase-end dates as decay dates. GCAT's date is the time a phase of an object's history ended, so for an object that docked, was transferred into the ISS, was grappled or left for deep space it is the date of that event and not of a reentry. Measured on 2026-11-13, that was 812 of the 4,334 objects then counted. With those dates left out, 3,523 objects have a real cross-source disagreement about their decay date, out of the 34,931 that two sources date. That is 10.1%, which is about one object in ten and not one in eight. Four of the five rows in the largest-disagreements table (OGO A, OGO E, Agena D 6503 and Landsat D) were phase dates. The Kosmos-374 fragment is a real disagreement, and it is still the largest one.
+
 ## 2. Deployment-milestone verification — Amazon Project Kuiper
 
 **FCC 50% deployment milestone: 1,618 satellites operational, due 2026-07-30** (≈18 days after this report's data date).
