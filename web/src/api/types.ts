@@ -178,7 +178,11 @@ export interface OperatorRow {
 }
 
 export interface OperatorsResponse extends Paginated<OperatorRow> {
-  with_fleet?: number; // operators holding a current fleet; total counts every operator
+  // operators owning at least one cataloged object, reentered ones included; total counts
+  // every operator
+  with_fleet?: number;
+  // operators owning at least one object not recorded as decayed (the On-orbit column's rule)
+  with_on_orbit?: number;
 }
 export type OperatorSort = "fleet" | "active" | "name";
 

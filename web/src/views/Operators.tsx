@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { getCongestion, getOperator, getOperators } from "../api/client";
-import type { OperatorDetail, OperatorRow, OperatorSort } from "../api/types";
+import type { OperatorDetail, OperatorRow, OperatorSort, OperatorsResponse } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
@@ -42,6 +42,18 @@ const REGIME_FILL: Record<string, string> = {
   HEO: "#62b4ff",
   NO_ELEMENTS: "#5a6472",
 };
+
+/** The league's meta line. A fleet counts every cataloged object an operator owns, reentered
+    ones included, so the line says how many still have one in orbit when the API reports it. */
+export function leagueMeta(sort: OperatorSort, data: OperatorsResponse | null): string {
+  if (!data || data.with_fleet === undefined) return `sorted by ${sort}`;
+  const owners =
+    `${fmtInt(data.with_fleet)} of ${fmtInt(data.total)} operators own at least one ` +
+    "cataloged object";
+  return data.with_on_orbit === undefined
+    ? `sorted by ${sort} · ${owners}.`
+    : `sorted by ${sort} · ${owners}, and ${fmtInt(data.with_on_orbit)} of them still have one in orbit.`;
+}
 
 export function Operators() {
   const { operatorId } = useParams<{ operatorId: string }>();
@@ -103,17 +115,7 @@ export function Operators() {
         </div>
       </header>
 
-      <Panel
-        title="Operator league"
-        meta={
-          league.data && league.data.with_fleet !== undefined
-            ? `sorted by ${sort} · ${fmtInt(league.data.with_fleet)} of ${fmtInt(
-                league.data.total,
-              )} operators hold a current fleet`
-            : `sorted by ${sort}`
-        }
-        flush
-      >
+      <Panel title="Operator league" meta={leagueMeta(sort, league.data)} flush>
         <Async state={league} loadingLabel="Loading operators" loadingRows={10}>
           {(data) => (
             <>
@@ -170,7 +172,7 @@ export function Operators() {
   );
 }
 
-function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
+export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
   const o = detail.operator;
   const statusData = Object.entries(detail.fleet_by_status).map(([name, value]) => ({ name, value }));
   // Ordered four regimes first, then any off-ramp bucket (e.g. NO_ELEMENTS) so the shares
@@ -241,9 +243,20 @@ function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
       </div>
 
       <div className="grid grid--2">
-        <Panel title="Acquisition history" meta="ownership relationships" flush>
+        <Panel
+          title="Acquisition history"
+          meta="Only curated mergers and acquisitions are listed."
+          flush
+        >
           {detail.acquisitions.length === 0 ? (
-            <EmptyState title="No acquisitions on record" />
+            <EmptyState
+              title="No curated merger or acquisition on record"
+              message={
+                detail.parents.length > 0 || detail.children.length > 0
+                  ? "The parent and child links above show how these organizations are related, but they do not record whether a link began as an acquisition."
+                  : undefined
+              }
+            />
           ) : (
             <div className="table-wrap">
               <table className="dtable">

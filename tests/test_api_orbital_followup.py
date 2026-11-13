@@ -45,7 +45,8 @@ class RecordingDB:
         return list(self.rows)
 
     def fetchone(self):
-        return {"total": len(self.rows), "n": len(self.rows), "with_fleet": len(self.rows)}
+        return {"total": len(self.rows), "n": len(self.rows), "with_fleet": len(self.rows),
+                "with_on_orbit": len(self.rows)}
 
     def close(self):
         self.closed += 1
@@ -63,7 +64,7 @@ def test_active_sort_is_supported_and_invalid_sorts_never_reach_sql():
     client = client_for(operators.router, db)
     response = client.get("/api/operators", params={"sort": "active"})
     assert response.status_code == 200
-    assert response.json() == {"rows": [], "total": 0, "with_fleet": 0}
+    assert response.json() == {"rows": [], "total": 0, "with_fleet": 0, "with_on_orbit": 0}
     statement_count = len(db.statements)
     for bad_sort in ("bogus", "fleet_active DESC; DROP TABLE operator", "ACTIVE"):
         assert client.get("/api/operators", params={"sort": bad_sort}).status_code == 422
@@ -242,6 +243,7 @@ def test_active_sort_orders_actual_sql_with_ties_and_zero_fleets(db_conn):
     assert [row["operator_id"] for row in name] == [20, 30, 40, 10]
     assert [row["fleet_total"] for row in rows] == [3, 5, 6, 0]
     assert all(body["total"] == 4 and body["with_fleet"] == 3 for body in bodies)
+    assert all(body["with_on_orbit"] == 3 for body in bodies)  # nothing here has reentered
     assert bodies[-1]["rows"] == []
 
 
@@ -368,3 +370,41 @@ def test_detail_assertions_keep_the_observed_at_field_the_resolver_page_reads(db
     body = client_for(satellites.router, db_conn).get(f"/api/satellites/{sat}").json()
     assert [(a["attribute"], a["source"], a["value"], a["observed_at"]) for a in body["assertions"]] \
         == [("owner", "satcat", "ZZ OWNER", "2026-09-30T07:10:00+00:00")]
+
+
+@pytest.mark.db
+def test_league_counts_operators_with_nothing_left_in_orbit_apart(db_conn):
+    """Audit 2026-11-13: the league said 1,392 operators "hold a current fleet", but 413 of them
+    had nothing left in orbit (Swarm Technologies: fleet 111, on-orbit 0). with_fleet still
+    counts any owned cataloged object; with_on_orbit counts the operators that own at least one
+    object whose latest status is not DECAYED, the same rule as the On-orbit column."""
+    db_conn.row_factory = dict_row
+    with db_conn.cursor() as cur:
+        cur.execute("""
+            CREATE TEMP TABLE operator (
+                operator_id int PRIMARY KEY, canonical_name text, country text, operator_class text);
+            CREATE TEMP TABLE satellite_operator (
+                operator_id int, satellite_id int, role text, valid_to date);
+            CREATE TEMP TABLE satellite_status_history (
+                satellite_id int, canonical_status text, observed_at timestamptz);
+            CREATE TEMP TABLE operator_relationship (
+                parent_id int, child_id int, valid_from date, valid_to date);
+            INSERT INTO operator VALUES
+                (1, 'Still flying', 'US', 'commercial'), (2, 'All reentered', 'US', 'commercial'),
+                (3, 'No status yet', 'US', 'commercial'), (4, 'Owns nothing', 'US', 'commercial');
+            INSERT INTO satellite_operator VALUES
+                (1, 11, 'owner', NULL), (1, 12, 'owner', NULL),
+                (2, 21, 'owner', NULL), (2, 22, 'owner', NULL),
+                (3, 31, 'owner', NULL);
+            INSERT INTO satellite_status_history VALUES
+                (11, 'ACTIVE', now()), (12, 'DECAYED', now()),
+                (21, 'ACTIVE', now() - interval '2 years'), (21, 'DECAYED', now()),
+                (22, 'DECAYED', now());
+        """)
+    try:
+        body = client_for(operators.router, db_conn).get("/api/operators").json()
+    finally:
+        db_conn.rollback()
+    assert (body["total"], body["with_fleet"], body["with_on_orbit"]) == (4, 3, 2)
+    on_orbit = {row["operator_id"]: row["fleet_on_orbit"] for row in body["rows"]}
+    assert on_orbit == {1: 1, 2: 0, 3: 1, 4: 0}
