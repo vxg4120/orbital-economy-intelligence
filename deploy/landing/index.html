@@ -520,12 +520,13 @@
     <div>
       <h3>Orbital Economy Intelligence</h3>
       <div class="role">Built solo · 2026 · live &amp; refreshed nightly</div>
-      <p><a href="https://www.space-track.org" target="_blank" rel="noopener">Space-Track</a>, <a href="https://celestrak.org" target="_blank" rel="noopener">CelesTrak</a> and <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">GCAT</a> openly disagree about who owns what in
-        orbit, and nearly everyone resolves it by quietly picking one source. OEI keeps all three of them,
+      <p><a href="https://celestrak.org" target="_blank" rel="noopener">CelesTrak</a>'s version of the US satellite catalog and <a href="https://planet4589.org/space/gcat/" target="_blank" rel="noopener">GCAT</a> openly disagree about who owns what in
+        orbit, and <a href="https://www.space-track.org" target="_blank" rel="noopener">Space-Track</a>'s decay messages add a third opinion about when things came down.
+        Nearly everyone resolves this by quietly picking one source, but OEI keeps all three of them,
         so what you get is an identity graph where <strong>every value remembers which catalog
         said it</strong>, a replayable merge log, and the disagreements themselves, which are the
         product here.
-        Nearly every shared object (<strong>99.3%</strong>) disagrees somewhere across catalogs,
+        Nearly every shared object disagrees somewhere across catalogs,
         though most of that is naming and granularity, and then there are the <strong>4,400+
         conflicts that are actually substantive</strong>, which are the ones about decay dates,
         operational status, and stale ownership. Each one of those gets surfaced with receipts
@@ -535,7 +536,13 @@
         transmitter database onto satellites that regulators and hobbyists name completely
         differently, there is a page where you give it your location and it tells you which
         satellites you can actually receive right now, frequencies and pass times included.
-        OEI now also reads the <strong>FCC's pending filing queue</strong>, which described Starlink Gen1 14 months and Kuiper 39 months before their first launches, and it serves <strong>page-cited constellation specs</strong> extracted from the filings themselves.</p>
+        OEI now also reads the <strong>FCC's pending filing queue</strong>, where a constellation can
+        appear more than a year before its first satellites fly. SpaceX filed for Starlink Gen1 15
+        months before its first test satellites launched, and Amazon filed for Kuiper 51 months
+        before its first prototypes launched. The queue is a snapshot from mid-2025, when the FCC's
+        bulk download that OEI reads stopped gaining new satellite applications, so nothing filed
+        since then appears in it, and some of its filings may have been decided since. OEI also
+        serves <strong>page-cited constellation specs</strong> extracted from the filings themselves.</p>
       <div class="links">
         <a href="https://orbital.vibcreates.com" target="_blank" rel="noopener">orbital.vibcreates.com ↗</a>
         <a href="https://orbital.vibcreates.com/reachability" target="_blank" rel="noopener">what's overhead right now ↗</a>
@@ -547,7 +554,7 @@
     <div class="rail">
       <div class="m"><div class="v num" id="r-sat">71,074</div><div class="l">satellites, one resolved identity each</div></div>
       <div class="m"><div class="v num" id="r-gp">12.1M</div><div class="l">orbital element sets, hypertabled</div></div>
-      <div class="m"><div class="v num" id="r-op">100%</div><div class="l">operator attribution coverage</div></div>
+      <div class="m"><div class="v num" id="r-op">100%</div><div class="l">of on-orbit payloads have a current owner on record</div></div>
       <div class="m"><div class="v num" id="r-conf">4,497</div><div class="l">live conflicts surfaced, not averaged</div></div>
     </div>
   </article>
