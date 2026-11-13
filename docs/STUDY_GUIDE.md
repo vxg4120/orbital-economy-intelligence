@@ -67,7 +67,7 @@ The project has a thesis it grew into: **the independent behavioral auditor of t
 - **13.6×.** Eutelsat's fleet under correct temporal-ownership attribution is **708 satellites / 260,000+ element-set-days**; under naive catalog-owner-code attribution it's **57 / 19,000**. Because SATCAT files the 654 ex-OneWeb satellites under the country code `UK`, which maps to no operator. *This one number proves the whole thesis: how you model ownership changes the answer by more than a factor of ten.*
 
 **Data-quality findings (the "nobody agrees" corpus):**
-- **99.3%** (a July 2026 snapshot) of objects shared between SATCAT and GCAT disagree on at least one of five tracked attributes. (The *substantive* conflicts are narrower: decay dates ~12%, object type ~2.1% and status ~0.1%, so most of the disagreement is about naming and granularity.)
+- **99.3%** (a July 2026 snapshot) of objects shared between SATCAT and GCAT disagree on at least one of five tracked attributes. (The *substantive* conflicts are narrower: decay dates ~10%, object type ~2.2% and status ~0.1%, so most of the disagreement is about naming and granularity.)
 - **231** SpaceX Starshield satellites the US catalog designates only as "USA 350"–"USA 618"; GCAT names each "Starshield NN-NN."
 - **670** objects SATCAT types as DEBRIS that GCAT attributes as functional payloads.
 - **35** status conflicts (SATCAT says active/inactive, GCAT says decayed) — including US recon satellites listed "active" 17 years after reentry, and Iridium 33, whose GCAT death date is the day of history's first satellite collision.

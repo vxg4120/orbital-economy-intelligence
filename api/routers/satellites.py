@@ -15,6 +15,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.deps import get_db
+from identity.decay_claims import GCAT_DECAY_KEYS_SQL
 from identity.normalize import canonical_object_type, norm_name, parse_date_loose
 
 
@@ -52,6 +53,19 @@ def _conflict_key(attr: str, source: str, value, status_map: dict):
     if attr == "owner" and source == "satcat":
         return None
     return " ".join(str(value).split()).upper() or None
+
+
+def _comparable_claims(assertions, gcat_decay_keys: set) -> list:
+    """The claims that can disagree, in the order given. A GCAT decay_date claim is left out
+    unless the status on its own GCAT key maps to DECAYED (identity/decay_claims.py): GCAT's
+    DDate is the time a phase ended, so under a docking or a transfer it is not a decay date,
+    and setting it against SATCAT's decay date badged a conflict that nobody claimed (the
+    cubesat 40452: transferred into the ISS in February 2015, decayed that December)."""
+    return [
+        a for a in assertions
+        if not (a["attribute"] == "decay_date" and a["source"] == "gcat"
+                and a["source_key"] not in gcat_decay_keys)
+    ]
 
 
 def _conflict_attributes(assertions, status_map: dict) -> list[str]:
@@ -235,12 +249,18 @@ def detail(satellite_id: int, db=Depends(get_db)):
         # (the Resolver page's "last observed"): when the feed last made the claim.
         cur.execute(
             "SELECT DISTINCT ON (attribute, source) attribute, value, source, "
-            "observed_to AS observed_at "
+            "observed_to AS observed_at, source_key "
             "FROM v_current_claim WHERE satellite_id = %s "
             "ORDER BY attribute, source, source_key",
             (satellite_id,),
         )
         assertions = cur.fetchall()
+        # The GCAT keys of this satellite that ended in a decay, for the conflict badge below.
+        cur.execute(
+            f"SELECT k.source_key FROM ({GCAT_DECAY_KEYS_SQL}) k WHERE k.satellite_id = %s",
+            (satellite_id,),
+        )
+        gcat_decay_keys = {r["source_key"] for r in cur.fetchall()}
 
         latest_elements = None
         if norad_id is not None:
@@ -263,7 +283,9 @@ def detail(satellite_id: int, db=Depends(get_db)):
         cur.execute("SELECT source, source_value, canonical_status FROM status_mapping")
         status_map = {(r["source"], r["source_value"]): r["canonical_status"]
                       for r in cur.fetchall()}
-    conflicts = _conflict_attributes(assertions, status_map)
+    conflicts = _conflict_attributes(_comparable_claims(assertions, gcat_decay_keys), status_map)
+    for a in assertions:
+        del a["source_key"]  # read only to pair a GCAT date with its status; not in the response
 
     return {
         "satellite": satellite,

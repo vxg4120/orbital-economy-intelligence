@@ -27,6 +27,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.decay_claims import CURRENT_DECAY_CLAIMS_SQL
 from identity.normalize import canonical_object_type, parse_date_loose
 from quality.report import (
     _md_table,
@@ -611,13 +612,15 @@ def _catalog_integrity(cur):
         """,
     )
 
+    # The denominator reads the same claims as the conflicts do (identity/decay_claims.py): a
+    # GCAT phase-end date is not a decay claim, so an object whose only second "decay date" is a
+    # docking or a transfer does not count as recorded by two sources.
     _, decay_rows = _section_decay_date_conflicts(cur)
     decay_denom = _scalar(
         cur,
-        """
+        f"""
         SELECT count(*) FROM (
-            SELECT satellite_id FROM v_current_claim
-            WHERE attribute = 'decay_date'
+            SELECT satellite_id FROM ({CURRENT_DECAY_CLAIMS_SQL}) c
             GROUP BY satellite_id HAVING count(DISTINCT source) >= 2
         ) x
         """,

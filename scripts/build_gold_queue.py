@@ -34,6 +34,7 @@ from collections import defaultdict
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.decay_claims import CURRENT_DECAY_CLAIMS_SQL
 from identity.normalize import canonical_object_type, norm_name, orbital_regime, parse_date_loose
 
 # Target sizes per stratum. "all" strata take every qualifying case; sampled strata take the top-N
@@ -497,25 +498,21 @@ def stratum_status_conflict(cur):
     return cases
 
 
-def stratum_decay_conflict(cur):
-    """(f) Largest parsed decay-date disagreements between SATCAT and GCAT: when did it reenter?"""
+def _decay_disagreements(cur):
+    """Every satellite whose SATCAT and GCAT decay dates differ, largest gap first, as
+    (diff_days, satellite_id, norad_id, name, satcat_raw, gcat_raw, satcat_date, gcat_date).
+
+    The claims come through identity/decay_claims.py, so a GCAT date counts only when it ended
+    a phase in a decay. Without that the largest gaps were all phase dates (a 1964 departure to
+    deep space against a 2020 decay), and the stratum asked when a docked object reentered."""
     cur.execute(
-        """
-        WITH sd AS (
-            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM v_current_claim a
-            WHERE a.source = 'satcat' AND a.attribute = 'decay_date'
-            ORDER BY a.satellite_id, a.source_key
-        ),
-        gd AS (
-            SELECT DISTINCT ON (a.satellite_id) a.satellite_id, a.value AS v
-            FROM v_current_claim a
-            WHERE a.source = 'gcat' AND a.attribute = 'decay_date'
-            ORDER BY a.satellite_id, a.source_key
-        )
-        SELECT s.satellite_id, s.norad_id, s.canonical_name, sd.v, gd.v
-        FROM sd JOIN gd ON gd.satellite_id = sd.satellite_id
+        f"""
+        WITH claims AS ({CURRENT_DECAY_CLAIMS_SQL})
+        SELECT s.satellite_id, s.norad_id, s.canonical_name, sd.value, gd.value
+        FROM claims sd
+        JOIN claims gd ON gd.satellite_id = sd.satellite_id AND gd.source = 'gcat'
         JOIN satellite s ON s.satellite_id = sd.satellite_id
+        WHERE sd.source = 'satcat'
         ORDER BY s.satellite_id
         """
     )
@@ -526,7 +523,12 @@ def stratum_decay_conflict(cur):
             continue
         scored.append((abs((ds - dg).days), sid, norad, name, sv, gv, ds, dg))
     scored.sort(key=lambda x: (-x[0], x[1]))
-    scored = scored[:TARGET_DECAY]
+    return scored
+
+
+def stratum_decay_conflict(cur):
+    """(f) Largest parsed decay-date disagreements between SATCAT and GCAT: when did it reenter?"""
+    scored = _decay_disagreements(cur)[:TARGET_DECAY]
 
     cases = []
     for diff, sid, norad, name, sv, gv, ds, dg in scored:

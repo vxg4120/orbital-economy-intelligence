@@ -93,6 +93,9 @@ def seeded(db_conn):
         sat_decay = _insert_satellite(cur, NORAD_DECAY_CONFLICT, "ZZ TEST DECAY CONFLICT")
         seed_claim(cur, sat_decay, "satcat", "decay_date", "2024-01-15", run_satcat)
         seed_claim(cur, sat_decay, "gcat", "decay_date", "2024-02-20", run_gcat)
+        # GCAT's date is a decay claim only when the phase ended in a decay
+        # (identity/decay_claims.py), so the entry carries a reentry status.
+        seed_claim(cur, sat_decay, "gcat", "status", "ZZDEC", run_gcat)
 
         # --- Section: stale post-M&A owners ---
         sat_stale = _insert_satellite(cur, NORAD_STALE_OWNER, "ZZ TEST STALE OWNER SAT")
