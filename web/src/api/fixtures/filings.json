@@ -907,5 +907,5 @@
     }
   ],
   "total": 31,
-  "note": "Applications filed with the FCC and not yet decided: a forward view of satellites months to years before they reach any tracking catalog. Source: FCC IBFS bulk data, public domain. documents_n counts harvested ICFS attachments; /api/filings/{file_number}/documents lists them with direct FCC download links."
+  "note": "These are applications that were filed with the FCC and are not yet decided. A new application can describe satellites months to years before they reach any tracking catalog, and a modification or special temporary authority can concern a satellite that is already in orbit. Source: FCC IBFS bulk data, public domain. documents_n counts harvested ICFS attachments; /api/filings/{file_number}/documents lists them with direct FCC download links."
 }

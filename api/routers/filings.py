@@ -2,9 +2,11 @@
 
 GET /api/filings/pending    space-station applications filed and not yet decided
 
-An FCC space-station authorization precedes launch by months to years (Starlink Gen1 by 14
-months, Kuiper by 39), so the pending queue is a forward view of satellites that do not exist
-in any tracking catalog yet. Rows come from v_fcc_pending_applications over the IBFS bulk dump:
+An FCC space-station grant can precede launch by months to years (the Starlink Gen1 grant came
+about 14 months before its first operational batch, and the Kuiper grant came about 38 months
+before its protoflights), so a pending new application is a forward view of satellites that are
+in no tracking catalog yet, while a pending modification or STA can concern satellites that are
+already flying. Rows come from v_fcc_pending_applications over the IBFS bulk dump:
 pending is date-defined (filed, with no grant, denial, dismissal or surrender date), because
 IBFS status codes are workflow states rather than dispositions.
 """
@@ -136,8 +138,10 @@ def pending(
         "total": total,
         "newest_filed": newest_filed,
         "note": (
-            "Applications filed with the FCC and not yet decided: a forward view of satellites "
-            "months to years before they reach any tracking catalog. Source: FCC IBFS bulk "
+            "These are applications that were filed with the FCC and are not yet decided. A new "
+            "application can describe satellites months to years before they reach any tracking "
+            "catalog, and a modification or special temporary authority can concern a satellite "
+            "that is already in orbit. Source: FCC IBFS bulk "
             "data, public domain. The list is a snapshot: the IBFS bulk download stopped gaining "
             "new filings in mid-2025, when the FCC moved satellite applications to ICFS, which "
             "this pipeline does not read yet, so newest_filed dates the list and some filings "
@@ -241,10 +245,14 @@ _METHODOLOGY = {
         "largest_single_system": "Boeing V-band NGSO: 2,956 satellites across 74 orbital planes",
         "documents_fetched_whole": 67,
         "documents_truncated_by_the_gateway": 28,
-        "filed_to_launch_lead_time_examples": "Starlink Gen1 filed 14 months before first launch; Kuiper filed 39 months before.",
+        "filed_to_launch_lead_time_examples": (
+            "Starlink Gen1 was filed about 15 months before its first test satellites launched "
+            "and about 30 months before its first operational batch, and Kuiper was filed about "
+            "51 months before its first launch."
+        ),
         # Replaced per request from the ingest ledger (see methodology()); this is the value of
         # record for the as_of snapshot, served only when the ledger has nothing to say.
-        "last_harvest_and_extraction_run": "2026-08-24, on weekly staleness gates inside the nightly refresh",
+        "last_harvest_and_extraction_run": "2026-08-24, on weekly staleness gates inside the twice-daily refresh",
     },
     "docket_model": {
         "model": "Dockets are modeled as timelines keyed on callsign, never as supersession chains, and specs are never merged across filings.",
@@ -284,7 +292,8 @@ GROUP BY endpoint
 
 def last_run_line(db) -> str | None:
     """'harvest 2026-09-14, extraction 2026-09-14; both on weekly staleness gates inside the
-    nightly refresh', read from the ingest ledger; None when neither step has ever run.
+    twice-daily refresh', read from the ingest ledger; None when neither step has ever run.
+    The refresh runs at 07:10 and 19:10 UTC, and both steps sit behind a weekly gate in each run.
 
     The coverage counts are a dated snapshot (as_of) by design, but the harvest date is a
     freshness claim, and a freshness claim typed into a dict goes stale the day after it is
@@ -299,7 +308,7 @@ def last_run_line(db) -> str | None:
     ]
     if not parts:
         return None
-    return ", ".join(parts) + "; both on weekly staleness gates inside the nightly refresh"
+    return ", ".join(parts) + "; both on weekly staleness gates inside the twice-daily refresh"
 
 
 @router.get("/methodology")
