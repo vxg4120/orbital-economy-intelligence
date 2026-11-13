@@ -84,9 +84,13 @@ summary AS (
     GROUP BY operator_id
 ),
 main_shell AS (
-    -- The shell holding the most of the operator's objects; among ties, the most crowded.
+    -- The shell holding the most of the operator's objects; among ties, the most crowded. The
+    -- window counts run before DISTINCT ON, so on the row kept they count its ties: the shells
+    -- holding as many of its objects, and of those the ones holding as many objects in all.
     SELECT DISTINCT ON (operator_id) operator_id, alt, inc, n_op::int AS operator_objects,
-           n_bin::int AS objects
+           n_bin::int AS objects,
+           (count(*) OVER (PARTITION BY operator_id, n_op))::int AS tied_shells,
+           (count(*) OVER (PARTITION BY operator_id, n_op, n_bin))::int AS tied_crowded_shells
     FROM owned
     ORDER BY operator_id, n_op DESC, n_bin DESC, alt, inc
 ),
@@ -121,7 +125,7 @@ field AS (
     -- satellite row, since the view has no row for them.
     SELECT round(max(n_bin / share))::int AS field_objects FROM v
 )
-SELECT s.*, b.alt, b.inc, b.operator_objects, b.objects,
+SELECT s.*, b.alt, b.inc, b.operator_objects, b.objects, b.tied_shells, b.tied_crowded_shells,
        COALESCE(n.named_others, 0)::float8 AS named_others,
        COALESCE(n.top_neighbours, '[]'::jsonb) AS top_neighbours,
        f.field_objects
@@ -142,15 +146,17 @@ def _build_operator_exposure(db) -> dict[int, dict]:
     out: dict[int, dict] = {}
     for r in rows:
         others = r["others_per_satellite"]
+        # Objects in the field with no satellite row or no current owner. The subtraction can
+        # leave float dust around zero, which is not a count, and the panel says "none" only
+        # for a true zero.
+        unattributed = others - r["named_others"]
         out[r["operator_id"]] = {
             "fleet_in_field": r["fleet_in_field"],
             "shells": r["shells"],
             "neighbours_per_satellite": r["neighbours_per_satellite"],
             "own_per_satellite": r["own_per_satellite"],
             "others_per_satellite": others,
-            # Objects in the field with no satellite row or no current owner. The subtraction
-            # can leave float dust around zero, which is not a count.
-            "unattributed_per_satellite": max(0.0, others - r["named_others"]),
+            "unattributed_per_satellite": unattributed if unattributed > 1e-9 else 0.0,
             "top_neighbours": r["top_neighbours"],
             "main_shell": {
                 "alt_km_from": r["alt"] * 50,
@@ -159,6 +165,8 @@ def _build_operator_exposure(db) -> dict[int, dict]:
                 "inc_deg_to": r["inc"] * 5 + 5,
                 "operator_objects": r["operator_objects"],
                 "objects": r["objects"],
+                "tied_shells": r["tied_shells"],
+                "tied_crowded_shells": r["tied_crowded_shells"],
             },
             "exposure_score": r["exposure_score"],
             "field_objects": r["field_objects"],

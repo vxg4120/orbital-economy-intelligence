@@ -7,7 +7,6 @@ import {
   congestionSentences,
   leagueMeta,
   namedNeighbours,
-  perObject,
 } from "../views/Operators";
 import type { OperatorDetail, OperatorsResponse } from "../api/types";
 
@@ -100,7 +99,7 @@ const spacexCongestion = {
   shells: 35,
   neighbours_per_satellite: 2893.7,
   own_per_satellite: 2755.3,
-  others_per_satellite: 138.3,
+  others_per_satellite: 138.4,
   unattributed_per_satellite: 0,
   top_neighbours: [
     { operator_id: 9001, canonical_name: "United States", per_satellite: 66.7 },
@@ -109,7 +108,7 @@ const spacexCongestion = {
   ],
   main_shell: {
     alt_km_from: 450, alt_km_to: 500, inc_deg_from: 50, inc_deg_to: 55,
-    operator_objects: 4057, objects: 4177,
+    operator_objects: 4057, objects: 4177, tied_shells: 1, tied_crowded_shells: 1,
   },
   exposure_score: 0.1703,
   field_objects: 16997,
@@ -129,10 +128,12 @@ const split = (
   ...over,
 });
 
-const shell = (operator_objects: number, objects: number) => ({
+const shell = (operator_objects: number, objects: number, tied_shells = 1, tied_crowded_shells = 1) => ({
   ...spacexCongestion.main_shell,
   operator_objects,
   objects,
+  tied_shells,
+  tied_crowded_shells,
 });
 
 describe("Congestion exposure panel", () => {
@@ -153,7 +154,7 @@ describe("Congestion exposure panel", () => {
       "Each one shares its shell with about 152 other tracked objects on average, 2 of them its own and 150 belonging to other operators.",
     );
     expect(congestionSentences(split(340.6, 335.4)).share).toBe(
-      "Each one shares its shell with about 341 other tracked objects on average, 335 of them its own and 6 belonging to other operators.",
+      "Each one shares its shell with about 341 other tracked objects on average, 336 of them its own and 5 belonging to other operators.",
     );
   });
 
@@ -165,7 +166,58 @@ describe("Congestion exposure panel", () => {
       "Each one shares its shell with about 2.5 other tracked objects on average, none of them its own and 2.5 belonging to other operators.",
     );
     expect(congestionSentences(split(12.2, 12.0)).share).toBe(
+      "Each one shares its shell with about 12 other tracked objects on average, nearly all of them its own.",
+    );
+  });
+
+  /* Review 2026-11-13, second pass: the other operators' part took every rounding error. */
+  it("never gives a unit to a part that is 0, and never hides a part that rounds up", () => {
+    // No other operator in its shells: own 2.4 and no owner 8.4, nothing left for others.
+    const s = congestionSentences(split(10.8, 2.4, 8.4)).share;
+    expect(s).not.toContain("other operators");
+    expect(s).toMatch(/about 11 other tracked objects on average, \d+ of them its own and \d+ with no owner on record\.$/);
+    const [own, unowned] = s.match(/(\d+) of them its own and (\d+) with/)!.slice(1).map(Number);
+    expect(own + unowned).toBe(11);
+    // 0.87 per object belong to another operator, more than the 0.53 left over from own.
+    expect(congestionSentences(split(11.4, 10.53)).share).toBe(
+      "Each one shares its shell with about 11 other tracked objects on average, 10 of them its own and 1 belonging to other operators.",
+    );
+  });
+
+  it("says none and all only of a part that is truly 0", () => {
+    expect(congestionSentences(split(4.84, 0.04)).share).toBe(
+      "Each one shares its shell with about 4.8 other tracked objects on average, almost none of them its own and 4.8 belonging to other operators.",
+    );
+    expect(congestionSentences(split(12, 12)).share).toBe(
       "Each one shares its shell with about 12 other tracked objects on average, all of them its own.",
+    );
+  });
+
+  it("names neighbours at the precision of the split and never above the part they come from", () => {
+    expect(namedNeighbours(spacexCongestion).map((n) => n.shown)).toEqual(["67", "7", "4"]);
+    const capped = split(10.49, 4.5, 3.5, {
+      top_neighbours: [{ operator_id: 9006, canonical_name: "OP0", per_satellite: 2.49 }],
+    });
+    expect(congestionSentences(capped).share).toContain("2 belonging to other operators");
+    expect(namedNeighbours(capped).map((n) => n.shown)).toEqual(["2"]);
+    // When the other operators' part rounds to 0, nobody is named under it.
+    const hidden = split(12.2, 12.0, 0, {
+      top_neighbours: [{ operator_id: 9007, canonical_name: "OP1", per_satellite: 0.2 }],
+    });
+    expect(namedNeighbours(hidden)).toEqual([]);
+  });
+
+  it("says when several shells tie for the most of its objects", () => {
+    const tied = (n: number, objects: number, shells: number, crowded: number) =>
+      congestionSentences(split(20, 10, 0, { main_shell: shell(n, objects, shells, crowded) })).main;
+    expect(tied(7, 127, 3, 1)).toBe(
+      "3 shells each hold 7 of its objects, and none holds more. The most crowded of them is from 450 to 500 km at 50 to 55 degrees of inclination, where 7 of its objects share the shell with 120 other objects.",
+    );
+    expect(tied(7, 7, 2, 2)).toBe(
+      "2 shells each hold 7 of its objects, and none holds more. One of the most crowded of them is from 450 to 500 km at 50 to 55 degrees of inclination, where 7 of its objects have the shell to themselves.",
+    );
+    expect(tied(1, 1, 5, 5)).toBe(
+      "No shell holds more than one of its objects. One of the most crowded of its shells is from 450 to 500 km at 50 to 55 degrees of inclination, where its object has the shell to itself.",
     );
   });
 
@@ -219,15 +271,17 @@ describe("Congestion exposure panel", () => {
     expect(lone(3, 1, 4).share).toBe(
       "It shares its shell with 3 other tracked objects, 2 belonging to other operators and 1 with no owner on record.",
     );
+    expect(lone(3, 2, 4).share).toBe(
+      "It shares its shell with 3 other tracked objects, 1 belonging to another operator and 2 with no owner on record.",
+    );
     expect(lone(3, 0, 4).main).toBe(
       "Its shell is from 450 to 500 km at 50 to 55 degrees of inclination, and it shares that shell with 3 other objects.",
     );
   });
 
-  it("formats a per-object average at the precision it is shown", () => {
-    expect(perObject(6.94)).toBe("6.9");
-    expect(perObject(9.96)).toBe("10");
-    expect(perObject(66.7)).toBe("67");
+  it("switches to whole numbers where the total would print as 10.0", () => {
+    expect(congestionSentences(split(9.96, 0)).share).toContain("about 10 other tracked objects");
+    expect(congestionSentences(split(9.94, 0)).share).toContain("about 9.9 other tracked objects");
   });
 
   it("names one neighbour in the singular", () => {

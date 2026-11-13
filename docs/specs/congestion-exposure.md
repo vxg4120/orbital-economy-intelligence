@@ -45,7 +45,8 @@ Labs satellite shared its shell with about 963 objects from other operators.
   `{fleet_in_field, shells, neighbours_per_satellite, own_per_satellite,
   others_per_satellite, unattributed_per_satellite, top_neighbours: [{operator_id,
   canonical_name, per_satellite}] (at most 3), main_shell: {alt_km_from, alt_km_to,
-  inc_deg_from, inc_deg_to, operator_objects, objects}, exposure_score, field_objects}`.
+  inc_deg_from, inc_deg_to, operator_objects, objects, tied_shells, tied_crowded_shells},
+  exposure_score, field_objects}`.
   `top_neighbours` is ranked by `per_satellite`, the mean over the operator's objects of how
   many of the neighbour's objects share that object's shell (not the neighbour's raw count in
   its shells). `main_shell` is the shell holding the most of the operator's objects; among ties,
@@ -102,3 +103,11 @@ Labs satellite shared its shell with about 963 objects from other operators.
     is not its most crowded one. Each was checked by a mutant that now fails.
   - Refuted: a 500 from the detail endpoint when the view is missing. No supported environment
     lacks it.
+- 2026-11-13 (Claude, second review pass by a fresh agent): the first fix still let the other
+  operators' part absorb every rounding error, so it could show a part that does not exist or
+  hide one that does. The parts are now rounded by largest remainder over the three raw parts
+  (own, other operators, no owner on record), a part that is truly 0 never gets a unit, and
+  "all" or "none" is said only of a true 0 ("nearly all" and "almost none" otherwise). The
+  neighbour shares are shown at the split's precision and never above the part they come
+  from. `main_shell` gained `tied_shells` and `tied_crowded_shells`, so a tie is stated and
+  not hidden behind "the shell holding the most".

@@ -252,6 +252,10 @@ export interface OperatorCongestion {
     inc_deg_to: number;
     operator_objects: number;
     objects: number;
+    /** Shells holding as many of its objects as this one (1 when it is the only one). */
+    tied_shells: number;
+    /** Of those, the shells holding as many objects in all as this one. */
+    tied_crowded_shells: number;
   };
   /** The view's documented score: (neighbours + 1) / field_objects. */
   exposure_score: number;
