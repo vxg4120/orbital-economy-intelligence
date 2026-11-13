@@ -10,7 +10,13 @@ import {
   YAxis,
 } from "recharts";
 import { getCongestion, getOperator, getOperators } from "../api/client";
-import type { OperatorDetail, OperatorRow, OperatorSort, OperatorsResponse } from "../api/types";
+import type {
+  OperatorCongestion,
+  OperatorDetail,
+  OperatorRow,
+  OperatorSort,
+  OperatorsResponse,
+} from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
@@ -242,6 +248,19 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
         </Panel>
       </div>
 
+      {detail.congestion === undefined ? null : (
+        <Panel title="Congestion exposure" meta="shared altitude and inclination shells">
+          {detail.congestion === null ? (
+            <EmptyState
+              title="None of its objects is in the congestion field"
+              message="The field holds the latest element set of each object that has not reentered, and none of this operator's objects has one."
+            />
+          ) : (
+            <CongestionExposure c={detail.congestion} />
+          )}
+        </Panel>
+      )}
+
       <div className="grid grid--2">
         <Panel
           title="Acquisition history"
@@ -305,6 +324,86 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
           )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+/** A per-object average: whole numbers from 10 up, one decimal below. */
+export function perObject(n: number): string {
+  return n >= 10 ? fmtInt(Math.round(n)) : n.toFixed(1);
+}
+
+/** The panel's sentences, separated from the markup so the wording is testable. The own and
+    other counts are rounded so that they add up to the rounded total a reader sees. */
+export function congestionSentences(c: OperatorCongestion): {
+  where: string;
+  share: string;
+  busiest: string;
+} {
+  const objects = c.fleet_in_field === 1 ? "1 of its objects is" : `${fmtInt(c.fleet_in_field)} of its objects are`;
+  const shells = c.shells === 1 ? "1 shell" : `${fmtInt(c.shells)} shells`;
+  const where = `${objects} in the field, in ${shells} of 50 km by 5 degrees.`;
+
+  let share: string;
+  const total = c.neighbours_per_satellite;
+  if (total < 0.05) {
+    share = c.fleet_in_field === 1 ? "It has its shell to itself." : "Each one has its shell to itself.";
+  } else {
+    const shown = perObject(total);
+    const own = total >= 10 ? Math.round(c.own_per_satellite) : c.own_per_satellite;
+    const others = total >= 10 ? Math.max(0, Math.round(total) - own) : c.others_per_satellite;
+    const lead = c.fleet_in_field === 1 ? "It shares its shell" : "Each one shares its shell";
+    share =
+      `${lead} with about ${shown} other tracked objects on average, ` +
+      `${perObject(own)} of them its own and ${perObject(others)} belonging to others.`;
+  }
+
+  const b = c.busiest_shell;
+  const others = b.objects - b.operator_objects;
+  const one = b.operator_objects === 1;
+  const busiest =
+    `Its busiest shell is from ${fmtInt(b.alt_km_from)} to ${fmtInt(b.alt_km_to)} km at ` +
+    `${b.inc_deg_from} to ${b.inc_deg_to} degrees of inclination, where ` +
+    `${fmtInt(b.operator_objects)} of its objects ` +
+    (others === 0
+      ? one
+        ? "has the shell to itself."
+        : "have the shell to themselves."
+      : `${one ? "shares" : "share"} the shell with ${fmtInt(others)} ` +
+        `${others === 1 ? "other object" : "other objects"}.`);
+  return { where, share, busiest };
+}
+
+function CongestionExposure({ c }: { c: OperatorCongestion }) {
+  const s = congestionSentences(c);
+  const top = c.top_neighbours.filter((n) => n.per_satellite >= 0.05);
+  return (
+    <div className="stack">
+      <p className="story__lead">
+        {s.where} {s.share}
+      </p>
+      {top.length > 0 ? (
+        <p>
+          The other operators with the most objects in its shells are{" "}
+          {top.map((n, i) => (
+            <span key={n.operator_id}>
+              {i === 0 ? "" : i === top.length - 1 ? " and " : ", "}
+              <Link to={`/operators/${n.operator_id}`}>{n.canonical_name}</Link> (
+              <span className="num">{perObject(n.per_satellite)}</span>
+              {i === 0 ? " per object" : ""})
+            </span>
+          ))}
+          .
+        </p>
+      ) : null}
+      <p>{s.busiest}</p>
+      <p className="hint">
+        A shell is a band 50 km deep and 5 degrees of inclination wide that circles the whole
+        Earth, so two objects in one shell can be on opposite sides of the planet: this measures
+        density, not collision risk. The field is the latest element set of each object that has
+        not reentered, mostly CelesTrak&apos;s list of active satellites, so debris and spent
+        rocket bodies are almost entirely missing from it.
+      </p>
     </div>
   );
 }
