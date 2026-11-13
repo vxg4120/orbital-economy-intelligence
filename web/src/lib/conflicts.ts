@@ -24,7 +24,7 @@ export const CONFLICT_TABS: ConflictTabMeta[] = [
     cardLabel: "Status disagreements",
     cardSub: "SATCAT vs GCAT canonical state",
     headline:
-      "Objects where SATCAT and GCAT map to different canonical states — one source calls it active, the other reentered. Resolved by the deterministic ordering (observed_at, ingest_run, source_key).",
+      "Objects where SATCAT and GCAT map to different canonical states. SATCAT still lists each object as in orbit, whether active, inactive, partly operational or spare, while GCAT records that it has reentered or been destroyed. The resolver ranks GCAT first for status, so every object listed here resolves to decayed.",
   },
   {
     key: "decay",

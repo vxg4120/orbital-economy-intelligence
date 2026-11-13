@@ -208,56 +208,72 @@
         "name": "Wenchang yi hao 01 xing",
         "date": "2026-10-14",
         "launched": "2022-02-27",
-        "owner": "Sanya Yanjiu Zhongxin"
+        "owner": "Sanya Yanjiu Zhongxin",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 61707,
         "name": "SITRO-AIS-42",
         "date": "2026-10-13",
         "launched": "2024-11-04",
-        "owner": "Sitronics Group"
+        "owner": "Sitronics Group",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 68632,
         "name": "Cygnus NG-24",
         "date": "2026-10-12",
         "launched": "2026-04-11",
-        "owner": "Northrop Grumman Innovation Systems"
+        "owner": "Northrop Grumman Innovation Systems",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 62409,
         "name": "SDX-02",
         "date": "2026-10-12",
         "launched": "2024-12-30",
-        "owner": "Indian Space Research Organization"
+        "owner": "Indian Space Research Organization",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 62408,
         "name": "SDX-01",
         "date": "2026-10-12",
         "launched": "2024-12-30",
-        "owner": "Indian Space Research Organization"
+        "owner": "Indian Space Research Organization",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 61711,
         "name": "SITRO-AIS-41",
         "date": "2026-10-12",
         "launched": "2024-11-04",
-        "owner": "Sitronics Group"
+        "owner": "Sitronics Group",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 58262,
         "name": "Dove 24d5",
         "date": "2026-10-11",
         "launched": "2023-11-11",
-        "owner": "Planet Labs"
+        "owner": "Planet Labs",
+        "deployed_from_iss": false,
+        "released": null
       },
       {
         "satellite_id": 67741,
         "name": "Dragon C212.5",
         "date": "2026-10-08",
         "launched": "2026-02-13",
-        "owner": "SpaceX"
+        "owner": "SpaceX",
+        "deployed_from_iss": false,
+        "released": null
       }
     ]
   },

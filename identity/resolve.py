@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from identity.normalize import canonical_object_type, parse_date_loose
+from identity.normalize import canonical_object_type, has_day, parse_date_loose
 
 _PRECEDENCE_DEFAULT = Path(__file__).with_name("precedence.yml")
 _DISPLAY_NAMES_DEFAULT = Path(__file__).with_name("display_names.yml")
@@ -148,11 +148,17 @@ MESSAGE_OUTLIER_DAYS = 30
 
 
 def _contradicted_by_catalogs(by_source: dict) -> bool:
-    if not {"spacetrack_decay", "satcat", "gcat"} <= by_source.keys():
+    """Whether both catalogs contradict the message (the rule above). Every date compared must
+    give a day. GCAT sometimes gives only a month or a year, which parses to its first day, so
+    it could agree with SATCAT by coincidence and outvote a message that falls inside that month
+    or year; such a GCAT date does not vote, and the message keeps its precedence."""
+    sources = ("spacetrack_decay", "satcat", "gcat")
+    if not set(sources) <= by_source.keys():
         return False
-    st, sc, gc = (parse_date_loose(by_source[s][0]) for s in ("spacetrack_decay", "satcat", "gcat"))
-    if st is None or sc is None or gc is None:
+    values = [by_source[s][0] for s in sources]
+    if not all(has_day(v) for v in values):
         return False
+    st, sc, gc = (parse_date_loose(v) for v in values)
     return (abs((sc - gc).days) <= CATALOGS_AGREE_DAYS
             and abs((st - sc).days) > MESSAGE_OUTLIER_DAYS)
 
@@ -171,7 +177,9 @@ def _resolve_decay_date(conn, order, stats=None) -> None:
     for sat in outvoted:
         del data[sat]["spacetrack_decay"]
     if stats is not None:
-        stats["decay_messages_outvoted"] = len(outvoted)
+        # The satellite ids, not only a count: scripts/build_graph.py prints their NORAD ids in
+        # the nightly's build summary, so a second firing can be seen in refresh.log.
+        stats["decay_messages_outvoted"] = sorted(outvoted)
     with conn.cursor() as cur:
         for sat_id, by_source in data.items():
             picked = _pick(by_source, order)

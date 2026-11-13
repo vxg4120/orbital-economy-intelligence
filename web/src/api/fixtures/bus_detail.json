@@ -541,7 +541,7 @@
       },
       "receipts": "/api/buses/spx/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
     "participation": {
       "participated_total": 12835,
       "co_builder_credits": 0,
@@ -1040,7 +1040,7 @@
       },
       "receipts": "/api/buses/onewus/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
     "participation": {
       "participated_total": 650,
       "co_builder_credits": 0,
@@ -1537,7 +1537,7 @@
       },
       "receipts": "/api/buses/plan/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
     "participation": {
       "participated_total": 551,
       "co_builder_credits": 0,
@@ -2014,7 +2014,7 @@
       },
       "receipts": "/api/buses/starlink-v2m/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
     "participation": null,
     "pending_applications": null
   },
@@ -2492,7 +2492,7 @@
       },
       "receipts": "/api/buses/arrow/provenance?metric=fleet"
     },
-    "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
+    "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
     "participation": null,
     "pending_applications": null
   }

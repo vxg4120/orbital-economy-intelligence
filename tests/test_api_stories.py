@@ -9,6 +9,8 @@ import datetime as dt
 import warnings
 
 import pytest
+from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 # TestClient's transport import emits a StarletteDeprecationWarning at import time; suppress it
 # here so the module imports cleanly under `pytest -W error` (same as tests/test_api_stats.py).
@@ -18,11 +20,14 @@ with warnings.catch_warnings():
 
 from api.main import app
 from api.routers.stories import (
+    _NOTABLE_REENTRIES_SQL,
     complete_through,
+    gcat_day,
     is_partial,
     last_full_month,
     month_end,
     next_month_start,
+    notable_reentry,
     pending_after,
     split_fleet,
     trim_series,
@@ -73,6 +78,10 @@ def test_stories_shape(client):
     assert re["starlink_v1"] <= re["starlink"] <= re["payloads"]
     assert len(re["notable"]) <= 8
     assert all(not n["name"].lower().startswith("starlink") for n in re["notable"])
+    for n in re["notable"]:
+        assert isinstance(n["deployed_from_iss"], bool)
+        if n["released"] is not None:
+            assert n["deployed_from_iss"] and n["released"] <= n["date"]
 
     keys = [c["key"] for c in body["constellations"]]
     assert keys == ["starlink", "oneweb", "kuiper", "qianfan", "guowang"]
@@ -181,3 +190,89 @@ def test_last_full_month_never_claims_a_month_still_in_progress():
     assert last_full_month("2026-06", ref) == "2026-06"
     assert last_full_month(None, ref) is None
     assert last_full_month("2026-10", dt.date(2026, 10, 31)) == "2026-10"
+
+
+# ---- ISS-deployed reentries (audit 2026-11-13) --------------------------------------------------
+
+
+def test_gcat_day_reads_the_vague_date_formats():
+    assert gcat_day("2026 Feb  3 1055") == dt.date(2026, 2, 3)
+    assert gcat_day("2016 May 10?") == dt.date(2016, 5, 10)  # GCAT's uncertainty mark
+    assert gcat_day("2023 Jan  3 1556:08") == dt.date(2023, 1, 3)
+    for blank in (None, "", "-", "2026 Feb 30", "2026 Foo  3"):
+        assert gcat_day(blank) is None
+
+
+def _reentry(**over):
+    row = {"satellite_id": 67633, "name": "LEOPARD", "date": dt.date(2026, 11, 3),
+           "launched": dt.date(1998, 11, 20), "owner": "Kyushu Institute of Technology",
+           "deployed_from_iss": True, "gcat_sdate": "2026 Feb  3 1055"}
+    row.update(over)
+    return row
+
+
+def test_notable_reentry_carries_the_release_date_of_an_iss_deployed_satellite():
+    """LEOPARD read "28.0 years up" because SATCAT dates it to Zarya's launch; GCAT says the
+    station released it on 2026-02-03, 273 days before it reentered."""
+    out = notable_reentry(_reentry())
+    assert out["launched"] == "1998-11-20"  # the catalog's date is kept as it is
+    assert out["deployed_from_iss"] is True
+    assert out["released"] == "2026-02-03"
+    assert (dt.date(2026, 11, 3) - dt.date.fromisoformat(out["released"])).days == 273
+
+
+def test_notable_reentry_release_date_only_for_iss_pieces_and_never_after_reentry():
+    assert notable_reentry(_reentry(gcat_sdate=None))["released"] is None
+    assert notable_reentry(_reentry(gcat_sdate="2026 Dec  1"))["released"] is None
+    other = notable_reentry(_reentry(name="Swift", deployed_from_iss=False))
+    assert other["deployed_from_iss"] is False and other["released"] is None
+
+
+@pytest.mark.db
+def test_notable_reentries_sql_reads_gcat_release_dates_for_iss_pieces_only(db_conn):
+    """TEMP tables shadow the real ones for this connection only. The GCAT row for an ISS piece
+    is found by its JCAT key and must carry the same NORAD number; a GCAT row that names no
+    number, and any row for a satellite not deployed from the ISS, gives no release date."""
+    db_conn.row_factory = dict_row
+    with db_conn.cursor() as cur:
+        cur.execute("""
+            CREATE TEMP TABLE satellite (
+                satellite_id bigint, norad_id bigint, cospar_id text, canonical_name text,
+                object_type text, launch_date date, decay_date date);
+            CREATE TEMP TABLE operator (
+                operator_id bigint, canonical_name text, operator_class text);
+            CREATE TEMP TABLE satellite_operator (
+                satellite_id bigint, operator_id bigint, role text, valid_to date,
+                confidence numeric);
+            CREATE TEMP TABLE raw_gcat_satcat (
+                jcat text, norad_id bigint, extra jsonb, ingest_run_id bigint);
+            INSERT INTO satellite VALUES
+                (1, 67687, '1998-067YD', 'LEOPARD', 'PAYLOAD', '1998-11-20', '2026-11-03'),
+                (2, 66912, '1998-067XY', 'Foras Promineo', 'PAYLOAD', '1998-11-20', '2026-11-01'),
+                (3, 28485, '2004-047A', 'Swift', 'PAYLOAD', '2004-11-20', '2026-11-04'),
+                (4, 25544, '1998-067A', 'ISS (ZARYA)', 'PAYLOAD', '1998-11-20', '2026-11-02'),
+                (5, 64001, '2025-001A', 'STARLINK-1', 'PAYLOAD', '2025-01-01', '2026-11-05');
+        """)
+        cur.executemany(
+            "INSERT INTO raw_gcat_satcat VALUES (%s, %s, %s, %s)",
+            [
+                ("S67687", 67687, Jsonb({"SDate": "2026 Jan  1"}), 8690),
+                ("S67687", 67687, Jsonb({"SDate": "2026 Feb  3 1055"}), 8840),
+                ("S66912", None, Jsonb({"SDate": "2025 Dec  2 0950"}), 8840),
+                ("S28485", 28485, Jsonb({"SDate": "2004 Nov 20 1836"}), 8840),
+                ("S25544", 25544, Jsonb({"SDate": "1998 Nov 20 0640"}), 8840),
+            ],
+        )
+        cur.execute(_NOTABLE_REENTRIES_SQL,
+                    {"ref": dt.date(2026, 11, 12), "days": 30, "n": 8})
+        rows = cur.fetchall()
+    db_conn.rollback()
+
+    got = {r["name"]: (r["deployed_from_iss"], r["gcat_sdate"]) for r in rows}
+    assert got == {
+        "LEOPARD": (True, "2026 Feb  3 1055"),  # the newest GCAT run wins
+        "Foras Promineo": (True, None),  # its GCAT row names no NORAD number
+        "Swift": (False, None),
+        "ISS (ZARYA)": (False, None),  # 1998-067A is the station itself
+    }
+    assert [r["name"] for r in rows] == ["Swift", "LEOPARD", "ISS (ZARYA)", "Foras Promineo"]

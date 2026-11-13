@@ -17,7 +17,7 @@
     },
     {
       "name": "GP element history (Space-Track / CelesTrak)",
-      "role": "orbital behavior: station-keeping, orbit raising, decay",
+      "role": "orbital behavior: station-keeping and orbit raising",
       "url": "https://celestrak.org/NORAD/elements/"
     }
   ],
@@ -82,6 +82,6 @@
     "Generic form-factor entries (Cubesat 3U and similar) aggregate many unrelated vehicles and are labeled by their most common manufacturer."
   ],
   "provenance_guarantee": "Every number is traceable to source rows: each attribution carries (source, source_key = GCAT jcat, ingest_run_id) plus source_assertion records, and the per-metric provenance endpoint returns the exact constituent satellites behind any headline value.",
-  "correction_channel": "Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections enter the record as source_assertion rows with source 'operator_confirmed', which outranks catalog sources in precedence.",
-  "refresh": "Nightly, with the daily ingest cycle. Monthly leaderboard snapshots are frozen on the first refresh of each month and never rewritten."
+  "correction_channel": "Operators and manufacturers can confirm or dispute an attribution by emailing vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus and manufacturer attribution shown here currently comes from GCAT, and no operator correction has been applied yet. A way to record an accepted correction so that it takes precedence over the catalogs has not been built yet.",
+  "refresh": "The data refreshes twice a day, at 07:10 and 19:10 UTC. Each run pulls the latest orbital elements and rebuilds the bus attribution and behavior layers, and the catalogs behind the attribution are pulled at most once a day. Monthly leaderboard snapshots are frozen on the first refresh of each month and never rewritten."
 }

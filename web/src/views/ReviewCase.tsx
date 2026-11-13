@@ -26,7 +26,7 @@ import {
   stratumLabel,
   verdictMeta,
 } from "../lib/reviewStrata";
-import { fmtDateTime } from "../lib/format";
+import { fmtDate, fmtDateTime } from "../lib/format";
 import { guideFor } from "../lib/reviewGuides";
 import { Panel } from "../components/Panel";
 import { SourceBadge } from "../components/SourceBadge";
@@ -63,7 +63,63 @@ function storeToken(tok: string): void {
     /* the verdict is already stored; losing the convenience is fine */
   }
 }
-const SOURCE_ORDER = ["satcat", "gcat", "ucs", "operator_seed", "spacetrack", "resolve"];
+// Matches scripts/review.py, and the Space-Track feed's claim source is "spacetrack_decay".
+const SOURCE_ORDER = ["satcat", "gcat", "ucs", "operator_seed", "spacetrack_decay", "resolve"];
+
+/** The fields api/routers/review.py adds to a case detail to date it. They belong on
+    ReviewCaseDetail in api/types.ts; until they move there they are optional here, so a mock
+    fixture or an older API without them simply shows no snapshot note. */
+export interface CaseSnapshot {
+  drawn_at?: string | null;
+  observed_through?: string | null;
+  since_drawn?: { field: string; then: string | number | null; now: string | number | null }[];
+}
+
+const CHANGE_LABEL: Record<string, string> = {
+  canonical_name: "name",
+  status: "resolved status",
+};
+
+/** "the catalog has given this object NORAD 69869, its name has changed from SENTINEL-1 to
+    NEXTSAT-4, and its resolved status has changed from DECAYED to ACTIVE". */
+export function sinceDrawnSentence(changes: NonNullable<CaseSnapshot["since_drawn"]>): string {
+  const clauses = changes.map((c) => {
+    if (c.field === "record") return "the graph no longer holds this record";
+    if (c.field === "norad_id") {
+      if (c.then === null) return `the catalog has given this object NORAD ${c.now}`;
+      if (c.now === null) return "this object no longer has a NORAD id";
+      return `its NORAD id has changed from ${c.then} to ${c.now}`;
+    }
+    const label = CHANGE_LABEL[c.field] ?? c.field;
+    if (c.then === null) return `its ${label} is now ${c.now}`;
+    if (c.now === null) return `it no longer has a ${label}`;
+    return `its ${label} has changed from ${c.then} to ${c.now}`;
+  });
+  const joined =
+    clauses.length <= 2
+      ? clauses.join(" and ")
+      : `${clauses.slice(0, -1).join(", ")}, and ${clauses[clauses.length - 1]}`;
+  return `Since this case was drawn, ${joined}.`;
+}
+
+/** The case is a snapshot, and a verdict grades that snapshot, so the stored question and answer
+    are shown as drawn. This note dates them, and it says what the graph holds differently now. */
+export function SnapshotNote({ detail }: { detail: ReviewCaseDetail & CaseSnapshot }) {
+  if (!detail.drawn_at) return null;
+  const changes = detail.since_drawn ?? [];
+  return (
+    <Panel title="Snapshot" meta={`drawn ${fmtDate(detail.drawn_at)}`}>
+      <p className="hint">
+        This case was drawn on {fmtDate(detail.drawn_at)}
+        {detail.observed_through
+          ? `, from source data observed up to ${fmtDate(detail.observed_through)},`
+          : ","}{" "}
+        and it shows the sources and the graph's answer as they stood then.
+      </p>
+      {changes.length > 0 ? <p className="hint audit-warn">{sinceDrawnSentence(changes)}</p> : null}
+    </Panel>
+  );
+}
 const ATTR_ORDER = ["name", "owner", "status", "object_type", "decay_date", "launch_date"];
 
 export function ReviewCase() {
@@ -323,6 +379,7 @@ function CaseBody({
   return (
     <>
       <div className="rc-grid">
+        <SnapshotNote detail={detail} />
         {sats.map((s, i) => (
           <div className="rc-sat" key={s.satellite_id ?? i}>
             {cluster ? (
@@ -360,7 +417,7 @@ function CaseBody({
           <Panel title="The question" flush>
             <p className="rc-question">{detail.question}</p>
           </Panel>
-          <Panel title="System answer" meta="what the graph resolves" flush>
+          <Panel title="System answer" meta="what the graph resolved when drawn" flush>
             <p className="rc-answer">{detail.system_answer}</p>
             {!cluster ? <ResolvedLine ev={ev} /> : null}
           </Panel>

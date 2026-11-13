@@ -64,6 +64,8 @@ def test_league_total_equals_the_header_operator_count(client, db_conn):
         operators = cur.fetchone()[0]
     assert body["total"] == operators
     assert 0 < body["with_fleet"] <= body["total"]
+    # owning a cataloged object is not the same as having one up: reentered fleets count above
+    assert 0 < body["with_on_orbit"] <= body["with_fleet"]
     # Zero-fleet operators exist, sort last, and count as zero rather than one.
     last = client.get(f"/api/operators?limit=1&offset={body['total'] - 1}").json()["rows"]
     assert last and last[0]["fleet_total"] >= 0

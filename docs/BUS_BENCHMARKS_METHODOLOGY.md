@@ -28,7 +28,7 @@ cannot support a number, the number is absent and the coverage column says why.
 |---|---|---|
 | GCAT satcat (Jonathan McDowell) | Bus model and manufacturer attribution per cataloged object (`Bus`, `Manufacturer` columns) | https://planet4589.org/space/gcat/ |
 | GCAT orgs | Organization registry: resolves manufacturer codes to organizations, with class and parent hierarchy | https://planet4589.org/space/gcat/data/tables/orgs.html |
-| GP element history (Space-Track, CelesTrak) | Orbital behavior: daily semi-major-axis series behind station-keeping, orbit-raising and decay metrics | https://celestrak.org/NORAD/elements/ and https://www.space-track.org |
+| GP element history (Space-Track, CelesTrak) | Orbital behavior: the daily semi-major-axis series behind the station-keeping and orbit-raising metrics (decay dates come from the identity graph in the next row) | https://celestrak.org/NORAD/elements/ and https://www.space-track.org |
 | OEI identity graph | The satellite crosswalk (GCAT ids to canonical satellites), canonical status history, and resolved decay dates | this repository, `db/migrations/0004_identity.sql` |
 
 GCAT is used under its license terms as the attribution source; the behavioral layer is computed
@@ -254,9 +254,11 @@ yet.
 ### 5.8 Pending FCC applications (`pending_n`, informational, detail pages only)
 
 The count of space-station applications filed with the FCC and not yet decided whose applicant
-belongs to the same corporate group as the manufacturer cohort. An FCC authorization precedes
-launch by months to years, so this is the scoreboard's one forward-looking signal: satellites
-that exist in no tracking catalog yet. It is informational rather than a benchmark metric: it
+belongs to the same corporate group as the manufacturer cohort. An application is filed months
+to years before launch, so this is the scoreboard's one forward-looking signal. A pending new
+application can describe satellites that exist in no tracking catalog yet, while a pending
+modification or special temporary authority can concern satellites that are already in orbit,
+so the count is not a count of unlaunched satellites. It is informational rather than a benchmark metric: it
 appears on detail payloads only, never on the leaderboard, never in frozen snapshots, and
 never as a sort key, and it measures regulatory activity, not spacecraft or their behavior.
 
@@ -311,8 +313,12 @@ identifier, and it should not be treated as one.
 
 ## 7. Update cadence and snapshots
 
-The attribution and behavior layers rebuild nightly with the daily ingest cycle
-(`scripts/daily_ingest.sh` runs `scripts/build_bus.py` after the identity graph rebuild). On
+The attribution and behavior layers rebuild twice a day, at 07:10 and 19:10 UTC, when the
+production refresh (`deploy/nightly-refresh.sh`, despite its name) runs `scripts/build_bus.py`
+after the identity graph rebuild. `scripts/daily_ingest.sh` runs the same steps for a local
+checkout. The GCAT catalogs behind the attribution are pulled at most once a day, because their
+ingest is gated to one pull in 20 hours, so the second run of a day usually rebuilds from the
+same GCAT snapshot with newer orbital elements. On
 the first refresh of each calendar month the full leaderboards are frozen into
 `bus_benchmark_snapshots` keyed by (month, kind, slug) with insert-only semantics. The series is
 served by `GET /api/buses/history/{slug}` with the methodology version that produced each row.
@@ -365,8 +371,8 @@ Every published number is traceable to source rows:
 
 * Each satellite's attribution row carries its source (`gcat`), the source-native row key
   (`source_key` = GCAT jcat id) and the `ingest_run_id` of the snapshot it came from, and the
-  raw bus and manufacturer claims are additionally recorded in `source_assertion` following the
-  identity layer's provenance pattern.
+  raw bus and manufacturer claims are additionally recorded in the `claim` table (read through
+  `v_current_claim`), following the identity layer's provenance pattern.
 * Each rolled-up manufacturer records its resolution path (`rollup_path`) and whether a curated
   override participated (`rollup_source`).
 * For any headline metric, `GET /api/buses/{slug}/provenance?metric=...` returns the exact
@@ -377,14 +383,28 @@ Every published number is traceable to source rows:
 
 ## 9. Corrections and disputes
 
-Operators and manufacturers can confirm or dispute attribution: email vibhavgupta2@gmail.com
-with subject "Bus attribution: {name}". Adjudication rule: a correction accepted after review
-is recorded as a `source_assertion` with source `operator_confirmed`, which outranks catalog
-sources in the resolution precedence, so the correction enters the record with provenance
-rather than overwriting it. The original catalog claim remains visible in the assertion
-history.
+Operators and manufacturers can confirm or dispute an attribution by emailing
+vibhavgupta2@gmail.com with the subject "Bus attribution: {name}". Every attribution published
+today comes from GCAT, and no operator correction has been applied yet. The schema reserves the
+value `operator_confirmed` for accepted corrections, but `identity/precedence.yml` has no bus or
+manufacturer entry and `satellite_bus` is rebuilt from GCAT alone, so a recorded correction
+would not yet outrank the catalog. A way to record an accepted correction so that it takes
+precedence over the catalogs, with the original catalog claim kept visible, has not been built
+yet, and this section will describe it when it exists.
 
 ## Changelog
+
+* **v1.10 (2026-11-13), a disclosure correction with no version change.** An audit of the published site against
+  the running system found these, and no metric definitions changed, so the version stays 1.10.
+  Section 9 said that an accepted correction is recorded with source `operator_confirmed` and
+  outranks the catalogs, which described a design that was never built: no precedence entry
+  exists for bus or manufacturer, and no correction has been applied. Section 9 and the API's
+  correction text now say only what is built. Section 7 said that the layers rebuild nightly,
+  while production runs the refresh twice a day, at 07:10 and 19:10 UTC. Section 8 named the
+  `source_assertion` table, while the bus and manufacturer claims are recorded in `claim`.
+  Section 2 listed decay among the GP-derived metrics, while decay dates come from the identity
+  graph. Section 5.8 now says that a pending modification or special temporary authority can
+  concern a satellite that is already in orbit.
 
 * **v1.10 (2026-10-16).** Attribution rule change (section 4.1, decided by the owner on
   2026-10-16 under docs/specs/gcat-sibling-links.md). A GCAT row with no NORAD id now

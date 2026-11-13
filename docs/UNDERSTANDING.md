@@ -198,13 +198,18 @@ not code** — `identity/precedence.yml`:
 ```
 owner:       [operator_seed, gcat, ucs, satcat]   # curated > commercial > coarse country code
 status:      [gcat, satcat, ucs]                   # GCAT authoritative for decay; falls through for live ops
-decay_date:  [spacetrack_decay, satcat, gcat]
+decay_date:  [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT, with two exceptions (below)
 object_type: [gcat, satcat]
 name:        [ucs, gcat, satcat]                    # commercial names beat uplink/catalog names
 ```
 
-Higher-precedence slots (`operator_seed`, `spacetrack_decay`) can be **reserved for later phases**
-— if they have no assertions yet, the next source simply wins. **Worked example — one satellite
+Higher-precedence slots can be **reserved for later phases**: `operator_seed` has no claims feed
+yet, so the next source simply wins. `spacetrack_decay` was such a slot until 2026-11-12, when
+Space-Track's decay messages became a claims feed, and `decay_date` now has two narrow exceptions
+in `identity/resolve.py`. A GCAT date counts only when GCAT's status for the same key is a decay
+(a grapple or a docking date is not), and a Space-Track message is set aside when SATCAT and a
+GCAT date that gives a day agree to within one day and the message is more than 30 days from
+SATCAT (NORAD 48587, whose message is a year early). **Worked example, one satellite
 resolving through conflict:** take an ex-OneWeb bird. Its assertions: SATCAT says `owner=UK`
 (country code), GCAT says `owner=ONEWEB`, and status: SATCAT `+` (ACTIVE), GCAT `O` (in-orbit →
 UNKNOWN). Resolution:
@@ -352,7 +357,9 @@ fleet is invisible to country-code attribution. It proves the identity graph isn
 real business metric moves an order of magnitude when you resolve identity correctly.
 
 **Q10. Where does this break, and what would you build next?** Status is still snapshot-not-true-
-timeseries, so deorbit compliance is sparse — next I'd ingest Space-Track decay messages and
+timeseries, so deorbit compliance is sparse. Space-Track's decay messages have been a claims feed
+since 2026-11-12, so an object that has a message takes its decay date from the source that is
+authoritative for it, unless both catalogs outvote it, as section 5 explains. Next I'd ingest
 status transitions for real last-active dates. It's single-machine, so at 10× data I'd partition
 Space-Track history across nodes. And operator resolution is exact-alias only, so I'd add fuzzy
 operator matching with the same review-queue discipline the satellite matcher already has. I say

@@ -11,6 +11,7 @@ import json
 import psycopg
 import pytest
 
+import scripts.build_gold_queue as builder
 from scripts.build_gold_queue import _assertions, upsert_case
 from scripts.review import (
     append_jsonl,
@@ -310,3 +311,27 @@ def test_assertion_evidence_breaks_ties_like_the_api(gold_txn):
         seed_claim(cur, sat, "gcat", "owner", "ZZ FIRST KEY", run, key="S00001")
         evidence = _assertions(cur, sat)
     assert [e["value"] for e in evidence] == ["ZZ FIRST KEY"]
+
+
+@pytest.mark.db
+def test_build_stamps_each_case_with_the_day_it_was_drawn(gold_txn, monkeypatch):
+    """A case describes the graph on the day it was drawn, so build() writes that day into the
+    evidence on every draw and refresh; created_at cannot date a refresh, because the upsert never
+    moves it. The review page reads the stamp to say when the case was drawn."""
+    subject = f"norad:{NORAD_BASE + 20}"
+
+    def fake_selector(cur):
+        return [{"case_type": TEST_CASE_TYPE, "satellite_id": None, "subject_ref": subject,
+                 "question": "q?", "system_answer": "a.", "evidence": {"v": 1}}]
+
+    monkeypatch.setattr(builder, "STRATUM_ORDER", [TEST_CASE_TYPE])
+    monkeypatch.setitem(builder.SELECTORS, TEST_CASE_TYPE, fake_selector)
+    for stamp in ("2026-07-11T02:16:54+00:00", "2026-11-13T07:00:00+00:00"):
+        assert builder.build(gold_txn, drawn_at=stamp) == {TEST_CASE_TYPE: 1}
+        with gold_txn.cursor() as cur:
+            cur.execute(
+                "SELECT evidence FROM gold_case WHERE case_type = %s AND subject_ref = %s",
+                (TEST_CASE_TYPE, subject),
+            )
+            (evidence,) = cur.fetchone()
+        assert evidence == {"v": 1, "drawn_at": stamp}

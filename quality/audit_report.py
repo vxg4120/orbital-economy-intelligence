@@ -680,6 +680,41 @@ def _methodology(cur):
 # Report assembly
 # ---------------------------------------------------------------------------------------------
 
+# How the methodology paragraph names each claim source, in a fixed order so the report stays
+# byte-identical across runs. The paragraph names only the sources that hold current claims, which
+# are the rows of the "Source assertions" table above it: until 2026-11 it was a fixed sentence
+# that named UCS, which production has never loaded, and Space-Track GP, which is not a claim feed.
+_CLAIM_SOURCE_NAMES = {
+    "satcat": "CelesTrak SATCAT",
+    "gcat": "GCAT",
+    "spacetrack_decay": "Space-Track decay messages",
+    "ucs": "the UCS satellite database",
+}
+
+
+def _methodology_paragraph(claim_sources) -> str:
+    sources = set(claim_sources)
+    names = [name for src, name in _CLAIM_SOURCE_NAMES.items() if src in sources]
+    names += sorted(sources - _CLAIM_SOURCE_NAMES.keys())
+    if not names:
+        listed = "none at generation time"
+    elif len(names) == 1:
+        listed = names[0]
+    else:
+        listed = ", ".join(names[:-1]) + " and " + names[-1]
+    return (
+        f"\n*Methodology (one paragraph).* The catalog sources that hold current claims ({listed}) "
+        "are recorded in an append-only claim ledger with full provenance; a per-attribute "
+        "precedence resolver (`identity/precedence.yml`) picks a canonical value while every losing "
+        "claim stays queryable (disagreements are data, not errors). Orbital behavior is derived "
+        "purely from published GP element sets (Space-Track GP history and the current CelesTrak "
+        "GP window, both held in `gp_elements`): semi-major axis, perigee and apogee follow from "
+        "mean motion and eccentricity (Earth mu = 398600.4418 km^3/s^2). No operator telemetry, "
+        "filing, or press statement is trusted as input. See the annex for the full provenance "
+        "model and honest limitations.\n"
+    )
+
+
 def generate_report(conn, period_end: dt.date | None = None, period_months: int = 12) -> str:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     out: list[str] = []
@@ -726,16 +761,7 @@ def generate_report(conn, period_end: dt.date | None = None, period_months: int 
     out.append(_md_table(*basis["vintage"]))
     out.append("\n**Source assertions by dataset of record:**\n\n")
     out.append(_md_table(*basis["assertions"]))
-    out.append(
-        "\n*Methodology (one paragraph).* Each source (CelesTrak SATCAT, GCAT, Space-Track GP, UCS) "
-        "is ingested to an append-only assertion ledger with full provenance; a per-attribute "
-        "precedence resolver (`identity/precedence.yml`) picks a canonical value while every losing "
-        "assertion stays queryable (disagreements are data, not errors). Orbital behavior is derived "
-        "purely from published two-line/GP element sets: semi-major axis, perigee and apogee follow "
-        "from mean motion and eccentricity (Earth mu = 398600.4418 km^3/s^2). No operator telemetry, "
-        "filing, or press statement is trusted as input. See the annex for the full provenance model "
-        "and honest limitations.\n"
-    )
+    out.append(_methodology_paragraph(row[0] for row in basis["assertions"][1]))
 
     # ---- Section 2 (lead / news hook) ----
     p = kuiper["part"]

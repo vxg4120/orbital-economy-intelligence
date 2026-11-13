@@ -13,8 +13,9 @@ Changelog at the bottom.
 The feature tracks pending FCC space-station applications: filings that have been submitted to
 the Commission and have received no grant, denial, dismissal, or surrender. As of 2026-08-24
 there are 667 of them. This is the platform's forward-looking layer, because an FCC
-filing precedes launch by months to years: Starlink Gen1 was filed 14 months before its
-first launch, and Kuiper was filed 39 months before its first launch. A pending application
+filing precedes launch by months to years. Starlink Gen1 was filed about 15 months before its
+first test satellites launched and about 30 months before its first operational batch, and
+Kuiper was filed about 51 months before its first launch. A pending application
 can describe satellites that exist in no tracking catalog yet, and a pending modification can
 describe changes to satellites that are already flying.
 
@@ -41,7 +42,7 @@ artifact, not applicant prose.
 ### 3.1 Harvest
 
 Document inventories are harvested per filing from the FCC's document gateway. The harvest and
-the spec extraction both run inside the nightly refresh behind weekly staleness gates, and both
+the spec extraction both run inside the twice-daily refresh behind weekly staleness gates, and both
 last ran 2026-08-24. As of that run, 136 of the 667 pending filings have harvested document
 inventories, and those inventories hold 1,313 document rows in total.
 
@@ -187,6 +188,15 @@ even if the FCC has since reissued the attachment.
 
 ## Changelog
 
+* **2026-11-13, a disclosure correction under v1.0.** No harvest, detection, parsing,
+  validation or serving rule changed, so the version stays 1.0. Section 1 used to say that
+  Starlink Gen1 was filed 14 months before its first launch and that Kuiper was filed 39
+  months before its first launch, but those two figures measure the gap from the FCC grant,
+  not from the filing. Measured from the filing dates in IBFS (2016-11-15 and 2019-07-04) to
+  the first launches in the catalog, the gaps are about 15 months to the first Starlink test
+  satellites, about 30 months to the first Starlink operational batch, and about 51 months to
+  the Kuiper protoflights. Section 3.1 now says that the refresh runs twice a day, which it
+  does, at 07:10 and 19:10 UTC.
 * **v1.0 (2026-08-24).** Initial published methodology: harvest with weekly staleness gates
   inside the nightly refresh; sha256-hashed blob cache; content-anchor document detection;
   deterministic regex-over-pypdf extraction with no language model anywhere in the pipeline;

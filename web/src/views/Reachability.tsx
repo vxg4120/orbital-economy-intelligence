@@ -213,9 +213,11 @@ export function Reachability() {
           <h1 className="vhead__title">Reachability</h1>
           <p className="vhead__desc">
             Stand somewhere and ask what the sky offers. Give the terminal a spot on Earth and it
-            computes every satellite above your horizon right now, the radio layers each one
-            carries, and when the next passes come over. Geometry from the latest GP elements;
-            transmitters from SatNOGS; licensing context from FCC filings.
+            computes the active satellites above your horizon right now, the radio layers each one
+            carries, and when the next passes come over. The geometry comes from public GP element
+            sets no more than 14 days old, which cover nearly every active satellite but almost no
+            debris or rocket bodies, the transmitters come from SatNOGS, and the licensing context
+            comes from FCC filings.
           </p>
         </div>
       </header>
@@ -288,10 +290,10 @@ export function Reachability() {
               type="button"
               className={`tab${rf === "all" ? " is-active" : ""}`}
               aria-pressed={rf === "all"}
-              title="Everything overhead, radio-silent objects included"
+              title="Every active satellite with a public element set, radio-silent ones included. Debris, rocket bodies and most dead satellites have no element set here, so they never appear."
               onClick={() => setRf("all")}
             >
-              All overhead
+              All active
             </button>
           </div>
           <button className="btn" onClick={sweepNow} disabled={!spot} aria-busy={sweep.loading || undefined}>

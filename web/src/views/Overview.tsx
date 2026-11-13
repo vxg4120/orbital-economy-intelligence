@@ -6,6 +6,7 @@ import {
   getStats,
   getStories,
 } from "../api/client";
+import type { Stats } from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { fmtInt, fmtPct } from "../lib/format";
 import { CONFLICT_TABS } from "../lib/conflicts";
@@ -103,12 +104,12 @@ export function Overview() {
                   sub={
                     a.since ? (
                       <>
-                        payloads launched since{" "}
-                        <span className="num">{shortDate(a.since)}</span> with only a country, or
-                        no owner yet
+                        These are payloads launched since{" "}
+                        <span className="num">{shortDate(a.since)}</span> that have only a country
+                        or placeholder owner, or none yet.
                       </>
                     ) : (
-                      "payloads with only a country, or no owner yet"
+                      "These are payloads that have only a country or placeholder owner, or none yet."
                     )
                   }
                 />
@@ -137,9 +138,11 @@ export function Overview() {
         </Async>
         <p className="hint story__hint">
           Bars show the fleet-wide median one-day change in semi-major axis over consecutive-day
-          LEO element pairs. The median is robust to maneuvers, so when a bar stretches, the
-          atmosphere moved everyone. Storm days on the NOAA G scale are tinted. Indices come from
-          CelesTrak&apos;s consolidated space-weather data.
+          LEO element pairs. Starlink satellites make up most of those pairs, and they adjust their
+          orbits often, so the median follows Starlink&apos;s station keeping as well as the
+          atmosphere, and a single bar is not proof that the atmosphere moved. Storm days on the
+          NOAA G scale are tinted. Indices come from CelesTrak&apos;s consolidated space-weather
+          data.
         </p>
       </Panel>
 
@@ -157,84 +160,7 @@ export function Overview() {
       </header>
 
       <Async state={stats} loadingLabel="Loading telemetry" loadingRows={12}>
-        {(s) => (
-          <>
-            <div className="grid grid--stats">
-              <StatTile
-                lead
-                label="Tracked objects"
-                n={s.satellites}
-                sub={
-                  <>
-                    on-orbit payloads <span className="num">{fmtInt(s.on_orbit_payloads)}</span>
-                  </>
-                }
-              />
-              <StatTile
-                label="Operators"
-                n={s.operators}
-                sub={
-                  <>
-                    crosswalk rows <span className="num">{fmtInt(s.identifier_rows)}</span>
-                  </>
-                }
-              />
-              <StatTile
-                label="Element sets"
-                n={s.gp_elements}
-                sub="latest GP per object"
-              />
-              <StatTile
-                label="Merge events"
-                n={s.merge_events}
-                sub="norad + cospar exact"
-              />
-            </div>
-
-            <div className="grid grid--2" data-tour="conflicts">
-              <Panel title="Resolution coverage" meta="on-orbit payloads">
-                <CoverageMeter
-                  label="Resolved current owner"
-                  pct={s.coverage.operator_pct}
-                  foot="role = owner, valid_to is null"
-                />
-                <CoverageMeter
-                  label="Non-UNKNOWN status"
-                  pct={s.coverage.status_pct}
-                  foot="mapped to canonical taxonomy"
-                />
-                <CoverageMeter
-                  label="≥2 source identifiers"
-                  pct={s.coverage.multi_source_pct}
-                  foot="cross-catalog corroboration"
-                />
-              </Panel>
-
-              <Panel title="Open conflicts" meta="disagreements are data">
-                <div className="conflict-list">
-                  {CONFLICT_TABS.map((c) => (
-                    <Link key={c.key} to={`/conflicts?tab=${c.key}`} className="conflict-row">
-                      <span className="conflict-row__count num">
-                        {fmtInt(s.conflicts[c.statsKey])}
-                      </span>
-                      <span className="conflict-row__body">
-                        <span className="conflict-row__label">{c.cardLabel}</span>
-                        <span className="conflict-row__sub">{c.cardSub}</span>
-                      </span>
-                      <span className="conflict-row__arrow" aria-hidden="true">
-                        →
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </Panel>
-            </div>
-
-            <Panel title="Ingestion ledger" meta="last run per source · endpoint" flush>
-              <LedgerTable runs={s.ingest_runs} />
-            </Panel>
-          </>
-        )}
+        {(s) => <UnderTheHood s={s} />}
       </Async>
 
       <Panel
@@ -247,10 +173,107 @@ export function Overview() {
           )}
         </Async>
         <p className="hint">
-          LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
-          <Link to="/operators">Operators</Link> view. Hover a shell to read its count.
+          Each shell counts the objects that have not reentered, by altitude and inclination, from
+          the latest element set of each one. The element feed is mostly CelesTrak&apos;s list of
+          active satellites, so debris and spent rocket bodies are almost entirely missing from it.
+          The full field from 0 to 2000 km is on the <Link to="/operators">Operators</Link> view.
+          Hover a shell to read its count.
         </p>
       </Panel>
     </div>
+  );
+}
+
+/** The identity graph's own counters, coverage meters, conflicts and ingestion ledger. */
+export function UnderTheHood({ s }: { s: Stats }) {
+  const bothCatalogs = s.coverage.both_catalogs_pct;
+  return (
+    <>
+      <div className="grid grid--stats">
+        <StatTile
+          lead
+          label="Cataloged objects"
+          n={s.satellites}
+          sub={
+            s.in_orbit_objects !== undefined ? (
+              <>
+                <span className="num">{fmtInt(s.in_orbit_objects)}</span> are still in orbit,
+                including <span className="num">{fmtInt(s.on_orbit_payloads)}</span> payloads.
+              </>
+            ) : (
+              <>
+                on-orbit payloads <span className="num">{fmtInt(s.on_orbit_payloads)}</span>
+              </>
+            )
+          }
+        />
+        <StatTile
+          label="Operators"
+          n={s.operators}
+          sub={
+            <>
+              crosswalk rows <span className="num">{fmtInt(s.identifier_rows)}</span>
+            </>
+          }
+        />
+        <StatTile
+          label="Element sets"
+          n={s.gp_elements}
+          sub="Every stored element set is counted, not only the latest per object."
+        />
+        <StatTile
+          label="Merge events"
+          n={s.merge_events}
+          sub="Each one is an identifier link or a record merge, logged with the rule that made it."
+        />
+      </div>
+
+      <div className="grid grid--2" data-tour="conflicts">
+        <Panel title="Resolution coverage" meta="on-orbit payloads">
+          <CoverageMeter
+            label="Resolved current owner"
+            pct={s.coverage.operator_pct}
+            foot="Country-level and placeholder owners count as resolved."
+          />
+          <CoverageMeter
+            label="Non-UNKNOWN status"
+            pct={s.coverage.status_pct}
+            foot="mapped to canonical taxonomy"
+          />
+          {bothCatalogs !== undefined ? (
+            <CoverageMeter
+              label="Listed in both SATCAT and GCAT"
+              pct={bothCatalogs}
+              foot="The payloads missing from GCAT are mostly the newest launches."
+            />
+          ) : null}
+        </Panel>
+
+        <Panel title="Open conflicts" meta="disagreements are data">
+          <div className="conflict-list">
+            {CONFLICT_TABS.map((c) => (
+              <Link key={c.key} to={`/conflicts?tab=${c.key}`} className="conflict-row">
+                <span className="conflict-row__count num">{fmtInt(s.conflicts[c.statsKey])}</span>
+                <span className="conflict-row__body">
+                  <span className="conflict-row__label">{c.cardLabel}</span>
+                  <span className="conflict-row__sub">{c.cardSub}</span>
+                </span>
+                <span className="conflict-row__arrow" aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Ingestion ledger"
+        meta="Each row is the latest run for one source, endpoint and state, and the 20 most recent are shown."
+        flush
+      >
+        <LedgerTable runs={s.ingest_runs} />
+      </Panel>
+    </>
   );
 }

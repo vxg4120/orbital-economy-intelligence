@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { getReviewCases, getReviewNext, getReviewStats } from "../api/client";
 import type { ReviewOnly, ReviewStats, ReviewStratum } from "../api/types";
 import { useApi } from "../hooks/useApi";
-import { fmtInt, fmtPct } from "../lib/format";
+import { fmtDate, fmtInt, fmtPct } from "../lib/format";
 import { orderStrata, stratumAccuracy, stratumLabel } from "../lib/reviewStrata";
 import { Panel } from "../components/Panel";
 import { Pager, pastTheEnd } from "../components/DataTable";
@@ -12,6 +12,21 @@ import { coarsePointer } from "../lib/pointer";
 import { VerdictBadge } from "../components/VerdictBadge";
 
 const LIMIT = 50;
+
+/** The span of days the cases were drawn on, served by /api/review/stats. It belongs on
+    ReviewStats in api/types.ts; until it moves there it is optional, so the mock stats, which do
+    not carry it, simply leave the sentence out. */
+export type ReviewDrawn = { first: string | null; last: string | null };
+
+/** One sentence that dates the queue: every case is a snapshot of the graph on its draw day. */
+export function drawnSentence(drawn: ReviewDrawn | undefined): string | null {
+  if (!drawn?.first || !drawn.last) return null;
+  const first = fmtDate(drawn.first);
+  const last = fmtDate(drawn.last);
+  return first === last
+    ? `Every case was drawn on ${first}, and each one shows the sources and the graph's answer as they stood that day.`
+    : `The cases were drawn between ${first} and ${last}, and each one shows the sources and the graph's answer as they stood on the day it was drawn.`;
+}
 const ONLY_TABS: { key: ReviewOnly; label: string }[] = [
   { key: "unlabeled", label: "Unlabeled" },
   { key: "labeled", label: "Labeled" },
@@ -30,6 +45,7 @@ export function Review() {
   const setOffset = (next: number) => setOffsets((o) => ({ ...o, [filterKey]: next }));
 
   const stats = useApi(() => getReviewStats(), []);
+  const drawn = drawnSentence((stats.data as (ReviewStats & { drawn?: ReviewDrawn }) | null)?.drawn);
   // keep: a page change dims the list in place instead of unmounting it with the pager; keyed by
   // the filter, so another queue (labeled, a stratum) opens with the loader, not this one's rows
   const page = useApi(() => getReviewCases(type, only, LIMIT, offset), [type, only, offset], {
@@ -89,6 +105,7 @@ export function Review() {
             {" "}hard cases. Each is a resolved identity decision the graph made under conflicting
             sources; you record the verdict that turns coverage into an honest, per-failure-mode
             accuracy.{" "}
+            {drawn ? `${drawn} ` : null}
             {coarsePointer()
               ? "Open a case and pick a verdict."
               : "Keyboard-first — open a case and press c/i/p/u."}

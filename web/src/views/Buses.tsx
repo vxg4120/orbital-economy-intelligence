@@ -621,9 +621,9 @@ function BusDetailPanel({ detail, slug }: { detail: BusDetail; slug: string }) {
             Attribution built {fmtDate(detail.provenance?.built_at ?? null)}.
           </p>
           <p className="hint">
-            Confirm or dispute this attribution: email vibhavgupta2@gmail.com with subject
-            {" "}&quot;Bus attribution: {b.name}&quot;. Adjudicated corrections enter the record
-            with provenance and outrank catalog sources.
+            Confirm or dispute this attribution by emailing vibhavgupta2@gmail.com with the subject
+            {" "}&quot;Bus attribution: {b.name}&quot;. The attribution currently comes from GCAT
+            alone, and an accepted correction cannot yet take precedence over it.
           </p>
         </Panel>
         )}

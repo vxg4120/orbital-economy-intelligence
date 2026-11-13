@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import type { EnvironmentResponse, StoriesResponse } from "../api/types";
+import type { EnvironmentResponse, StoriesReentry, StoriesResponse } from "../api/types";
 import { useWidth } from "../hooks/useWidth";
 import { fmtInt, fmtPct } from "../lib/format";
 import {
@@ -264,6 +264,12 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
   const oldest = rows[rows.length - 1].date;
   const newest = rows[0].date;
   const count = rows.length === 10 ? "ten" : String(rows.length);
+  // the attribution frontier is not a fixed lag (on 2026-11-13 GCAT still named nothing past
+  // the 5-digit NORAD rollover of July 2026), so the reason names the month the API computes
+  const through = s.attribution.complete_through;
+  const allPending = through
+    ? ` All of them are still cataloged under a country or placeholder owner, because company attribution in the catalog is complete only through ${monthYear(through)}.`
+    : " All of them are still cataloged under a country or placeholder owner, because company attribution in the catalog is incomplete for every month scanned.";
   return (
     <Panel title="Latest launches" meta="newest first">
       <p className="story__lead">
@@ -272,7 +278,7 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
           s.as_of,
         )} and ${longDate(newest, s.as_of)}.`}
         {pending === rows.length
-          ? " All of them are still cataloged under a country or placeholder owner, because the company-level catalog runs about three months behind."
+          ? allPending
           : pending > 0
             ? ` ${fmtInt(pending)} of them are still cataloged mainly under a country or placeholder owner rather than a company.`
             : ""}
@@ -292,7 +298,10 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
                 {operatorName(r.owner)}
                 {r.owners > 1 ? ` and ${plural(r.owners - 1, "other owner")}` : ""}
                 {!r.owner_attributed && pending < rows.length ? (
-                  <span className="pending-mark" title="The owner is a country code until GCAT names the company">
+                  <span
+                    className="pending-mark"
+                    title="The owner is cataloged only as a country or placeholder until GCAT names the company."
+                  >
                     awaiting company attribution
                   </span>
                 ) : null}
@@ -306,8 +315,10 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
         ))}
       </ol>
       <p className="hint story__hint">
-        A launch is every object sharing a COSPAR launch number. The lead is its first named
-        payload; the owner is the most common current owner among its payloads, as cataloged.
+        A launch is every object sharing a COSPAR launch number. The lead is its first payload
+        with a real name, or its first payload when the catalog still lists every payload under a
+        placeholder name such as OBJECT A. The owner is the most common current owner among its
+        payloads, as cataloged.
       </p>
     </Panel>
   );
@@ -315,11 +326,18 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
 
 /* ---- c. Coming down -------------------------------------------------------- */
 
-function lifetime(launched: string | null, down: string): string | null {
-  if (!launched) return null;
-  const days = daysBetween(launched, down);
+function upFor(since: string, down: string): string {
+  const days = daysBetween(since, down);
   if (days < 365) return `${plural(days, "day")} up`;
   return `${(Math.round((days / 365.25) * 10) / 10).toFixed(1)} years up`;
+}
+
+/** Time in orbit for a reentry row. SATCAT gives every ISS-deployed satellite the station's
+    1998 launch date, so those rows count from GCAT's release date, or say where they came
+    from when GCAT has none. */
+function lifetime(n: StoriesReentry): string | null {
+  if (n.deployed_from_iss) return n.released ? upFor(n.released, n.date) : "deployed from the ISS";
+  return n.launched ? upFor(n.launched, n.date) : null;
 }
 
 export function ComingDown({ s }: { s: StoriesResponse }) {
@@ -373,7 +391,7 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
           <h3 className="story__sub">The latest reentries other than Starlink</h3>
           <ul className="downlist">
             {r.notable.map((n) => {
-              const up = lifetime(n.launched, n.date);
+              const up = lifetime(n);
               return (
                 <li key={n.satellite_id} className="downlist__row">
                   <span className="downlist__name">
@@ -394,6 +412,9 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
         Payload reentries by decay date. Starlink is a name match. The V1.0 count is
         every name that starts with &quot;Starlink V1.0&quot;, which is how GCAT names that design;
         &quot;other Starlink&quot; holds every other version.
+        {r.notable.some((n) => n.deployed_from_iss)
+          ? " For a satellite deployed from the ISS, the time up counts from its release from the station, as GCAT records it, because SATCAT gives these satellites the station's 1998 launch date."
+          : ""}
       </p>
     </Panel>
   );
@@ -553,7 +574,7 @@ export function ConstellationRace({ s }: { s: StoriesResponse }) {
           ? ` ${plural(a.pending_payloads, "payload")} launched since ${longDate(
               a.since,
               s.as_of,
-            )} still carry only a country code as owner, or no owner yet, so these lines stop at ${monthYear(
+            )} still carry only a country or placeholder code as owner, or no owner yet, so these lines stop at ${monthYear(
               through,
             )} and the counts for today leave those payloads out.`
           : ""}
@@ -571,7 +592,12 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
   const pct = (n: number) => (f.total ? (100 * n) / f.total : 0);
   const rows = [
     ...f.top.map((t) => ({ key: t.operator, name: operatorName(t.operator), n: t.n, cls: "" })),
-    { key: "country", name: "Owner cataloged only as a country, or none yet", n: f.country_only, cls: "share__fill--hatch" },
+    {
+      key: "country",
+      name: "Owner cataloged only as a country or placeholder, or none yet",
+      n: f.country_only,
+      cls: "share__fill--hatch",
+    },
     { key: "other", name: "Everyone else", n: f.other, cls: "share__fill--muted" },
   ];
   return (
@@ -604,9 +630,11 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
         ))}
       </div>
       <p className="hint story__hint">
-        Payloads whose latest status is ACTIVE, by current owner. The country-only row holds
-        owners that are a country code, plus payloads with no owner on record yet, including
-        recent launches still awaiting company attribution.
+        These are the payloads whose latest status is ACTIVE, counted by current owner. The
+        country or placeholder row holds payloads whose owner is known only by a SATCAT owner
+        code, which is usually a country and sometimes a placeholder such as To Be Determined. It
+        also holds payloads with no owner on record yet, including recent launches that are still
+        awaiting company attribution.
       </p>
     </Panel>
   );
@@ -614,14 +642,18 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
 
 /* ---- f. Space weather headline --------------------------------------------- */
 
+/** The storm sentence, then the series' largest one-day fall. That fall is not called a drag
+    day: Starlink makes up most of the element pairs and its station keeping moves the median
+    too (on 2026-10-12 it rose 23 m on a quiet day and fell 28 m the next, which is what the
+    API's worst_drag_day picked), so the sentence states the size and the day only. */
 export function weatherLead(s: StoriesResponse, env: EnvironmentResponse | null): string {
   const parts = [stormSentence(s)];
   const w = env?.worst_drag_day;
   if (w && w.median_dsma_m !== null && w.median_dsma_m < 0) {
     parts.push(
-      `The worst drag day of the last 60 days was ${longDate(w.day, s.as_of)}, when the median LEO orbit sank ${fmtInt(
+      `The largest one-day fall in the median LEO orbit over the last 60 days was ${fmtInt(
         Math.round(Math.abs(w.median_dsma_m)),
-      )} meters in one day.`,
+      )} meters, on ${longDate(w.day, s.as_of)}.`,
     );
   }
   return parts.join(" ");

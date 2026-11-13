@@ -16,7 +16,9 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     from fastapi.testclient import TestClient
 
+from api.deps import get_db
 from api.main import app
+from api.routers.review import observed_through, since_drawn
 from common.db import get_conn
 
 TEST_CASE_TYPE = "zz_test_review"
@@ -40,7 +42,10 @@ def test_stats_shape(client):
     r = client.get("/api/review/stats")
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"strata", "overall", "accuracy_so_far"}
+    assert set(body) == {"strata", "overall", "accuracy_so_far", "drawn"}
+    # The queue dates itself: the span of days its cases were drawn on.
+    assert set(body["drawn"]) == {"first", "last"}
+    assert body["drawn"]["first"] <= body["drawn"]["last"]
     assert isinstance(body["strata"], list) and body["strata"]
     for s in body["strata"]:
         assert set(s) == {
@@ -94,8 +99,10 @@ def test_case_detail_has_evidence(client):
     body = r.json()
     for key in ("case_id", "case_type", "satellite_id", "subject_ref", "question",
                 "system_answer", "evidence", "verdict", "corrected_answer", "labeled_at",
-                "dossier"):
+                "dossier", "drawn_at", "observed_through", "since_drawn"):
         assert key in body
+    assert body["drawn_at"] is not None
+    assert isinstance(body["since_drawn"], list)
     assert isinstance(body["evidence"], dict)  # JSONB decoded to an object
     # dossier is null until a research agent lands one (LEFT JOIN); when present it's an object.
     assert body["dossier"] is None or isinstance(body["dossier"], dict)
@@ -184,6 +191,105 @@ def test_next_unlabeled_wraps(client, db_conn):
         "/api/review/next", params={"after_case_id": first["case_id"]}
     ).json()["next_case_id"]
     assert after_first != first["case_id"]
+
+
+# --------------------------------------------------------------------------------------------
+# A case is a dated snapshot: what it says is what the graph said the day it was drawn
+# --------------------------------------------------------------------------------------------
+
+
+def _packet(**over):
+    """A single-satellite evidence packet as build_gold_queue.satellite_evidence writes it."""
+    ev = {
+        "satellite_id": 1871452, "norad_id": None, "canonical_name": "SENTINEL-1",
+        "assertions": [
+            {"attribute": "name", "value": "SENTINEL-1", "source": "gcat",
+             "observed_at": "2026-07-08T04:24:24+00:00"},
+            {"attribute": "status", "value": "R", "source": "gcat",
+             "observed_at": "2026-07-07T19:10:00+00:00"},
+        ],
+        "resolved": {"status": "DECAYED", "owner": "Ethereal Space"},
+    }
+    ev.update(over)
+    return ev
+
+
+def test_since_drawn_names_what_the_graph_now_says_differently():
+    """Case 49 on production: drawn as a NORAD-less SENTINEL-1, the object has since been given
+    NORAD 69869 and the name NEXTSAT-4, and it is no longer decayed."""
+    now = {"norad_id": 69869, "canonical_name": "NEXTSAT-4", "status": "ACTIVE"}
+    assert since_drawn(_packet(), now) == [
+        {"field": "norad_id", "then": None, "now": 69869},
+        {"field": "canonical_name", "then": "SENTINEL-1", "now": "NEXTSAT-4"},
+        {"field": "status", "then": "DECAYED", "now": "ACTIVE"},
+    ]
+    # Nothing moved: nothing to say.
+    same = {"norad_id": None, "canonical_name": "SENTINEL-1", "status": "DECAYED"}
+    assert since_drawn(_packet(), same) == []
+    # The graph no longer holds the record at all.
+    assert since_drawn(_packet(), None) == [{"field": "record", "then": 1871452, "now": None}]
+    # A COSPAR cluster has no single subject to compare.
+    assert since_drawn({"cospar": "1966-116B", "satellites": [_packet()]}, same) == []
+
+
+def test_observed_through_walks_every_packet_in_the_case():
+    assert observed_through(_packet()) == "2026-07-08T04:24:24+00:00"
+    cluster = {"cospar": "x", "satellites": [
+        _packet(), _packet(assertions=[{"observed_at": "2026-07-09T00:00:00+00:00"}])]}
+    assert observed_through(cluster) == "2026-07-09T00:00:00+00:00"
+    joined = _packet(missed_join={"candidate": _packet(
+        assertions=[{"observed_at": "2026-07-10T00:00:00+00:00"}])})
+    assert observed_through(joined) == "2026-07-10T00:00:00+00:00"
+    assert observed_through({"v": 1}) is None
+
+
+@pytest.mark.db
+def test_case_detail_dates_itself_and_reports_what_changed(db_conn):
+    """End to end on planted rows in an uncommitted transaction: the stored question is served
+    exactly as drawn, and the detail adds when it was drawn and what the graph says now."""
+    import json
+
+    db_conn.row_factory = dict_row
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO satellite (norad_id, canonical_name, object_type) "
+            "VALUES (940000901, 'NEXTSAT-4', 'PAYLOAD') RETURNING satellite_id"
+        )
+        sid = cur.fetchone()["satellite_id"]
+        cur.execute(
+            "INSERT INTO satellite_status_history (satellite_id, canonical_status, observed_at, "
+            "source) VALUES (%s, 'ACTIVE', now(), 'gcat')",
+            (sid,),
+        )
+        evidence = _packet(satellite_id=sid, drawn_at="2026-07-11T02:16:54+00:00")
+        cur.execute(
+            "INSERT INTO gold_case (case_type, satellite_id, subject_ref, question, "
+            "system_answer, evidence) VALUES (%s, %s, %s, %s, 'a.', %s::jsonb) "
+            "RETURNING case_id",
+            (TEST_CASE_TYPE, sid, TEST_SUBJECT,
+             "SENTINEL-1 has no NORAD catalog entry yet.", json.dumps(evidence)),
+        )
+        case_id = cur.fetchone()["case_id"]
+
+    app.dependency_overrides[get_db] = lambda: db_conn
+    try:
+        client = TestClient(app)
+        body = client.get(f"/api/review/cases/{case_id}").json()
+        drawn = client.get("/api/review/stats").json()["drawn"]
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        db_conn.rollback()
+
+    # The queue's span includes the planted draw day, read through the same expression.
+    assert drawn["first"][:10] <= "2026-07-11" <= drawn["last"][:10]
+    assert body["question"] == "SENTINEL-1 has no NORAD catalog entry yet."  # untouched
+    assert body["drawn_at"].startswith("2026-07-11")  # the builder's stamp wins over created_at
+    assert body["observed_through"] == "2026-07-08T04:24:24+00:00"
+    assert body["since_drawn"] == [
+        {"field": "norad_id", "then": None, "now": 940000901},
+        {"field": "canonical_name", "then": "SENTINEL-1", "now": "NEXTSAT-4"},
+        {"field": "status", "then": "DECAYED", "now": "ACTIVE"},
+    ]
 
 
 # --------------------------------------------------------------------------------------------

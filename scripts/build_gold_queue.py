@@ -11,6 +11,9 @@ Design guarantees:
   - Idempotent + verdict-safe. Cases upsert on (case_type, subject_ref): a re-run REFRESHES the
     system_answer/evidence (the graph may have changed) but NEVER touches a human verdict. The only
     columns a re-run can overwrite are satellite_id/question/system_answer/evidence.
+  - Dated. Each case's evidence carries the drawn_at of the run that wrote it, so a reader can
+    tell that a question describes the graph on that day. A case that a later run no longer
+    selects keeps its old evidence and its old date, because the upsert never deletes rows.
   - Read-only against the graph; the sole write is the gold_case upsert.
 
 Strata (see docs/GOLD.md for the rationale of each):
@@ -736,8 +739,13 @@ def upsert_case(conn, case) -> None:
         )
 
 
-def build(conn, only_type=None) -> dict:
-    """Run the selectors and upsert every case. Returns {case_type: count}. Caller commits."""
+def build(conn, only_type=None, drawn_at=None) -> dict:
+    """Run the selectors and upsert every case. Returns {case_type: count}. Caller commits.
+
+    Every case drawn in this run carries the run's ``drawn_at`` in its evidence, because the
+    question and answer describe the graph on that day and the review page dates them by it.
+    created_at cannot serve, since the upsert never moves it on a refresh."""
+    drawn_at = drawn_at or dt.datetime.now(dt.UTC).isoformat()
     counts = {}
     with conn.cursor() as cur:
         for case_type in STRATUM_ORDER:
@@ -745,7 +753,7 @@ def build(conn, only_type=None) -> dict:
                 continue
             cases = SELECTORS[case_type](cur)
             for case in cases:
-                upsert_case(conn, case)
+                upsert_case(conn, {**case, "evidence": {**case["evidence"], "drawn_at": drawn_at}})
             counts[case_type] = len(cases)
     return counts
 

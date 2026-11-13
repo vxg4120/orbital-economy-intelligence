@@ -128,6 +128,33 @@ def test_period_derivation_defaults_to_latest_data(report):
     assert f"period {expected_start.isoformat()} to {latest.isoformat()}" in md
 
 
+@pytest.mark.db
+@pytest.mark.graph
+def test_methodology_names_only_the_sources_in_the_assertions_table(report):
+    conn, md = report
+    with conn.cursor() as cur:
+        _, rows = ar._data_basis(cur)["assertions"]
+    assert ar._methodology_paragraph(src for src, _ in rows) in md
+
+
+def test_methodology_names_the_claim_sources_that_hold_claims():
+    """Production on 2026-11-13 holds claims from SATCAT, GCAT and Space-Track's decay messages
+    only. The fixed sentence this replaced also named UCS, which was never loaded, and
+    Space-Track GP, which lands in gp_elements rather than in the claim ledger."""
+    md = ar._methodology_paragraph(["gcat", "satcat", "spacetrack_decay"])
+    assert "(CelesTrak SATCAT, GCAT and Space-Track decay messages)" in md
+    assert "UCS" not in md
+    assert "held in `gp_elements`" in md
+
+
+def test_methodology_follows_the_claim_sources():
+    assert "(CelesTrak SATCAT and GCAT)" in ar._methodology_paragraph(["satcat", "gcat"])
+    assert "(GCAT)" in ar._methodology_paragraph(["gcat"])
+    assert "the UCS satellite database" in ar._methodology_paragraph(["satcat", "ucs"])
+    assert "(CelesTrak SATCAT and zz_new)" in ar._methodology_paragraph(["zz_new", "satcat"])
+    assert "(none at generation time)" in ar._methodology_paragraph([])
+
+
 def test_months_before_is_calendar_correct_and_clamps():
     assert ar._months_before(dt.date(2026, 7, 12), 12) == dt.date(2025, 7, 12)
     assert ar._months_before(dt.date(2026, 3, 31), 1) == dt.date(2026, 2, 28)  # clamp to Feb
