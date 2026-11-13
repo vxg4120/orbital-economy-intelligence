@@ -169,31 +169,49 @@ def parse_date_loose(s) -> dt.date | None:
     (e.g. '1957 Dec  1 1000?', '1971?' -> the certain part). GCAT '-' sentinels, blanks, and
     genuinely-ambiguous decade forms ('2000s?') return None.
     """
+    return _parse_date_and_precision(s)[0]
+
+
+def has_day(s) -> bool:
+    """Whether `s` parses to a date that gives its day: a date object, ISO 'YYYY-MM-DD',
+    GCAT 'YYYY Mon DD' or US 'M/D/YYYY'. A month ('2024 May?') or a bare year ('2007?')
+    parses to its first day, which is a placeholder rather than a day the source gave, so it
+    returns False, and so does anything that does not parse."""
+    return _parse_date_and_precision(s)[1] == "day"
+
+
+def _parse_date_and_precision(s) -> tuple[dt.date | None, str | None]:
+    """parse_date_loose's date and how much of it the source gave: 'day', 'month' or 'year',
+    or (None, None) when it does not parse."""
     if s is None:
-        return None
+        return None, None
     if isinstance(s, dt.datetime):
-        return s.date()
+        return s.date(), "day"
     if isinstance(s, dt.date):
-        return s
+        return s, "day"
     t = str(s).strip()
     if not t or t == "-":
-        return None
+        return None, None
     m = _ISO.search(t)
     if m:
-        return _safe_date(int(m[1]), int(m[2]), int(m[3]))
+        return _dated(_safe_date(int(m[1]), int(m[2]), int(m[3])), "day")
     m = _TEXT_YMD.search(t)
     if m and m[2].casefold() in _MONTHS:
-        return _safe_date(int(m[1]), _MONTHS[m[2].casefold()], int(m[3]))
+        return _dated(_safe_date(int(m[1]), _MONTHS[m[2].casefold()], int(m[3])), "day")
     m = _TEXT_YM.search(t)
     if m and m[2].casefold() in _MONTHS:
-        return _safe_date(int(m[1]), _MONTHS[m[2].casefold()], 1)
+        return _dated(_safe_date(int(m[1]), _MONTHS[m[2].casefold()], 1), "month")
     m = _MDY.search(t)
     if m:
-        return _safe_date(int(m[3]), int(m[1]), int(m[2]))
+        return _dated(_safe_date(int(m[3]), int(m[1]), int(m[2])), "day")
     m = _YEAR_ONLY.match(t)
     if m:
-        return _safe_date(int(m[1]), 1, 1)
-    return None
+        return _dated(_safe_date(int(m[1]), 1, 1), "year")
+    return None, None
+
+
+def _dated(d: dt.date | None, precision: str) -> tuple[dt.date | None, str | None]:
+    return (d, precision) if d is not None else (None, None)
 
 
 def _safe_date(y: int, mo: int, d: int) -> dt.date | None:

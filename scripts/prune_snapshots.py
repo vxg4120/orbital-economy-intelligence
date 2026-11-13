@@ -11,7 +11,10 @@ The policy, per table:
   * keep the first OK run of every calendar month (UTC), a monthly sample of history;
   * drop the other runs that FINISHED ('ok' or 'error') before the newest OK run. A run with any
     other status, or none, is kept whatever its id: it may be an ingest still in flight, which
-    commits its rows before it records 'ok'.
+    commits its rows before it records 'ok';
+  * in a table on FOLDED_BY, whose landings a claims step folds into a lasting record, keep
+    every run that is newer than the last one its feed has folded, so a landing that a failed
+    build never folded is not lost. Before the first fold nothing in such a table drops.
 
 Modes:
   (default)  dry run: print the plan and change nothing.

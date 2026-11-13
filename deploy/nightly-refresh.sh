@@ -70,7 +70,8 @@ start_line=$(( $( { wc -l < ./refresh.log; } 2>/dev/null || echo 0) + 1 ))
                                                     || echo "!! oei schedule S specs failed"
   # Last on purpose: every step above has read tonight's runs. Each ingest lands a full copy of
   # its source, and without this the copies filled the disk to 93% by 2026-09-28. Keeps the
-  # newest 3 OK runs per source plus each month's first (docs/specs/raw-retention.md).
+  # newest 3 OK runs per source plus each month's first, and every decay landing that is newer
+  # than the last one the claims step folded (docs/specs/raw-retention.md).
   step oei_prune_snapshots $DC exec -T oei-api python scripts/prune_snapshots.py --apply \
                                                     || echo "!! oei prune_snapshots failed"
   echo "--- exodossier (exo) ---"
