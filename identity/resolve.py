@@ -88,8 +88,11 @@ def _apply_display_name_overrides(conn, path=None) -> int:
     """
     with open(path or _DISPLAY_NAMES_DEFAULT) as fh:
         spec = yaml.safe_load(fh) or {}
-    entries = spec.get("display_names") or []
-    if not entries:
+    # One name per NORAD id, the last entry winning as it did when each entry was its own
+    # UPDATE. tests/test_identity_resolve.py rejects a duplicate in the real file; this keeps a
+    # duplicate that slips through from flipping the name between runs.
+    names = {e["norad_id"]: e["name"] for e in spec.get("display_names") or []}
+    if not names:
         return 0
     with conn.cursor() as cur:
         cur.execute(
@@ -97,10 +100,7 @@ def _apply_display_name_overrides(conn, path=None) -> int:
             "FROM unnest(%(norad)s::bigint[], %(name)s::text[]) AS o(norad_id, name) "
             "WHERE s.norad_id = o.norad_id AND s.canonical_name IS DISTINCT FROM o.name "
             "RETURNING s.satellite_id",
-            {
-                "norad": [e["norad_id"] for e in entries],
-                "name": [e["name"] for e in entries],
-            },
+            {"norad": list(names), "name": list(names.values())},
         )
         return len(cur.fetchall())
 

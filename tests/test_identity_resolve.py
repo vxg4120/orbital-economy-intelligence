@@ -296,6 +296,34 @@ def test_the_override_count_is_right_inside_a_pipeline(db_conn, tmp_path):
 
 
 @pytest.mark.db
+def test_a_duplicate_override_resolves_to_the_last_entry_every_run(db_conn, tmp_path):
+    """Two entries for one NORAD id must not flip the name between runs (a set-based UPDATE
+    with both rows would apply whichever differs from the current name). The last one wins, as
+    it did when each entry was its own UPDATE."""
+    from identity.resolve import _apply_display_name_overrides
+
+    overrides = tmp_path / "display_names.yml"
+    overrides.write_text(
+        "display_names:\n"
+        "  - {norad_id: 910000904, name: 'First', replaces: 'placeholder'}\n"
+        "  - {norad_id: 910000904, name: 'Second', replaces: 'placeholder'}\n"
+    )
+    names = []
+    try:
+        with db_conn.cursor() as cur:
+            _sat(cur, 910000904)
+        for _ in range(3):
+            with db_conn.pipeline():
+                _apply_display_name_overrides(db_conn, overrides)
+            with db_conn.cursor() as cur:
+                cur.execute("SELECT canonical_name FROM satellite WHERE norad_id = 910000904")
+                names.append(cur.fetchone()[0])
+    finally:
+        db_conn.rollback()
+    assert names == ["Second", "Second", "Second"]
+
+
+@pytest.mark.db
 def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_tie(db_conn):
     """One open claim per (source, key, attribute); a satellite holding two keys for a source
     (merged objects) has two, and the greater key wins, as the old tie-break had it. A claim
