@@ -58,3 +58,38 @@ def test_status_map_loads_and_uses_only_canonical_statuses():
                 f"{source}:{code} maps to non-canonical status {spec['canonical']!r}"
             )
             assert spec.get("notes"), f"{source}:{code} missing a source-doc note"
+
+
+# Every phase code in GCAT's phases documentation as read on 2026-11-13
+# (https://planet4589.org/space/gcat/web/intro/phases.html). An unmapped code is skipped by the
+# resolver, logged as "unmapped status values" every night, and shown on the resolver card as a
+# raw value that conflicts with SATCAT; 'TFR' and 'EVA DP' did that for 79 objects.
+GCAT_DOCUMENTED_PHASES = {
+    "O", "AO", "AO IN", "UDK", "REL", "DEP", "TO", "TOA", "OX",
+    "E", "N", "NA", "LEASE",
+    "S", "R", "D", "L", "LF", "AS", "AR", "AR IN", "AL", "AL IN", "TX", "F", "AF",
+    "DSO", "DSA", "DSA IN", "LO", "LOA",
+    "DK", "GRP", "ATT", "TFR", "TFR E", "TFR IN", "C", "EVA DP", "EVA RP", "REFLT",
+    "EO", "EAO", "EN", "OI", "OE",
+    "ERR",
+}
+# Phases after which the object no longer exists as itself in orbit (destroyed, reentered,
+# landed, crashed, or ended on a surface). Every other documented phase leaves it physically
+# present somewhere, so it is no claim about operations and maps to UNKNOWN.
+GCAT_END_OF_LIFE_PHASES = {
+    "E", "C", "S", "R", "D", "L", "LF", "AS", "AR", "AR IN", "AL", "AL IN", "TX", "F", "AF",
+}
+
+
+def test_every_documented_gcat_phase_is_mapped():
+    gcat = _load(STATUS_MAP)["gcat"]
+    missing = sorted(GCAT_DOCUMENTED_PHASES - set(gcat))
+    assert not missing, f"GCAT phases with no mapping: {missing}"
+
+
+def test_only_end_of_life_gcat_phases_map_to_decayed():
+    gcat = _load(STATUS_MAP)["gcat"]
+    decayed = {code for code, spec in gcat.items() if spec["canonical"] == "DECAYED"}
+    assert decayed == GCAT_END_OF_LIFE_PHASES
+    for code in GCAT_DOCUMENTED_PHASES - GCAT_END_OF_LIFE_PHASES:
+        assert gcat[code]["canonical"] == "UNKNOWN", code

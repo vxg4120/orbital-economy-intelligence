@@ -45,6 +45,26 @@ gcat:
   "LEASE": {canonical: UNKNOWN, notes: "Lease: temporary ownership transfer (still on orbit)."}
   "REL": {canonical: UNKNOWN, notes: "Released: separated from an attached parent."}
   "DEP": {canonical: UNKNOWN, notes: "Deployed: released from a planetary surface."}
+  # Added 2026-11-13 from the same phases doc: every documented phase that leaves the object
+  # physically present (moved, carried, departed or recataloged). 'TFR' (78 objects, mostly
+  # cargo moved into the ISS and cubesats later deployed from it) and 'EVA DP' (1, a spacesuit)
+  # were in production unmapped, so they printed as "unmapped status values" every night and
+  # showed as a status conflict on their resolver cards.
+  "UDK": {canonical: UNKNOWN, notes: "Undocked: separated from the object it was docked to."}
+  "TO": {canonical: UNKNOWN, notes: "Takeoff: launched from the surface of a small body."}
+  "TOA": {canonical: UNKNOWN, notes: "Attached at takeoff: attached to a parent launched from a small body (was ALO)."}
+  "DSA IN": {canonical: UNKNOWN, notes: "Deep space inside: inside a parent that crossed the deep-space boundary."}
+  "LO": {canonical: UNKNOWN, notes: "Liftoff: launched from a world other than Earth; catalog reassigned."}
+  "LOA": {canonical: UNKNOWN, notes: "Reflight attached: launched from a world other than Earth aboard a parent; catalog reassigned."}
+  "TFR": {canonical: UNKNOWN, notes: "Transfer: moved from inside one object to inside another."}
+  "TFR E": {canonical: UNKNOWN, notes: "Transfer external: moved from inside one object to the exterior of another."}
+  "TFR IN": {canonical: UNKNOWN, notes: "Transfer in: moved from outside one object to its interior (same as RET)."}
+  "EVA DP": {canonical: UNKNOWN, notes: "Spacewalk (depress): taken out when an airlock was depressurized."}
+  "EVA RP": {canonical: UNKNOWN, notes: "Spacewalk (repress): brought back in when an airlock was repressurized."}
+  "REFLT": {canonical: UNKNOWN, notes: "Reflight: the object takes a new catalog number on its next flight."}
+  "EAO": {canonical: UNKNOWN, notes: "Escape attached: attached to a parent that left a body's sphere of influence."}
+  "EN": {canonical: UNKNOWN, notes: "Encounter: a single flyby of a body before leaving its sphere of influence."}
+  "OE": {canonical: UNKNOWN, notes: "Orbit escape: performed an escape burn from orbit around a body."}
   "E": {canonical: DECAYED, notes: "Exploded: breakup in orbit (destroyed)."}
   # Reviewed and kept 2026-10-16 (Vib): a collided object is no longer an operating satellite;
   # its debris, if tracked, enters the catalog as separate objects, so DECAYED is the honest
