@@ -19,10 +19,13 @@ from api.deps import get_db
 from api.routers import congestion, operators
 from tests.test_metrics import _view_statement
 
-ALPHA, BETA, GAMMA, DELTA, EPSILON, THETA, IOTA = 10, 20, 30, 40, 45, 50, 60
+# BETA has the largest id among ALPHA's neighbours as well as the largest share, so the top list
+# comes out in a different order if it is ranked by id and not by share.
+ALPHA, BETA, GAMMA, DELTA, EPSILON, THETA, IOTA = 10, 70, 30, 40, 45, 50, 60
 
 # Shell A: 550 km mean altitude (bin 11), 53 deg (bin 10). Shell B: 550 km, 97 deg (bin 19).
-# Shell C: GEO, 35,785 km (bin 715), 0 deg (bin 0).
+# Shell C: GEO, 35,785 km (bin 715), 0 deg (bin 0). Shell D: 800 km (bin 16), 30 deg (bin 6),
+# holding one object with no satellite row, so no row of the view stands for it.
 _SEED = f"""
     CREATE TEMP TABLE mv_latest_gp_element (
         norad_id bigint, epoch timestamptz, inclination float8,
@@ -48,6 +51,7 @@ _SEED = f"""
         (8, '2026-11-12 10:00+00', 97.0, 540, 560),   -- B, BETA
         (10, '2026-11-12 10:00+00', 97.0, 540, 560),  -- B, BETA
         (11, '2026-11-12 10:00+00', 0.1, 35780, 35790),  -- C, DELTA alone
+        (15, '2026-11-12 10:00+00', 30.0, 790, 810),  -- D, no satellite row at all
         (12, '2026-10-20 06:00+00', 53.0, 180, 200);  -- reentered, EPSILON
     INSERT INTO satellite (satellite_id, norad_id, decay_date) VALUES
         (1, 1, NULL), (2, 2, NULL), (3, 3, NULL), (4, 4, NULL), (5, 5, NULL), (7, 7, NULL),
@@ -101,14 +105,26 @@ def test_alpha_shares_its_shells_mostly_with_others(field):
     # The top list is capped at three, largest first, ties broken by operator id.
     assert [(n["operator_id"], round(n["per_satellite"], 2)) for n in a["top_neighbours"]] == [
         (BETA, 1.25), (GAMMA, 0.75), (THETA, 0.75)]
-    assert a["busiest_shell"] == {
+    assert a["main_shell"] == {
         "alt_km_from": 550, "alt_km_to": 600, "inc_deg_from": 50, "inc_deg_to": 55,
         "operator_objects": 3, "objects": 9,
     }
-    # 9 + 3 + 1 objects in the field; the reentered object 12 is not one of them.
-    assert a["field_objects"] == 13
+    # 9 + 3 + 1 + 1 objects in the field; the reentered object 12 is not one of them. Shell D
+    # has no row in the view, so summing the shells the view lists would give 13.
+    assert a["field_objects"] == 14
     # The view's score is (neighbours + 1) / field, as the spec says.
-    assert a["exposure_score"] == pytest.approx((6.5 + 1) / 13)
+    assert a["exposure_score"] == pytest.approx((6.5 + 1) / 14)
+
+
+@pytest.mark.db
+def test_the_main_shell_is_the_one_holding_most_of_the_operators_objects(field):
+    # BETA has 1 of the 9 objects in shell A and 2 of the 3 in shell B. Its main shell is B, the
+    # one holding most of its own objects, although A is the more crowded.
+    b = congestion._build_operator_exposure(field)[BETA]
+    assert b["main_shell"] == {
+        "alt_km_from": 550, "alt_km_to": 600, "inc_deg_from": 95, "inc_deg_to": 100,
+        "operator_objects": 2, "objects": 3,
+    }
 
 
 @pytest.mark.db
@@ -120,8 +136,8 @@ def test_an_operator_alone_in_its_shell_has_no_neighbours(field):
     assert d["others_per_satellite"] == 0
     assert d["unattributed_per_satellite"] == 0
     assert d["top_neighbours"] == []
-    assert d["busiest_shell"]["alt_km_from"] == 35750
-    assert d["busiest_shell"]["objects"] == 1
+    assert d["main_shell"]["alt_km_from"] == 35750
+    assert d["main_shell"]["objects"] == 1
 
 
 @pytest.mark.db

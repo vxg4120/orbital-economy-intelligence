@@ -253,7 +253,11 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
           {detail.congestion === null ? (
             <EmptyState
               title="None of its objects is in the congestion field"
-              message="The field holds the latest element set of each object that has not reentered, and none of this operator's objects has one."
+              message={
+                detail.operator.fleet_total === 0
+                  ? "No object is on record in its name."
+                  : "The field holds the latest element set of each object that has not reentered, and each of its objects has either reentered or has no element set on record."
+              }
             />
           ) : (
             <CongestionExposure c={detail.congestion} />
@@ -328,55 +332,124 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
   );
 }
 
-/** A per-object average: whole numbers from 10 up, one decimal below. */
+/** A per-object average as shown: whole numbers from 10 up, one decimal below. */
 export function perObject(n: number): string {
-  return n >= 10 ? fmtInt(Math.round(n)) : n.toFixed(1);
+  const tenths = Math.round(n * 10) / 10;
+  return tenths >= 10 ? fmtInt(Math.round(n)) : tenths.toFixed(1);
 }
 
-/** The panel's sentences, separated from the markup so the wording is testable. The own and
-    other counts are rounded so that they add up to the rounded total a reader sees. */
+/** The split of the average a reader sees. The total, its own part and the part with no owner
+    on record are rounded to the precision shown (whole numbers from 10 up, one decimal below),
+    and the other operators' part is what is left, so the parts shown add up to the total shown. */
+export function shareParts(c: OperatorCongestion): {
+  total: number;
+  own: number;
+  others: number;
+  unattributed: number;
+  text: (n: number) => string;
+} {
+  const whole = Math.round(c.neighbours_per_satellite * 10) / 10 >= 10;
+  const scale = whole ? 1 : 10;
+  const round = (n: number) => Math.round(n * scale) / scale;
+  const total = round(c.neighbours_per_satellite);
+  const own = Math.min(round(c.own_per_satellite), total);
+  const unattributed = round(Math.min(round(c.unattributed_per_satellite), total - own));
+  const others = round(total - own - unattributed);
+  const text = (n: number) => (whole ? fmtInt(n) : n.toFixed(1));
+  return { total, own, others, unattributed, text };
+}
+
+function listed(parts: string[]): string {
+  return parts.length === 1
+    ? parts[0]
+    : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/** The panel's sentences, separated from the markup so the wording is testable. */
 export function congestionSentences(c: OperatorCongestion): {
   where: string;
   share: string;
-  busiest: string;
+  main: string;
 } {
-  const objects = c.fleet_in_field === 1 ? "1 of its objects is" : `${fmtInt(c.fleet_in_field)} of its objects are`;
+  const alone = c.fleet_in_field === 1;
+  const objects = alone ? "1 of its objects is" : `${fmtInt(c.fleet_in_field)} of its objects are`;
   const shells = c.shells === 1 ? "1 shell" : `${fmtInt(c.shells)} shells`;
   const where = `${objects} in the field, in ${shells} of 50 km by 5 degrees.`;
 
   let share: string;
-  const total = c.neighbours_per_satellite;
-  if (total < 0.05) {
-    share = c.fleet_in_field === 1 ? "It has its shell to itself." : "Each one has its shell to itself.";
+  const p = shareParts(c);
+  if (c.neighbours_per_satellite <= 1e-9) {
+    share = alone ? "It has its shell to itself." : "Each one has its shell to itself.";
+  } else if (alone) {
+    // One object: the counts are exact, and none of the others can be its own.
+    const n = Math.round(c.neighbours_per_satellite);
+    const others = Math.round(c.others_per_satellite - c.unattributed_per_satellite);
+    const unowned = n - others;
+    if (n === 1) {
+      share = `It shares its shell with 1 other tracked object, which ${
+        others === 1 ? "belongs to another operator" : "has no owner on record"
+      }.`;
+    } else {
+      const parts =
+        unowned === 0
+          ? "all of them belonging to other operators"
+          : others === 0
+            ? "all of them with no owner on record"
+            : `${fmtInt(others)} belonging to other operators and ${fmtInt(unowned)} with no owner on record`;
+      share = `It shares its shell with ${fmtInt(n)} other tracked objects, ${parts}.`;
+    }
+  } else if (p.total === 0) {
+    // Below 0.05 on average, fewer than 1 in 20 of its objects can share a shell at all.
+    share = "Fewer than 1 in 20 of them shares its shell with another tracked object.";
   } else {
-    const shown = perObject(total);
-    const own = total >= 10 ? Math.round(c.own_per_satellite) : c.own_per_satellite;
-    const others = total >= 10 ? Math.max(0, Math.round(total) - own) : c.others_per_satellite;
-    const lead = c.fleet_in_field === 1 ? "It shares its shell" : "Each one shares its shell";
-    share =
-      `${lead} with about ${shown} other tracked objects on average, ` +
-      `${perObject(own)} of them its own and ${perObject(others)} belonging to others.`;
+    const parts =
+      p.own === p.total
+        ? ["all of them its own"]
+        : [
+            p.own > 0 ? `${p.text(p.own)} of them its own` : "none of them its own",
+            ...(p.others > 0 ? [`${p.text(p.others)} belonging to other operators`] : []),
+            ...(p.unattributed > 0 ? [`${p.text(p.unattributed)} with no owner on record`] : []),
+          ];
+    share = `Each one shares its shell with about ${p.text(p.total)} other tracked objects on average, ${listed(parts)}.`;
   }
 
-  const b = c.busiest_shell;
-  const others = b.objects - b.operator_objects;
-  const one = b.operator_objects === 1;
-  const busiest =
-    `Its busiest shell is from ${fmtInt(b.alt_km_from)} to ${fmtInt(b.alt_km_to)} km at ` +
-    `${b.inc_deg_from} to ${b.inc_deg_to} degrees of inclination, where ` +
-    `${fmtInt(b.operator_objects)} of its objects ` +
-    (others === 0
-      ? one
-        ? "has the shell to itself."
-        : "have the shell to themselves."
-      : `${one ? "shares" : "share"} the shell with ${fmtInt(others)} ` +
-        `${others === 1 ? "other object" : "other objects"}.`);
-  return { where, share, busiest };
+  const b = c.main_shell;
+  const shell =
+    `from ${fmtInt(b.alt_km_from)} to ${fmtInt(b.alt_km_to)} km at ` +
+    `${b.inc_deg_from} to ${b.inc_deg_to} degrees of inclination`;
+  const rest = b.objects - b.operator_objects;
+  const withRest = `${fmtInt(rest)} ${rest === 1 ? "other object" : "other objects"}`;
+  let main: string;
+  if (alone) {
+    main =
+      `Its shell is ${shell}, ` +
+      (rest === 0 ? "and it has the shell to itself." : `and it shares that shell with ${withRest}.`);
+  } else if (b.operator_objects === 1) {
+    // The shell is picked by the most of its own objects and then by the most objects in all, so
+    // when no shell holds two of its objects the one picked is the most crowded of them.
+    main =
+      `No shell holds more than one of its objects. The most crowded of its shells is ${shell}, ` +
+      (rest === 0
+        ? "where its object has the shell to itself."
+        : `where its object shares the shell with ${withRest}.`);
+  } else {
+    main =
+      `The shell holding the most of its objects is ${shell}, where ` +
+      `${fmtInt(b.operator_objects)} of its objects ` +
+      (rest === 0 ? "have the shell to themselves." : `share the shell with ${withRest}.`);
+  }
+  return { where, share, main };
+}
+
+/** The other operators named under the split: only when the split shows them a part, and only
+    those whose share would not print as 0.0. */
+export function namedNeighbours(c: OperatorCongestion): OperatorCongestion["top_neighbours"] {
+  return shareParts(c).others > 0 ? c.top_neighbours.filter((n) => n.per_satellite >= 0.05) : [];
 }
 
 function CongestionExposure({ c }: { c: OperatorCongestion }) {
   const s = congestionSentences(c);
-  const top = c.top_neighbours.filter((n) => n.per_satellite >= 0.05);
+  const top = namedNeighbours(c);
   return (
     <div className="stack">
       <p className="story__lead">
@@ -384,7 +457,8 @@ function CongestionExposure({ c }: { c: OperatorCongestion }) {
       </p>
       {top.length > 0 ? (
         <p>
-          The other operators with the most objects in its shells are{" "}
+          Of those belonging to other operators, the largest{" "}
+          {top.length === 1 ? "number comes" : "numbers come"} from{" "}
           {top.map((n, i) => (
             <span key={n.operator_id}>
               {i === 0 ? "" : i === top.length - 1 ? " and " : ", "}
@@ -396,7 +470,7 @@ function CongestionExposure({ c }: { c: OperatorCongestion }) {
           .
         </p>
       ) : null}
-      <p>{s.busiest}</p>
+      <p>{s.main}</p>
       <p className="hint">
         A shell is a band 50 km deep and 5 degrees of inclination wide that circles the whole
         Earth, so two objects in one shell can be on opposite sides of the planet: this measures

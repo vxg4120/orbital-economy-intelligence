@@ -244,7 +244,8 @@ export interface OperatorCongestion {
   others_per_satellite: number;
   unattributed_per_satellite: number;
   top_neighbours: { operator_id: number; canonical_name: string; per_satellite: number }[];
-  busiest_shell: {
+  /** The shell holding the most of its objects; among ties, the most crowded. */
+  main_shell: {
     alt_km_from: number;
     alt_km_to: number;
     inc_deg_from: number;

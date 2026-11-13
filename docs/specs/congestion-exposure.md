@@ -12,7 +12,8 @@ reentered objects and applied it on production (16,997 objects in the field, dow
 Vib asked for the view to be made useful ("keep going on that congestion view that is useful").
 This puts it on each operator's panel as plain sentences: how many other tracked objects share
 the shell each of its satellites sits in, how many of those are its own, which other operators
-supply most of the rest, and its busiest shell. The split is the finding: on 2026-11-13 a Starlink
+supply most of the rest, and the shell holding the most of its objects. The split is the
+finding: on 2026-11-13 a Starlink
 satellite shared its shell with about 2,894 objects, 2,755 of them SpaceX's own, while a Planet
 Labs satellite shared its shell with about 963 objects from other operators.
 
@@ -43,8 +44,12 @@ Labs satellite shared its shell with about 963 objects from other operators.
   the field, otherwise
   `{fleet_in_field, shells, neighbours_per_satellite, own_per_satellite,
   others_per_satellite, unattributed_per_satellite, top_neighbours: [{operator_id,
-  canonical_name, per_satellite}] (at most 3), busiest_shell: {alt_km_from, alt_km_to,
+  canonical_name, per_satellite}] (at most 3), main_shell: {alt_km_from, alt_km_to,
   inc_deg_from, inc_deg_to, operator_objects, objects}, exposure_score, field_objects}`.
+  `top_neighbours` is ranked by `per_satellite`, the mean over the operator's objects of how
+  many of the neighbour's objects share that object's shell (not the neighbour's raw count in
+  its shells). `main_shell` is the shell holding the most of the operator's objects; among ties,
+  the most crowded.
 - Reads v_congestion_exposure (metrics/benchmark_views.sql). A change to that view is applied on
   production by hand: run its one CREATE OR REPLACE VIEW statement in a transaction.
 
@@ -59,14 +64,17 @@ Labs satellite shared its shell with about 963 objects from other operators.
   neighbours that sit at other longitudes. The whole-Earth caveat covers it.
 
 ## Acceptance criteria
-- [ ] `pytest tests/test_api_operators_congestion.py` passes: on TEMP tables, own + others =
+- [x] `pytest tests/test_api_operators_congestion.py` passes: on TEMP tables, own + others =
       neighbours, the named neighbours plus unattributed equal others, the top list is ordered
-      and capped at 3, the busiest shell is right, and an operator outside the field gets null.
+      by share (an id order fails it) and capped at 3, the main shell is picked by the
+      operator's own count (an order by shell size fails it), the field size counts a shell the
+      view has no row for, and an operator outside the field gets null.
 - [ ] GET /api/operators/{SpaceX id} on production returns a congestion block whose
       own_per_satellite is most of neighbours_per_satellite (2,755 of 2,894 on 2026-11-13).
-- [ ] The operator panel renders the section for an operator in the field and the empty state
-      for one outside it (vitest).
-- [ ] Added lines contain no en or em dash.
+- [x] The operator panel renders the section for an operator in the field and the empty state
+      for one outside it, and the parts of the split it prints add up to the total it prints at
+      the precision shown (vitest).
+- [x] Added lines contain no en or em dash.
 
 ## Open questions
 - Whether to add a league column or sort for "shares its shells with others" (Vib).
@@ -75,3 +83,22 @@ Labs satellite shared its shell with about 963 objects from other operators.
 - 2026-11-13 (Claude): the view was applied on production by its one statement in a
   transaction (rows 1,712 to 1,630, objects 17,857 to 16,997), not by apply_metrics.py, which
   re-applies every metrics file.
+- 2026-11-13 (Claude, from a three-lens review workflow; Codex was out of quota): ten findings
+  survived an adversarial check, all in copy and tests. Lessons kept here:
+  - A rounded part must be printed at the precision it was rounded to. Round the total, its own
+    part and the unattributed part at the precision shown, and derive the other operators' part
+    from them, or the printed parts stop adding up ("2.0 of them its own" for a true 1.5).
+  - "Belonging to others" must not include objects with no owner on record; they are shown as
+    their own part.
+  - Name a ranking by what it ranks. The neighbour list is a per-object mean, so the sentence is
+    "of those belonging to other operators, the largest numbers come from", not "the operators
+    with the most objects in its shells", which a raw count would answer differently.
+  - `busiest_shell` was renamed `main_shell` before it shipped: it is chosen by the operator's
+    own count, and "busiest" read as the most crowded shell.
+  - "Has its shell to itself" only when the average is exactly 0. Below 0.05 on average, fewer
+    than 1 in 20 of its objects can share a shell, and the copy says that instead.
+  - A test seed must make the wrong formula give a different answer: the largest neighbour has
+    the largest id, an unowned object sits in a shell of its own, and a neighbour's main shell
+    is not its most crowded one. Each was checked by a mutant that now fails.
+  - Refuted: a 500 from the detail endpoint when the view is missing. No supported environment
+    lacks it.

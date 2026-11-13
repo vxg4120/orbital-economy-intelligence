@@ -83,7 +83,8 @@ summary AS (
     FROM owned
     GROUP BY operator_id
 ),
-busiest AS (
+main_shell AS (
+    -- The shell holding the most of the operator's objects; among ties, the most crowded.
     SELECT DISTINCT ON (operator_id) operator_id, alt, inc, n_op::int AS operator_objects,
            n_bin::int AS objects
     FROM owned
@@ -125,7 +126,7 @@ SELECT s.*, b.alt, b.inc, b.operator_objects, b.objects,
        COALESCE(n.top_neighbours, '[]'::jsonb) AS top_neighbours,
        f.field_objects
 FROM summary s
-JOIN busiest b USING (operator_id)
+JOIN main_shell b USING (operator_id)
 LEFT JOIN neighbours n USING (operator_id)
 CROSS JOIN field f
 """
@@ -151,7 +152,7 @@ def _build_operator_exposure(db) -> dict[int, dict]:
             # can leave float dust around zero, which is not a count.
             "unattributed_per_satellite": max(0.0, others - r["named_others"]),
             "top_neighbours": r["top_neighbours"],
-            "busiest_shell": {
+            "main_shell": {
                 "alt_km_from": r["alt"] * 50,
                 "alt_km_to": r["alt"] * 50 + 50,
                 "inc_deg_from": r["inc"] * 5,
