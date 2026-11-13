@@ -169,6 +169,21 @@ def test_vetting_dossiers_are_not_claimed_as_live(text):
             assert "later" in sentence, sentence
 
 
+def test_no_publication_is_claimed_for_every_value(text):
+    """ExoDossier stores a reference only for the Archive's ps table, which has one row per planet
+    per reference. Its pscomppars values carry none, although the Archive records reflinks for them,
+    so every confirmed planet's page shows composite values with no publication beside them. The page
+    folds each source's ps rows into one range with a single reference under it, and some of those
+    references are catalog releases such as "Q1-Q17 DR25 KOI Table" rather than papers."""
+    assert "wherever the archive records one" not in text.lower()
+    assert not re.search(r"(publication|paper|reference)s? behind (each|every) value", text, re.I)
+    assert not re.search(r"(publication|paper|reference) that each (one|value) comes from", text, re.I)
+    assert (
+        "naming the catalog behind each value and, for the Archive's table that lists a planet once "
+        "per reference, the range of values that those references give."
+    ) in text
+
+
 def test_no_first_mcp_server_superlative(text):
     """Exoplanet MCP servers were public before ExoDossier's was written on 2026-07-15."""
     assert not re.search(r"first\s+(exoplanet\s+)?MCP", text, re.I)
