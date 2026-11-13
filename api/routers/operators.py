@@ -11,13 +11,15 @@ with_fleet alone overstates who has anything up: on 2026-11-13, 413 of its 1,392
 nothing left in orbit (Swarm Technologies, fleet 111, on-orbit 0). Zero-fleet operators sort
 last under the default fleet order.
 The detail endpoint adds the MSO hierarchy (parents/children/acquisitions from
-operator_relationship) and a fleet-by-orbital-regime breakdown from the latest element set per
-owned satellite.
+operator_relationship), a fleet-by-orbital-regime breakdown from the latest element set per
+owned satellite, and the operator's shared shells in the congestion field
+(api/routers/congestion.py, from v_congestion_exposure).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.deps import get_db
+from api.routers.congestion import operator_exposure
 
 router = APIRouter(prefix="/operators", tags=["operators"])
 
@@ -210,4 +212,7 @@ def detail(operator_id: int, db=Depends(get_db)):
         "fleet_by_regime": fleet_by_regime,
         "acquisitions": acquisitions,
         "top_satellites": top_satellites,
+        # Shared shells in the congestion field (docs/specs/congestion-exposure.md); None when
+        # none of the operator's objects is in the field.
+        "congestion": operator_exposure(db, operator_id),
     }

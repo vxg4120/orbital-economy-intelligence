@@ -228,6 +228,38 @@ export interface OperatorDetail {
   fleet_by_regime: Record<string, number>;
   acquisitions: Acquisition[];
   top_satellites: FleetSatellite[];
+  /** Shared shells in the congestion field (docs/specs/congestion-exposure.md). Null when none
+      of the operator's objects is in the field; absent from an API that predates it. */
+  congestion?: OperatorCongestion | null;
+}
+
+/** Averages are per object of the operator's in the field: how many other tracked objects share
+    the 50 km by 5 degree shell it sits in. own + others = neighbours; others includes
+    unattributed (objects with no owner on record). */
+export interface OperatorCongestion {
+  fleet_in_field: number;
+  shells: number;
+  neighbours_per_satellite: number;
+  own_per_satellite: number;
+  others_per_satellite: number;
+  unattributed_per_satellite: number;
+  top_neighbours: { operator_id: number; canonical_name: string; per_satellite: number }[];
+  /** The shell holding the most of its objects; among ties, the most crowded. */
+  main_shell: {
+    alt_km_from: number;
+    alt_km_to: number;
+    inc_deg_from: number;
+    inc_deg_to: number;
+    operator_objects: number;
+    objects: number;
+    /** Shells holding as many of its objects as this one (1 when it is the only one). */
+    tied_shells: number;
+    /** Of those, the shells holding as many objects in all as this one. */
+    tied_crowded_shells: number;
+  };
+  /** The view's documented score: (neighbours + 1) / field_objects. */
+  exposure_score: number;
+  field_objects: number;
 }
 
 /* ---- GET /api/satellites/{id}/track (the LifeTrack series) ----

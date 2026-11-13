@@ -10,7 +10,13 @@ import {
   YAxis,
 } from "recharts";
 import { getCongestion, getOperator, getOperators } from "../api/client";
-import type { OperatorDetail, OperatorRow, OperatorSort, OperatorsResponse } from "../api/types";
+import type {
+  OperatorCongestion,
+  OperatorDetail,
+  OperatorRow,
+  OperatorSort,
+  OperatorsResponse,
+} from "../api/types";
 import { useApi } from "../hooks/useApi";
 import { SITE_NAME, useDocumentTitle } from "../seo";
 import { compact, fmtDate, fmtInt, fmtRangeEnd } from "../lib/format";
@@ -242,6 +248,23 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
         </Panel>
       </div>
 
+      {detail.congestion === undefined ? null : (
+        <Panel title="Congestion exposure" meta="shared altitude and inclination shells">
+          {detail.congestion === null ? (
+            <EmptyState
+              title="None of its objects is in the congestion field"
+              message={
+                detail.operator.fleet_total === 0
+                  ? "No object is on record in its name."
+                  : "The field holds the latest element set of each object that has not reentered, and each of its objects has either reentered or has no element set on record."
+              }
+            />
+          ) : (
+            <CongestionExposure c={detail.congestion} />
+          )}
+        </Panel>
+      )}
+
       <div className="grid grid--2">
         <Panel
           title="Acquisition history"
@@ -305,6 +328,237 @@ export function OperatorDetailPanel({ detail }: { detail: OperatorDetail }) {
           )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+/** Rounds non-negative values to whole units that add up to `target`: each is floored, and
+    the units left over go to the largest remainders, never to a value that is 0. */
+function largestRemainder(values: number[], target: number): number[] {
+  const units = values.map(Math.floor);
+  let spare = target - units.reduce((a, b) => a + b, 0);
+  const byRemainder = values
+    .map((_, i) => i)
+    .filter((i) => values[i] > 0)
+    .sort((i, j) => values[j] - units[j] - (values[i] - units[i]) || i - j);
+  for (const i of byRemainder) {
+    if (spare <= 0) break;
+    units[i] += 1;
+    spare -= 1;
+  }
+  return units;
+}
+
+/** The split of the average a reader sees: its own part, the other operators' part and the
+    part with no owner on record, rounded by largest remainder so that the parts shown add up to
+    the whole shown and a part that is truly 0 never gets a unit. The total is shown in whole
+    numbers from 10 up (and always for a lone object, whose counts are exact) and to one decimal
+    below. Below 1 a tenth of an object is too coarse to split, so the parts are given as
+    proportions of the total, in tenths ("4 in 10 of them its own"). `full` is what the parts add
+    up to: the total, or 10 for proportions. */
+export function shareParts(c: OperatorCongestion): {
+  total: number;
+  full: number;
+  own: number;
+  others: number;
+  unattributed: number;
+  proportional: boolean;
+  /** The total as shown. */
+  totalText: string;
+  /** Rounds and floors a value to the precision of an average shown. */
+  round: (n: number) => number;
+  floor: (n: number) => number;
+  /** Formats a part. */
+  text: (n: number) => string;
+} {
+  const n = c.neighbours_per_satellite;
+  const raw = [
+    c.own_per_satellite,
+    c.others_per_satellite - c.unattributed_per_satellite,
+    c.unattributed_per_satellite,
+  ].map((v) => (v > 1e-9 ? v : 0));
+  const whole = c.fleet_in_field === 1 || Math.round(n * 10) / 10 >= 10;
+  const scale = whole ? 1 : 10;
+  const total = Math.round(n * scale) / scale;
+  const proportional = !whole && total > 0 && total < 1;
+  const units = proportional
+    ? largestRemainder(raw.map((v) => (v / n) * 10), 10)
+    : largestRemainder(raw.map((v) => v * scale), Math.round(n * scale));
+  const [own, others, unattributed] = proportional ? units : units.map((u) => u / scale);
+  return {
+    total: proportional ? total : units.reduce((a, b) => a + b, 0) / scale,
+    full: proportional ? 10 : units.reduce((a, b) => a + b, 0) / scale,
+    own,
+    others,
+    unattributed,
+    proportional,
+    totalText: whole ? fmtInt(total) : total.toFixed(1),
+    round: (v: number) => Math.round(v * scale) / scale,
+    floor: (v: number) => Math.floor(v * scale + 1e-9) / scale,
+    text: (v: number) => (proportional ? `${v} in 10` : whole ? fmtInt(v) : v.toFixed(1)),
+  };
+}
+
+function listed(parts: string[]): string {
+  return parts.length === 1
+    ? parts[0]
+    : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/** The panel's sentences, separated from the markup so the wording is testable. "All" and
+    "none" are said only of a part that is truly 0, not of one that rounds to 0. */
+export function congestionSentences(c: OperatorCongestion): {
+  where: string;
+  share: string;
+  main: string;
+} {
+  const alone = c.fleet_in_field === 1;
+  const objects = alone ? "1 of its objects is" : `${fmtInt(c.fleet_in_field)} of its objects are`;
+  const shells = c.shells === 1 ? "1 shell" : `${fmtInt(c.shells)} shells`;
+  const where = `${objects} in the field, in ${shells} of 50 km by 5 degrees.`;
+
+  let share: string;
+  const p = shareParts(c);
+  if (c.neighbours_per_satellite <= 1e-9) {
+    share = alone ? "It has its shell to itself." : "Each one has its shell to itself.";
+  } else if (alone) {
+    // One object: the counts are exact, and none of the others can be its own.
+    const other = p.others === 1 ? "1 belonging to another operator" : `${fmtInt(p.others)} belonging to other operators`;
+    if (p.total === 1) {
+      share = `It shares its shell with 1 other tracked object, which ${
+        p.others === 1 ? "belongs to another operator" : "has no owner on record"
+      }.`;
+    } else {
+      const parts =
+        p.unattributed === 0
+          ? "all of them belonging to other operators"
+          : p.others === 0
+            ? "all of them with no owner on record"
+            : `${other} and ${fmtInt(p.unattributed)} with no owner on record`;
+      share = `It shares its shell with ${fmtInt(p.total)} other tracked objects, ${parts}.`;
+    }
+  } else if (p.total === 0) {
+    // Below 0.05 on average, fewer than 1 in 20 of its objects can share a shell at all.
+    share = "Fewer than 1 in 20 of them shares its shell with another tracked object.";
+  } else {
+    // A part that takes the whole is "all" only when the other two are truly 0, and "nearly
+    // all" otherwise, never "10 in 10" or a number equal to the total.
+    const labels = ["its own", "belonging to other operators", "with no owner on record"];
+    const raw = [
+      c.own_per_satellite,
+      c.others_per_satellite - c.unattributed_per_satellite,
+      c.unattributed_per_satellite,
+    ];
+    const whole = [p.own, p.others, p.unattributed].findIndex((v) => v === p.full);
+    const parts =
+      whole >= 0
+        ? [
+            `${raw.every((v, i) => i === whole || v <= 1e-9) ? "all" : "nearly all"} of them ${labels[whole]}`,
+          ]
+        : [
+            p.own > 0
+              ? `${p.text(p.own)} of them its own`
+              : c.own_per_satellite > 1e-9
+                ? "almost none of them its own"
+                : "none of them its own",
+            ...(p.others > 0 ? [`${p.text(p.others)} belonging to other operators`] : []),
+            ...(p.unattributed > 0 ? [`${p.text(p.unattributed)} with no owner on record`] : []),
+          ];
+    share = `Each one shares its shell with about ${p.totalText} other tracked objects on average, ${listed(parts)}.`;
+  }
+
+  const b = c.main_shell;
+  const shell =
+    `from ${fmtInt(b.alt_km_from)} to ${fmtInt(b.alt_km_to)} km at ` +
+    `${b.inc_deg_from} to ${b.inc_deg_to} degrees of inclination`;
+  const rest = b.objects - b.operator_objects;
+  const withRest = `${fmtInt(rest)} ${rest === 1 ? "other object" : "other objects"}`;
+  // The shell is picked by the most of its own objects and then by the most objects in all, so
+  // among shells tied on the first count the one picked is the most crowded of them.
+  const crowded = (of: string) =>
+    b.tied_crowded_shells > 1 ? `One of the most crowded of ${of} is` : `The most crowded of ${of} is`;
+  let main: string;
+  if (alone) {
+    main =
+      `Its shell is ${shell}, ` +
+      (rest === 0 ? "and it has the shell to itself." : `and it shares that shell with ${withRest}.`);
+  } else if (b.operator_objects === 1 && rest === 0) {
+    // Every object alone in its shell: the split already says so, and no shell stands out.
+    main = "";
+  } else if (b.operator_objects === 1) {
+    main =
+      `No shell holds more than one of its objects. ${crowded("its shells")} ${shell}, ` +
+      (rest === 0
+        ? "where its object has the shell to itself."
+        : `where its object shares the shell with ${withRest}.`);
+  } else {
+    const lead =
+      b.tied_shells > 1
+        ? `${fmtInt(b.tied_shells)} shells each hold ${fmtInt(b.operator_objects)} of its objects, and none holds more. ${crowded("them")} ${shell}, where `
+        : `The shell holding the most of its objects is ${shell}, where `;
+    main =
+      lead +
+      `${fmtInt(b.operator_objects)} of its objects ` +
+      (rest === 0 ? "have the shell to themselves." : `share the shell with ${withRest}.`);
+  }
+  return { where, share, main };
+}
+
+/** The other operators named under the split, each with its share at the precision of an
+    average shown: only when the split shows the other operators a part, and only those whose
+    share does not round to 0. Rounded shares that would add up to more than that part are
+    rounded down instead, which never exceeds it and keeps equal shares equal. Below a total of
+    1 the split is in proportions, and the names are given without numbers. */
+export function namedNeighbours(
+  c: OperatorCongestion,
+): { operator_id: number; canonical_name: string; shown: string | null }[] {
+  const p = shareParts(c);
+  if (p.others === 0) return [];
+  const named = (shown: (v: number) => string | null, keep: (v: number) => boolean) =>
+    c.top_neighbours
+      .filter((n) => keep(n.per_satellite))
+      .map((n) => ({ operator_id: n.operator_id, canonical_name: n.canonical_name, shown: shown(n.per_satellite) }));
+  if (p.proportional) return named(() => null, (v) => v > 1e-9);
+  const rounded = c.top_neighbours.map((n) => p.round(n.per_satellite));
+  const fit = rounded.reduce((a, b) => a + b, 0) <= p.others + 1e-9 ? p.round : p.floor;
+  return named((v) => p.text(fit(v)), (v) => fit(v) > 0);
+}
+
+function CongestionExposure({ c }: { c: OperatorCongestion }) {
+  const s = congestionSentences(c);
+  const top = namedNeighbours(c);
+  return (
+    <div className="stack">
+      <p className="story__lead">
+        {s.where} {s.share}
+      </p>
+      {top.length > 0 ? (
+        <p>
+          Of those belonging to other operators, the largest{" "}
+          {top.length === 1 ? "number comes" : "numbers come"} from{" "}
+          {top.map((n, i) => (
+            <span key={n.operator_id}>
+              {i === 0 ? "" : i === top.length - 1 ? " and " : ", "}
+              <Link to={`/operators/${n.operator_id}`}>{n.canonical_name}</Link>
+              {n.shown === null ? null : (
+                <>
+                  {" "}(<span className="num">{n.shown}</span>
+                  {i === 0 ? " per object" : ""})
+                </>
+              )}
+            </span>
+          ))}
+          .
+        </p>
+      ) : null}
+      {s.main ? <p>{s.main}</p> : null}
+      <p className="hint">
+        A shell is a band 50 km deep and 5 degrees of inclination wide that circles the whole
+        Earth, so two objects in one shell can be on opposite sides of the planet: this measures
+        density, not collision risk. The field is the latest element set of each object that has
+        not reentered, mostly CelesTrak&apos;s list of active satellites, so debris and spent
+        rocket bodies are almost entirely missing from it.
+      </p>
     </div>
   );
 }
