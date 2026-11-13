@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StaticRouter } from "react-router-dom/server";
 import type { ReactElement } from "react";
-import { ComingDown, LatestLaunches } from "../components/Stories";
+import { ComingDown, ConstellationRace, FleetShare, LatestLaunches } from "../components/Stories";
 import type { StoriesReentry, StoriesResponse } from "../api/types";
 import storiesFixture from "../api/fixtures/stories.json";
 
@@ -86,5 +86,22 @@ describe("LatestLaunches hint", () => {
     expect(base.recent_launches[0].lead_name).toBe("OBJECT A");
     expect(out).toContain("placeholder name such as OBJECT A.");
     expect(out).not.toContain("first named payload");
+  });
+});
+
+/** Audit 2026-11-13: the country-only row and its hint called every owner without a company
+    class "a country code", but the row also held 35 active payloads owned by "To Be Determined"
+    and a few by organizations known only by a SATCAT owner code. */
+describe("country or placeholder owners", () => {
+  it("labels and explains the fleet row as a country or placeholder", () => {
+    const out = html(<FleetShare s={base} />);
+    expect(out).toContain("Owner cataloged only as a country or placeholder, or none yet");
+    expect(out).toContain("sometimes a placeholder such as To Be Determined.");
+    expect(out).not.toContain("owners that are a country code");
+  });
+  it("says pending constellation payloads carry a country or placeholder code", () => {
+    const out = html(<ConstellationRace s={base} />);
+    expect(out).toContain("still carry only a country or placeholder code as owner");
+    expect(out).not.toContain("only a country code as owner");
   });
 });

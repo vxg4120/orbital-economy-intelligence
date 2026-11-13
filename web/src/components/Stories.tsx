@@ -298,7 +298,10 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
                 {operatorName(r.owner)}
                 {r.owners > 1 ? ` and ${plural(r.owners - 1, "other owner")}` : ""}
                 {!r.owner_attributed && pending < rows.length ? (
-                  <span className="pending-mark" title="The owner is a country code until GCAT names the company">
+                  <span
+                    className="pending-mark"
+                    title="The owner is cataloged only as a country or placeholder until GCAT names the company."
+                  >
                     awaiting company attribution
                   </span>
                 ) : null}
@@ -571,7 +574,7 @@ export function ConstellationRace({ s }: { s: StoriesResponse }) {
           ? ` ${plural(a.pending_payloads, "payload")} launched since ${longDate(
               a.since,
               s.as_of,
-            )} still carry only a country code as owner, or no owner yet, so these lines stop at ${monthYear(
+            )} still carry only a country or placeholder code as owner, or no owner yet, so these lines stop at ${monthYear(
               through,
             )} and the counts for today leave those payloads out.`
           : ""}
@@ -589,7 +592,12 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
   const pct = (n: number) => (f.total ? (100 * n) / f.total : 0);
   const rows = [
     ...f.top.map((t) => ({ key: t.operator, name: operatorName(t.operator), n: t.n, cls: "" })),
-    { key: "country", name: "Owner cataloged only as a country, or none yet", n: f.country_only, cls: "share__fill--hatch" },
+    {
+      key: "country",
+      name: "Owner cataloged only as a country or placeholder, or none yet",
+      n: f.country_only,
+      cls: "share__fill--hatch",
+    },
     { key: "other", name: "Everyone else", n: f.other, cls: "share__fill--muted" },
   ];
   return (
@@ -622,9 +630,11 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
         ))}
       </div>
       <p className="hint story__hint">
-        Payloads whose latest status is ACTIVE, by current owner. The country-only row holds
-        owners that are a country code, plus payloads with no owner on record yet, including
-        recent launches still awaiting company attribution.
+        These are the payloads whose latest status is ACTIVE, counted by current owner. The
+        country or placeholder row holds payloads whose owner is known only by a SATCAT owner
+        code, which is usually a country and sometimes a placeholder such as To Be Determined. It
+        also holds payloads with no owner on record yet, including recent launches that are still
+        awaiting company attribution.
       </p>
     </Panel>
   );

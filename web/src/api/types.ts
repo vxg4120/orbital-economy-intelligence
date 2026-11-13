@@ -1011,7 +1011,7 @@ export interface StoriesResponse {
   active_fleet: {
     total: number;
     top: { operator: string; n: number; pct: number }[];
-    country_only: number; // owner cataloged only as a country, or no owner on record
+    country_only: number; // owner only a SATCAT country or placeholder code, or none on record
     other: number;
   };
   storms: { day: string; level: string; kp_max: number }[]; // newest first

@@ -104,12 +104,12 @@ export function Overview() {
                   sub={
                     a.since ? (
                       <>
-                        payloads launched since{" "}
-                        <span className="num">{shortDate(a.since)}</span> with only a country, or
-                        no owner yet
+                        These are payloads launched since{" "}
+                        <span className="num">{shortDate(a.since)}</span> that have only a country
+                        or placeholder owner, or none yet.
                       </>
                     ) : (
-                      "payloads with only a country, or no owner yet"
+                      "These are payloads that have only a country or placeholder owner, or none yet."
                     )
                   }
                 />
