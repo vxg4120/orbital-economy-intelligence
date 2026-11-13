@@ -75,7 +75,10 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": []
   },
   {
     "case_id": 202,
@@ -125,6 +128,9 @@
     "corrected_answer": null,
     "verdict_notes": null,
     "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": [],
     "dossier": {
       "recommended_verdict": "correct",
       "recommended_answer": "1979-01-02",
@@ -199,6 +205,9 @@
     "corrected_answer": null,
     "verdict_notes": null,
     "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": [],
     "dossier": null
   },
   {
@@ -238,7 +247,10 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": []
   },
   {
     "case_id": 205,
@@ -289,7 +301,10 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:06Z",
+    "since_drawn": []
   },
   {
     "case_id": 206,
@@ -346,7 +361,10 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": []
   },
   {
     "case_id": 207,
@@ -394,7 +412,10 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": []
   },
   {
     "case_id": 208,
@@ -442,6 +463,9 @@
     "verdict": null,
     "corrected_answer": null,
     "verdict_notes": null,
-    "labeled_at": null
+    "labeled_at": null,
+    "drawn_at": "2026-07-11T02:16:54.534172+00:00",
+    "observed_through": "2026-07-08T04:24:24Z",
+    "since_drawn": []
   }
 ]
