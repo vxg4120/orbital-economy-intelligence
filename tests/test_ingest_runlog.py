@@ -20,6 +20,22 @@ def clean_db(db_conn):
     cleanup_since(db_conn, baseline)
 
 
+@pytest.fixture(autouse=True)
+def slept(monkeypatch):
+    """polite_get waits between retries; the tests record the waits instead of sleeping. A
+    regression to unbounded retries fails here instead of hanging the suite, since `responses`
+    replays the last registered response forever."""
+    waits = []
+
+    def record(seconds):
+        waits.append(seconds)
+        if len(waits) > 10:
+            raise AssertionError("polite_get kept retrying")
+
+    monkeypatch.setattr(runlog, "_sleep", record)
+    return waits
+
+
 @pytest.mark.db
 @responses.activate
 def test_polite_get_on_fresh_endpoint_fetches_and_logs_ok(clean_db):
@@ -81,6 +97,8 @@ def test_polite_get_http_error_logs_error_and_raises(clean_db):
 
     with pytest.raises(requests.HTTPError):
         runlog.polite_get(clean_db, "testsrc", "ep3", URL, dt.timedelta(hours=1))
+    # A server error that persists through every retry is still the night's error.
+    assert len(responses.calls) == 1 + len(runlog.RETRY_WAITS_S)
 
     with clean_db.cursor() as cur:
         cur.execute(
@@ -141,3 +159,122 @@ def test_every_daily_feed_fits_between_one_nightly_slot_and_a_day():
 
     for module in (celestrak_satcat, fcc_ssal, gcat_loader, satnogs_db, supgp_crosstags, ucs_seed):
         assert dt.timedelta(hours=12) < module.MIN_INTERVAL < dt.timedelta(hours=24), module.__name__
+
+
+def _last_run(conn, endpoint):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) OVER (), status, notes FROM ingest_run "
+            "WHERE source = 'testsrc' AND endpoint = %s ORDER BY ingest_run_id DESC LIMIT 1",
+            (endpoint,),
+        )
+        return cur.fetchone()
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_transient_server_error_is_retried_within_the_same_run(clean_db, slept):
+    # 2026-11-13 19:11 UTC: CelesTrak answered 500 to gp.php and supplemental/, both pulls
+    # failed on their one attempt, the night's element sets were lost and an alert went out.
+    # By 19:50 the same URL answered 200.
+    responses.add(responses.GET, URL, body="busy", status=500)
+    responses.add(responses.GET, URL, body="hello world", status=200)
+
+    resp = runlog.polite_get(clean_db, "testsrc", "ep6", URL, dt.timedelta(hours=1))
+
+    assert resp.text == "hello world"
+    assert len(responses.calls) == 2
+    assert slept == [runlog.RETRY_WAITS_S[0]]
+    assert resp.oei_retries == ["HTTP 500"]
+    runlog.finish_run(clean_db, resp.oei_run_id, rows=1, bytes_dl=resp.oei_bytes, status="ok")
+    runs, status, _ = _last_run(clean_db, "ep6")
+    assert (runs, status) == (1, "ok")  # one ledger row for the pull, not one per attempt
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_connection_failure_is_retried(clean_db, slept):
+    responses.add(responses.GET, URL, body=requests.ConnectionError("Network is unreachable"))
+    responses.add(responses.GET, URL, body="hello world", status=200)
+
+    resp = runlog.polite_get(clean_db, "testsrc", "ep7", URL, dt.timedelta(hours=1))
+
+    assert resp.text == "hello world"
+    assert slept == [runlog.RETRY_WAITS_S[0]]
+    assert resp.oei_retries == ["ConnectionError"]
+    # The connect timeout is short and the read timeout keeps room for the large downloads.
+    assert responses.calls[0].request.req_kwargs["timeout"] == (
+        runlog.CONNECT_TIMEOUT_S, runlog.TIMEOUT_S
+    )
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_connection_dropped_partway_through_the_body_is_retried(clean_db, slept):
+    # A reset after the headers raises ChunkedEncodingError ("IncompleteRead(10 bytes read, 990
+    # more expected)"), which is not a ConnectionError; it is the likeliest failure for the
+    # large GP, SATCAT and GCAT downloads.
+    responses.add(
+        responses.GET, URL, body=requests.exceptions.ChunkedEncodingError("IncompleteRead")
+    )
+    responses.add(responses.GET, URL, body="hello world", status=200)
+
+    resp = runlog.polite_get(clean_db, "testsrc", "ep10", URL, dt.timedelta(hours=1))
+
+    assert resp.text == "hello world"
+    assert resp.oei_retries == ["ChunkedEncodingError"]
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_host_that_never_connects_fails_after_the_retries(clean_db, slept):
+    for _ in range(3):
+        responses.add(responses.GET, URL, body=requests.ConnectTimeout("timed out"))
+
+    with pytest.raises(requests.ConnectTimeout):
+        runlog.polite_get(clean_db, "testsrc", "ep11", URL, dt.timedelta(hours=1))
+
+    assert slept == list(runlog.RETRY_WAITS_S)
+    runs, status, notes = _last_run(clean_db, "ep11")
+    assert (runs, status) == (1, "error")
+    assert "after 2 retries (ConnectTimeout, ConnectTimeout)" in notes
+
+
+@pytest.mark.db
+@responses.activate
+def test_retries_are_bounded_and_named_in_the_error_row(clean_db, slept):
+    for _ in range(5):
+        responses.add(responses.GET, URL, body="down", status=503)
+
+    with pytest.raises(requests.HTTPError):
+        runlog.polite_get(clean_db, "testsrc", "ep8", URL, dt.timedelta(hours=1))
+
+    assert len(responses.calls) == 1 + len(runlog.RETRY_WAITS_S)
+    assert slept == list(runlog.RETRY_WAITS_S)
+    runs, status, notes = _last_run(clean_db, "ep8")
+    assert (runs, status) == (1, "error")
+    assert "503" in notes and "after 2 retries" in notes
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_client_error_is_never_retried(clean_db, slept):
+    # CelesTrak answers 403 to a client it has blocked for pulling too often (seen twice in the
+    # nightly log); asking again would only extend the block. A 4xx is the answer, not a fault.
+    responses.add(responses.GET, URL, body="forbidden", status=403)
+
+    with pytest.raises(requests.HTTPError):
+        runlog.polite_get(clean_db, "testsrc", "ep9", URL, dt.timedelta(hours=1))
+
+    assert len(responses.calls) == 1
+    assert slept == []
+
+
+def test_the_retry_budget_is_small():
+    # Two retries, waits well under the twelve hours between nightly slots, and a connect
+    # timeout short enough that a dead host costs minutes, not a quarter of an hour.
+    assert len(runlog.RETRY_WAITS_S) == 2
+    assert sum(runlog.RETRY_WAITS_S) <= 300
+    assert runlog.CONNECT_TIMEOUT_S <= 30
+    assert runlog.RETRY_STATUSES == {500, 502, 503, 504}
+
