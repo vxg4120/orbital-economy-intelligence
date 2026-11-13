@@ -219,6 +219,79 @@ def test_v_congestion_exposure_returns_bins(db_conn):
     )
 
 
+def _view_statement(view_name: str) -> str:
+    """The one CREATE OR REPLACE VIEW statement for view_name in metrics/benchmark_views.sql, with
+    comments stripped the same way scripts/apply_metrics.py strips them before applying."""
+    sql = (REPO_ROOT / "metrics" / "benchmark_views.sql").read_text()
+    code_only = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+    prefix = f"CREATE OR REPLACE VIEW {view_name} AS"
+    matches = [stmt.strip() for stmt in code_only.split(";") if stmt.strip().startswith(prefix)]
+    assert len(matches) == 1, f"expected one definition of {view_name}, found {len(matches)}"
+    return matches[0]
+
+
+@pytest.mark.db
+def test_v_congestion_exposure_leaves_out_reentered_objects(db_conn):
+    """Audit 2026-11-13: mv_latest_gp_element keeps an object's last element set after it
+    decays, and this view binned every row of it. So an object that had already reentered still
+    counted toward its bin's density, toward the catalog total and toward its operator's fleet
+    size. The view now applies the same rule as GET /api/congestion: an object drops out when
+    its recorded decay falls on or after the UTC day of its latest element set, and an element
+    set newer than the decay date is kept, because then the decay date is the error.
+
+    The view's own SELECT runs here as a TEMP view over TEMP tables, which shadow the real
+    relations for this connection only, so the test seeds nothing in the shared database."""
+    body = _view_statement("v_congestion_exposure").replace(
+        "CREATE OR REPLACE VIEW", "CREATE TEMP VIEW", 1
+    )
+    try:
+        with db_conn.cursor() as cur:
+            # The session zone is west of UTC on purpose: 02:00 UTC on Nov 4 is still Nov 3
+            # there, and the rule must compare UTC days.
+            cur.execute("""
+                SET LOCAL TIME ZONE 'America/Los_Angeles';
+                CREATE TEMP TABLE mv_latest_gp_element (
+                    norad_id bigint, epoch timestamptz, inclination float8,
+                    perigee_km float8, apogee_km float8);
+                CREATE TEMP TABLE satellite (
+                    satellite_id bigint PRIMARY KEY, norad_id bigint UNIQUE, decay_date date);
+                CREATE TEMP TABLE operator (operator_id bigint PRIMARY KEY, canonical_name text);
+                CREATE TEMP TABLE satellite_operator (
+                    satellite_id bigint, operator_id bigint, role text, valid_to date);
+                INSERT INTO mv_latest_gp_element VALUES
+                    (1, '2026-11-12 10:00+00', 53.0, 540, 560),  -- in orbit, no decay date
+                    (2, '2026-11-12 10:00+00', 53.0, 540, 560),  -- in orbit, no decay date
+                    (3, '2026-10-20 06:00+00', 53.0, 180, 200),  -- decayed after its last set
+                    (4, '2026-11-12 10:00+00', 97.0, 540, 560),  -- decay date older than its set
+                    (5, '2026-11-04 02:00+00', 97.0, 540, 560),  -- decay on the UTC day before
+                    (6, '2026-11-03 06:00+00', 53.0, 150, 170);  -- decayed the same day
+                INSERT INTO satellite VALUES
+                    (1, 1, NULL), (2, 2, NULL), (3, 3, '2026-11-01'), (4, 4, '2021-03-18'),
+                    (5, 5, '2026-11-03'), (6, 6, '2026-11-03');
+                INSERT INTO operator VALUES (10, 'ALPHA'), (20, 'BETA');
+                INSERT INTO satellite_operator VALUES
+                    (1, 10, 'owner', NULL), (2, 10, 'owner', NULL), (3, 10, 'owner', NULL),
+                    (4, 20, 'owner', NULL), (5, 20, 'owner', NULL), (6, 20, 'owner', NULL);
+            """)
+            cur.execute(body)
+            cur.execute(
+                "SELECT altitude_bin_50km, inclination_bin_5deg, bin_object_count, "
+                "       bin_density_share::float8, operator_name, operator_object_count_in_bin, "
+                "       operator_fleet_size::int, operator_exposure_contribution::float8 "
+                "FROM v_congestion_exposure ORDER BY operator_name"
+            )
+            rows = cur.fetchall()
+    finally:
+        db_conn.rollback()
+
+    # Objects 3 and 6 are gone, so four objects remain in two bins at 550 km. Each operator has
+    # its whole remaining fleet of two in one bin that holds half of the field: 1.0 * 0.5.
+    assert rows == [
+        (11, 10, 2, 0.5, "ALPHA", 2, 2, 0.5),
+        (11, 19, 2, 0.5, "BETA", 2, 2, 0.5),
+    ]
+
+
 def _seed_killer_fixture(cur):
     """One satellite whose TEMPORAL owner (SCD2) and NAIVE SATCAT owner code disagree -- the exact
     OneWeb->Eutelsat mechanic in miniature. Resolved current owner = BETA; SATCAT owner code

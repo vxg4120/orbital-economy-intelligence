@@ -261,7 +261,9 @@ The four benchmark metrics — each has a physical meaning **and** a commercial 
    *Commercially:* **regulatory risk and ESG** posture. (Sparse until deeper history lands —
    honestly flagged.)
 4. **Congestion exposure** (`v_congestion_exposure`) — operator fleet distribution across
-   altitude×inclination bins, weighted by catalog density per bin. *Physically:* how crowded the
+   altitude×inclination bins, weighted by catalog density per bin. It counts only objects that
+   have not reentered: an object drops out when its recorded decay date falls on or after the
+   day of its latest element set. *Physically:* how crowded the
    shells they occupy are. *Commercially:* **collision-risk exposure** — a density proxy, not real
    conjunction data (that's restricted), stated plainly.
 

@@ -21,9 +21,10 @@ router = APIRouter(tags=["stats"])
 # On-orbit payloads + coverage denominators. Verbatim semantics from quality/report.py
 # _section_coverage: on-orbit = PAYLOAD whose latest canonical status != DECAYED.
 #
-# with_2plus_ids is report.py's count of identifier ROWS, kept so multi_source_pct means what
-# it always meant. It cannot fall below 100%: one SATCAT record alone writes three rows (norad,
-# cospar, name_satcat). The Overview meter reads with_both_catalogs instead, which asks whether
+# with_2plus_ids is a count of identifier ROWS, kept here so that multi_source_pct means what
+# it always meant for the clients that read it (the DQ report used to print the same count, and
+# it now prints with_both_catalogs). It cannot fall below 100%: one SATCAT record alone writes
+# three rows (norad, cospar, name_satcat). The Overview meter reads with_both_catalogs instead, which asks whether
 # SATCAT and GCAT each hold an identifier for the payload (94.5% on 2026-11-13, when 1,128
 # on-orbit payloads, nearly all launched since July 2026, had no GCAT row).
 #

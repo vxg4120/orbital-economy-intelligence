@@ -304,9 +304,13 @@ def _section_coverage(cur):
         with_status AS (
             SELECT satellite_id FROM latest_status WHERE canonical_status != 'UNKNOWN'
         ),
-        id_counts AS (
-            SELECT satellite_id, count(*) AS n_ids FROM satellite_identifier
+        in_both_catalogs AS (
+            -- Whether SATCAT and GCAT each hold an identifier for the object. A count of
+            -- identifier rows cannot answer that: one SATCAT record alone writes three rows
+            -- (norad, cospar, name_satcat), so "at least 2 rows" was true of every payload.
+            SELECT satellite_id FROM satellite_identifier
             GROUP BY satellite_id
+            HAVING bool_or(source = 'satcat') AND bool_or(source = 'gcat')
         )
         SELECT
             (SELECT count(*) FROM on_orbit) AS total_on_orbit,
@@ -314,16 +318,16 @@ def _section_coverage(cur):
                 ON wo.satellite_id = oo.satellite_id) AS with_operator_count,
             (SELECT count(*) FROM on_orbit oo JOIN with_status ws
                 ON ws.satellite_id = oo.satellite_id) AS with_status_count,
-            (SELECT count(*) FROM on_orbit oo JOIN id_counts ic
-                ON ic.satellite_id = oo.satellite_id WHERE ic.n_ids >= 2) AS with_2plus_ids
+            (SELECT count(*) FROM on_orbit oo JOIN in_both_catalogs bc
+                ON bc.satellite_id = oo.satellite_id) AS with_both_catalogs
         """
     )
-    total, with_operator, with_status, with_2plus_ids = cur.fetchone()
+    total, with_operator, with_status, with_both_catalogs = cur.fetchone()
     return {
         "total_on_orbit": total,
         "with_operator": with_operator,
         "with_status": with_status,
-        "with_2plus_ids": with_2plus_ids,
+        "with_both_catalogs": with_both_catalogs,
     }
 
 
@@ -645,8 +649,8 @@ def generate_report(conn) -> str:
         f"({_pct(coverage['with_status'], total)})\n"
     )
     out.append(
-        f"- With >=2 source identifiers (graph vs list): {coverage['with_2plus_ids']}/{total} "
-        f"({_pct(coverage['with_2plus_ids'], total)})\n"
+        f"- Listed in both SATCAT and GCAT: {coverage['with_both_catalogs']}/{total} "
+        f"({_pct(coverage['with_both_catalogs'], total)})\n"
     )
 
     out.append("\n## 8. Phase 2 metrics (per benchmark operator)\n")
