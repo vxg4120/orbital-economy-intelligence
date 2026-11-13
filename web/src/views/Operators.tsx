@@ -160,6 +160,11 @@ export function Operators() {
         <Async state={congestion} loadingLabel="Loading congestion field">
           {(c) => <CongestionHeatmap bins={c.bins} maxAltKm={2000} />}
         </Async>
+        <p className="hint">
+          Each shell counts the objects that have not reentered, by altitude and inclination, from
+          the latest element set of each one. Debris and spent rocket bodies are almost entirely
+          missing from the element feed, which is mostly CelesTrak&apos;s list of active satellites.
+        </p>
       </Panel>
     </div>
   );

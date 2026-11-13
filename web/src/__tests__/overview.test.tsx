@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StaticRouter } from "react-router-dom/server";
-import { UnderTheHood } from "../views/Overview";
+import { Overview, UnderTheHood } from "../views/Overview";
 import type { Stats } from "../api/types";
 import statsFixture from "../api/fixtures/stats.json";
 
@@ -70,5 +70,19 @@ describe("UnderTheHood", () => {
       "Each row is the latest run for one source, endpoint and state, and the 20 most recent are shown.",
     );
     expect(html).not.toContain("last run per source · endpoint");
+  });
+});
+
+/** The page's fixed captions render before any data arrives, so a static render reads them. */
+describe("Overview captions", () => {
+  const html = renderToStaticMarkup(
+    <StaticRouter location="/">
+      <Overview />
+    </StaticRouter>,
+  );
+  it("says the congestion field leaves out reentered objects, debris and rocket bodies", () => {
+    expect(html).toContain("Each shell counts the objects that have not reentered");
+    expect(html).toContain("debris and spent rocket bodies are almost entirely missing from it.");
+    expect(html).not.toContain("LEO shell occupancy");
   });
 });

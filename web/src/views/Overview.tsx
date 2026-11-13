@@ -171,8 +171,11 @@ export function Overview() {
           )}
         </Async>
         <p className="hint">
-          LEO shell occupancy from the latest element set per object. Full 0–2000 km field on the{" "}
-          <Link to="/operators">Operators</Link> view. Hover a shell to read its count.
+          Each shell counts the objects that have not reentered, by altitude and inclination, from
+          the latest element set of each one. The element feed is mostly CelesTrak&apos;s list of
+          active satellites, so debris and spent rocket bodies are almost entirely missing from it.
+          The full field from 0 to 2000 km is on the <Link to="/operators">Operators</Link> view.
+          Hover a shell to read its count.
         </p>
       </Panel>
     </div>
