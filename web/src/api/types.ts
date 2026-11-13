@@ -32,16 +32,21 @@ export interface IngestRun {
 }
 
 export interface Stats {
-  satellites: number;
+  satellites: number; // every cataloged object, reentered ones included
+  // objects whose latest status is not DECAYED; optional while an older API is deployed
+  in_orbit_objects?: number;
   on_orbit_payloads: number;
   operators: number;
   identifier_rows: number;
   merge_events: number;
-  gp_elements: number;
+  gp_elements: number; // every stored element set, all epochs
   coverage: {
     operator_pct: number;
     status_pct: number;
+    // identifier ROWS >= 2, which one SATCAT record always meets; kept for older clients
     multi_source_pct: number;
+    // on-orbit payloads that both SATCAT and GCAT list; optional while an older API is deployed
+    both_catalogs_pct?: number;
   };
   conflicts: {
     status: number;
@@ -173,7 +178,11 @@ export interface OperatorRow {
 }
 
 export interface OperatorsResponse extends Paginated<OperatorRow> {
-  with_fleet?: number; // operators holding a current fleet; total counts every operator
+  // operators owning at least one cataloged object, reentered ones included; total counts
+  // every operator
+  with_fleet?: number;
+  // operators owning at least one object not recorded as decayed (the On-orbit column's rule)
+  with_on_orbit?: number;
 }
 export type OperatorSort = "fleet" | "active" | "name";
 
@@ -966,8 +975,11 @@ export interface StoriesReentry {
   satellite_id: number;
   name: string;
   date: string;
-  launched: string | null;
+  launched: string | null; // as cataloged: Zarya's 1998-11-20 for every ISS-deployed satellite
   owner: string | null;
+  // COSPAR 1998-067 other than A; optional while an older API is deployed
+  deployed_from_iss?: boolean;
+  released?: string | null; // the day the station released it, per GCAT's SDate
 }
 
 export interface StoriesConstellation {
@@ -999,7 +1011,7 @@ export interface StoriesResponse {
   active_fleet: {
     total: number;
     top: { operator: string; n: number; pct: number }[];
-    country_only: number; // owner cataloged only as a country, or no owner on record
+    country_only: number; // owner only a SATCAT country or placeholder code, or none on record
     other: number;
   };
   storms: { day: string; level: string; kp_max: number }[]; // newest first

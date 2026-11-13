@@ -9,9 +9,13 @@ Two honesty rules shape the payload:
 
 * The current month is marked ``partial``.
 * Since July 2026 almost every newly launched payload is owned in the graph by a country-level
-  operator (``operator_class IS NULL``: "United States", "People's Republic of China") because
-  GCAT attributes companies about three months late. Constellation series therefore stop at
-  ``attribution.complete_through``, and the pending count is published rather than dropped.
+  or placeholder operator (``operator_class IS NULL``: "United States", "People's Republic of
+  China", "To Be Determined") because GCAT, the source of company attribution, has named no
+  payload numbered past the 5-digit NORAD rollover (69999, reached about 2026-07-12); its
+  satcat.tsv still ended at S69999 in the copy published 2026-11-13. That gap is not a fixed
+  lag, so the SPA phrases it from ``attribution.complete_through`` instead of a number of
+  months. Constellation series stop at that month, and the pending count is published rather
+  than dropped.
 
 Every query is a small aggregate (milliseconds on the box). They run in one psycopg pipeline so
 a high-latency connection pays roughly one round trip instead of one per query. The payload
@@ -22,6 +26,7 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
+import re
 from collections.abc import Sequence
 
 import psycopg
@@ -194,17 +199,41 @@ JOIN top_owner t ON t.launch_key = g.launch_key
 ORDER BY g.date DESC, g.launch_key DESC
 """
 
+# The newest non-Starlink payload reentries. SATCAT gives every satellite deployed from the ISS
+# (COSPAR 1998-067 other than A, which is Zarya) the station's own 1998-11-20 launch date, so a
+# launch-to-decay span would put LEOPARD at "28.0 years up" when it flew for 273 days. For those
+# pieces the query also reads GCAT's SDate, the day the object separated from its parent, from
+# the newest raw GCAT row for the same NORAD number. The JCAT key is S plus the 5-digit number,
+# which is the primary-key path; requiring GCAT's own NORAD to match keeps a piece whose GCAT row
+# names no number (24 of the 412 on 2026-11-13) on the "deployed from the ISS" fallback.
+# satellite.launch_date itself stays as cataloged: the launch groups key on it.
 _NOTABLE_REENTRIES_SQL = f"""
-WITH {_OWNER_CTE}
-SELECT s.satellite_id, s.canonical_name AS name, s.decay_date AS date,
-       s.launch_date AS launched, ow.owner
-FROM satellite s
-LEFT JOIN owner ow ON ow.satellite_id = s.satellite_id
-WHERE s.object_type = 'PAYLOAD'
-  AND s.decay_date > %(ref)s::date - %(days)s AND s.decay_date <= %(ref)s
-  AND s.canonical_name NOT ILIKE 'starlink%%'
-ORDER BY s.decay_date DESC, s.satellite_id DESC
-LIMIT %(n)s
+WITH {_OWNER_CTE},
+notable AS (
+    SELECT s.satellite_id, s.norad_id, s.canonical_name AS name, s.decay_date AS date,
+           s.launch_date AS launched, ow.owner,
+           (s.cospar_id LIKE '1998-067%%' AND s.cospar_id <> '1998-067A') AS deployed_from_iss
+    FROM satellite s
+    LEFT JOIN owner ow ON ow.satellite_id = s.satellite_id
+    WHERE s.object_type = 'PAYLOAD'
+      AND s.decay_date > %(ref)s::date - %(days)s AND s.decay_date <= %(ref)s
+      AND s.canonical_name NOT ILIKE 'starlink%%'
+    ORDER BY s.decay_date DESC, s.satellite_id DESC
+    LIMIT %(n)s
+)
+SELECT n.satellite_id, n.name, n.date, n.launched, n.owner, n.deployed_from_iss,
+       g.sdate AS gcat_sdate
+FROM notable n
+LEFT JOIN LATERAL (
+    SELECT r.extra->>'SDate' AS sdate
+    FROM raw_gcat_satcat r
+    WHERE n.deployed_from_iss AND n.norad_id BETWEEN 1 AND 99999
+      AND r.jcat = 'S' || lpad(n.norad_id::text, 5, '0')
+      AND r.norad_id = n.norad_id
+    ORDER BY r.ingest_run_id DESC
+    LIMIT 1
+) g ON true
+ORDER BY n.date DESC, n.satellite_id DESC
 """
 
 # Per constellation operator and month: payloads in orbit at the month's last day, and payloads
@@ -348,6 +377,45 @@ def trim_series(rows: Sequence[dict], through: str | None, n: int = SERIES_MONTH
     return kept[-n:]
 
 
+_GCAT_DAY = re.compile(r"^(\d{4}) ([A-Za-z]{3}) +(\d{1,2})")
+_MONTH_ABBRS = ("jan", "feb", "mar", "apr", "may", "jun",
+                "jul", "aug", "sep", "oct", "nov", "dec")
+
+
+def gcat_day(value: str | None) -> dt.date | None:
+    """GCAT's vague date ("2026 Feb  3 1055", "2016 May 10?") -> its day, or None.
+
+    The trailing time and GCAT's "?" uncertainty mark are dropped; anything that is not a real
+    calendar day reads as no date rather than failing the whole payload."""
+    m = _GCAT_DAY.match((value or "").strip())
+    if not m or m.group(2).lower() not in _MONTH_ABBRS:
+        return None
+    try:
+        return dt.date(int(m.group(1)), _MONTH_ABBRS.index(m.group(2).lower()) + 1,
+                       int(m.group(3)))
+    except ValueError:
+        return None
+
+
+def notable_reentry(r: dict) -> dict:
+    """One "latest reentries" row. ``released`` is the day an ISS-deployed satellite left the
+    station, per GCAT, and only for those satellites; a release date after the reentry is a
+    mismatch and reads as no date."""
+    deployed = bool(r.get("deployed_from_iss"))
+    released = gcat_day(r.get("gcat_sdate")) if deployed else None
+    if released is not None and released > r["date"]:
+        released = None
+    return {
+        "satellite_id": r["satellite_id"],
+        "name": r["name"],
+        "date": r["date"].isoformat(),
+        "launched": r["launched"].isoformat() if r["launched"] else None,
+        "owner": r["owner"],
+        "deployed_from_iss": deployed,
+        "released": released.isoformat() if released else None,
+    }
+
+
 def split_fleet(rows: Sequence[dict], top_n: int = TOP_OPERATORS) -> dict:
     """ACTIVE payloads by owner -> total, the top company operators, the payloads cataloged
     only by country (or with no owner at all), and everyone else.
@@ -470,16 +538,7 @@ def _build_stories(db: psycopg.Connection) -> dict:
             "payloads": w["payloads_reentered"],
             "starlink": w["starlink"],
             "starlink_v1": w["starlink_v1"],
-            "notable": [
-                {
-                    "satellite_id": r["satellite_id"],
-                    "name": r["name"],
-                    "date": r["date"].isoformat(),
-                    "launched": r["launched"].isoformat() if r["launched"] else None,
-                    "owner": r["owner"],
-                }
-                for r in notable
-            ],
+            "notable": [notable_reentry(r) for r in notable],
         },
         "constellations": constellations,
         "attribution": {

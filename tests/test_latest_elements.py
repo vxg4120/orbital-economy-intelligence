@@ -95,14 +95,18 @@ def test_tiebreak_is_the_total_order(db_conn):
 
 @pytest.mark.db
 def test_congestion_bins_agree_with_the_view(db_conn):
+    """The field is the view's LEO rows less the objects that reentered on or after the day of
+    their latest element set (tests/test_api_congestion.py pins which ones those are)."""
     client = _client()
     bins = client.get("/api/congestion").json()["bins"]
     total = sum(b["object_count"] for b in bins)
     with db_conn.cursor() as cur:
         cur.execute(
-            "SELECT count(*) FROM mv_latest_gp_element "
-            "WHERE inclination IS NOT NULL AND perigee_km IS NOT NULL "
-            "  AND apogee_km IS NOT NULL AND ((apogee_km + perigee_km) / 2.0) < 2000"
+            "SELECT count(*) FROM mv_latest_gp_element m "
+            "WHERE m.inclination IS NOT NULL AND m.perigee_km IS NOT NULL "
+            "  AND m.apogee_km IS NOT NULL AND ((m.apogee_km + m.perigee_km) / 2.0) < 2000 "
+            "  AND NOT EXISTS (SELECT 1 FROM satellite s WHERE s.norad_id = m.norad_id "
+            "                  AND s.decay_date >= (m.epoch AT TIME ZONE 'UTC')::date)"
         )
         expected = cur.fetchone()[0]
     assert total == expected

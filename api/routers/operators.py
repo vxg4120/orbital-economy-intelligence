@@ -5,8 +5,11 @@ satellite's latest canonical status: on-orbit = status != DECAYED, active = stat
 The league lists EVERY operator in the graph, including the ones holding no current fleet
 (acquired shells, holding companies, orgs known only as manufacturers), so its total is the
 same number the header's OPERATORS counter shows (count of the operator table); with_fleet
-says how many of them hold a current fleet. Zero-fleet operators sort last under the default
-fleet order.
+says how many of them own at least one cataloged object, and with_on_orbit how many of those
+still own one in orbit. A fleet counts reentered objects, debris and rocket bodies too, so
+with_fleet alone overstates who has anything up: on 2026-11-13, 413 of its 1,392 operators had
+nothing left in orbit (Swarm Technologies, fleet 111, on-orbit 0). Zero-fleet operators sort
+last under the default fleet order.
 The detail endpoint adds the MSO hierarchy (parents/children/acquisitions from
 operator_relationship) and a fleet-by-orbital-regime breakdown from the latest element set per
 owned satellite.
@@ -68,7 +71,8 @@ LIMIT %(limit)s OFFSET %(offset)s
 """
 
 _LEAGUE_COUNT_SQL = _LEAGUE_CTE + (
-    "SELECT count(*) AS total, count(*) FILTER (WHERE fleet_total > 0) AS with_fleet FROM agg"
+    "SELECT count(*) AS total, count(*) FILTER (WHERE fleet_total > 0) AS with_fleet, "
+    "count(*) FILTER (WHERE fleet_on_orbit > 0) AS with_on_orbit FROM agg"
 )
 
 
@@ -87,7 +91,12 @@ def league_table(
         counts = cur.fetchone()
         cur.execute(_LEAGUE_PAGE_SQL.format(order=order), {"limit": limit, "offset": offset})
         rows = cur.fetchall()
-    return {"rows": rows, "total": counts["total"], "with_fleet": counts["with_fleet"]}
+    return {
+        "rows": rows,
+        "total": counts["total"],
+        "with_fleet": counts["with_fleet"],
+        "with_on_orbit": counts["with_on_orbit"],
+    }
 
 
 @router.get("/{operator_id}")
