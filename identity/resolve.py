@@ -81,19 +81,28 @@ def _apply_display_name_overrides(conn, path=None) -> int:
     to users. The overrides in display_names.yml are keyed by NORAD id and each records the
     name it replaces, so the curation is auditable; the underlying assertions stay untouched.
     Returns the number of rows updated this run.
+
+    The count comes from the rows the UPDATE returns, not from cursor.rowcount: build_graph
+    runs resolve() inside conn.pipeline(), where rowcount reads -1 until the results are
+    synced, and summing it printed "display name overrides: -8" in the nightly log.
     """
     with open(path or _DISPLAY_NAMES_DEFAULT) as fh:
         spec = yaml.safe_load(fh) or {}
-    applied = 0
+    # One name per NORAD id, the last entry winning as it did when each entry was its own
+    # UPDATE. tests/test_identity_resolve.py rejects a duplicate in the real file; this keeps a
+    # duplicate that slips through from flipping the name between runs.
+    names = {e["norad_id"]: e["name"] for e in spec.get("display_names") or []}
+    if not names:
+        return 0
     with conn.cursor() as cur:
-        for entry in spec.get("display_names", []):
-            cur.execute(
-                "UPDATE satellite SET canonical_name = %(name)s, updated_at = now() "
-                "WHERE norad_id = %(norad)s AND canonical_name IS DISTINCT FROM %(name)s",
-                {"name": entry["name"], "norad": entry["norad_id"]},
-            )
-            applied += cur.rowcount
-    return applied
+        cur.execute(
+            "UPDATE satellite s SET canonical_name = o.name, updated_at = now() "
+            "FROM unnest(%(norad)s::bigint[], %(name)s::text[]) AS o(norad_id, name) "
+            "WHERE s.norad_id = o.norad_id AND s.canonical_name IS DISTINCT FROM o.name "
+            "RETURNING s.satellite_id",
+            {"norad": list(names), "name": list(names.values())},
+        )
+        return len(cur.fetchall())
 
 
 def _resolve_object_type(conn, order) -> None:
