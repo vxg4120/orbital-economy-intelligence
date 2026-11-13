@@ -441,9 +441,20 @@ export function congestionSentences(c: OperatorCongestion): {
     // Below 0.05 on average, fewer than 1 in 20 of its objects can share a shell at all.
     share = "Fewer than 1 in 20 of them shares its shell with another tracked object.";
   } else {
+    // A part that takes the whole is "all" only when the other two are truly 0, and "nearly
+    // all" otherwise, never "10 in 10" or a number equal to the total.
+    const labels = ["its own", "belonging to other operators", "with no owner on record"];
+    const raw = [
+      c.own_per_satellite,
+      c.others_per_satellite - c.unattributed_per_satellite,
+      c.unattributed_per_satellite,
+    ];
+    const whole = [p.own, p.others, p.unattributed].findIndex((v) => v === p.full);
     const parts =
-      p.own === p.full
-        ? [c.others_per_satellite > 1e-9 ? "nearly all of them its own" : "all of them its own"]
+      whole >= 0
+        ? [
+            `${raw.every((v, i) => i === whole || v <= 1e-9) ? "all" : "nearly all"} of them ${labels[whole]}`,
+          ]
         : [
             p.own > 0
               ? `${p.text(p.own)} of them its own`

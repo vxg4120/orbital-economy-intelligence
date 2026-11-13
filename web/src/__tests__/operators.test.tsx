@@ -163,7 +163,7 @@ describe("Congestion exposure panel", () => {
       "Each one shares its shell with about 6.5 other tracked objects on average, 1.3 of them its own and 5.2 belonging to other operators.",
     );
     expect(congestionSentences(split(2.52, 0)).share).toBe(
-      "Each one shares its shell with about 2.5 other tracked objects on average, none of them its own and 2.5 belonging to other operators.",
+      "Each one shares its shell with about 2.5 other tracked objects on average, all of them belonging to other operators.",
     );
     expect(congestionSentences(split(12.2, 12.0)).share).toBe(
       "Each one shares its shell with about 12 other tracked objects on average, nearly all of them its own.",
@@ -186,7 +186,10 @@ describe("Congestion exposure panel", () => {
 
   it("says none and all only of a part that is truly 0", () => {
     expect(congestionSentences(split(4.84, 0.04)).share).toBe(
-      "Each one shares its shell with about 4.8 other tracked objects on average, almost none of them its own and 4.8 belonging to other operators.",
+      "Each one shares its shell with about 4.8 other tracked objects on average, nearly all of them belonging to other operators.",
+    );
+    expect(congestionSentences(split(4.84, 0.04, 2.0)).share).toBe(
+      "Each one shares its shell with about 4.8 other tracked objects on average, almost none of them its own, 2.8 belonging to other operators and 2.0 with no owner on record.",
     );
     expect(congestionSentences(split(12, 12)).share).toBe(
       "Each one shares its shell with about 12 other tracked objects on average, all of them its own.",
@@ -236,6 +239,13 @@ describe("Congestion exposure panel", () => {
     );
     expect(congestionSentences(split(0.5, 0.5)).share).toBe(
       "Each one shares its shell with about 0.5 other tracked objects on average, all of them its own.",
+    );
+    // A part that takes all ten tenths is "nearly all" beside a part that is not truly 0.
+    expect(congestionSentences(split(0.414, 0.0069, 0.0069)).share).toBe(
+      "Each one shares its shell with about 0.4 other tracked objects on average, nearly all of them belonging to other operators.",
+    );
+    expect(congestionSentences(split(0.566, 0, 0.0053)).share).toBe(
+      "Each one shares its shell with about 0.6 other tracked objects on average, nearly all of them belonging to other operators.",
     );
     // The neighbours are named without numbers there.
     const small = split(0.1, 0.04, 0, {
