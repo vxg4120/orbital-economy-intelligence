@@ -124,7 +124,9 @@ def polite_get(
             print(f"[{source}] {endpoint}: {retries[-1]}, retrying in {wait}s", flush=True)
             _sleep(wait)
     except requests.RequestException as exc:
-        note = f"after {len(retries)} retries ({', '.join(retries)}): {exc}" if retries else str(exc)
+        note = str(exc)
+        if retries:
+            note = f"after {len(retries)} retries ({', '.join(retries)}): {note}"
         finish_run(conn, run_id, rows=0, bytes_dl=0, status="error", notes=note[:2000])
         raise
 
