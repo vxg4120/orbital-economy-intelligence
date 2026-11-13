@@ -22,9 +22,17 @@ def clean_db(db_conn):
 
 @pytest.fixture(autouse=True)
 def slept(monkeypatch):
-    """polite_get waits between retries; the tests record the waits instead of sleeping."""
+    """polite_get waits between retries; the tests record the waits instead of sleeping. A
+    regression to unbounded retries fails here instead of hanging the suite, since `responses`
+    replays the last registered response forever."""
     waits = []
-    monkeypatch.setattr(runlog, "_sleep", waits.append)
+
+    def record(seconds):
+        waits.append(seconds)
+        if len(waits) > 10:
+            raise AssertionError("polite_get kept retrying")
+
+    monkeypatch.setattr(runlog, "_sleep", record)
     return waits
 
 
@@ -194,6 +202,42 @@ def test_a_connection_failure_is_retried(clean_db, slept):
     assert resp.text == "hello world"
     assert slept == [runlog.RETRY_WAITS_S[0]]
     assert resp.oei_retries == ["ConnectionError"]
+    # The connect timeout is short and the read timeout keeps room for the large downloads.
+    assert responses.calls[0].request.req_kwargs["timeout"] == (
+        runlog.CONNECT_TIMEOUT_S, runlog.TIMEOUT_S
+    )
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_connection_dropped_partway_through_the_body_is_retried(clean_db, slept):
+    # A reset after the headers raises ChunkedEncodingError ("IncompleteRead(10 bytes read, 990
+    # more expected)"), which is not a ConnectionError; it is the likeliest failure for the
+    # large GP, SATCAT and GCAT downloads.
+    responses.add(
+        responses.GET, URL, body=requests.exceptions.ChunkedEncodingError("IncompleteRead")
+    )
+    responses.add(responses.GET, URL, body="hello world", status=200)
+
+    resp = runlog.polite_get(clean_db, "testsrc", "ep10", URL, dt.timedelta(hours=1))
+
+    assert resp.text == "hello world"
+    assert resp.oei_retries == ["ChunkedEncodingError"]
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_host_that_never_connects_fails_after_the_retries(clean_db, slept):
+    for _ in range(3):
+        responses.add(responses.GET, URL, body=requests.ConnectTimeout("timed out"))
+
+    with pytest.raises(requests.ConnectTimeout):
+        runlog.polite_get(clean_db, "testsrc", "ep11", URL, dt.timedelta(hours=1))
+
+    assert slept == list(runlog.RETRY_WAITS_S)
+    runs, status, notes = _last_run(clean_db, "ep11")
+    assert (runs, status) == (1, "error")
+    assert "after 2 retries (ConnectTimeout, ConnectTimeout)" in notes
 
 
 @pytest.mark.db

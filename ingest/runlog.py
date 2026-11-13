@@ -20,13 +20,20 @@ TIMEOUT_S = 120
 # for it made each failed attempt cost two minutes.
 CONNECT_TIMEOUT_S = 30
 
-# A server error or a dropped connection is retried twice within the same run, after these
-# waits. On 2026-11-13 at 19:11 UTC CelesTrak answered 500 to the GP and SupGP pulls, which had
+# A server error, a refused or dropped connection (including one dropped partway through the
+# body) or a timeout is retried twice within the same run, after these waits. On 2026-11-13 at 19:11 UTC CelesTrak answered 500 to the GP and SupGP pulls, which had
 # one attempt each, so the night's element sets were lost and an alert went out; the same URL
 # answered 200 when checked 40 minutes later. A 4xx is never retried: CelesTrak answers 403 to a
 # client it has blocked for pulling too often, and asking again would only extend the block.
 RETRY_STATUSES = frozenset({500, 502, 503, 504})
 RETRY_WAITS_S = (30, 120)
+# ChunkedEncodingError is a connection reset partway through the body, the likeliest failure for
+# the large GP, SATCAT and GCAT downloads; it is not a ConnectionError subclass.
+_RETRY_ERRORS = (
+    requests.ConnectionError,
+    requests.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+)
 _sleep = time.sleep  # the tests record the waits instead of sleeping
 
 # The interval for a feed that refreshes once a day. The nightly runs at 07:10 and 19:10 UTC and
@@ -112,7 +119,7 @@ def polite_get(
                 response = requests.get(
                     url, timeout=(CONNECT_TIMEOUT_S, TIMEOUT_S), headers=headers, **requests_kwargs
                 )
-            except (requests.ConnectionError, requests.Timeout) as exc:
+            except _RETRY_ERRORS as exc:
                 if wait is None:
                     raise
                 retries.append(type(exc).__name__)
