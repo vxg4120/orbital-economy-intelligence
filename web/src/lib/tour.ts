@@ -14,13 +14,13 @@ const STEPS: DriveStep[] = [
     popover: {
       title: "Welcome to the Orbital Economy Terminal",
       description:
-        "An identity graph over ~70,000 satellites, reconciled from four conflicting public catalogs into one resolved record per real spacecraft. Here's a 20-second tour.",
+        "This is an identity graph over more than 70,000 cataloged objects, which it reconciles from SATCAT, GCAT and Space-Track decay messages into one resolved record per physical object. Here's a 20-second tour.",
     },
   },
   {
     element: '[data-tour="stats"]',
     popover: {
-      title: "The last 30 days at a glance",
+      title: "Recent activity at a glance",
       description:
         "What happened in orbit recently: payloads launched and reentered, the active fleet, and the new payloads still waiting for the catalogs to name their company owner. The stories below explain each number.",
       side: "bottom",
@@ -32,7 +32,7 @@ const STEPS: DriveStep[] = [
     popover: {
       title: "Eight sections",
       description:
-        "Overview (you're here) · Resolver looks up one object · Conflicts shows where catalogs disagree · Operators maps who owns what · Review is the human-checked cases · Buses scores spacecraft platforms · Reachability shows what is overhead from a spot on Earth · Filings is the FCC pre-launch queue.",
+        "Overview is where you are now. Resolver looks up one object, Conflicts shows where the catalogs disagree, Operators maps who owns what, and Review is where hard identity cases get a human verdict. Buses scores spacecraft platforms, Reachability shows what is overhead from a spot on Earth, and Filings is the FCC's queue of pending space-station applications.",
       side: "right",
       align: "start",
     },
@@ -42,7 +42,7 @@ const STEPS: DriveStep[] = [
     popover: {
       title: "Under the hood: the catalogs disagree",
       description:
-        "Four public sources rarely tell the same story. This surfaces their disagreements about status, decay and stale ownership, and every number traces back to which source said what.",
+        "The sources rarely tell the same story. This surfaces their disagreements about status, decay and stale ownership, and every number traces back to which source said what.",
       side: "top",
       align: "start",
     },

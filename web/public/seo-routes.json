@@ -9,7 +9,7 @@
       "pattern": "/",
       "end": true,
       "title": "Orbital Economy Terminal",
-      "description": "What happened in orbit in the last 30 days — launch tempo, who owns the active fleet, the constellation race, reentries and space weather — over one resolved record per satellite stitched from SATCAT, GCAT and Space-Track decay messages."
+      "description": "See what is happening in orbit: the launches and reentries of the last 30 days, a year of launch tempo, who owns the active fleet, the constellation race and the space weather, all read from one resolved record per satellite that is stitched from SATCAT, GCAT and Space-Track decay messages."
     },
     {
       "pattern": "/resolver/:satelliteId?",
@@ -21,7 +21,7 @@
       "pattern": "/conflicts",
       "end": true,
       "title": "Conflicts · Orbital Economy Terminal",
-      "description": "Every cross-source disagreement the resolver had to adjudicate, from the data-quality report, with each row linking into the resolver so the underlying claims can be read."
+      "description": "This page lists three kinds of disagreement that the resolver had to adjudicate: status, reentry date and stale post-merger owner. They come from the data-quality report, and each row links into the resolver so that the underlying claims can be read."
     },
     {
       "pattern": "/operators/:operatorId?",
@@ -40,19 +40,19 @@
       "end": true,
       "canonicalParams": ["kind"],
       "title": "Bus benchmarks · Orbital Economy Terminal",
-      "description": "Spacecraft bus benchmarks per manufacturer and per bus model: fleet size, time to operational, station-keeping, lifetime and disposal, derived from GP element history with provenance and a published methodology."
+      "description": "This page benchmarks spacecraft buses per manufacturer and per bus model. Fleet size, lifetime and disposal come from the catalogs and Space-Track decay messages, while time to operational and station-keeping come from GP element history, and every number is traceable to its source rows under a published methodology."
     },
     {
       "pattern": "/reachability",
       "end": true,
       "title": "Reachability · Orbital Economy Terminal",
-      "description": "Every satellite above your horizon right now, computed from the latest GP elements for a spot on Earth, with the transmitters each one carries from SatNOGS and the next passes."
+      "description": "This page lists nearly every active satellite above your horizon right now, which it computes for a spot on Earth from public GP element sets no more than 14 days old, and it adds the transmitters that SatNOGS records for each one and its next passes."
     },
     {
       "pattern": "/filings",
       "end": true,
       "title": "Filings · Orbital Economy Terminal",
-      "description": "Pending FCC space-station applications from IBFS bulk data and harvested ICFS documents: the pre-launch pipeline of satellites that do not yet exist in any tracking catalog."
+      "description": "This page lists pending FCC space-station applications from IBFS bulk data and harvested ICFS documents. A new application can describe satellites that are not in any tracking catalog yet, and a modification or temporary authority can concern a satellite that is already in orbit."
     },
     {
       "pattern": "*",

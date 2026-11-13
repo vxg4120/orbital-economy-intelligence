@@ -364,7 +364,7 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
         ) : (
           <EmptyState
             title="No element set"
-            message="No GP elements on record — common for GEO, classified, or pre-catalog objects."
+            message="No GP elements on record. Element sets come from CelesTrak's list of active satellites and from Space-Track history since mid-2025 for eight operator fleets, so debris, rocket bodies, most inactive or reentered satellites and classified objects whose elements are not published have none."
           />
         )}
       </Panel>

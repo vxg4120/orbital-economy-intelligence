@@ -114,7 +114,11 @@ def test_methodology_is_versioned_and_complete(client):
     metric_keys = {x["key"] for x in m["metrics"]}
     assert {"fleet", "tto", "sk_share", "decayed_share", "compliance", "coverage"} <= metric_keys
     assert m["provenance_guarantee"]
-    assert "operator_confirmed" in m["correction_channel"]
+    # The channel says only what is built: attribution comes from GCAT, and no correction path
+    # outranks it yet, so the reserved 'operator_confirmed' source must not be promised.
+    assert "GCAT" in m["correction_channel"]
+    assert "operator_confirmed" not in m["correction_channel"]
+    assert "twice a day" in m["refresh"] and "Nightly" not in m["refresh"]
     assert m["limitations"], "known limitations must be stated"
     # Site-wide copy rule: no em dashes anywhere in the methodology payload.
     assert "\u2014" not in r.text

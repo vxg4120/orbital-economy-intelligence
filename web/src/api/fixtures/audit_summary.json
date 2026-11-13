@@ -2,11 +2,11 @@
   "kuiper_milestone": {
     "at_shell": 228,
     "raising": 157,
-    "deorbited": 4,
+    "deorbited": 6,
     "deployed_total": 398,
-    "deployed_by_deadline": 398,
+    "deployed_by_deadline": 392,
     "deployed_last_30d": 65,
-    "required": 1618,
+    "required": 1616,
     "deadline": "2026-07-30"
   },
   "lingering_leaderboard": [

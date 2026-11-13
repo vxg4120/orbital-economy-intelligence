@@ -25,11 +25,22 @@ METHODOLOGY_DOC_URL = (
     "https://github.com/vxg4120/orbital-economy-intelligence"
     "/blob/main/docs/BUS_BENCHMARKS_METHODOLOGY.md"
 )
+# Says only what is built. No precedence entry for bus or manufacturer exists in
+# identity/precedence.yml, satellite_bus is rebuilt from GCAT alone, and the 'operator_confirmed'
+# value is reserved in the schema but carries no rows and has no path to a satellite yet
+# (docs/specs/assertion-model.md). When that path exists, this text should say how it works.
 CORRECTION_CHANNEL = (
-    "Operators and manufacturers can confirm or dispute attribution: email "
-    "vibhavgupta2@gmail.com with subject 'Bus attribution: {name}'. Adjudicated corrections "
-    "enter the record as claims with source 'operator_confirmed', which "
-    "outranks catalog sources in precedence."
+    "Operators and manufacturers can confirm or dispute an attribution by emailing "
+    "vibhavgupta2@gmail.com with the subject 'Bus attribution: {name}'. Every satellite's bus "
+    "and manufacturer attribution shown here currently comes from GCAT, and no operator "
+    "correction has been applied yet. A way to record an accepted correction so that it takes "
+    "precedence over the catalogs has not been built yet."
+)
+REFRESH = (
+    "The data refreshes twice a day, at 07:10 and 19:10 UTC. Each run pulls the latest orbital "
+    "elements and rebuilds the bus attribution and behavior layers, and the catalogs behind the "
+    "attribution are pulled at most once a day. Monthly leaderboard snapshots are frozen on the "
+    "first refresh of each month and never rewritten."
 )
 
 _GROUPS = {
@@ -133,7 +144,7 @@ METHODOLOGY = {
         },
         {
             "name": "GP element history (Space-Track / CelesTrak)",
-            "role": "orbital behavior: station-keeping, orbit raising, decay",
+            "role": "orbital behavior: station-keeping and orbit raising",
             "url": "https://celestrak.org/NORAD/elements/",
         },
     ],
@@ -236,8 +247,7 @@ METHODOLOGY = {
         "headline value."
     ),
     "correction_channel": CORRECTION_CHANNEL,
-    "refresh": "Nightly, with the daily ingest cycle. Monthly leaderboard snapshots are "
-               "frozen on the first refresh of each month and never rewritten.",
+    "refresh": REFRESH,
 }
 
 

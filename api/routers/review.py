@@ -46,6 +46,59 @@ STRATUM_ORDER = [
 ]
 
 
+# When a case was drawn. The builder writes drawn_at into the evidence on every (re)draw, so a
+# refreshed case dates itself; a case drawn before that falls back to created_at, which the upsert
+# never moves and which is therefore the date of the one draw that wrote it.
+_DRAWN_AT_SQL = "COALESCE((c.evidence->>'drawn_at')::timestamptz, c.created_at)"
+
+
+def observed_through(evidence) -> str | None:
+    """The newest observed_at on any source claim in a case's evidence packet, as stored.
+
+    Claims sit in an ``assertions`` list on each satellite packet, which a COSPAR cluster nests
+    under ``satellites`` and a missed-join case nests under its candidate, so the walk is
+    recursive. It reports how fresh the sources were when the case was drawn."""
+    newest = None
+
+    def walk(node):
+        nonlocal newest
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "assertions" and isinstance(value, list):
+                    for a in value:
+                        seen = a.get("observed_at") if isinstance(a, dict) else None
+                        if isinstance(seen, str) and (newest is None or seen > newest):
+                            newest = seen
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(evidence)
+    return newest
+
+
+def since_drawn(evidence, current) -> list[dict]:
+    """What the graph says now that differs from what the case recorded when it was drawn.
+
+    ``current`` is the subject's row today ({norad_id, canonical_name, status}), or None when the
+    graph no longer holds the record. Only single-satellite packets are compared; a COSPAR cluster
+    has no one subject. The stored question and answer are left exactly as drawn, because they are
+    what a verdict grades, and this list is how the page says that the subject has moved on."""
+    if not isinstance(evidence, dict) or "satellites" in evidence or "satellite_id" not in evidence:
+        return []
+    if current is None:
+        return [{"field": "record", "then": evidence.get("satellite_id"), "now": None}]
+    then_status = (evidence.get("resolved") or {}).get("status")
+    pairs = [
+        ("norad_id", evidence.get("norad_id"), current.get("norad_id")),
+        ("canonical_name", evidence.get("canonical_name"), current.get("canonical_name")),
+        ("status", then_status, current.get("status")),
+    ]
+    return [{"field": f, "then": then, "now": now} for f, then, now in pairs if then != now]
+
+
 def _accuracy(correct: int, partial: int, gradable: int) -> float | None:
     """(correct + 0.5*partial) / gradable, or None when nothing is gradable. Mirrors score_gold."""
     if gradable <= 0:
@@ -72,6 +125,10 @@ def review_stats(db=Depends(get_db)):
             "JOIN gold_dossier d ON d.case_id = c.case_id GROUP BY c.case_type"
         )
         dossiers_by_type = {r["case_type"]: r["n"] for r in cur.fetchall()}
+        cur.execute(
+            f"SELECT min({_DRAWN_AT_SQL}) AS first, max({_DRAWN_AT_SQL}) AS last FROM gold_case c"
+        )
+        drawn = cur.fetchone()
 
     tally: dict[str, dict] = {}
     for r in rows:
@@ -106,6 +163,8 @@ def review_stats(db=Depends(get_db)):
         "strata": strata,
         "overall": overall,
         "accuracy_so_far": _accuracy(agg["correct"], agg["partial"], gradable),
+        # The span of dates the cases were drawn on, so the queue can say how old it is.
+        "drawn": {"first": drawn["first"], "last": drawn["last"]},
     }
 
 
@@ -193,12 +252,17 @@ def review_next(
 def review_case(case_id: int, db=Depends(get_db)):
     """One full case: identity + question + system answer + the raw evidence JSONB + any verdict,
     plus the AI-research ``dossier`` (or null) LEFT-JOINed from gold_dossier. Dossiers are written by
-    research agents over time, so ``dossier`` is null until one lands — that absence is normal."""
+    research agents over time, so ``dossier`` is null until one lands, and that absence is normal.
+
+    The question, answer and evidence are a snapshot of the graph on the day the case was drawn,
+    and they stay that way because a verdict grades them. So the case also carries ``drawn_at``,
+    ``observed_through`` (the newest source claim in its evidence) and ``since_drawn``, which lists
+    what the graph says differently about the subject today."""
     with db.cursor() as cur:
         cur.execute(
             "SELECT c.case_id, c.case_type, c.satellite_id, c.subject_ref, c.question, "
             "c.system_answer, c.evidence, c.verdict, c.corrected_answer, c.verdict_notes, "
-            "c.labeled_at, "
+            f"c.labeled_at, {_DRAWN_AT_SQL} AS drawn_at, "
             "CASE WHEN d.case_id IS NULL THEN NULL ELSE jsonb_build_object("
             "  'recommended_verdict', d.recommended_verdict, "
             "  'recommended_answer', d.recommended_answer, "
@@ -213,9 +277,27 @@ def review_case(case_id: int, db=Depends(get_db)):
             (case_id,),
         )
         row = cur.fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="case not found")
-    return row
+        if row is None:
+            raise HTTPException(status_code=404, detail="case not found")
+        current = None
+        if row["satellite_id"] is not None:
+            # The subject as the graph holds it today, read the way the builder read it (the
+            # latest status row, ties broken by source) so the two sides compare like for like.
+            cur.execute(
+                "SELECT s.norad_id, s.canonical_name, ("
+                "  SELECT h.canonical_status FROM satellite_status_history h "
+                "  WHERE h.satellite_id = s.satellite_id "
+                "  ORDER BY h.observed_at DESC, h.source LIMIT 1) AS status "
+                "FROM satellite s WHERE s.satellite_id = %s",
+                (row["satellite_id"],),
+            )
+            current = cur.fetchone()
+    evidence = row["evidence"]
+    return {
+        **row,
+        "observed_through": observed_through(evidence),
+        "since_drawn": since_drawn(evidence, current) if row["satellite_id"] is not None else [],
+    }
 
 
 class VerdictBody(BaseModel):

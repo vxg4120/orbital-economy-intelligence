@@ -105,11 +105,15 @@ export function Filings() {
         <div>
           <h1 className="vhead__title">Filings</h1>
           <p className="vhead__desc">
-            The pre-launch pipeline: space-station applications filed with the FCC and not yet
-            granted, denied, dismissed or surrendered. Filed-to-launch lead runs months to years
-            (Starlink Gen1 filed 14 months ahead; Kuiper 39), so nothing here exists in any
-            tracking catalog yet. Builder-cohort chips link to the scoreboard page whose
-            corporate group filed.
+            The pre-launch pipeline is the list of space-station applications that were filed
+            with the FCC and have not yet been granted, denied, dismissed or surrendered. An
+            application can come years before the satellites it describes, because Starlink Gen1
+            was filed about 15 months before its first test satellites flew and about 30 months
+            before its first operational batch, and Kuiper was filed about 51 months before its
+            first launch. A pending new application can describe satellites that are in no
+            tracking catalog yet, while a pending modification or special temporary authority can
+            concern satellites that are already flying. Builder-cohort chips link to the
+            scoreboard page whose corporate group filed.
           </p>
         </div>
       </header>

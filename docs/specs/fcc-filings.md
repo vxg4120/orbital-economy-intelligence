@@ -9,10 +9,13 @@
 
 Make the FCC space-station docket a first-class, queryable layer of OEI: what has been filed,
 what it proposes (structured, cited specs), and how filings relate to each other over time. This
-is the forward-looking half of the platform — filings describe satellites months to years before
-they exist in any tracking catalog (Starlink Gen1 filed 14 months ahead; Kuiper 39) — and it is
-built to the same standard as the rest of the site: every value carries provenance a reader can
-check, and every coverage limit is published rather than smoothed over.
+is the forward-looking half of the platform, because a new filing can describe satellites months
+to years before they exist in any tracking catalog (Starlink Gen1 was filed about 15 months before
+its first test satellites launched and about 30 months before its first operational batch, and
+Kuiper was filed about 51 months before its first launch), while a modification can concern
+satellites that are already flying. It is built to the same standard as the rest of the site:
+every value carries provenance that a reader can check, and every coverage limit is published
+rather than smoothed over.
 
 ## Architecture decisions
 
@@ -91,8 +94,10 @@ Hard boundary for all work, and especially for anything autonomous or overnight:
 - Lunar filings carry sentinel orbital values because Schedule S cannot express a translunar
   trajectory (measured: Intuitive Machines and Lockheed file 1/1/0; Astrobotic files 99999).
   Excluded from summary ranges, counted visibly, flagged `as_filed_implausible`.
-- Schedule S exists for 65 of 136 harvested filings; narratives carry **no numeric orbital
-  parameters** (measured), so absent coverage is a fact about the corpus, not a parsing failure.
+- Of the 136 harvested filings, 64 hold a document that is named as a Schedule S, and 60 of those
+  pass the content check that confirms a Tech Report (measured 2026-11-13). Narratives carry **no
+  numeric orbital parameters** (measured), so absent coverage is a fact about the corpus, not a
+  parsing failure.
 
 ## Acceptance criteria
 
@@ -175,6 +180,22 @@ cost approval); AMD-to-parent attribution (needs amendment text; belongs to the 
   nightly failures). Assign: Claude, small, fold into Increment B.
 
 ## Decision log & lessons learned
+
+- 2026-11-13 (Claude, from an audit whose findings two verifiers reproduced, then re-measured
+  here) The lead times that this spec, the Filings page, the methodology API, the methodology
+  document and the landing page called "filed 14 months ahead" and "Kuiper 39" were grant to
+  launch figures that had been relabeled as filing to launch. The research note at
+  docs/design/0003-rf-authorization-layer.md:54 had them right as grant figures. Measured from
+  the IBFS filing dates (SATLOA2016111500118 on 2016-11-15 and SATLOA2019070400057 on 2019-07-04)
+  to the first launches in the catalog, the gaps are about 15 months to the Starlink test
+  satellites, about 30 months to the first Starlink operational batch and about 51 months to the
+  Kuiper protoflights. The same pass removed the claim that nothing in the pending list exists in
+  any tracking catalog, because 341 of the 667 pending filings are modifications or special
+  temporary authorities, and at least 66 of them sit on callsigns that are already matched to
+  cataloged satellites. The lesson is that a number which moves between documents has to carry
+  its definition with it, because the label is what gets lost in the copy. The landing page
+  (deploy/landing/index.html) and the acceptance criterion's "Schedule S 65/136" were outside
+  this change and still need the same correction.
 
 - 2026-09-08 (Codex verify pass, findings independently reproduced before acting) — four defects
   in the slash-route change and its neighbours, all confirmed here rather than taken on trust.

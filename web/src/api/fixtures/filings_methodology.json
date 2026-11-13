@@ -45,8 +45,8 @@
     "largest_single_system": "Boeing V-band NGSO: 2,956 satellites across 74 orbital planes",
     "documents_fetched_whole": 67,
     "documents_truncated_by_the_gateway": 28,
-    "filed_to_launch_lead_time_examples": "Starlink Gen1 filed 14 months before first launch; Kuiper filed 39 months before.",
-    "last_harvest_and_extraction_run": "2026-08-24, on weekly staleness gates inside the nightly refresh"
+    "filed_to_launch_lead_time_examples": "Starlink Gen1 was filed about 15 months before its first test satellites launched and about 30 months before its first operational batch, and Kuiper was filed about 51 months before its first launch.",
+    "last_harvest_and_extraction_run": "2026-08-24, on weekly staleness gates inside the twice-daily refresh"
   },
   "docket_model": {
     "model": "Dockets are modeled as timelines keyed on callsign, never as supersession chains, and specs are never merged across filings.",
