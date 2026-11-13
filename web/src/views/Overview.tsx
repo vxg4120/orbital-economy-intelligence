@@ -138,9 +138,11 @@ export function Overview() {
         </Async>
         <p className="hint story__hint">
           Bars show the fleet-wide median one-day change in semi-major axis over consecutive-day
-          LEO element pairs. The median is robust to maneuvers, so when a bar stretches, the
-          atmosphere moved everyone. Storm days on the NOAA G scale are tinted. Indices come from
-          CelesTrak&apos;s consolidated space-weather data.
+          LEO element pairs. Starlink satellites make up most of those pairs, and they adjust their
+          orbits often, so the median follows Starlink&apos;s station keeping as well as the
+          atmosphere, and a single bar is not proof that the atmosphere moved. Storm days on the
+          NOAA G scale are tinted. Indices come from CelesTrak&apos;s consolidated space-weather
+          data.
         </p>
       </Panel>
 

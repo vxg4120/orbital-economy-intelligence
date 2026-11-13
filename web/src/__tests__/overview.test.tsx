@@ -85,4 +85,9 @@ describe("Overview captions", () => {
     expect(html).toContain("debris and spent rocket bodies are almost entirely missing from it.");
     expect(html).not.toContain("LEO shell occupancy");
   });
+  it("no longer says a stretched drag bar means the atmosphere moved everyone", () => {
+    expect(html).toContain("Starlink satellites make up most of those pairs");
+    expect(html).toContain("a single bar is not proof that the atmosphere moved.");
+    expect(html).not.toContain("the atmosphere moved everyone");
+  });
 });

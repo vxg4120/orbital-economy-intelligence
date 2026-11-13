@@ -642,14 +642,18 @@ export function FleetShare({ s }: { s: StoriesResponse }) {
 
 /* ---- f. Space weather headline --------------------------------------------- */
 
+/** The storm sentence, then the series' largest one-day fall. That fall is not called a drag
+    day: Starlink makes up most of the element pairs and its station keeping moves the median
+    too (on 2026-10-12 it rose 23 m on a quiet day and fell 28 m the next, which is what the
+    API's worst_drag_day picked), so the sentence states the size and the day only. */
 export function weatherLead(s: StoriesResponse, env: EnvironmentResponse | null): string {
   const parts = [stormSentence(s)];
   const w = env?.worst_drag_day;
   if (w && w.median_dsma_m !== null && w.median_dsma_m < 0) {
     parts.push(
-      `The worst drag day of the last 60 days was ${longDate(w.day, s.as_of)}, when the median LEO orbit sank ${fmtInt(
+      `The largest one-day fall in the median LEO orbit over the last 60 days was ${fmtInt(
         Math.round(Math.abs(w.median_dsma_m)),
-      )} meters in one day.`,
+      )} meters, on ${longDate(w.day, s.as_of)}.`,
     );
   }
   return parts.join(" ");

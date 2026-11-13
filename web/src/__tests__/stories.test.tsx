@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StaticRouter } from "react-router-dom/server";
 import type { ReactElement } from "react";
-import { ComingDown, ConstellationRace, FleetShare, LatestLaunches } from "../components/Stories";
-import type { StoriesReentry, StoriesResponse } from "../api/types";
+import {
+  ComingDown,
+  ConstellationRace,
+  FleetShare,
+  LatestLaunches,
+  weatherLead,
+} from "../components/Stories";
+import type { EnvironmentResponse, StoriesReentry, StoriesResponse } from "../api/types";
 import storiesFixture from "../api/fixtures/stories.json";
 
 const base = storiesFixture as unknown as StoriesResponse;
@@ -103,5 +109,37 @@ describe("country or placeholder owners", () => {
     const out = html(<ConstellationRace s={base} />);
     expect(out).toContain("still carry only a country or placeholder code as owner");
     expect(out).not.toContain("only a country code as owner");
+  });
+});
+
+/** Audit 2026-11-13: "The worst drag day of the last 60 days was October 13" named a quiet
+    day (Kp 3.3) whose 28 m fall followed a 23 m rise the day before, which drag cannot cause;
+    Starlink's station keeping moves the median. The sentence now states the fall and the day
+    without calling it a drag day. */
+describe("weatherLead", () => {
+  const env = (median: number | null): EnvironmentResponse => ({
+    rows: [],
+    latest_observed: null,
+    worst_drag_day: {
+      day: "2026-10-13",
+      storm_level: null,
+      kp_max: 3.3,
+      ap_avg: null,
+      sats_observed: 15650,
+      median_dsma_m: median,
+    },
+    note: "",
+    attribution: "",
+  });
+  it("states the largest one-day fall without calling it drag", () => {
+    const lead = weatherLead(base, env(-28.4));
+    expect(lead).toContain(
+      "The largest one-day fall in the median LEO orbit over the last 60 days was 28 meters, on October 13.",
+    );
+    expect(lead).not.toContain("worst drag day");
+  });
+  it("adds nothing when the series has no fall", () => {
+    expect(weatherLead(base, env(2.6))).not.toContain("largest one-day fall");
+    expect(weatherLead(base, null)).not.toContain("largest one-day fall");
   });
 });
