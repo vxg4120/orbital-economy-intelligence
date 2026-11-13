@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Query
 
 from api import cache
 from api.deps import get_db
+from identity.decay_claims import CURRENT_DECAY_CLAIMS_SQL
 from identity.normalize import parse_date_loose
 
 router = APIRouter(prefix="/conflicts", tags=["conflicts"])
@@ -91,15 +92,11 @@ stale AS (
 """
 
 # --- decay-date claims (report.py _section_decay_date_conflicts, resolved to dates in Python) --
-_DECAY_CLAIMS_SQL = """
+# Read through identity/decay_claims.py, so a GCAT phase-end date (a docking, a transfer, a
+# departure to deep space) is not listed or compared as a decay date.
+_DECAY_CLAIMS_SQL = f"""
 SELECT s.satellite_id, s.norad_id, s.canonical_name, l.source, l.value
-FROM (
-    SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value,
-           observed_to AS observed_at
-    FROM v_current_claim
-    WHERE attribute = 'decay_date'
-    ORDER BY satellite_id, source, source_key
-) l
+FROM ({CURRENT_DECAY_CLAIMS_SQL}) l
 JOIN satellite s ON s.satellite_id = l.satellite_id
 ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source
 """
@@ -110,7 +107,8 @@ def _decay_conflict_rows(db) -> list[dict]:
 
     Groups each satellite's per-source claims (already ordered), parses each raw value to a date,
     and keeps only satellites with more than one distinct parseable date -- so pure formatting
-    differences never read as a conflict. Raw claims are preserved in sources_and_dates.
+    differences never read as a conflict. Raw claims are preserved in sources_and_dates. A GCAT
+    date counts only when it ended a phase in a decay (identity/decay_claims.py).
     """
     with db.cursor() as cur:
         cur.execute(_DECAY_CLAIMS_SQL)

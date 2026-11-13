@@ -28,6 +28,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from common.db import get_conn
+from identity.decay_claims import CURRENT_DECAY_CLAIMS_SQL
 from identity.normalize import parse_date_loose
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -152,16 +153,12 @@ def _section_decay_date_conflicts(cur):
     # purely because GCAT writes "1957 Dec  1 1000?" where SATCAT writes "1957-12-01". The raw
     # strings are still shown in the examples so the provenance is visible. Rows arrive ordered by
     # (norad NULLS LAST, satellite_id) from SQL; dict insertion order preserves that determinism.
+    # A GCAT date is a decay claim only when it ended a phase in a decay (identity/decay_claims.py);
+    # a docking or transfer date is not listed or compared.
     cur.execute(
-        """
+        f"""
         SELECT s.norad_id, s.canonical_name, l.satellite_id, l.source, l.value
-        FROM (
-            SELECT DISTINCT ON (satellite_id, source) satellite_id, source, value,
-                   observed_to AS observed_at
-            FROM v_current_claim
-            WHERE attribute = 'decay_date'
-            ORDER BY satellite_id, source, source_key
-        ) l
+        FROM ({CURRENT_DECAY_CLAIMS_SQL}) l
         JOIN satellite s ON s.satellite_id = l.satellite_id
         ORDER BY s.norad_id NULLS LAST, l.satellite_id, l.source
         """
