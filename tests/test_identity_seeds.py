@@ -85,6 +85,28 @@ def test_every_documented_gcat_phase_is_mapped():
     gcat = _load(STATUS_MAP)["gcat"]
     missing = sorted(GCAT_DOCUMENTED_PHASES - set(gcat))
     assert not missing, f"GCAT phases with no mapping: {missing}"
+    # And nothing beyond the doc: the map holds only codes GCAT defines.
+    undocumented = sorted(set(gcat) - GCAT_DOCUMENTED_PHASES)
+    assert not undocumented, f"mapped codes GCAT does not document: {undocumented}"
+
+
+def test_the_review_grid_copy_of_the_status_map_matches_the_yml():
+    """web/src/lib/reviewStrata.ts carries a hand-written copy of the map to annotate the Review
+    claims grid. It still held the old 32 GCAT codes after the yml gained 15 on 2026-11-13."""
+    import re
+
+    ts = (REPO_ROOT / "web" / "src" / "lib" / "reviewStrata.ts").read_text()
+    block = re.search(r"const STATUS_MAP[^=]*= \{(.*?)\n\};", ts, re.S).group(1)
+    copy = {}
+    for source, body in re.findall(r"(\w+): \{(.*?)\}", block, re.S):
+        pairs = re.findall(r'(?:"([^"]+)"|([A-Za-z0-9+?-]+)): "([A-Z]+)"', body)
+        copy[source] = {quoted or bare: canonical for quoted, bare, canonical in pairs}
+    yml = {
+        source: {str(code): spec["canonical"] for code, spec in codes.items()}
+        for source, codes in _load(STATUS_MAP).items()
+    }
+    assert copy["gcat"] == yml["gcat"]
+    assert copy["satcat"] == yml["satcat"]
 
 
 def test_only_end_of_life_gcat_phases_map_to_decayed():

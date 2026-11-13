@@ -58,7 +58,7 @@ gcat:
   "LOA": {canonical: UNKNOWN, notes: "Reflight attached: launched from a world other than Earth aboard a parent; catalog reassigned."}
   "TFR": {canonical: UNKNOWN, notes: "Transfer: moved from inside one object to inside another."}
   "TFR E": {canonical: UNKNOWN, notes: "Transfer external: moved from inside one object to the exterior of another."}
-  "TFR IN": {canonical: UNKNOWN, notes: "Transfer in: moved from outside one object to its interior (same as RET)."}
+  "TFR IN": {canonical: UNKNOWN, notes: "Transfer in: moved from outside one object to the interior of another (same as RET)."}
   "EVA DP": {canonical: UNKNOWN, notes: "Spacewalk (depress): taken out when an airlock was depressurized."}
   "EVA RP": {canonical: UNKNOWN, notes: "Spacewalk (repress): brought back in when an airlock was repressurized."}
   "REFLT": {canonical: UNKNOWN, notes: "Reflight: the object takes a new catalog number on its next flight."}
