@@ -975,8 +975,11 @@ export interface StoriesReentry {
   satellite_id: number;
   name: string;
   date: string;
-  launched: string | null;
+  launched: string | null; // as cataloged: Zarya's 1998-11-20 for every ISS-deployed satellite
   owner: string | null;
+  // COSPAR 1998-067 other than A; optional while an older API is deployed
+  deployed_from_iss?: boolean;
+  released?: string | null; // the day the station released it, per GCAT's SDate
 }
 
 export interface StoriesConstellation {

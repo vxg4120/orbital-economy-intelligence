@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import type { EnvironmentResponse, StoriesResponse } from "../api/types";
+import type { EnvironmentResponse, StoriesReentry, StoriesResponse } from "../api/types";
 import { useWidth } from "../hooks/useWidth";
 import { fmtInt, fmtPct } from "../lib/format";
 import {
@@ -315,11 +315,18 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
 
 /* ---- c. Coming down -------------------------------------------------------- */
 
-function lifetime(launched: string | null, down: string): string | null {
-  if (!launched) return null;
-  const days = daysBetween(launched, down);
+function upFor(since: string, down: string): string {
+  const days = daysBetween(since, down);
   if (days < 365) return `${plural(days, "day")} up`;
   return `${(Math.round((days / 365.25) * 10) / 10).toFixed(1)} years up`;
+}
+
+/** Time in orbit for a reentry row. SATCAT gives every ISS-deployed satellite the station's
+    1998 launch date, so those rows count from GCAT's release date, or say where they came
+    from when GCAT has none. */
+function lifetime(n: StoriesReentry): string | null {
+  if (n.deployed_from_iss) return n.released ? upFor(n.released, n.date) : "deployed from the ISS";
+  return n.launched ? upFor(n.launched, n.date) : null;
 }
 
 export function ComingDown({ s }: { s: StoriesResponse }) {
@@ -373,7 +380,7 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
           <h3 className="story__sub">The latest reentries other than Starlink</h3>
           <ul className="downlist">
             {r.notable.map((n) => {
-              const up = lifetime(n.launched, n.date);
+              const up = lifetime(n);
               return (
                 <li key={n.satellite_id} className="downlist__row">
                   <span className="downlist__name">
@@ -394,6 +401,9 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
         Payload reentries by decay date. Starlink is a name match. The V1.0 count is
         every name that starts with &quot;Starlink V1.0&quot;, which is how GCAT names that design;
         &quot;other Starlink&quot; holds every other version.
+        {r.notable.some((n) => n.deployed_from_iss)
+          ? " For a satellite deployed from the ISS, the time up counts from its release from the station, as GCAT records it, because SATCAT gives these satellites the station's 1998 launch date."
+          : ""}
       </p>
     </Panel>
   );
