@@ -13,6 +13,7 @@ import pytest
 from quality.report import (
     SUPGP_ENDPOINT,
     SUPGP_SOURCE,
+    _section_coverage,
     _section_decay_date_conflicts,
     _section_match_merge_stats,
     _section_stale_post_ma_owners,
@@ -31,6 +32,7 @@ NORAD_STALE_OWNER = 920200003
 NORAD_ON_ORBIT_RICH = 920200004
 NORAD_ON_ORBIT_BARE = 920200005
 NORAD_DECAYED = 920200006
+NORAD_SATCAT_ONLY = 920200007
 
 
 def _insert_satellite(cur, norad_id, name, object_type="PAYLOAD", decay_date=None):
@@ -254,6 +256,41 @@ def test_report_match_merge_stats_and_coverage_percentages_parse_as_numbers(seed
 
     # The decayed satellite must not be counted as on-orbit.
     assert str(NORAD_DECAYED) not in coverage_section
+
+
+@pytest.mark.db
+def test_coverage_counts_payloads_listed_in_both_catalogs(seeded):
+    """Audit 2026-11-13: the third coverage line read "With >=2 source identifiers" and counted
+    identifier ROWS. One SATCAT record alone writes three rows (norad, cospar, name), so the line
+    could not fall below 100% and said nothing about a second source. The line now counts the
+    on-orbit payloads for which SATCAT and GCAT each hold an identifier, which is what the
+    Overview meter and /api/stats report (94.5% on 2026-11-13)."""
+    with seeded.cursor() as cur:
+        before = _section_coverage(cur)
+        # A payload that only SATCAT knows, with the three rows one SATCAT record writes.
+        sat_solo = _insert_satellite(cur, NORAD_SATCAT_ONLY, "ZZ TEST SATCAT ONLY")
+        cur.execute(
+            "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source) VALUES "
+            "(%s, 'norad', %s, 'satcat'), (%s, 'cospar', %s, 'satcat'), "
+            "(%s, 'name_satcat', %s, 'satcat')",
+            (sat_solo, str(NORAD_SATCAT_ONLY), sat_solo, "2099-999ZZ",
+             sat_solo, "ZZ TEST SATCAT ONLY"),
+        )
+        after = _section_coverage(cur)
+
+    assert "with_2plus_ids" not in after
+    assert after["total_on_orbit"] == before["total_on_orbit"] + 1
+    # Three identifier rows from one catalog do not make the payload "in both catalogs".
+    assert after["with_both_catalogs"] == before["with_both_catalogs"]
+    # The seeded "rich" payload has one SATCAT row and one GCAT row, so it is counted.
+    assert before["with_both_catalogs"] >= 1
+
+    coverage_section = generate_report(seeded).split("## 7. Coverage")[1].split("## 8.")[0]
+    assert "source identifiers" not in coverage_section
+    assert (
+        f"- Listed in both SATCAT and GCAT: {after['with_both_catalogs']}/{after['total_on_orbit']}"
+        in coverage_section
+    )
 
 
 def test_supgp_ledger_labels_match_the_ingest():
