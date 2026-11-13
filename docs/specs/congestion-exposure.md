@@ -1,6 +1,6 @@
 # Spec: per-operator congestion exposure on the Operators view
 
-**Status:** active
+**Status:** done
 **Owner:** Vib
 **Repos touched:** space
 **Last updated:** 2026-11-13
@@ -70,8 +70,12 @@ Labs satellite shared its shell with about 963 objects from other operators.
       by share (an id order fails it) and capped at 3, the main shell is picked by the
       operator's own count (an order by shell size fails it), the field size counts a shell the
       view has no row for, and an operator outside the field gets null.
-- [ ] GET /api/operators/{SpaceX id} on production returns a congestion block whose
+- [x] GET /api/operators/{SpaceX id} on production returns a congestion block whose
       own_per_satellite is most of neighbours_per_satellite (2,755 of 2,894 on 2026-11-13).
+      Verified 2026-11-13 21:08 UTC on GET /api/operators/1: own 2,755.3 of 2,893.7, main shell
+      450 to 500 km at 50 to 55 degrees with 4,057 of 4,177 objects. The panel prints "2,756 of
+      them its own and 138 belonging to other operators" (largest remainder gives the spare unit
+      to own, whose remainder .34 beats .32).
 - [x] The operator panel renders the section for an operator in the field and the empty state
       for one outside it, and the parts of the split it prints add up to the total it prints at
       the precision shown (vitest).

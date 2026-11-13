@@ -573,3 +573,39 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
   v_congestion_exposure; "≥2 identifiers" in quality/report.py; 33 of 34 famous exo hosts
   flagged disputed on Follow-up (a product choice); NORAD 56915 with a stale decay date and
   fresh elements.
+
+## Review (2026-11-13 21:15 UTC, congestion exposure and the decay phase-date fix)
+- Congestion exposure is live on every operator's panel (space 1db82fd, spec
+  docs/specs/congestion-exposure.md, now done). GET /api/operators/{id} carries a `congestion`
+  block from v_congestion_exposure, built for all operators in one 1.1 s query and kept in the
+  warm cache. SpaceX on production: each object shares its shell with about 2,894 others, 2,755
+  of them its own; the shell holding the most of its objects is 450 to 500 km at 50 to 55
+  degrees, 4,057 of 4,177.
+- Review: a three-lens workflow (17 agents, every finding put to a refuter) left ten defects,
+  all in copy and tests; a fresh reviewer then took three more rounds, the last a 400,000-case
+  fuzz, before the sentences held. Lessons are in the spec's decision log: round the parts by
+  largest remainder, say "all" or "none" only of a true 0, give tenths below 1 per object, and
+  seed tests so the wrong formula gives a different answer (three mutants checked).
+- Codex is still unavailable: the account is on the free tier with a usage limit until
+  2026-11-16 (memory note codex-cross-provider-review updated).
+- The peer session's decay phase-date fix is merged and live (6bd067b): decay conflicts 4,334
+  to 3,523, conflict rate 12.0% to 10.1%, landing "3,700+" with the snapshot baked twice (the
+  second after the deploy, conflicts 4,539 to 3,728). Verified live: /api/stats decay 3,523,
+  OGO A (879) in none of the 3,523 rows, /api/satellites/40452 without a decay_date conflict.
+- Found while measuring, for Vib (no change made):
+  - Four objects carry a decay date older than their latest element set. NORAD 56915 (Starlink,
+    GCAT says reentered 2026-05-07, SATCAT operational, elements at 482 km on 2026-11-12) is a
+    GCAT error. 44547 Yunhai-1 02 and 24946 Iridium 33 are GCAT status C ("collided"), which
+    status_map.yml maps to DECAYED although both parent bodies are still tracked. 65077 Dragon
+    C206.6 is a SATCAT decay with a later element set and looks benign. A rule such as "a GCAT
+    decay date is contradicted by an element set more than 30 days after it" would fix the first
+    three; it is a resolver methodology change, so it waits for a decision. None of the four
+    leaves the congestion field, whose predicate only drops an object decayed on or after its
+    latest epoch.
+  - 35 objects have a decay date while SATCAT reports them in orbit with no decay date; most
+    have no element set to settle it either way.
+  - The review queue on production still holds decay_conflict cases built from the old top 20,
+    which were nearly all GCAT phase dates. Removing them is a database write.
+  - The satellite card still lists a GCAT phase-end date under decay_date with no label.
+- After the 07:10 UTC nightly on 2026-11-14: check "display name overrides: 8", "unmapped
+  status values: 0", /api/satellites/40452 without a status conflict, and the ingest retry log.
