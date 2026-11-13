@@ -34,7 +34,7 @@
 {"@type":"ItemList","name":"Projects by Vibhav Gupta","itemListOrder":"https://schema.org/ItemListOrderAscending","numberOfItems":4,"itemListElement":[
 {"@type":"ListItem","position":1,"item":{"@type":"Organization","name":"CannMenus","url":"https://cannmenus.com","description":"Cannabis retail data platform: menus, pricing, and inferred sales across US dispensaries.","founder":{"@id":"https://vibcreates.com/#vib"},"foundingDate":"2019"}},
 {"@type":"ListItem","position":2,"item":{"@type":"WebSite","name":"Orbital Economy Terminal","url":"https://orbital.vibcreates.com/","description":"A satellite identity graph that resolves Space-Track, CelesTrak and GCAT records to one identity per satellite and keeps every disagreement on the record.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
-{"@type":"ListItem","position":3,"item":{"@type":"WebSite","name":"ExoDossier","url":"https://exo.vibcreates.com/","description":"A provenance graph over the NASA Exoplanet Archive, ExoFOP, KOI, and Gaia that shows where the archives disagree about the same star or candidate.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
+{"@type":"ListItem","position":3,"item":{"@type":"WebSite","name":"ExoDossier","url":"https://exo.vibcreates.com/","description":"A provenance graph over the NASA Exoplanet Archive, ExoFOP, and the Kepler KOI table that shows where the archives disagree about the same star or candidate.","author":{"@id":"https://vibcreates.com/#vib"},"isAccessibleForFree":true}},
 {"@type":"ListItem","position":4,"item":{"@type":"CreativeWork","name":"SplitStep","url":"https://vibcreates.com/splitstep/","description":"A product case study: the smartphones players already own, coordinated into a tennis coach, counter, and line judge.","author":{"@id":"https://vibcreates.com/#vib"}}}
 ]}]}
 </script>
@@ -566,16 +566,18 @@
       <div class="role">Built solo · 2026 · live &amp; refreshed nightly</div>
       <p>The exoplanet archives disagree on radius, temperature, even whether a candidate is a planet
         at all. Those flips can change whether a world counts as habitable. ExoDossier reconciles the <a href="https://exoplanetarchive.ipac.caltech.edu" target="_blank" rel="noopener">NASA Exoplanet
-        Archive</a>, <a href="https://exofop.ipac.caltech.edu" target="_blank" rel="noopener">ExoFOP</a>, KOI, and <a href="https://www.cosmos.esa.int/web/gaia" target="_blank" rel="noopener">Gaia</a> into one provenance graph and generates
-        <strong>cited vetting dossiers</strong> for each candidate. It also ships the
-        <strong>first MCP server for exoplanet data</strong>, so AI agents can query the sky directly.</p>
+        Archive</a>, <a href="https://exofop.ipac.caltech.edu" target="_blank" rel="noopener">ExoFOP</a>, and the Kepler KOI table into one provenance graph, and it gives
+        every candidate <strong>a page that shows what each source claims</strong>, naming the catalog
+        behind each value and the publication wherever the archive records one. It also ships an
+        open-source <strong>MCP server over that provenance graph</strong>, so an AI agent can ask who
+        disagrees about any star or candidate.</p>
       <div class="links">
         <a href="https://exo.vibcreates.com" target="_blank" rel="noopener">exo.vibcreates.com ↗</a>
         <a href="https://github.com/vxg4120/exodossier" target="_blank" rel="noopener">source ↗</a>
       </div>
     </div>
     <div class="rail">
-      <div class="m"><div class="v num" id="r-star">21,525</div><div class="l">host stars cross-matched</div></div>
+      <div class="m"><div class="v num" id="r-star">21,525</div><div class="l">host stars are resolved into one identity graph</div></div>
       <div class="m"><div class="v num" id="r-cand">24,274</div><div class="l">candidates tracked</div></div>
       <div class="m"><div class="v num" id="r-assert">698k</div><div class="l">per-attribute source assertions</div></div>
       <div class="m"><div class="v num" id="r-dconf">8,148</div><div class="l">radius / disposition / T<sub>eff</sub> conflicts</div></div>
