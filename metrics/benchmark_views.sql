@@ -109,12 +109,24 @@ GROUP BY operator_id, operator_name;
 -- Summed across bins per operator (SUM(operator_exposure_contribution) GROUP BY operator_id) it
 -- yields a single per-operator congestion-exposure score. This is a density proxy, not real
 -- conjunction/collision data (which is restricted) -- documented plainly in the README.
+--
+-- What it counts: objects that have not reentered. mv_latest_gp_element keeps every object's last
+-- element set forever, so an object that decayed would otherwise keep a place in its last bin, in
+-- the catalog total and in its operator's fleet size. An object drops out when its recorded
+-- decay date falls on or after the UTC day of its latest element set. An element set newer than
+-- the recorded decay is kept, because it means the decay date is wrong. This is the same rule as
+-- GET /api/congestion (api/routers/congestion.py), which the 2026-11-13 audit added there first.
 CREATE OR REPLACE VIEW v_congestion_exposure AS
 WITH latest_elements AS (
     -- Pre-computed by migration 0019's mv_latest_gp_element (refreshed post-ingest in the
     -- nightly); migrations run before metrics apply, so the mv always exists here.
-    SELECT norad_id, perigee_km, apogee_km, inclination
-    FROM mv_latest_gp_element
+    SELECT m.norad_id, m.perigee_km, m.apogee_km, m.inclination
+    FROM mv_latest_gp_element m
+    WHERE NOT EXISTS (
+        SELECT 1 FROM satellite s
+        WHERE s.norad_id = m.norad_id
+          AND s.decay_date >= (m.epoch AT TIME ZONE 'UTC')::date
+    )
 ),
 binned AS (
     SELECT
