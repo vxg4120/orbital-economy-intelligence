@@ -394,7 +394,7 @@ yet, and this section will describe it when it exists.
 
 ## Changelog
 
-* **2026-11-13, a disclosure correction under v1.10.** An audit of the published site against
+* **v1.10 (2026-11-13), a disclosure correction with no version change.** An audit of the published site against
   the running system found these, and no metric definitions changed, so the version stays 1.10.
   Section 9 said that an accepted correction is recorded with source `operator_confirmed` and
   outranks the catalogs, which described a design that was never built: no precedence entry
