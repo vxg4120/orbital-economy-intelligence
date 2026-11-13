@@ -264,6 +264,12 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
   const oldest = rows[rows.length - 1].date;
   const newest = rows[0].date;
   const count = rows.length === 10 ? "ten" : String(rows.length);
+  // the attribution frontier is not a fixed lag (on 2026-11-13 GCAT still named nothing past
+  // the 5-digit NORAD rollover of July 2026), so the reason names the month the API computes
+  const through = s.attribution.complete_through;
+  const allPending = through
+    ? ` All of them are still cataloged under a country or placeholder owner, because company attribution in the catalog is complete only through ${monthYear(through)}.`
+    : " All of them are still cataloged under a country or placeholder owner, because company attribution in the catalog is incomplete for every month scanned.";
   return (
     <Panel title="Latest launches" meta="newest first">
       <p className="story__lead">
@@ -272,7 +278,7 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
           s.as_of,
         )} and ${longDate(newest, s.as_of)}.`}
         {pending === rows.length
-          ? " All of them are still cataloged under a country or placeholder owner, because the company-level catalog runs about three months behind."
+          ? allPending
           : pending > 0
             ? ` ${fmtInt(pending)} of them are still cataloged mainly under a country or placeholder owner rather than a company.`
             : ""}

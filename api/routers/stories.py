@@ -9,9 +9,13 @@ Two honesty rules shape the payload:
 
 * The current month is marked ``partial``.
 * Since July 2026 almost every newly launched payload is owned in the graph by a country-level
-  operator (``operator_class IS NULL``: "United States", "People's Republic of China") because
-  GCAT attributes companies about three months late. Constellation series therefore stop at
-  ``attribution.complete_through``, and the pending count is published rather than dropped.
+  or placeholder operator (``operator_class IS NULL``: "United States", "People's Republic of
+  China", "To Be Determined") because GCAT, the source of company attribution, has named no
+  payload numbered past the 5-digit NORAD rollover (69999, reached about 2026-07-12); its
+  satcat.tsv still ended at S69999 in the copy published 2026-11-13. That gap is not a fixed
+  lag, so the SPA phrases it from ``attribution.complete_through`` instead of a number of
+  months. Constellation series stop at that month, and the pending count is published rather
+  than dropped.
 
 Every query is a small aggregate (milliseconds on the box). They run in one psycopg pipeline so
 a high-latency connection pays roughly one round trip instead of one per query. The payload

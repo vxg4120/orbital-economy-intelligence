@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StaticRouter } from "react-router-dom/server";
 import type { ReactElement } from "react";
-import { ComingDown } from "../components/Stories";
+import { ComingDown, LatestLaunches } from "../components/Stories";
 import type { StoriesReentry, StoriesResponse } from "../api/types";
 import storiesFixture from "../api/fixtures/stories.json";
 
@@ -52,5 +52,27 @@ describe("ComingDown time up", () => {
     const out = html(<ComingDown s={withNotable([swift])} />);
     expect(out).toContain("22.0 years up");
     expect(out).not.toContain("release from the station");
+  });
+});
+
+/** Audit 2026-11-13: the lead said the company-level catalog "runs about three months behind",
+    while attribution was complete only through June 2026, more than four months back, and the
+    frontier does not move as a fixed lag. The reason now names the month the API computes. */
+describe("LatestLaunches lead", () => {
+  const allPending = base.recent_launches.every((r) => !r.owner_attributed);
+  it("uses a fixture where every launch awaits attribution", () => {
+    expect(allPending).toBe(true);
+  });
+  it("names the month through which attribution is complete", () => {
+    const out = html(<LatestLaunches s={base} />);
+    expect(out).toContain(
+      "because company attribution in the catalog is complete only through June 2026.",
+    );
+    expect(out).not.toContain("three months");
+  });
+  it("says so when no scanned month is complete", () => {
+    const s = { ...base, attribution: { ...base.attribution, complete_through: null } };
+    const out = html(<LatestLaunches s={s} />);
+    expect(out).toContain("company attribution in the catalog is incomplete for every month scanned.");
   });
 });
