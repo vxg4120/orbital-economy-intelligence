@@ -307,14 +307,16 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   The claim stays on the record and on /conflicts, and `decay_messages_outvoted` in the resolver
   stats counts the objects each night (1 expected). A corrected message from Space-Track would
   supersede the bad one through the fold, and the rule would then stop firing on its own.
-- 2026-11-13 (Claude, from the review of 84691af): two corrections to the entry above, checked
-  against a fresh read-only measurement on production at 01:23 UTC, which still gives 631
-  objects with a Space-Track date and 493 that match SATCAT exactly. First, the count: where
-  SATCAT and GCAT agree to within a day, the message differs from SATCAT on 88 objects, not 10.
-  Of those, 78 are one day apart, nine are 2 to 11 days apart and one, 48587, is 366 days
-  apart, so the 10 counted only the objects two or more days apart. The rule's margin is
-  unchanged, because the largest gap below the outlier is 11 days and the threshold is 30, and
-  the rule still fires on 48587 alone. Second, the recovery: `_SNAPSHOT_SQL` in
+- 2026-11-13 (Claude, from the review of 84691af): a correction to the entry above and a more
+  precise account of its last sentence, checked against a fresh read-only measurement on
+  production at 01:23 UTC, which still gives 631 objects with a Space-Track date and 493 that
+  match SATCAT exactly. First, the count: where SATCAT and GCAT agree to within a day, the
+  message differs from SATCAT on 88 objects, not 10. Of those, 78 are one day apart, nine are 2
+  to 11 days apart and one, 48587, is 366 days apart, so the 10 counted only the objects two or
+  more days apart. The rule's margin is unchanged, because the largest gap below the outlier is
+  11 days and the threshold is 30, and the rule still fires on 48587 alone. Second, the
+  recovery, which the entry above states correctly for a correction that arrives with
+  PRECEDENCE 1 but which does not hold for every correction: `_SNAPSHOT_SQL` in
   identity/claims.py keeps, per object, the surviving message with the lowest PRECEDENCE, then
   the newest MSG_EPOCH, then the latest decay date. A correction therefore supersedes the bad
   message (PRECEDENCE 1, MSG_EPOCH 2026-10-19 17:25 UTC) only when it sorts ahead of it in that
@@ -325,8 +327,10 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   only because the rule keeps firing. The bad message is also withdrawn if a landing that
   starts before 2026-11-17 17:25 UTC (its MSG_EPOCH plus `_WITHDRAW_INSIDE`, 29 days) does not
   carry it; 48587 has no other message, so its claim would then close and the card would fall
-  back to SATCAT's date. After that date no landing can withdraw it, so it stays in
-  `spacetrack_decay_message` until a message that sorts ahead of it arrives.
+  back to SATCAT's date. After that date no landing can withdraw it, so it stays the message
+  that the `spacetrack_decay` snapshot picks for 48587, and its claim stays open, until a
+  message that sorts ahead of it arrives. Its row in `spacetrack_decay_message` is never
+  deleted either way.
 - 2026-11-13 (Claude, from the same review): `decay_messages_outvoted` was computed and then
   dropped, because build_graph's summary copied only the keys it named, so the nightly count
   above reached no one. The resolver now records the outvoted satellites, and the identity

@@ -714,6 +714,7 @@ def _methodology_paragraph(claim_sources) -> str:
         "model and honest limitations.\n"
     )
 
+
 def generate_report(conn, period_end: dt.date | None = None, period_months: int = 12) -> str:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     out: list[str] = []

@@ -359,8 +359,9 @@ real business metric moves an order of magnitude when you resolve identity corre
 **Q10. Where does this break, and what would you build next?** Status is still snapshot-not-true-
 timeseries, so deorbit compliance is sparse. Space-Track's decay messages have been a claims feed
 since 2026-11-12, so an object that has a message takes its decay date from the source that is
-authoritative for it, and next I'd ingest status transitions for real last-active dates. It's
-single-machine, so at 10× data I'd partition Space-Track history across nodes. And operator resolution is exact-alias only, so I'd add fuzzy
+authoritative for it, unless both catalogs outvote it, as section 5 explains. Next I'd ingest
+status transitions for real last-active dates. It's single-machine, so at 10× data I'd partition
+Space-Track history across nodes. And operator resolution is exact-alias only, so I'd add fuzzy
 operator matching with the same review-queue discipline the satellite matcher already has. I say
 these limits up front because knowing exactly where your system is thin is the difference between a
 demo and an engineered asset.

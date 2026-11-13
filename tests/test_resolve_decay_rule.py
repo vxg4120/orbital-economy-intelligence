@@ -132,14 +132,10 @@ def test_a_gcat_date_without_a_day_does_not_vote(message, satcat, gcat):
     ],
 )
 def test_has_day(raw, expected):
+    """has_day is True only for a value that parse_date_loose also parses."""
     assert has_day(raw) is expected
-
-
-def test_has_day_never_disagrees_with_the_parser():
-    """has_day is True only for a value that parse_date_loose parses."""
-    for raw in ["2025-01-07", "2025 Jan  7", "2024 May?", "2007?", "2000s?", "1/7/2025", "-"]:
-        if has_day(raw):
-            assert parse_date_loose(raw) is not None
+    if expected:
+        assert parse_date_loose(raw) is not None
 
 
 def _summary(**overrides):

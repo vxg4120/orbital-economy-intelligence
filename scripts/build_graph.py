@@ -192,7 +192,7 @@ def _review_size(review_csv) -> int:
 
 def _outvoted_line(norad_ids: list[int], shown: int = 20) -> str:
     """The summary line for the decay messages that both catalogs outvoted (identity/resolve.py),
-    with their NORAD ids, so a second firing is visible in refresh.log the next morning."""
+    with their NORAD ids, so a second firing can be read in refresh.log after a nightly."""
     line = f"decay messages outvoted: {len(norad_ids)}"
     if norad_ids:
         ids = ", ".join(str(n) for n in norad_ids[:shown])
