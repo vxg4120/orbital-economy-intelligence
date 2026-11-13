@@ -110,22 +110,44 @@ giant >= 6, unknown radius.
 - Launch dates in the current month: `partial: true`, drawn hatched or faded with a label.
 
 ## Acceptance criteria
-- [ ] space: `curl -s localhost:8600/api/stories | jq 'keys'` lists every key above, against the
+- [x] space: `curl -s localhost:8600/api/stories | jq 'keys'` lists every key above, against the
       live DB through the read-only tunnel; cold compute under 5 s.
-- [ ] exodossier: same for `localhost:8700/api/stories`; cold compute under 5 s.
-- [ ] `/api/stats` response keys unchanged in both apps (`tests/test_api_stats.py` passes in space).
-- [ ] space: `ruff check .` clean; `pytest -q -W error -m "not db"` passes; new tests for
+      Checked 2026-11-13: https://orbital.vibcreates.com/api/stories lists every key above (the
+      tunnel is retired), and _build_stories in a fresh read-only process on the box takes 0.85 s.
+- [x] exodossier: same for `localhost:8700/api/stories`; cold compute under 5 s.
+      Checked 2026-11-13: https://exo.vibcreates.com/api/stories lists every key above, and
+      catalog_stories in a fresh read-only process on the box takes 0.40 s. The 9 s figure from
+      October was measured through the laptop tunnel.
+- [x] `/api/stats` response keys unchanged in both apps (`tests/test_api_stats.py` passes in space).
+      Checked 2026-11-13: the live /api/stats keys are unchanged in both apps, and
+      tests/test_api_stats.py passes against the scratch database (its graph-dependent case skips on
+      an empty graph, as it does in CI).
+- [x] space: `ruff check .` clean; `pytest -q -W error -m "not db"` passes; new tests for
       `/api/stories` (shape test with the `db`/`graph` markers, plus DB-free tests of any pure
       helpers).
-- [ ] exodossier: `ruff check .` clean; new DB-free cache test for stories in the style of
+      Checked 2026-11-13: ruff is clean, pytest -q -W error -m "not db" gives 294 passed and 5
+      skipped, and the stories tests exist with the db and graph markers beside DB-free tests of the
+      pure helpers.
+- [x] exodossier: `ruff check .` clean; new DB-free cache test for stories in the style of
       `tests/test_landing_cache.py`; `pytest -q -W error` passes for every test that doesn't need
       a DB.
-- [ ] `pnpm -C web build` passes in both repos (strict tsc plus vite).
-- [ ] Mock mode works: `VITE_API_MOCK=1` serves a new `fixtures/stories.json` in both SPAs.
-- [ ] At 1280 px and 390 px the landing renders every story panel with live data, no horizontal
+      Checked 2026-11-13: ruff is clean, the DB-free suite gives 122 passed, and
+      tests/test_stories_cache.py is the DB-free cache test.
+- [x] `pnpm -C web build` passes in both repos (strict tsc plus vite).
+      Checked 2026-11-13: pnpm build (tsc -b and vite build, both strict) passes in both repos.
+- [x] Mock mode works: `VITE_API_MOCK=1` serves a new `fixtures/stories.json` in both SPAs.
+      Checked 2026-11-13: both SPAs import fixtures/stories.json in web/src/api/client.ts and serve
+      it when VITE_API_MOCK is 1.
+- [x] At 1280 px and 390 px the landing renders every story panel with live data, no horizontal
       page scroll (`document.documentElement.scrollWidth <= innerWidth`), no console errors.
-- [ ] Tour: every step's selector resolves on `/`.
-- [ ] `grep -nP '[\x{2013}\x{2014}]'` finds no en or em dash in any line this branch adds.
+      Checked 2026-11-13 with Playwright on both live landings at 1280 and 390 px: every story panel
+      renders with live data, scrollWidth never exceeds innerWidth, and there are no console errors.
+- [x] Tour: every step's selector resolves on `/`.
+      Checked 2026-11-13: every element step of the tour resolves on / in both apps (orbital: stats,
+      nav, conflicts and resolver; exo: stats, dramatic, nav and followup).
+- [x] `grep -nP '[\x{2013}\x{2014}]'` finds no en or em dash in any line this branch adds.
+      Checked 2026-11-13: neither merge (space b9bccdf, exodossier 2fed917) adds a line with an en
+      or em dash.
 
 ## Open questions
 - Vib: should the old technical panels stay on the landing under "Under the hood", or move to an

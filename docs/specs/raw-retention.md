@@ -133,11 +133,17 @@ nearly all of it copies.
   each daily table keeps 6 runs (the newest 3 plus the July, August, September and October
   firsts), the newest OK GCAT run is intact, and the landing, orbital, exo,
   `/api/filings/pending`, `/api/environment` and `/api/reachability/passes` all return 200.
-- [ ] After three nightlies, `grep -c "prune_snapshots: deleted" deploy/refresh.log` is at
+- [x] After three nightlies, `grep -c "prune_snapshots: deleted" deploy/refresh.log` is at
   least 3, `grep -c "!! oei prune_snapshots failed" deploy/refresh.log` is 0, and each raw table
   is within one run of its post-compaction size.
-- [ ] The next audit report prints roughly 700k assertions (one run per snapshot feed), not
+  Checked 2026-11-13: every nightly since 2026-10-01 19:10 has an oei prune line (85 of them) and
+  none failed, and each daily table held its post-compaction run count (six runs, five for the two
+  monthly tables), or one more while a new landing waited for that night's prune.
+- [x] The next audit report prints roughly 700k assertions (one run per snapshot feed), not
   ~33M.
+  Checked 2026-11-13: the read-only run of the audit report on production on 2026-10-07 printed
+  704,323 assertions (703,661 on the claim table), and its query gives 706,432 today. The claim
+  table replaced the per-run ledger on 2026-10-12, and the count has stayed near 700k.
 - [x] `CURRENT_ASSERTIONS` is affordable on production's 33.5M rows. `EXPLAIN (ANALYZE, BUFFERS)`
   on 2026-09-29: 20.0 s and no temp files, against 6.0 s for the old whole-table count, which
   counted 33.5M copies. It returns 703,968 current claims. Each parallel worker re-scans for the

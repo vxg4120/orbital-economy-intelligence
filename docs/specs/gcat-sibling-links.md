@@ -135,15 +135,28 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   (bus, manufacturer) stop, which is what the bus build already does for it.
 
 ## Acceptance criteria
-- [ ] After the pass on a production snapshot, `SELECT id_value FROM satellite_identifier WHERE
+- [x] After the pass on a production snapshot, `SELECT id_value FROM satellite_identifier WHERE
   id_type = 'gcat_id' AND valid_to IS NULL GROUP BY 1 HAVING count(DISTINCT satellite_id) > 1`
   returns 0 rows (105 today), with one `identity_event` per retired link (107 losing `gcat_id`
   links, plus whichever cospar twins the anchor holds).
-- [ ] For NORAD 65729 and 65730, `/api/satellites/<id>` shows GCAT claims only from the
+  Checked on production on 2026-11-13 (read-only): the duplicate-key query returns 0 rows. The pass
+  ran in the 2026-10-07 07:10 UTC nightly (ingest run 4588) and retired 107 gcat_id links and 172
+  cospar links, each with exactly one identifier_expired event (rule gcat_anchor_moved, 279 in all),
+  and no link has been revived since.
+- [x] For NORAD 65729 and 65730, `/api/satellites/<id>` shows GCAT claims only from the
   satellite's own key after the next nightly (today each shows the sibling's).
-- [ ] The bus build's `satellite_bus` rows for the 129 affected satellites, compared with the
+  Checked on the live API on 2026-11-13: satellite 65677 (NORAD 65729) shows only the seven GCAT
+  claims of S65729, and satellite 65678 (NORAD 65730) shows only the seven of S65730. Across all 129
+  affected satellites, no GCAT claim arrives through another satellite's key. The check after the
+  2026-10-07 nightly had looked the ids up as NORAD numbers, so this is the first check on the right
+  objects.
+- [x] The bus build's `satellite_bus` rows for the 129 affected satellites, compared with the
   before-state: unchanged for NORAD-carrying rows; every change on a NORAD-less row moves the
   attribution to the key's own satellite.
+  Checked 2026-11-13: the before-state tables were dropped on 2026-11-12, so the comparison stands
+  as recorded on 2026-10-07 and 2026-10-16 (0 of 125 bus rows changed). Today all 125 bus rows of
+  the affected satellites sit on the key's own number (105 anchored_norad, 20 anchored_jcat_number),
+  and across the whole table all 554 NORAD-less rows do.
 - [x] Resolver timing on production, read-only, 2026-10-06: `EXPLAIN (ANALYZE, BUFFERS)` of the
   newest-then-current-key shape for `owner`: 19.1 s, hash aggregate in memory, 140,881
   winners, against 13.9 s without the check and a 300 s timeout for the join-first view.
@@ -156,7 +169,10 @@ is that rule everywhere: a GCAT key links to exactly one current satellite.
   not current. Mutants of the direction, the guard, the fallback, the unique-anchor rule, the
   matcher authority, the probe skip, the retraction and the writer filter each fail the
   suite. Full suite 427 passed, 117 skipped (2026-10-16, on an empty migrated DB).
-- [ ] Both nightly gates pass on the first run after deployment.
+- [x] Both nightly gates pass on the first run after deployment.
+  Checked 2026-11-13 in refresh.log: the first run after the fix (2026-10-07 07:10 UTC) and the
+  first after the rule-2 deploy (2026-10-16 19:10 UTC) both passed the slug gate and the publish-
+  assertions gate, and every step exited 0.
 
 ## Open questions
 - None open. The `S<n>` convention is confirmed by Vib 2026-10-16 ("yes to all"), and it now

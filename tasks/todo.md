@@ -21,7 +21,9 @@ Plan: docs/plans/phase-0-1-plan.md · Spec: docs/SPEC.md
 - [x] Final multi-lens review + fixes (5 lenses, adversarial verification, 11/11 findings fixed)
 - [x] BONUS: GCAT orgs.tsv operator enrichment (owner coverage 2.4% → 100% of on-orbit payloads)
 - [x] GP element sets landed after 2h politeness window (15,932 rows, cagg + operator views live)
-- [ ] USER ACTION: request Space-Track account (creds → .env)
+- [x] USER ACTION: request Space-Track account (creds → .env)
+      Done in July: Vib had the account active on 2026-07-09, and the credentials have been on the
+      box since 2026-07-22 (checked 2026-11-13).
 
 ## Review
 
@@ -188,13 +190,20 @@ landing/oct-2026-copy); space-a2 owns the source_assertion_runs_20261012 drop af
       heading layer (P2-4), Vib's call.
 
 ## Needs a decision from Vib (present, don't build)
-- [ ] 6. Space-Track: creds are wired through nightly-refresh.sh and the client, but only
+- [x] 6. Space-Track: creds are wired through nightly-refresh.sh and the client, but only
       scripts/backfill_gp_history.py uses the client. Confirm what the nightly gains, then
       Vib pastes creds into /root/apps/space/deploy/.env himself.
-- [ ] 7. Exo light curves: nothing live reads the pipeline; the Docker image omits
+      Decided 2026-10-16 (Vib: "Yes to all") and built as the Space-Track top-up and decay landing,
+      which has run green every night since 2026-10-16 (checked 2026-11-13).
+- [x] 7. Exo light curves: nothing live reads the pipeline; the Docker image omits
       pipeline/. Decision is whether to build Wave 2 (recovery results on the site).
-- [ ] 8. GCAT: main fix shipped 10-07. Two open decisions: bus.py rule 2 for NORAD-less
+      Decided 2026-10-16 (Vib: "Yes to all") and built as Wave 2, which is live at /lightcurves with
+      58 TOIs processed (checked 2026-11-13).
+- [x] 8. GCAT: main fix shipped 10-07. Two open decisions: bus.py rule 2 for NORAD-less
       rows; whether status_map.yml keeps GCAT code C -> DECAYED (23 objects).
+      Both decided 2026-10-16 (Vib: "Yes to all"): a NORAD-less GCAT row now attributes by its key's
+      own number (methodology 1.10, 554 rows), and code C stays DECAYED (23 objects) (checked
+      2026-11-13).
 - [x] 9. 31% vs 31-37% copy: handed to space-28; source is splitstep build-journal.md:95-96.
 
 ## Review (2026-10-16 03:20 UTC)
