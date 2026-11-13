@@ -4,7 +4,7 @@
 decay landing.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-11-12
+**Last updated:** 2026-11-13
 
 ## Goal
 The 12-month `gp_history` backfill was loaded once from the July seed (production's newest
@@ -48,9 +48,10 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   and CelesTrak already lands the active catalog twice a day.
 - 2026-10-16 (Claude): **Decays: one query a day for `MSG_TYPE` Historical, `MSG_EPOCH` in
   the last 30 days**, landed per run into `raw_spacetrack_decay` (a snapshot table on
-  `SNAPSHOT_TABLES`, pruned like every raw_* table). Gate 23 hours, not `runlog.DAILY`'s 20,
-  because the DECAY class is limited to 1 / day and a 20-hour gate can land two pulls within
-  24 hours. Predictions are not pulled (Open questions).
+  `SNAPSHOT_TABLES`, pruned like every raw_* table; since 2026-11-12 the prune also keeps every
+  landing that is newer than the last one the claims step folded). Gate 23 hours, not
+  `runlog.DAILY`'s 20, because the DECAY class is limited to 1 / day and a 20-hour gate can
+  land two pulls within 24 hours. Predictions are not pulled (Open questions).
 - 2026-10-16 (Claude): **The resolver is not wired yet; the raw table and
   `v_spacetrack_decay_actual` are.** `identity/precedence.yml` already ranks
   `spacetrack_decay` first for `decay_date`, but the resolver reads claims through
@@ -85,8 +86,10 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
 - **No credentials, no requests.** Blank or unset `SPACETRACK_IDENTITY` or
   `SPACETRACK_PASSWORD`: one log line, exit 0, no database connection.
 - **Never delete `gp_elements` rows.** The top-up only inserts, with `ON CONFLICT DO NOTHING`.
-- **`raw_spacetrack_decay` follows docs/specs/raw-retention.md:** it is on `SNAPSHOT_TABLES`
-  and its readers take the newest OK run.
+- **`raw_spacetrack_decay` follows docs/specs/raw-retention.md:** it is on `SNAPSHOT_TABLES`,
+  and `v_spacetrack_decay_actual` takes the newest OK run. The claims step folds every OK
+  landing that is newer than its `claim_progress.last_run`, oldest first, so the prune never
+  drops a landing newer than that (`FOLDED_BY` in scripts/prune_snapshots.py).
 - Do not run a manual `backfill_gp_history.py` while the nightly's `oei_spacetrack` step runs:
   the pacers are per process and the limits are per account.
 - Unattended agents never set or change the production credentials, never trigger a live
@@ -140,11 +143,12 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   production all 177 such messages were superseded copies (same object, newer MSG_EPOCH), and
   no object lost its last message.
 - **Gaps the local record cannot fill.** A nightly outage longer than 30 days loses the
-  decay messages whose epochs fell in the gap (those objects fall back to SATCAT's date), and
-  pruning can delete a landing that a failed build_graph never folded, which costs at most
-  about a day of epochs at a month boundary thanks to the overlapping windows and the monthly
-  keepers. A night on which Space-Track briefly leaves messages out withdraws them and the next
-  night reopens them: churn that heals itself. A snapshot with no surviving message at all
+  decay messages whose epochs fell in the gap (those objects fall back to SATCAT's date). The
+  prune keeps every decay landing that is newer than the last one the claims step folded
+  (`FOLDED_BY` in scripts/prune_snapshots.py), so a failed build_graph no longer costs any
+  messages, because the next good night folds every landing it missed, oldest first. A night
+  on which Space-Track briefly leaves messages out withdraws them and the next night reopens
+  them: churn that heals itself. A snapshot with no surviving message at all
   records nothing (record() refuses an empty run), so the folds repeat until one does.
 - **Several Historical messages per object.** The view keeps the lowest PRECEDENCE ("lower
   PRECEDENCE values indicate more recent data") and then the newest MSG_EPOCH.
@@ -303,3 +307,43 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   The claim stays on the record and on /conflicts, and `decay_messages_outvoted` in the resolver
   stats counts the objects each night (1 expected). A corrected message from Space-Track would
   supersede the bad one through the fold, and the rule would then stop firing on its own.
+- 2026-11-13 (Claude, from the review of 84691af): two corrections to the entry above, checked
+  against a fresh read-only measurement on production at 01:23 UTC, which still gives 631
+  objects with a Space-Track date and 493 that match SATCAT exactly. First, the count: where
+  SATCAT and GCAT agree to within a day, the message differs from SATCAT on 88 objects, not 10.
+  Of those, 78 are one day apart, nine are 2 to 11 days apart and one, 48587, is 366 days
+  apart, so the 10 counted only the objects two or more days apart. The rule's margin is
+  unchanged, because the largest gap below the outlier is 11 days and the threshold is 30, and
+  the rule still fires on 48587 alone. Second, the recovery: `_SNAPSHOT_SQL` in
+  identity/claims.py keeps, per object, the surviving message with the lowest PRECEDENCE, then
+  the newest MSG_EPOCH, then the latest decay date. A correction therefore supersedes the bad
+  message (PRECEDENCE 1, MSG_EPOCH 2026-10-19 17:25 UTC) only when it sorts ahead of it in that
+  order, which in practice means a lower PRECEDENCE, or PRECEDENCE 1 with a newer MSG_EPOCH. On
+  production every message whose SOURCE is `satcat` has PRECEDENCE 1 and every one whose SOURCE
+  is `decay_msg` has PRECEDENCE 2 (834 and 174 rows), so a correction that arrives as a
+  `decay_msg` message would lose to the bad one, and the card would keep the catalogs' date
+  only because the rule keeps firing. The bad message is also withdrawn if a landing that
+  starts before 2026-11-17 17:25 UTC (its MSG_EPOCH plus `_WITHDRAW_INSIDE`, 29 days) does not
+  carry it; 48587 has no other message, so its claim would then close and the card would fall
+  back to SATCAT's date. After that date no landing can withdraw it, so it stays in
+  `spacetrack_decay_message` until a message that sorts ahead of it arrives.
+- 2026-11-13 (Claude, from the same review): `decay_messages_outvoted` was computed and then
+  dropped, because build_graph's summary copied only the keys it named, so the nightly count
+  above reached no one. The resolver now records the outvoted satellites, and the identity
+  graph build summary in refresh.log prints their count and NORAD ids on a `decay messages
+  outvoted:` line, which shows 0 too. A second firing, or a drop to 0 after Space-Track corrects
+  or withdraws the message, can therefore be seen by reading the log after a nightly. The line
+  is not an alert, because the nightly forwards only lines that begin with `!!`. The rule also
+  needs every date it compares to give a day (`has_day` in identity/normalize.py): GCAT's month
+  or year alone ('2024 May?', '2007?') parses to its first day, which could agree with SATCAT by
+  coincidence and outvote a message that falls inside that month or year, so such a GCAT date no
+  longer votes. No object with a message had one after the phase filter on 2026-11-13, so
+  nothing changes today. Tests now pin both thresholds at their boundaries, the order after the
+  GCAT phase filter and the stat's path into the summary, and a test without the database
+  covers the rule (tests/test_resolve_decay_rule.py).
+- 2026-11-13 (Claude): the prune gap that the 2026-11-12 review recorded as an edge case is
+  closed (space a033089, live on the box). The nightly prune drops a `raw_spacetrack_decay`
+  landing only when its run is at or before `claim_progress.last_run` for `spacetrack_decay`
+  (`FOLDED_BY` in scripts/prune_snapshots.py), so a landing that a failed build_graph never
+  folded stays until a later night folds it. The Constraints and Edge cases above now say so,
+  and docs/specs/raw-retention.md records the guard in its decision log.

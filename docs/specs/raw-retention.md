@@ -221,3 +221,11 @@ nearly all of it copies.
   (docs/specs/assertion-model.md) and renamed `source_assertion_runs_20261012`; it was dropped
   on 2026-11-11. The "never prune `source_assertion` by run" rule is moot; the large-sort
   rule stays for the renamed table while it exists.
+- 2026-11-13 (Claude, recording space a033089 of 2026-11-12): the policy above has one
+  exception. A table whose landings a claims step folds into a lasting record is listed in
+  `FOLDED_BY` (scripts/prune_snapshots.py) with the feed that folds it, and only its runs at or
+  before that feed's `claim_progress.last_run` can drop. Before the first fold nothing in the
+  table drops, because `folded_through` reads 0 when the feed has no progress row. Today the
+  only such table is `raw_spacetrack_decay`, which the `spacetrack_decay` feed folds into
+  `spacetrack_decay_message`, so a landing that a failed build_graph never folded is kept until
+  a later night folds it (docs/specs/spacetrack-topup.md).

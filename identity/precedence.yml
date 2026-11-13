@@ -2,9 +2,11 @@
 # "disagreements are data, not errors": the resolver picks the winner by this order and writes it
 # to the dimension tables; every losing claim stays queryable in v_current_claim.
 #
-# Order = highest precedence first. Source tokens that have no assertions yet in Phase 1
-# (operator_seed, spacetrack_decay) are intentional higher-precedence slots reserved for later
-# phases; they simply have nothing to contribute now, so the next source wins.
+# Order = highest precedence first. operator_seed has no claims feed yet, so it is a reserved
+# slot that contributes nothing, and the next source wins. The ucs feed is kept for a historical
+# seed, but no UCS export is loaded in production (see the README), so ucs contributes nothing
+# there either. spacetrack_decay has carried claims since 2026-11-12, and resolve.py sets aside
+# a message that both catalogs contradict.
 owner: [operator_seed, gcat, ucs, satcat]        # curated seed beats catalogs; commercial > coarse code
 status: [gcat, satcat, ucs]                       # GCAT authoritative for decay; falls through for live ops
 decay_date: [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT; a message both catalogs contradict is set aside (resolve.py)
