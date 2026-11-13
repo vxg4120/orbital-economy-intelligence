@@ -5,7 +5,7 @@ aggregate; nothing is materialised. The three panels correspond to the three leg
 thesis:
 
   a. kuiper_milestone   -- Amazon's Kuiper deployment vs the FCC 50%-by-2026-07-30 obligation
-                           (1,618 satellites). Each bird is bucketed by its current orbit into
+                           (1,616 satellites). Each bird is bucketed by its current orbit into
                            at-shell / raising / deorbited so the "how close are they really" story is
                            legible, not just a raw launched count.
   b. lingering_leaderboard -- per benchmark operator, INACTIVE LEO payloads still loitering with a
@@ -33,13 +33,17 @@ BENCHMARK_OPERATORS = [
     "SpaceX", "Eutelsat", "Planet Labs", "Spire", "Iridium", "ICEYE", "Capella Space", "Amazon",
 ]
 
-# Kuiper (Amazon) milestone constants. The FCC authorisation requires 50% of the 3,236-satellite
-# constellation -- 1,618 birds -- on orbit by 2026-07-30. Operational shell is a ~630 km circular
+# Kuiper (Amazon) milestone constants. The FCC authorization requires 50% of the constellation on
+# orbit by 2026-07-30. The constellation was authorized at 3,236 satellites in 2020, and a 2024
+# modification (39 FCC Rcd 2180) cut it to 3,232, so the order DA 26-553 (released 2026-06-05,
+# para. 3) states the interim milestone as 1,616 satellites by 2026-07-30 and the final one as
+# 3,232 by 2029-07-30. That order did not extend the deadline; it waived the cap on the
+# authorization that a missed milestone would trigger. Operational shell is a ~630 km circular
 # orbit; a bird is "at shell" when its mean altitude sits within +/-15 km of that band AND has
 # settled there (its trailing-14-day mean altitude is in-band too), mirroring the +/-15 km in-band
 # test v_time_to_operational uses for time-to-operational.
 KUIPER_OPERATOR = "Amazon"
-KUIPER_REQUIRED = 1618
+KUIPER_REQUIRED = 1616
 KUIPER_DEADLINE = "2026-07-30"
 _KUIPER_SHELL_LO = 615.0  # 630 km - 15 km tolerance
 _KUIPER_SHELL_HI = 645.0  # 630 km + 15 km tolerance
@@ -47,9 +51,12 @@ _KUIPER_SHELL_HI = 645.0  # 630 km + 15 km tolerance
 # Kuiper fleet bucketed by current orbit. Fleet = PAYLOAD sats (with a NORAD) owned by Amazon or an
 # Amazon child operator. Altitude = mean of the latest element set (perigee+apogee)/2; the trailing
 # 14-day mean from sat_daily gates the "settled" half of at-shell. deployed_last_30d feeds the FE's
-# linear projection toward the deadline. deployed_by_deadline is the count launched on or before
-# the FCC date: once the deadline has passed it is the number that settles the obligation, and it
-# must not drift as later launches land (deployed_total keeps counting those for progress).
+# linear projection toward the deadline. deployed_by_deadline is the count that was in orbit on the
+# FCC date: launched on or before it and not reentered by it. The FCC test is satellites "launched
+# and operational" on that day (DA 26-553 para. 12), so a satellite that had already come down,
+# such as the two 2023 protoflights, cannot count toward it. Once the deadline has passed this is
+# the number that settles the obligation, and it must not drift as later launches land
+# (deployed_total keeps counting those for progress).
 _KUIPER_SQL = """
 WITH target AS (
     SELECT operator_id FROM operator WHERE canonical_name = %(op)s
@@ -60,7 +67,7 @@ WITH target AS (
     WHERE p.canonical_name = %(op)s
 ),
 fleet AS (
-    SELECT DISTINCT s.satellite_id, s.norad_id, s.launch_date
+    SELECT DISTINCT s.satellite_id, s.norad_id, s.launch_date, s.decay_date
     FROM satellite s
     JOIN satellite_operator so ON so.satellite_id = s.satellite_id
     WHERE so.role = 'owner'
@@ -100,7 +107,10 @@ SELECT
           AND le.alt IS NOT NULL AND le.alt < %(lo)s
     ) AS raising,
     count(*) FILTER (WHERE f.launch_date > current_date - interval '30 days') AS deployed_last_30d,
-    count(*) FILTER (WHERE f.launch_date <= %(deadline)s::date) AS deployed_by_deadline
+    count(*) FILTER (
+        WHERE f.launch_date <= %(deadline)s::date
+          AND (f.decay_date IS NULL OR f.decay_date > %(deadline)s::date)
+    ) AS deployed_by_deadline
 FROM fleet f
 LEFT JOIN le ON le.norad_id = f.norad_id
 LEFT JOIN trail t ON t.norad_id = f.norad_id
