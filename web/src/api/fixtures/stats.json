@@ -1,5 +1,6 @@
 {
   "satellites": 69878,
+  "in_orbit_objects": 34012,
   "on_orbit_payloads": 5332,
   "operators": 1435,
   "identifier_rows": 418086,
@@ -8,7 +9,8 @@
   "coverage": {
     "operator_pct": 92.4,
     "status_pct": 78.6,
-    "multi_source_pct": 61.2
+    "multi_source_pct": 100.0,
+    "both_catalogs_pct": 94.5
   },
   "conflicts": {
     "status": 35,

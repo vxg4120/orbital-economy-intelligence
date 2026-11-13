@@ -32,16 +32,21 @@ export interface IngestRun {
 }
 
 export interface Stats {
-  satellites: number;
+  satellites: number; // every cataloged object, reentered ones included
+  // objects whose latest status is not DECAYED; optional while an older API is deployed
+  in_orbit_objects?: number;
   on_orbit_payloads: number;
   operators: number;
   identifier_rows: number;
   merge_events: number;
-  gp_elements: number;
+  gp_elements: number; // every stored element set, all epochs
   coverage: {
     operator_pct: number;
     status_pct: number;
+    // identifier ROWS >= 2, which one SATCAT record always meets; kept for older clients
     multi_source_pct: number;
+    // on-orbit payloads that both SATCAT and GCAT list; optional while an older API is deployed
+    both_catalogs_pct?: number;
   };
   conflicts: {
     status: number;

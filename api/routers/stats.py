@@ -20,18 +20,29 @@ router = APIRouter(tags=["stats"])
 
 # On-orbit payloads + coverage denominators. Verbatim semantics from quality/report.py
 # _section_coverage: on-orbit = PAYLOAD whose latest canonical status != DECAYED.
+#
+# with_2plus_ids is report.py's count of identifier ROWS, kept so multi_source_pct means what
+# it always meant. It cannot fall below 100%: one SATCAT record alone writes three rows (norad,
+# cospar, name_satcat). The Overview meter reads with_both_catalogs instead, which asks whether
+# SATCAT and GCAT each hold an identifier for the payload (94.5% on 2026-11-13, when 1,128
+# on-orbit payloads, nearly all launched since July 2026, had no GCAT row).
+#
+# in_orbit is every object type under the same status rule as on_orbit, so the Overview's
+# cataloged-objects tile can say how much of the catalog is still up.
 _COVERAGE_SQL = """
 WITH latest_status AS (
     SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
     FROM satellite_status_history
     ORDER BY satellite_id, observed_at DESC
 ),
-on_orbit AS (
-    SELECT s.satellite_id
+in_orbit AS (
+    SELECT s.satellite_id, s.object_type
     FROM satellite s
     LEFT JOIN latest_status ls ON ls.satellite_id = s.satellite_id
-    WHERE s.object_type = 'PAYLOAD'
-      AND COALESCE(ls.canonical_status, 'UNKNOWN') != 'DECAYED'
+    WHERE COALESCE(ls.canonical_status, 'UNKNOWN') != 'DECAYED'
+),
+on_orbit AS (
+    SELECT satellite_id FROM in_orbit WHERE object_type = 'PAYLOAD'
 ),
 with_operator AS (
     SELECT DISTINCT satellite_id FROM satellite_operator
@@ -41,16 +52,22 @@ with_status AS (
     SELECT satellite_id FROM latest_status WHERE canonical_status != 'UNKNOWN'
 ),
 id_counts AS (
-    SELECT satellite_id, count(*) AS n_ids FROM satellite_identifier GROUP BY satellite_id
+    SELECT satellite_id,
+           count(*) AS n_ids,
+           bool_or(source = 'satcat') AND bool_or(source = 'gcat') AS in_both_catalogs
+    FROM satellite_identifier GROUP BY satellite_id
 )
 SELECT
+    (SELECT count(*) FROM in_orbit) AS total_in_orbit,
     (SELECT count(*) FROM on_orbit) AS total_on_orbit,
     (SELECT count(*) FROM on_orbit oo JOIN with_operator wo
         ON wo.satellite_id = oo.satellite_id) AS with_operator,
     (SELECT count(*) FROM on_orbit oo JOIN with_status ws
         ON ws.satellite_id = oo.satellite_id) AS with_status,
     (SELECT count(*) FROM on_orbit oo JOIN id_counts ic
-        ON ic.satellite_id = oo.satellite_id AND ic.n_ids >= 2) AS with_2plus_ids
+        ON ic.satellite_id = oo.satellite_id AND ic.n_ids >= 2) AS with_2plus_ids,
+    (SELECT count(*) FROM on_orbit oo JOIN id_counts ic
+        ON ic.satellite_id = oo.satellite_id AND ic.in_both_catalogs) AS with_both_catalogs
 """
 
 # Last run per (source, normalized endpoint, status). Space-Track writes one ingest_run row PER
@@ -128,16 +145,20 @@ def _build_stats(db) -> dict:
 
     total = cov["total_on_orbit"]
     return {
+        # every cataloged object, reentered ones included (in_orbit_objects is the live subset)
         "satellites": totals["satellites"],
+        "in_orbit_objects": cov["total_in_orbit"],
         "on_orbit_payloads": total,
         "operators": totals["operators"],
         "identifier_rows": totals["identifier_rows"],
         "merge_events": totals["merge_events"],
+        # every stored element set, all epochs, not one per object
         "gp_elements": totals["gp_elements"],
         "coverage": {
             "operator_pct": _pct(cov["with_operator"], total),
             "status_pct": _pct(cov["with_status"], total),
             "multi_source_pct": _pct(cov["with_2plus_ids"], total),
+            "both_catalogs_pct": _pct(cov["with_both_catalogs"], total),
         },
         "conflicts": {
             "status": count_status_conflicts(db),
