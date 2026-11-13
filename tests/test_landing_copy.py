@@ -102,7 +102,8 @@ def test_snapshot_date_and_cached_stamp_agree(html):
 
 
 def test_no_en_or_em_dash(html):
-    assert not re.search("[–—]", html)
+    dashes = chr(0x2013) + chr(0x2014)  # en dash, em dash
+    assert not re.search("[%s]" % dashes, html)
 
 
 # ---- the satellites entry ---------------------------------------------------------------------
