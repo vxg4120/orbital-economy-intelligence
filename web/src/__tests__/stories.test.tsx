@@ -76,3 +76,15 @@ describe("LatestLaunches lead", () => {
     expect(out).toContain("company attribution in the catalog is incomplete for every month scanned.");
   });
 });
+
+/** Audit 2026-11-13: the hint said the lead is the launch's "first named payload", while three
+    of that day's ten leads were placeholders (OBJECT A, YAOGAN-51 OBJECT A, QIANFAN 17 OBJECT
+    A), which the API falls back to when no payload has a real name yet. */
+describe("LatestLaunches hint", () => {
+  it("says the lead can be a placeholder name", () => {
+    const out = html(<LatestLaunches s={base} />);
+    expect(base.recent_launches[0].lead_name).toBe("OBJECT A");
+    expect(out).toContain("placeholder name such as OBJECT A.");
+    expect(out).not.toContain("first named payload");
+  });
+});

@@ -312,8 +312,10 @@ export function LatestLaunches({ s }: { s: StoriesResponse }) {
         ))}
       </ol>
       <p className="hint story__hint">
-        A launch is every object sharing a COSPAR launch number. The lead is its first named
-        payload; the owner is the most common current owner among its payloads, as cataloged.
+        A launch is every object sharing a COSPAR launch number. The lead is its first payload
+        with a real name, or its first payload when the catalog still lists every payload under a
+        placeholder name such as OBJECT A. The owner is the most common current owner among its
+        payloads, as cataloged.
       </p>
     </Panel>
   );
