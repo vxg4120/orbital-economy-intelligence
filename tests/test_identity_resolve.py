@@ -263,6 +263,39 @@ def test_famous_objects_carry_curated_display_names(db_conn):
 
 
 @pytest.mark.db
+def test_the_override_count_is_right_inside_a_pipeline(db_conn, tmp_path):
+    """build_graph runs resolve() inside conn.pipeline(), where a cursor's rowcount reads -1
+    until the results are synced. Summing rowcount printed "display name overrides: -8" in the
+    2026-11-13 nightly logs. The count must be the rows that changed, in a pipeline or not."""
+    from identity.resolve import _apply_display_name_overrides
+
+    overrides = tmp_path / "display_names.yml"
+    overrides.write_text(
+        "display_names:\n"
+        "  - {norad_id: 910000901, name: 'Curated Name', replaces: 'placeholder'}\n"
+        "  - {norad_id: 910000902, name: 'placeholder', replaces: 'placeholder'}\n"
+        "  - {norad_id: 910000903, name: 'Not In This Catalog', replaces: 'x'}\n"
+    )
+    try:
+        with db_conn.cursor() as cur:
+            _sat(cur, 910000901)
+            _sat(cur, 910000902)
+        with db_conn.pipeline():
+            first = _apply_display_name_overrides(db_conn, overrides)
+        with db_conn.pipeline():
+            second = _apply_display_name_overrides(db_conn, overrides)
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT canonical_name FROM satellite WHERE norad_id = 910000901")
+            name = cur.fetchone()[0]
+    finally:
+        db_conn.rollback()
+    # One name differed and changed; one already matched; one names no satellite here.
+    assert first == 1
+    assert second == 0
+    assert name == "Curated Name"
+
+
+@pytest.mark.db
 def test_each_source_contributes_its_current_claim_and_the_greater_key_wins_a_tie(db_conn):
     """One open claim per (source, key, attribute); a satellite holding two keys for a source
     (merged objects) has two, and the greater key wins, as the old tie-break had it. A claim
