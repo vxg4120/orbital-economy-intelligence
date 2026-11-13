@@ -73,6 +73,7 @@ export function stratumAccuracy(s: ReviewStratum): number | null {
 }
 
 /* ---- source → canonical mappings (for the claims grid annotation) --------- */
+/* A copy of identity/status_map.yml; tests/test_identity_seeds.py fails when the two differ. */
 const STATUS_MAP: Record<string, Record<string, string>> = {
   satcat: {
     "+": "ACTIVE", "-": "INACTIVE", "?": "UNKNOWN", B: "SPARE", D: "DECAYED",
@@ -81,10 +82,13 @@ const STATUS_MAP: Record<string, Record<string, string>> = {
   gcat: {
     AF: "DECAYED", AL: "DECAYED", "AL IN": "DECAYED", AO: "UNKNOWN", "AO IN": "UNKNOWN",
     AR: "DECAYED", "AR IN": "DECAYED", AS: "DECAYED", ATT: "UNKNOWN", C: "DECAYED", D: "DECAYED",
-    DEP: "UNKNOWN", DK: "UNKNOWN", DSA: "UNKNOWN", DSO: "UNKNOWN", E: "DECAYED", EO: "UNKNOWN",
-    ERR: "UNKNOWN", F: "DECAYED", GRP: "UNKNOWN", L: "DECAYED", LEASE: "UNKNOWN", LF: "DECAYED",
-    N: "UNKNOWN", NA: "UNKNOWN", O: "UNKNOWN", OI: "UNKNOWN", OX: "UNKNOWN", R: "DECAYED",
-    REL: "UNKNOWN", S: "DECAYED", TX: "DECAYED",
+    DEP: "UNKNOWN", DK: "UNKNOWN", DSA: "UNKNOWN", "DSA IN": "UNKNOWN", DSO: "UNKNOWN",
+    E: "DECAYED", EAO: "UNKNOWN", EN: "UNKNOWN", EO: "UNKNOWN", ERR: "UNKNOWN",
+    "EVA DP": "UNKNOWN", "EVA RP": "UNKNOWN", F: "DECAYED", GRP: "UNKNOWN", L: "DECAYED",
+    LEASE: "UNKNOWN", LF: "DECAYED", LO: "UNKNOWN", LOA: "UNKNOWN", N: "UNKNOWN", NA: "UNKNOWN",
+    O: "UNKNOWN", OE: "UNKNOWN", OI: "UNKNOWN", OX: "UNKNOWN", R: "DECAYED", REFLT: "UNKNOWN",
+    REL: "UNKNOWN", S: "DECAYED", TFR: "UNKNOWN", "TFR E": "UNKNOWN", "TFR IN": "UNKNOWN",
+    TO: "UNKNOWN", TOA: "UNKNOWN", TX: "DECAYED", UDK: "UNKNOWN",
   },
   ucs: { OPERATIONAL: "ACTIVE" },
 };
