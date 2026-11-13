@@ -519,23 +519,24 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 
 ## Next session (paused 2026-11-12 23:58 UTC for a terminal restart)
 Nothing is running: no workflow, no background job, no uncommitted change in either repo.
-- [ ] After the 2026-11-13 07:10 UTC nightly, NORAD 48587 resolves to a decay date of
+- [ ] (still open) After the 2026-11-13 07:10 UTC nightly, NORAD 48587 resolves to a decay date of
       2025-01-07 (`SELECT decay_date FROM satellite WHERE norad_id = 48587` on the box, and its
       resolver page). The rolled-back dry run on production changed exactly that one row. The
-      nightly summary does not print `decay_messages_outvoted`, so read the row itself.
-- [ ] Independent review (Claude reviewer agents; Codex is paused) of the merges that have not had
+      nightly summary now prints "decay messages outvoted: 1 (NORAD 48587)" in refresh.log
+      (space e09c308), so check that line as well as the row.
+- [x] Independent review (Claude reviewer agents; Codex is paused) of the merges that have not had
       one: 7e3a8ca (the outvote rule), 4907f3c (UCS out of the copy) and a033089 (the prune
       guard). Lenses: the rule's correctness, every consumer of decay_date (the Conflicts page,
       the stories, the review cases), and any UCS claim left in either app, the landing or the
       methodology text.
-- [ ] Spec reconciliation. These open criteria look shipped but were never checked off. Verify
+- [x] Spec reconciliation. These open criteria look shipped but were never checked off. Verify
       each against production, then check it off with evidence or do what is left:
       landing-stories.md (10, the same list in both repos), gcat-sibling-links.md (4),
       raw-retention.md (2; the second may be moot since the ledger was retired),
       lightcurves-wave2.md in exodossier (1), and items 6, 7 and 8 under "Needs a decision from
       Vib" plus the Space-Track account line at the top (creds have been set since 2026-10-16).
       fcc-filings.md has one real deliverable left, the changelog draft in Vib's voice.
-- [ ] Copy-truth audit of vibcreates.com, orbital and exo: check every factual claim (sources,
+- [x] Copy-truth audit of vibcreates.com, orbital and exo: check every factual claim (sources,
       numbers, refresh cadence) against the live API, since the UCS claim showed that this kind
       of defect exists.
 - Found while scouting, no action needed: the API never computes a winning source from
@@ -547,3 +548,28 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
   reconciliation, copy audit), read-only on the box with a statement timeout, and every finding
   adversarially verified before anything changes. Box work stays out of 07:10 to 07:25 and
   19:10 to 19:25 UTC.
+
+## Review (2026-11-13 02:25 UTC, audit batch)
+- One workflow ran the review, the spec reconciliation and the copy-truth audit; 75 findings,
+  66 confirmed by two verifiers. Spec bookkeeping landed as space 9654738 and exodossier adb752d
+  (21 criteria and 4 todo items ticked with dated evidence).
+- Fixes merged and deployed in five groups: space e09c308 (resolver follow-ups with the
+  outvote list in the build summary and `normalize.has_day`, Overview stats and copy, the
+  Kuiper card on DA 26-553 with 1,616 required and 392 in orbit on the deadline, filings lead
+  times, the landing copy) and exodossier beb4530 (the follow-up conflict flag from the
+  disposition corpus, the TFOPWG column, attribution and licence copy).
+- Second batch: space d1dec6c (refresh cadence on the landing, sitemap lastmod, 94.5%
+  both-catalog coverage in the README, the deploy README's prune guard, the 1,616 constant and
+  a dated correction in the July report) and exodossier 32f48d1 (no "first exoplanet MCP server"
+  claim, catalogs named as loaded). Space ff10219 retook the share card and the four README
+  screenshots from the live site; og:image carries `?v=20261113`.
+- IndexNow resubmitted 2026-11-13 02:20 UTC: 1 + 8 + 3 URLs, all 200.
+- Every page and API on the three hosts answered 200 after each deploy.
+- Subagents hit the weekly limit (resets 2026-11-17); the last reviews ran inline.
+- Left for Vib: the GitHub repo descriptions (OEI says "four catalogs", exodossier says
+  "first exoplanet MCP server"); an explicit `shm_size` for the db container (needs a
+  restart); the space-weather view dominated by Starlink (needs a DROP MATERIALIZED VIEW);
+  ISS-deployed lifetimes in bus_benchmarks.sql (a methodology bump); the decay predicate in
+  v_congestion_exposure; "≥2 identifiers" in quality/report.py; 33 of 34 famous exo hosts
+  flagged disputed on Follow-up (a product choice); NORAD 56915 with a stale decay date and
+  fresh elements.

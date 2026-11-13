@@ -127,8 +127,10 @@ documentation"):
 - [x] Codex verify pass over this spec's increments, findings triaged into the decision log.
 
 Increment C — marketing (scope with Vib before starting):
-- [ ] Changelog/announcement draft for the filings + specs + dockets feature set, in Vib's voice,
+- [x] Changelog/announcement draft for the filings + specs + dockets feature set, in Vib's voice,
       no em dashes, claims limited to measured numbers with their n attached.
+      Done 2026-11-13: docs/announcements/2026-08-24-fcc-filings.md, refreshed in the audit batch
+      (space e09c308) with the measured lead times; zero en or em dashes. Publishing it is Vib's.
 - [x] Landing page (vibcreates.com) OEI entry mentions the pre-launch pipeline with one honest
       metric. Verify: live curl.
 
