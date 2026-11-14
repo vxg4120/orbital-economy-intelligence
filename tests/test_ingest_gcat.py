@@ -4,6 +4,7 @@ lands with norad_id NULL and the row's other fields preserved in `extra`."""
 from pathlib import Path
 
 import pytest
+import requests
 import responses
 
 from ingest import gcat_loader
@@ -11,6 +12,9 @@ from tests.fixtures.dbutil import cleanup_since, run_id_baseline
 
 SATCAT_FIXTURE = Path(__file__).parent / "fixtures" / "gcat_satcat_sample.tsv"
 PSATCAT_FIXTURE = Path(__file__).parent / "fixtures" / "gcat_psatcat_sample.tsv"
+# Part 3 of each catalog (NORAD 100000 and above), which GCAT serves as a second file.
+SATCAT_100K_FIXTURE = Path(__file__).parent / "fixtures" / "gcat_satcat100k_sample.tsv"
+PSATCAT_100K_FIXTURE = Path(__file__).parent / "fixtures" / "gcat_psatcat100k_sample.tsv"
 
 
 @pytest.fixture
@@ -77,16 +81,51 @@ def _unique_gcat_endpoints(monkeypatch):
     monkeypatch.setattr(gcat_loader, "PSATCAT_ENDPOINT", "gcat_psatcat_test")
 
 
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch):
+    """A failed part is retried after real waits; the tests never sleep."""
+    monkeypatch.setattr(gcat_loader.runlog, "_sleep", lambda _seconds: None)
+
+
+def _serve(satcat_100k=None, psatcat_100k=None):
+    """Register all four GCAT files. Part 3 defaults to its fixture; pass a body or a status."""
+    responses.add(responses.GET, gcat_loader.SATCAT_URL, body=SATCAT_FIXTURE.read_text(), status=200)
+    responses.add(responses.GET, gcat_loader.PSATCAT_URL, body=PSATCAT_FIXTURE.read_text(), status=200)
+    for url, part, fixture in (
+        (gcat_loader.SATCAT_100K_URL, satcat_100k, SATCAT_100K_FIXTURE),
+        (gcat_loader.PSATCAT_100K_URL, psatcat_100k, PSATCAT_100K_FIXTURE),
+    ):
+        if isinstance(part, int):
+            responses.add(responses.GET, url, body="unavailable", status=part)
+        else:
+            responses.add(responses.GET, url, body=part or fixture.read_text(), status=200)
+
+
+def _runs(conn, endpoint):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT ingest_run_id, status, rows_ingested, bytes_downloaded, notes FROM ingest_run "
+            "WHERE source = 'gcat' AND endpoint = %s ORDER BY ingest_run_id",
+            (endpoint,),
+        )
+        return cur.fetchall()
+
+
+def _landed_jcats(conn, table, run_id):
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT jcat FROM {table} WHERE ingest_run_id = %s ORDER BY jcat", (run_id,))
+        return [row[0] for row in cur.fetchall()]
+
+
 @pytest.mark.db
 @responses.activate
 def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpoints):
     monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
-    responses.add(responses.GET, gcat_loader.SATCAT_URL, body=SATCAT_FIXTURE.read_text(), status=200)
-    responses.add(responses.GET, gcat_loader.PSATCAT_URL, body=PSATCAT_FIXTURE.read_text(), status=200)
+    _serve()
 
     counts = gcat_loader.run(clean_db)
 
-    assert counts == {"satcat": 3, "psatcat": 2}
+    assert counts == {"satcat": 5, "psatcat": 3}
 
     with clean_db.cursor() as cur:
         cur.execute(
@@ -105,18 +144,113 @@ def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpo
 
 @pytest.mark.db
 @responses.activate
+def test_a_pull_lands_both_parts_of_the_s_catalog_in_one_run(clean_db, monkeypatch, tmp_path,
+                                                            _unique_gcat_endpoints):
+    """satcat.tsv stops at S69999; everything catalogued since July 2026 is in satcat100k.tsv.
+    Every reader takes the newest run as the snapshot, so both parts must be one run."""
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    _serve()
+
+    gcat_loader.run(clean_db)
+
+    [(run_id, status, rows, bytes_dl, _notes)] = _runs(clean_db, "gcat_satcat_test")
+    assert (status, rows) == ("ok", 5)
+    assert bytes_dl == len(SATCAT_FIXTURE.read_bytes()) + len(SATCAT_100K_FIXTURE.read_bytes())
+    assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == [
+        "2020-001A", "2020-002A", "OEI-ANALYST-1", "S900100001", "S900100002",
+    ]
+    with clean_db.cursor() as cur:
+        cur.execute(
+            "SELECT jcat, norad_id, extra->>'_unparsed_satcat' FROM raw_gcat_satcat "
+            "WHERE ingest_run_id = %s AND jcat LIKE 'S9001%%' ORDER BY jcat",
+            (run_id,),
+        )
+        assert cur.fetchall() == [("S900100001", 900100001, None), ("S900100002", None, "NNA")]
+    saved = sorted(path.name.rsplit("-", 3)[0] for path in tmp_path.iterdir())
+    assert saved == ["psatcat", "psatcat100k", "satcat", "satcat100k"]
+
+
+@pytest.mark.db
+@responses.activate
+def test_the_payload_catalog_lands_both_parts_in_one_run(clean_db, monkeypatch, tmp_path,
+                                                         _unique_gcat_endpoints):
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    _serve()
+
+    gcat_loader.run(clean_db)
+
+    [(run_id, status, rows, bytes_dl, _notes)] = _runs(clean_db, "gcat_psatcat_test")
+    assert (status, rows) == ("ok", 3)
+    assert bytes_dl == len(PSATCAT_FIXTURE.read_bytes()) + len(PSATCAT_100K_FIXTURE.read_bytes())
+    assert _landed_jcats(clean_db, "raw_gcat_psatcat", run_id) == [
+        "2020-001A", "2020-002A", "S900100001",
+    ]
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_part_that_fails_fails_the_whole_run(clean_db, monkeypatch, tmp_path,
+                                               _unique_gcat_endpoints):
+    """Landing part 1 alone would make the claims pass close the GCAT claims of every
+    satellite in part 3, so a failed part leaves the previous complete run as the newest."""
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    _serve(satcat_100k=404)
+
+    with pytest.raises(requests.HTTPError):
+        gcat_loader.run(clean_db)
+
+    [(run_id, status, rows, _bytes, notes)] = _runs(clean_db, "gcat_satcat_test")
+    assert (status, rows) == ("error", 0)
+    assert notes.startswith(f"{gcat_loader.SATCAT_100K_URL}: ")
+    assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == []
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_duplicate_key_across_parts_fails_the_run_before_any_row_lands(
+    clean_db, monkeypatch, tmp_path, _unique_gcat_endpoints
+):
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    overlapping = SATCAT_100K_FIXTURE.read_text() + (
+        "2020-002A\t900000002\tA\tP\tOEI-TEST-SAT-2\t-\t-\t-\tO\t-\t-\t-\t-\t-\t-"
+        "\t-\t-\t-\t-\t-\t-\n"
+    )
+    _serve(satcat_100k=overlapping)
+
+    with pytest.raises(ValueError, match="2020-002A"):
+        gcat_loader.run(clean_db)
+
+    [(run_id, status, rows, _bytes, notes)] = _runs(clean_db, "gcat_satcat_test")
+    assert (status, rows) == ("error", 0)
+    assert "2020-002A" in notes
+    assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == []
+
+
+@pytest.mark.db
+@responses.activate
 def test_run_twice_skips_both_endpoints_when_fresh(clean_db, monkeypatch, tmp_path,
                                                     _unique_gcat_endpoints):
     """Finding #9: a second run() within the freshness window issues zero new HTTP requests for
     BOTH the satcat and psatcat legs."""
     monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
-    responses.add(responses.GET, gcat_loader.SATCAT_URL, body=SATCAT_FIXTURE.read_text(), status=200)
-    responses.add(responses.GET, gcat_loader.PSATCAT_URL, body=PSATCAT_FIXTURE.read_text(), status=200)
+    _serve()
 
     first = gcat_loader.run(clean_db)
-    assert first == {"satcat": 3, "psatcat": 2}
-    assert len(responses.calls) == 2  # one GET per endpoint
+    assert first == {"satcat": 5, "psatcat": 3}
+    assert len(responses.calls) == 4  # two files per endpoint
 
     second = gcat_loader.run(clean_db)
     assert second == {"satcat": 0, "psatcat": 0}
-    assert len(responses.calls) == 2  # no new HTTP calls on the fresh re-run
+    assert len(responses.calls) == 4  # no new HTTP calls on the fresh re-run
+
+
+def test_parse_parts_rejects_a_key_in_two_files_but_not_a_repeat_within_one():
+    """Within one file a repeated key is the landing's business (orgs.tsv's guard is ON CONFLICT
+    DO NOTHING); across the parts of a split catalog it means the split itself changed."""
+    header = "#JCAT\tName\n"
+    one = header + "S00001\tA\nS00001\tA again\n"
+    assert len(gcat_loader.parse_parts([one])) == 2
+
+    with pytest.raises(ValueError, match="S00001"):
+        gcat_loader.parse_parts([header + "S00001\tA\n", header + "S00001\tB\nS100000\tC\n"])
+    assert len(gcat_loader.parse_parts([header + "S00001\tA\n", header + "S100000\tC\n"])) == 2

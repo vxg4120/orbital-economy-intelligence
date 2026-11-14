@@ -278,3 +278,80 @@ def test_the_retry_budget_is_small():
     assert runlog.CONNECT_TIMEOUT_S <= 30
     assert runlog.RETRY_STATUSES == {500, 502, 503, 504}
 
+
+
+URL_PART2 = "https://example.test/oei-ingest-fixture-part2"
+
+
+@pytest.mark.db
+@responses.activate
+def test_polite_get_parts_fetches_every_part_under_one_run(clean_db):
+    # GCAT serves its S catalog as two files since NORAD passed 99999 (satcat.tsv stops at
+    # S69999, satcat100k.tsv starts at S100000); the readers take one run as the snapshot.
+    responses.add(responses.GET, URL, body="part one", status=200)
+    responses.add(responses.GET, URL_PART2, body="part three", status=200)
+
+    parts = runlog.polite_get_parts(
+        clean_db, "testsrc", "ep20", [URL, URL_PART2], dt.timedelta(hours=1)
+    )
+
+    assert [p.text for p in parts] == ["part one", "part three"]
+    assert [p.oei_bytes for p in parts] == [len(b"part one"), len(b"part three")]
+    assert len({p.oei_run_id for p in parts}) == 1
+    assert [p.oei_retries for p in parts] == [[], []]
+    runlog.finish_run(clean_db, parts[0].oei_run_id, rows=2, bytes_dl=18, status="ok")
+    runs, status, _ = _last_run(clean_db, "ep20")
+    assert (runs, status) == (1, "ok")
+
+
+@pytest.mark.db
+@responses.activate
+def test_polite_get_parts_skips_every_part_when_fresh(clean_db):
+    responses.add(responses.GET, URL, body="part one", status=200)
+    responses.add(responses.GET, URL_PART2, body="part three", status=200)
+    first = runlog.polite_get_parts(
+        clean_db, "testsrc", "ep21", [URL, URL_PART2], dt.timedelta(hours=1)
+    )
+    runlog.finish_run(clean_db, first[0].oei_run_id, rows=2, bytes_dl=18, status="ok")
+
+    second = runlog.polite_get_parts(
+        clean_db, "testsrc", "ep21", [URL, URL_PART2], dt.timedelta(hours=1)
+    )
+
+    assert second is None
+    assert len(responses.calls) == 2
+    _, status, _ = _last_run(clean_db, "ep21")
+    assert status == "skipped_fresh"
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_later_part_gets_its_own_retries(clean_db, slept):
+    responses.add(responses.GET, URL, body="part one", status=200)
+    responses.add(responses.GET, URL_PART2, body="busy", status=500)
+    responses.add(responses.GET, URL_PART2, body="part three", status=200)
+
+    parts = runlog.polite_get_parts(
+        clean_db, "testsrc", "ep22", [URL, URL_PART2], dt.timedelta(hours=1)
+    )
+
+    assert [p.text for p in parts] == ["part one", "part three"]
+    assert [p.oei_retries for p in parts] == [[], ["HTTP 500"]]
+    assert slept == [runlog.RETRY_WAITS_S[0]]
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_failed_part_fails_the_run_and_names_its_url(clean_db, slept):
+    responses.add(responses.GET, URL, body="part one", status=200)
+    responses.add(responses.GET, URL_PART2, body="gone", status=404)
+
+    with pytest.raises(requests.HTTPError):
+        runlog.polite_get_parts(
+            clean_db, "testsrc", "ep23", [URL, URL_PART2], dt.timedelta(hours=1)
+        )
+
+    assert len(responses.calls) == 2  # a 4xx is never retried
+    runs, status, notes = _last_run(clean_db, "ep23")
+    assert (runs, status) == (1, "error")
+    assert notes.startswith(f"{URL_PART2}: ")

@@ -104,6 +104,28 @@ def polite_get(
     retried after each of RETRY_WAITS_S, all within the one run row; when the last attempt
     fails too, or on any other HTTP error, it raises and logs an `error` row.
     """
+    parts = polite_get_parts(conn, source, endpoint, [url], min_interval, **requests_kwargs)
+    return None if parts is None else parts[0]
+
+
+def polite_get_parts(
+    conn,
+    source: str,
+    endpoint: str,
+    urls: list[str] | tuple[str, ...],
+    min_interval: dt.timedelta,
+    **requests_kwargs,
+):
+    """polite_get for a source that publishes one snapshot as several files, fetched in order
+    under one ingest_run row, so the readers that take the newest run see all of it.
+
+    GCAT has served its S catalog this way since the US catalog passed NORAD 99999 in July
+    2026: satcat.tsv stops at S69999 and satcat100k.tsv holds S100000 onward. Returns the
+    responses in `urls` order, each tagged like polite_get's (the shared `.oei_run_id`, its own
+    `.oei_bytes` and `.oei_retries`), or None when the endpoint is fresh. Each part gets its own
+    retries. When one part fails the run closes `error` and nothing is returned, so a caller
+    can never land a partial snapshot; with more than one URL the error row names the part.
+    """
     if fresh_within(conn, source, endpoint, min_interval):
         run_id = start_run(conn, source, endpoint)
         finish_run(conn, run_id, rows=0, bytes_dl=0, status="skipped_fresh")
@@ -112,32 +134,43 @@ def polite_get(
     run_id = start_run(conn, source, endpoint)
     headers = dict(requests_kwargs.pop("headers", None) or {})
     headers.setdefault("User-Agent", USER_AGENT)
-    retries: list[str] = []
-    try:
-        for wait in (*RETRY_WAITS_S, None):
-            try:
-                response = requests.get(
-                    url, timeout=(CONNECT_TIMEOUT_S, TIMEOUT_S), headers=headers, **requests_kwargs
-                )
-            except _RETRY_ERRORS as exc:
-                if wait is None:
-                    raise
-                retries.append(type(exc).__name__)
-            else:
-                if response.status_code not in RETRY_STATUSES or wait is None:
-                    response.raise_for_status()
-                    break
-                retries.append(f"HTTP {response.status_code}")
-            print(f"[{source}] {endpoint}: {retries[-1]}, retrying in {wait}s", flush=True)
-            _sleep(wait)
-    except requests.RequestException as exc:
-        note = str(exc)
-        if retries:
-            note = f"after {len(retries)} retries ({', '.join(retries)}): {note}"
-        finish_run(conn, run_id, rows=0, bytes_dl=0, status="error", notes=note[:2000])
-        raise
+    parts = []
+    for url in urls:
+        retries: list[str] = []
+        try:
+            response = _get_with_retries(source, endpoint, url, headers, retries, requests_kwargs)
+        except requests.RequestException as exc:
+            note = str(exc)
+            if retries:
+                note = f"after {len(retries)} retries ({', '.join(retries)}): {note}"
+            if len(urls) > 1:
+                note = f"{url}: {note}"
+            finish_run(conn, run_id, rows=0, bytes_dl=0, status="error", notes=note[:2000])
+            raise
+        response.oei_run_id = run_id
+        response.oei_bytes = len(response.content)
+        response.oei_retries = retries
+        parts.append(response)
+    return parts
 
-    response.oei_run_id = run_id
-    response.oei_bytes = len(response.content)
-    response.oei_retries = retries
-    return response
+
+def _get_with_retries(source, endpoint, url, headers, retries, requests_kwargs):
+    """One GET with the retry policy above. Each failed attempt is appended to `retries`, which
+    the caller reads for the error note when the last attempt fails too."""
+    for wait in (*RETRY_WAITS_S, None):
+        try:
+            response = requests.get(
+                url, timeout=(CONNECT_TIMEOUT_S, TIMEOUT_S), headers=headers, **requests_kwargs
+            )
+        except _RETRY_ERRORS as exc:
+            if wait is None:
+                raise
+            retries.append(type(exc).__name__)
+        else:
+            if response.status_code not in RETRY_STATUSES or wait is None:
+                response.raise_for_status()
+                return response
+            retries.append(f"HTTP {response.status_code}")
+        print(f"[{source}] {endpoint}: {retries[-1]}, retrying in {wait}s", flush=True)
+        _sleep(wait)
+    raise AssertionError("unreachable: the last attempt returns or raises")

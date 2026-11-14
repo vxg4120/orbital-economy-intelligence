@@ -158,6 +158,7 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
             (list(resolve_stats.get("decay_messages_outvoted", [])),),
         )
         outvoted_norad = [row[0] for row in cur.fetchall()]
+        gcat_coverage = _gcat_coverage(cur)
     review_size = _review_size(review_csv)
     total = satellites or 1
     return {
@@ -176,10 +177,51 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         "unmatched_owners": resolve_stats.get("unmatched_owners", []),
         "decay_messages_outvoted": outvoted_norad,
         "display_name_overrides": resolve_stats.get("display_name_overrides", 0),
+        "gcat_coverage": gcat_coverage,
         "review_queue_size": review_size,
         "auto_links": prob_stats.get("auto_links", 0),
         "ambiguous_cospar_links": prob_stats.get("ambiguous_cospar_links", 0),
     }
+
+
+_GCAT_COVERAGE_SQL = """
+WITH g AS (
+    SELECT DISTINCT satellite_id FROM satellite_identifier
+    WHERE id_type = 'gcat_id' AND valid_to IS NULL
+)
+SELECT count(g.satellite_id),
+       count(*) - count(g.satellite_id),
+       (array_agg(s.norad_id ORDER BY s.norad_id DESC)
+            FILTER (WHERE g.satellite_id IS NULL AND s.norad_id IS NOT NULL))[1:%s]
+FROM satellite s
+LEFT JOIN g USING (satellite_id)
+"""
+
+
+def _gcat_coverage(cur, shown: int = 5) -> dict:
+    """Satellites with and without a current GCAT id, and the newest NORAD numbers without one.
+
+    From 2026-07-21 to 2026-11-14 GCAT published NORAD 100000 and above in a second file the
+    loader did not pull, and 1,309 satellites had no GCAT entry while every run reported ok
+    (docs/specs/gcat-extended-catalog.md). The newest numbers are where such a gap shows first.
+    """
+    cur.execute(_GCAT_COVERAGE_SQL, (shown,))
+    with_gcat, without, newest = cur.fetchone()
+    return {"with": with_gcat, "without": without, "newest_without": newest or []}
+
+
+def _gcat_coverage_line(satellites: int, coverage: dict) -> str:
+    """The summary line, starting with "!!" (which the nightly forwards to ALERT_URL) when more
+    than 1% of satellites lack a GCAT entry. GCAT updates about weekly and a large rideshare adds
+    about 120 objects, so its normal lag stays far below 1% (about 713 on 71,300)."""
+    pct = round(100 * coverage["with"] / (satellites or 1), 1)
+    line = f"{'gcat coverage:':<25}{pct}%  ({coverage['with']}; {coverage['without']} without"
+    if coverage["without"] and coverage["newest_without"]:
+        line += ", newest NORAD " + ", ".join(str(n) for n in coverage["newest_without"])
+    line += ")"
+    if coverage["without"] * 100 > satellites:
+        line = f"!! {line}: more than 1% of satellites have no GCAT entry"
+    return line
 
 
 def _review_size(review_csv) -> int:
@@ -228,6 +270,8 @@ def _print_summary(s: dict) -> None:
         )
     print(f"operator coverage:       {s['operator_coverage_pct']}%  ({s['operator_resolved']})")
     print(f"status coverage:         {s['status_coverage_pct']}%  ({s['status_resolved']})")
+    if "gcat_coverage" in s:
+        print(_gcat_coverage_line(s["satellites"], s["gcat_coverage"]))
     print(f"unmapped status values:  {len(s['unmapped_status'])}")
     for src, val in s["unmapped_status"][:20]:
         print(f"  {src}: {val!r}")

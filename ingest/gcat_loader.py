@@ -27,6 +27,17 @@ SATCAT_ENDPOINT = "gcat_satcat"
 SATCAT_URL = "https://planet4589.org/space/gcat/tsv/cat/satcat.tsv"
 PSATCAT_ENDPOINT = "gcat_psatcat"
 PSATCAT_URL = "https://planet4589.org/space/gcat/tsv/cat/psatcat.tsv"
+# The US catalog ran out of five-digit numbers in July 2026 and continued at 100000. GCAT's S
+# catalog followed in two files: part 1 (satcat.tsv) stops at S69999, and part 3
+# (satcat100k.tsv, same columns) holds S100000 onward. Pulling part 1 alone landed exactly
+# 69,999 rows from 2026-07-21 to 2026-11-14 while every object catalogued since went without a
+# GCAT entry. Both parts land in one run because every reader takes the newest run as the whole
+# snapshot (docs/specs/gcat-extended-catalog.md). The analyst-object files (satcat070k,
+# satcat270k, satcat700M) are a different catalog that SATCAT does not carry; never pulled.
+SATCAT_100K_URL = "https://planet4589.org/space/gcat/tsv/cat/satcat100k.tsv"
+PSATCAT_100K_URL = "https://planet4589.org/space/gcat/tsv/cat/psatcat100k.tsv"
+SATCAT_URLS = (SATCAT_URL, SATCAT_100K_URL)
+PSATCAT_URLS = (PSATCAT_URL, PSATCAT_100K_URL)
 ORGS_ENDPOINT = "gcat_orgs"
 ORGS_URL = "https://planet4589.org/space/gcat/tsv/tables/orgs.tsv"
 MIN_INTERVAL = runlog.DAILY
@@ -272,6 +283,25 @@ def _land_orgs_rows(conn, processed_rows: list[tuple[dict, dict]], run_id: int) 
     return landed
 
 
+def parse_parts(texts: list[str]) -> list[dict]:
+    """parse_tsv over each file of a multi-file catalog, in order. A key in more than one file
+    raises: the parts of GCAT's S catalog are disjoint number ranges, so a repeat means the
+    split changed, and landing it would break the raw table's (jcat, run) key mid-transaction.
+    A repeat within one file is left to the landing, as before the split (orgs.tsv's guard is
+    ON CONFLICT DO NOTHING)."""
+    rows, earlier, repeated = [], set(), []
+    for text in texts:
+        file_rows = parse_tsv(text)
+        # The first column is the key: JCAT in the catalogs, Code in orgs.tsv.
+        keys = {_clean(next(iter(row.values()), None)) for row in file_rows} - {None}
+        repeated += sorted(keys & earlier)
+        earlier |= keys
+        rows += file_rows
+    if repeated:
+        raise ValueError(f"key in more than one catalog file: {', '.join(repeated[:10])}")
+    return rows
+
+
 def _save_raw_file(name: str, text: str) -> Path:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / name
@@ -279,53 +309,63 @@ def _save_raw_file(name: str, text: str) -> Path:
     return out_path
 
 
-def _land_and_finish(conn, resp, land_fn, raw_filename: str) -> int:
-    """Land rows, close the run 'ok', then best-effort save the raw file.
+def _land_and_finish(conn, parts, land_fn) -> int:
+    """Land rows, close the run 'ok', then best-effort save each part's raw file.
 
-    A landing failure closes the run as 'error' (never leaves an orphaned open row); the raw-file
-    save runs only AFTER the run is finished 'ok', so a disk/permission failure there cannot orphan
-    a run whose data already committed."""
+    `land_fn` parses and lands, so a parse failure closes the run as 'error' just like a landing
+    failure (never an orphaned open row). The raw-file saves run only AFTER the run is finished
+    'ok', so a disk/permission failure there cannot orphan a run whose data already committed.
+    Each part is saved under its own file name (satcat-DATE.tsv, satcat100k-DATE.tsv)."""
+    run_id = parts[0].oei_run_id
+    bytes_dl = sum(part.oei_bytes for part in parts)
     try:
         n = land_fn()
     except Exception as exc:
         conn.rollback()
         runlog.finish_run(
-            conn, resp.oei_run_id, rows=0, bytes_dl=resp.oei_bytes, status="error",
-            notes=str(exc)[:2000],
+            conn, run_id, rows=0, bytes_dl=bytes_dl, status="error", notes=str(exc)[:2000],
         )
         raise
-    runlog.finish_run(conn, resp.oei_run_id, rows=n, bytes_dl=resp.oei_bytes, status="ok")
-    try:
-        _save_raw_file(raw_filename, resp.text)
-    except OSError as exc:
-        logger.warning("gcat: raw-file save failed (%s); rows already landed", exc)
+    runlog.finish_run(conn, run_id, rows=n, bytes_dl=bytes_dl, status="ok")
+    today = dt.date.today().isoformat()
+    for part in parts:
+        try:
+            _save_raw_file(f"{part.oei_name}-{today}.tsv", part.text)
+        except OSError as exc:
+            logger.warning("gcat: raw-file save failed (%s); rows already landed", exc)
     return n
+
+
+def _pull(conn, endpoint: str, urls, land_rows) -> int | None:
+    """Fetch every file of one catalog under one run and land them together. Returns the row
+    count, or None when the endpoint is fresh."""
+    parts = runlog.polite_get_parts(conn, SOURCE, endpoint, urls, MIN_INTERVAL)
+    if parts is None:
+        return None
+    for part, url in zip(parts, urls, strict=True):
+        part.oei_name = Path(url).stem  # satcat, satcat100k, psatcat, psatcat100k
+    run_id = parts[0].oei_run_id
+    return _land_and_finish(
+        conn, parts, lambda: land_rows(conn, parse_parts([p.text for p in parts]), run_id)
+    )
 
 
 def run(conn) -> dict:
     counts = {"satcat": 0, "psatcat": 0}
 
-    resp = runlog.polite_get(conn, SOURCE, SATCAT_ENDPOINT, SATCAT_URL, MIN_INTERVAL)
-    if resp is not None:
-        processed = process_satcat_rows(parse_tsv(resp.text))
-        n = _land_and_finish(
-            conn, resp, lambda: _land_satcat_rows(conn, processed, resp.oei_run_id),
-            f"satcat-{dt.date.today().isoformat()}.tsv",
-        )
-        counts["satcat"] = n
-    else:
+    n = _pull(conn, SATCAT_ENDPOINT, SATCAT_URLS,
+              lambda c, rows, run_id: _land_satcat_rows(c, process_satcat_rows(rows), run_id))
+    if n is None:
         logger.info("gcat satcat: skipped, fresh run within %s", MIN_INTERVAL)
-
-    resp = runlog.polite_get(conn, SOURCE, PSATCAT_ENDPOINT, PSATCAT_URL, MIN_INTERVAL)
-    if resp is not None:
-        processed = process_psatcat_rows(parse_tsv(resp.text))
-        n = _land_and_finish(
-            conn, resp, lambda: _land_psatcat_rows(conn, processed, resp.oei_run_id),
-            f"psatcat-{dt.date.today().isoformat()}.tsv",
-        )
-        counts["psatcat"] = n
     else:
+        counts["satcat"] = n
+
+    n = _pull(conn, PSATCAT_ENDPOINT, PSATCAT_URLS,
+              lambda c, rows, run_id: _land_psatcat_rows(c, process_psatcat_rows(rows), run_id))
+    if n is None:
         logger.info("gcat psatcat: skipped, fresh run within %s", MIN_INTERVAL)
+    else:
+        counts["psatcat"] = n
 
     return counts
 
@@ -335,12 +375,9 @@ def run_orgs(conn) -> int:
     raw_gcat_orgs. Kept a separate entry point from run() so the operator-enrichment build can pull
     exactly this one endpoint without touching the satcat/psatcat freshness gates. Returns the row
     count (0 when a fresh run already exists within MIN_INTERVAL)."""
-    resp = runlog.polite_get(conn, SOURCE, ORGS_ENDPOINT, ORGS_URL, MIN_INTERVAL)
-    if resp is None:
+    n = _pull(conn, ORGS_ENDPOINT, (ORGS_URL,),
+              lambda c, rows, run_id: _land_orgs_rows(c, process_orgs_rows(rows), run_id))
+    if n is None:
         logger.info("gcat orgs: skipped, fresh run within %s", MIN_INTERVAL)
         return 0
-    processed = process_orgs_rows(parse_tsv(resp.text))
-    return _land_and_finish(
-        conn, resp, lambda: _land_orgs_rows(conn, processed, resp.oei_run_id),
-        f"orgs-{dt.date.today().isoformat()}.tsv",
-    )
+    return n

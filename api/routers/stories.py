@@ -203,9 +203,10 @@ ORDER BY g.date DESC, g.launch_key DESC
 # (COSPAR 1998-067 other than A, which is Zarya) the station's own 1998-11-20 launch date, so a
 # launch-to-decay span would put LEOPARD at "28.0 years up" when it flew for 273 days. For those
 # pieces the query also reads GCAT's SDate, the day the object separated from its parent, from
-# the newest raw GCAT row for the same NORAD number. The JCAT key is S plus the 5-digit number,
-# which is the primary-key path; requiring GCAT's own NORAD to match keeps a piece whose GCAT row
-# names no number (24 of the 412 on 2026-11-13) on the "deployed from the ISS" fallback.
+# the newest raw GCAT row for the same NORAD number. The JCAT key is S plus the number, five
+# digits up to 99999 and unpadded from 100000 (lpad would truncate S100123 to S10012), which is
+# the primary-key path; requiring GCAT's own NORAD to match keeps a piece whose GCAT row names
+# no number (24 of the 412 on 2026-11-13) on the "deployed from the ISS" fallback.
 # satellite.launch_date itself stays as cataloged: the launch groups key on it.
 _NOTABLE_REENTRIES_SQL = f"""
 WITH {_OWNER_CTE},
@@ -227,8 +228,9 @@ FROM notable n
 LEFT JOIN LATERAL (
     SELECT r.extra->>'SDate' AS sdate
     FROM raw_gcat_satcat r
-    WHERE n.deployed_from_iss AND n.norad_id BETWEEN 1 AND 99999
-      AND r.jcat = 'S' || lpad(n.norad_id::text, 5, '0')
+    WHERE n.deployed_from_iss AND n.norad_id >= 1
+      AND r.jcat = 'S' || CASE WHEN n.norad_id < 100000 THEN lpad(n.norad_id::text, 5, '0')
+                               ELSE n.norad_id::text END
       AND r.norad_id = n.norad_id
     ORDER BY r.ingest_run_id DESC
     LIMIT 1
