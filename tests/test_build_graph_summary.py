@@ -59,31 +59,51 @@ def test_a_summary_without_the_key_prints_no_coverage_line(capsys):
     assert "gcat coverage" not in capsys.readouterr().out
 
 
-@pytest.mark.db
-def test_coverage_counts_only_current_gcat_links(db_conn):
-    """Seeded inside db_conn's transaction, which is never committed. The reserved NORAD range
-    is the top of the catalog, so the seeded gaps are the newest ones."""
-    with db_conn.cursor() as cur:
-        ids = {}
-        for norad in (909999997, 909999998, 909999999):
-            cur.execute(
-                "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GCAT COVERAGE') "
-                "RETURNING satellite_id",
-                (norad,),
-            )
-            ids[norad] = cur.fetchone()[0]
-        # 909999999 has a current GCAT id, 909999997 only an expired one, 909999998 none.
+def _seed_satellite(cur, norad, gcat_keys=(), expired_keys=()):
+    cur.execute(
+        "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GCAT COVERAGE') "
+        "RETURNING satellite_id",
+        (norad,),
+    )
+    sat_id = cur.fetchone()[0]
+    for key, valid_to in [(k, None) for k in gcat_keys] + [(k, "2026-01-01") for k in expired_keys]:
         cur.execute(
             "INSERT INTO satellite_identifier (satellite_id, id_type, id_value, source, valid_to) "
-            "VALUES (%s, 'gcat_id', 'S909999999', 'gcat', NULL), "
-            "(%s, 'gcat_id', 'S909999997', 'gcat', '2026-01-01')",
-            (ids[909999999], ids[909999997]),
+            "VALUES (%s, 'gcat_id', %s, 'gcat', %s)",
+            (sat_id, key, valid_to),
         )
-        coverage = build_graph._gcat_coverage(cur)
-        cur.execute("SELECT count(*) FROM satellite")
-        (satellites,) = cur.fetchone()
 
-    assert coverage["with"] + coverage["without"] == satellites
-    assert coverage["newest_without"][:2] == [909999998, 909999997]
-    assert 909999999 not in coverage["newest_without"]
-    assert len(coverage["newest_without"]) <= 5
+
+@pytest.mark.db
+def test_coverage_counts_satellites_whose_gcat_key_is_in_the_newest_snapshot(db_conn):
+    """Seeded inside db_conn's transaction, which is never committed. The seeded GCAT run is the
+    newest OK one, which is what the claims pass reads; a satellite whose current GCAT link names
+    a key that run lacks (an empty part 3 on a later night) has no GCAT data and must count as
+    without. The reserved NORAD range is the top of the catalog, so the seeded gaps are newest."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
+            "VALUES ('gcat', 'gcat_satcat_coverage_test', now(), now(), 'ok') "
+            "RETURNING ingest_run_id"
+        )
+        run = cur.fetchone()[0]
+        in_run = ["S909999990", "S909999991", "S909999993", "S909999995"]
+        cur.executemany(
+            "INSERT INTO raw_gcat_satcat (jcat, ingest_run_id) VALUES (%s, %s)",
+            [(key, run) for key in in_run],
+        )
+        before = build_graph._gcat_coverage(cur)
+
+        _seed_satellite(cur, 909999991, gcat_keys=["S909999991", "S909999990"])  # two keys: once
+        _seed_satellite(cur, 909999995, gcat_keys=["S909999995"])
+        _seed_satellite(cur, 909999992, gcat_keys=["S909999992"])  # key not in the newest run
+        _seed_satellite(cur, 909999993, expired_keys=["S909999993"])  # link retired
+        _seed_satellite(cur, 909999994)  # never linked
+        _seed_satellite(cur, None)  # no NORAD to name in the gap list
+        after = build_graph._gcat_coverage(cur)
+
+    assert after["with"] - before["with"] == 2
+    assert after["without"] - before["without"] == 4
+    assert after["newest_without"][:3] == [909999994, 909999993, 909999992]
+    assert None not in after["newest_without"]
+    assert len(after["newest_without"]) <= 5

@@ -185,9 +185,19 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
 
 
 _GCAT_COVERAGE_SQL = """
-WITH g AS (
-    SELECT DISTINCT satellite_id FROM satellite_identifier
-    WHERE id_type = 'gcat_id' AND valid_to IS NULL
+WITH newest AS (
+    -- The snapshot the claims pass and bus attribution read: the newest OK GCAT run.
+    SELECT max(r.ingest_run_id) AS run
+    FROM raw_gcat_satcat r
+    JOIN ingest_run i ON i.ingest_run_id = r.ingest_run_id
+    WHERE i.status = 'ok'
+),
+g AS (
+    SELECT DISTINCT i.satellite_id
+    FROM satellite_identifier i
+    JOIN raw_gcat_satcat r ON r.jcat = i.id_value
+    JOIN newest ON r.ingest_run_id = newest.run
+    WHERE i.id_type = 'gcat_id' AND i.valid_to IS NULL
 )
 SELECT count(g.satellite_id),
        count(*) - count(g.satellite_id),
@@ -199,11 +209,14 @@ LEFT JOIN g USING (satellite_id)
 
 
 def _gcat_coverage(cur, shown: int = 5) -> dict:
-    """Satellites with and without a current GCAT id, and the newest NORAD numbers without one.
+    """Satellites whose current GCAT link names a key in the newest GCAT snapshot, those without,
+    and the newest NORAD numbers without one.
 
     From 2026-07-21 to 2026-11-14 GCAT published NORAD 100000 and above in a second file the
     loader did not pull, and 1,309 satellites had no GCAT entry while every run reported ok
-    (docs/specs/gcat-extended-catalog.md). The newest numbers are where such a gap shows first.
+    (docs/specs/gcat-extended-catalog.md). Counting links alone would miss the opposite failure,
+    a later snapshot that lacks part of the catalog: links are never retired for a key's absence,
+    but the claims pass closes that key's claims. The newest numbers are where a gap shows first.
     """
     cur.execute(_GCAT_COVERAGE_SQL, (shown,))
     with_gcat, without, newest = cur.fetchone()

@@ -254,3 +254,42 @@ def test_parse_parts_rejects_a_key_in_two_files_but_not_a_repeat_within_one():
     with pytest.raises(ValueError, match="S00001"):
         gcat_loader.parse_parts([header + "S00001\tA\n", header + "S00001\tB\nS100000\tC\n"])
     assert len(gcat_loader.parse_parts([header + "S00001\tA\n", header + "S100000\tC\n"])) == 2
+
+
+def test_parse_parts_finds_the_key_column_by_name():
+    """GCAT reorders columns between releases, which is why the loader maps by header name. A
+    column with repeating values ahead of JCAT must not read as a duplicate key."""
+    part1 = "#Launch_Tag\tJCAT\tName\n2026-160\tS00001\tA\n"
+    part3 = "#Launch_Tag\tJCAT\tName\n2026-160\tS100000\tB\n"
+    assert len(gcat_loader.parse_parts([part1, part3])) == 2
+    with pytest.raises(ValueError, match="S00001"):
+        gcat_loader.parse_parts([part1, part3 + "2026-161\tS00001\tC\n"])
+
+
+@pytest.mark.parametrize("body, problem", [
+    ("#JCAT\tName\n# Updated 2026 Nov 13 0021:57\n", "no data rows"),
+    ("<html><body>Service unavailable</body></html>\n", "no data rows"),
+    ("<html>\n<body>Service unavailable</body>\n</html>\n", "no jcat column"),
+])
+def test_a_part_that_is_not_a_catalog_part_fails_the_parse(body, problem):
+    """A part that answers 200 with only its header, or with an error page, would otherwise
+    land part 1 alone as an ok run, and the claims pass would close every claim part 3 made."""
+    with pytest.raises(ValueError, match=f"satcat100k: {problem}"):
+        gcat_loader.parse_parts([SATCAT_FIXTURE.read_text(), body], names=["satcat", "satcat100k"])
+
+
+@pytest.mark.db
+@responses.activate
+def test_a_part_that_answers_200_with_only_a_header_fails_the_whole_run(
+    clean_db, monkeypatch, tmp_path, _unique_gcat_endpoints
+):
+    monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
+    _serve(satcat_100k="#JCAT\tSatcat\tName\n# Updated 2026 Nov 13 0021:57\n")
+
+    with pytest.raises(ValueError, match="satcat100k: no data rows"):
+        gcat_loader.run(clean_db)
+
+    [(run_id, status, rows, _bytes, notes)] = _runs(clean_db, "gcat_satcat_test")
+    assert (status, rows) == ("error", 0)
+    assert "satcat100k: no data rows" in notes
+    assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == []

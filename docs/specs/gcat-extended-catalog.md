@@ -29,9 +29,10 @@ and that a gap of this kind can never again sit silent for four months.
 - `satcat100k.tsv` on 2026-11-14: 1,354 rows, S100000 to S101353, header identical to part 1,
   no duplicate keys, 1,295 rows with a numeric Satcat and 59 with `NNA`.
   `psatcat100k.tsv`: 1,175 rows, header identical to `psatcat.tsv`.
-- Landing part 3 would give 1,308 of the 1,309 a GCAT entry: 1,249 by NORAD and 59 through the
-  existing JCAT-number rule for NNA rows (migration 0026). Two stay without one until GCAT
-  catches up (101146 and 101357; see Edge cases for 101146).
+- Landing part 3 would give 1,307 of the 1,309 a GCAT entry: 1,249 rows match by NORAD and 59
+  NNA rows through the existing JCAT-number rule (migration 0026), and two of those rows
+  (S100146 and S101146) land on the same satellite. Two stay without one: 101357, which GCAT
+  has not reached yet, and 101146 (see Edge cases).
 - 46 rows of part 3 carry a NORAD that SATCAT does not publish (USA 726 to USA 771, launches
   2026-251 and 2026-255). The matcher creates a satellite for a GCAT NORAD it has not seen,
   exactly as it already does for part 1, so the graph grows by 46.
@@ -57,12 +58,20 @@ and that a gap of this kind can never again sit silent for four months.
 - 2026-11-14: **The analyst catalogs stay out of scope.** `satcat070k`, `satcat270k` and
   `satcat700M` are USSF analyst objects (GCAT: "Temporary catalogs"). CelesTrak's SATCAT does
   not carry them, and before late 2025 GCAT kept them in `csocat`, which we never pulled.
-- 2026-11-14: **The build summary reports GCAT coverage, and a gap above 1% of the graph is an
-  alert.** The line is `gcat coverage:` with the share of satellites that carry a current GCAT
-  id and the newest NORAD numbers without one. When more than 1% lack one it starts with `!!`,
-  which the nightly forwards to ALERT_URL. Normal lag is far below that: GCAT updates weekly
-  and a large rideshare adds about 120 objects, while 1% is about 713. This gap would have
-  alerted in September.
+- 2026-11-14: **Every file of a pull must be a catalog file.** Each must have at least one data
+  row and its key column, found by name (JCAT, or Code for orgs.tsv), or the run closes
+  `error`. A part that answers 200 with only its header, or with an error page, would otherwise
+  land the other parts alone as an ok run (found in review and reproduced end to end: the claims
+  pass closed 7,999 claims on the 1,354 part-3 keys).
+- 2026-11-14: **The build summary reports GCAT coverage against the newest snapshot, and a gap
+  above 1% of the graph is an alert.** A satellite counts as covered when its current GCAT link
+  names a key in the newest OK `raw_gcat_satcat` run, the run the claims pass and bus
+  attribution read. The line is `gcat coverage:` with that share and the newest NORAD numbers
+  without one. When more than 1% lack one it starts with `!!`, which the nightly forwards to
+  ALERT_URL. Normal lag is far below that: GCAT updates weekly and a large rideshare adds about
+  120 objects, while 1% is about 713. This gap would have alerted in September. Rejected:
+  counting current links alone (the first draft). Links are never retired when a key leaves the
+  snapshot, so a later run missing part 3 still read 100% while its claims were closed.
 
 ## Constraints
 - Raw landing stays verbatim. The loader never edits a value GCAT publishes, including the
@@ -72,6 +81,9 @@ and that a gap of this kind can never again sit silent for four months.
 - No manual pull or rebuild on production. The nightly applies the fix; GCAT's 20-hour
   freshness window means the first run to pull part 3 is the 19:10 UTC run after deploy.
 - No box work 07:05 to 07:30 or 19:05 to 19:30 UTC.
+- Deploying between 19:30 and 07:05 UTC means the 07:10 run builds the graph before GCAT is due
+  again, so its coverage line starts with `!!` (98.2%, 1,309 without) and one alert goes out.
+  That alert is true and expected; it clears on the 19:10 run that pulls part 3.
 
 ## Interfaces & dependencies
 - `ingest/runlog.py`: new `polite_get_parts(conn, source, endpoint, urls, min_interval,
@@ -87,15 +99,24 @@ and that a gap of this kind can never again sit silent for four months.
 ## Edge cases
 - **A key in both parts** would violate the raw table's primary key. The loader checks for it
   first and fails the run with a message naming the keys.
-- **Part 3 is short or empty** (a GCAT outage that still answers 200): it lands as published.
-  The coverage line catches a large drop.
+- **Part 3 is empty or not a catalog file** (a GCAT outage that still answers 200): the run
+  closes `error` and the previous complete run stays the newest. **Part 3 is short but real**
+  (a truncated file): it lands as published; the coverage line, measured against that snapshot,
+  alerts once more than 1% of the graph has lost its GCAT entry, and a smaller truncation goes
+  unalerted.
 - **GCAT's Hawk 16A typo.** Part 3 row S101146 is Hawk 16A (piece 2026-239C) but carries
   Satcat 100146, which SATCAT and GCAT's own S100146 (NNA, piece 2026-170D) give to a Chinese
   object. It is the only row in either part whose JCAT number differs from its Satcat (part 1:
   0 of 69,999). Under the approved anchor rule the row's Satcat wins, so satellite 100146 will
-  carry Hawk 16A's GCAT entry beside its own, bus attribution may give it Hawk 16A's bus, and
-  the real Hawk 16A (101146) gets no GCAT entry. One object; recorded as an open question
-  rather than handled by a new rule.
+  carry two GCAT keys: S100146 through the JCAT-number rule and S101146 through the NORAD pass,
+  with S101146's name and its COSPAR 2026-239C. The resolver keeps the greater key per source
+  (`identity/resolve.py`, `source_key DESC`), so the card for this Chinese object will read
+  "Hawk 16A", owned by HawkEye 360, with S101146's status and object type, and HawkEye 360's
+  fleet gains it. Bus attribution breaks the tie by the lesser key, so its bus stays S100146's
+  (YX2, XUNQ), and the conflicts page and quality report, which also read the lesser key, show
+  nothing new (both rows say status O and carry no decay date). The real Hawk 16A (101146)
+  gets no GCAT entry. Found in review and reproduced in a rolled-back simulation. One object;
+  recorded as an open question rather than handled by a new rule.
 - **JCAT formatting.** GCAT renders S00001 to S99999 with five digits and S100000 onward
   without padding. Postgres `lpad(text, 5, '0')` truncates longer strings, so
   `'S' || lpad('100001', 5, '0')` is `S10000`. Any JCAT built from a NORAD must use the
@@ -111,12 +132,17 @@ and that a gap of this kind can never again sit silent for four months.
 - [ ] A part-3 failure after its retries leaves no rows from that run and closes the run
   `error`, naming the failed URL.
   `pytest tests/test_ingest_gcat.py -k fails` passes.
-- [ ] A key present in both parts fails the run before any row lands.
-  `pytest tests/test_ingest_gcat.py -k duplicate` passes.
+- [ ] A key present in both parts fails the run before any row lands, and the key column is
+  found by name.
+  `pytest tests/test_ingest_gcat.py -k "duplicate or by_name"` passes.
+- [ ] A part with no data rows or no key column fails the run before any row lands.
+  `pytest tests/test_ingest_gcat.py -k "not_a_catalog_part or only_a_header"` passes.
 - [ ] `polite_get` behaves exactly as before.
   `pytest tests/test_ingest_runlog.py` passes unchanged.
-- [ ] The summary prints `gcat coverage:` and starts it with `!!` above 1% without.
-  `pytest tests/test_build_graph_summary.py` passes.
+- [ ] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
+  it with `!!` above 1% without.
+  `pytest tests/test_build_graph_summary.py` passes, and the coverage test fails when the SQL
+  loses its DISTINCT, its NULL-NORAD filter, its `valid_to` filter or its snapshot join.
 - [ ] The notable-reentries lookup finds the GCAT row for an ISS-deployed object with a
   six-digit NORAD.
   `pytest tests/test_api_stories.py -k jcat` passes.
@@ -124,7 +150,8 @@ and that a gap of this kind can never again sit silent for four months.
 - [ ] On production after the first 19:10 UTC run that pulls part 3: `gcat_satcat` lands about
   71,350 rows; the summary reads `gcat coverage:` above 99.9%; satellites with a NORAD of
   100000 or more and no GCAT id number 2 or fewer (the GCAT lag plus 101146); every step exits
-  0; the slug gate and publish assertions pass.
+  0; the slug gate and publish assertions pass. NORAD 100146's card reads "Hawk 16A", owner
+  HawkEye 360, as described under Edge cases, until Vib decides the open question.
 
 ## Open questions
 - **Hawk 16A (decision for Vib).** Should a GCAT S row whose Satcat disagrees with its own
@@ -141,3 +168,13 @@ and that a gap of this kind can never again sit silent for four months.
   for months while the download grows is a truncation or a split, never a quiet source.
 - 2026-11-14: The loader was correct for the file it was given. The failure was upstream
   layout, and the only signal was downstream coverage, so the guard belongs downstream.
+- 2026-11-14 (review, three lenses with a refuter each): a guard must measure the thing that
+  fails. The first coverage line counted crosswalk links, which only grow, so it could not see
+  the snapshot shrinking; three reviewers found this independently. Measure against the data
+  the readers use (the newest snapshot), and test the guard with the failure it exists for.
+- 2026-11-14 (review): a test whose assertion is true by construction (with + without equals
+  the total) guards nothing. The coverage test now asserts exact deltas from a seeded baseline
+  and was checked against four mutants of its SQL.
+- 2026-11-14 (review): check any new code that reads columns against the loader's rule
+  (columns by name, never by position, because GCAT reorders them). The first duplicate check
+  took the first column by position.

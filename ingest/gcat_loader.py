@@ -283,17 +283,30 @@ def _land_orgs_rows(conn, processed_rows: list[tuple[dict, dict]], run_id: int) 
     return landed
 
 
-def parse_parts(texts: list[str]) -> list[dict]:
-    """parse_tsv over each file of a multi-file catalog, in order. A key in more than one file
-    raises: the parts of GCAT's S catalog are disjoint number ranges, so a repeat means the
-    split changed, and landing it would break the raw table's (jcat, run) key mid-transaction.
-    A repeat within one file is left to the landing, as before the split (orgs.tsv's guard is
-    ON CONFLICT DO NOTHING)."""
+def parse_parts(texts: list[str], key: str = "jcat", names: list[str] | None = None) -> list[dict]:
+    """parse_tsv over each file of a multi-file catalog, in order, checking that every file is a
+    catalog file and that the files do not overlap. Raises ValueError, which closes the run
+    'error' so the previous complete run stays the newest.
+
+    - Every file must have at least one data row and a `key` column (found by name, like every
+      other column here, since GCAT reorders columns). A part that answers 200 with only its
+      header, or with an error page, would otherwise land the other parts alone as an ok run,
+      and the claims pass would close every claim the missing part made.
+    - A key in more than one file raises: the parts of GCAT's S catalog are disjoint number
+      ranges, so a repeat means the split changed, and landing it would break the raw table's
+      (jcat, run) key mid-transaction. A repeat within one file is left to the landing, as before
+      the split (orgs.tsv's guard is ON CONFLICT DO NOTHING).
+    """
+    names = names or [f"file {i + 1}" for i in range(len(texts))]
     rows, earlier, repeated = [], set(), []
-    for text in texts:
+    for name, text in zip(names, texts, strict=True):
         file_rows = parse_tsv(text)
-        # The first column is the key: JCAT in the catalogs, Code in orgs.tsv.
-        keys = {_clean(next(iter(row.values()), None)) for row in file_rows} - {None}
+        if not file_rows:
+            raise ValueError(f"{name}: no data rows")
+        key_column = next((h for h in file_rows[0] if _norm_key(h) == key), None)
+        if key_column is None:
+            raise ValueError(f"{name}: no {key} column")
+        keys = {_clean(row[key_column]) for row in file_rows} - {None}
         repeated += sorted(keys & earlier)
         earlier |= keys
         rows += file_rows
@@ -336,17 +349,18 @@ def _land_and_finish(conn, parts, land_fn) -> int:
     return n
 
 
-def _pull(conn, endpoint: str, urls, land_rows) -> int | None:
+def _pull(conn, endpoint: str, urls, land_rows, key: str = "jcat") -> int | None:
     """Fetch every file of one catalog under one run and land them together. Returns the row
-    count, or None when the endpoint is fresh."""
+    count, or None when the endpoint is fresh. `key` names the key column (Code in orgs.tsv)."""
     parts = runlog.polite_get_parts(conn, SOURCE, endpoint, urls, MIN_INTERVAL)
     if parts is None:
         return None
     for part, url in zip(parts, urls, strict=True):
-        part.oei_name = Path(url).stem  # satcat, satcat100k, psatcat, psatcat100k
+        part.oei_name = Path(url).stem  # satcat, satcat100k, psatcat, psatcat100k, orgs
     run_id = parts[0].oei_run_id
+    texts, names = [p.text for p in parts], [p.oei_name for p in parts]
     return _land_and_finish(
-        conn, parts, lambda: land_rows(conn, parse_parts([p.text for p in parts]), run_id)
+        conn, parts, lambda: land_rows(conn, parse_parts(texts, key, names), run_id)
     )
 
 
@@ -376,7 +390,8 @@ def run_orgs(conn) -> int:
     exactly this one endpoint without touching the satcat/psatcat freshness gates. Returns the row
     count (0 when a fresh run already exists within MIN_INTERVAL)."""
     n = _pull(conn, ORGS_ENDPOINT, (ORGS_URL,),
-              lambda c, rows, run_id: _land_orgs_rows(c, process_orgs_rows(rows), run_id))
+              lambda c, rows, run_id: _land_orgs_rows(c, process_orgs_rows(rows), run_id),
+              key="code")
     if n is None:
         logger.info("gcat orgs: skipped, fresh run within %s", MIN_INTERVAL)
         return 0
