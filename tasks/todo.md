@@ -647,4 +647,7 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
     ("Hawk 16A").
   - Re-bake the landing snapshot (deploy/landing-snapshot.sh), commit "Landing: snapshot
     2026-11-15", and run check_landing.
+  - Compare /api/stats conflicts with the public copy: the README says 3,523 decay
+    conflicts, and the landing says "3,700+" substantive conflicts. Part 3 adds GCAT
+    status and decay claims for 1,307 satellites.
   - Tick the spec's production criterion.
