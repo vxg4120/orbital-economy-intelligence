@@ -609,3 +609,42 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
   - The satellite card still lists a GCAT phase-end date under decay_date with no label.
 - After the 07:10 UTC nightly on 2026-11-14: check "display name overrides: 8", "unmapped
   status values: 0", /api/satellites/40452 without a status conflict, and the ingest retry log.
+
+## Review (2026-11-14 21:20 UTC, post-nightly check and GCAT's extended catalog)
+- Post-nightly checks for 2026-11-14 all pass. Both runs (07:10 and 19:10) exited 0 at every
+  step, with "display name overrides: 8" and "unmapped status values: 0".
+  /api/satellites/40452 now shows only a name conflict (its status conflict cleared). Neither
+  run needed a retry: every pull succeeded first time.
+- Found during the check: GCAT's S catalog split in July when NORAD passed 99999.
+  satcat.tsv stops at S69999, and satcat100k.tsv holds S100000 onward. We pulled only the
+  first file, so every GCAT run since 2026-07-21 landed exactly 69,999 rows and reported ok.
+  - 1,309 satellites (NORAD 100000 to 101357) had no GCAT owner, status, bus or manufacturer.
+  - The Starlinks among them were attributed to "United States" through SATCAT's country code.
+  - The spec is docs/specs/gcat-extended-catalog.md.
+- Fixed and live since 21:12 UTC (space 23d63cd, Vib: "Deploy tonight").
+  - Both files of each catalog land in one run, and a run with a failed, empty or non-catalog
+    part closes error.
+  - The build summary prints "gcat coverage:", counted against the newest GCAT snapshot, and
+    starts it with "!!" (forwarded to ALERT_URL) above 1%.
+  - The ISS release-date lookup builds six-digit JCATs.
+- Review: three lenses with a refuter each (6 agents), then a fix-round reviewer.
+  - Confirmed: a part answering 200 with only its header would have closed 7,999 claims while
+    coverage read 100%, because the first coverage line counted links, which never expire.
+  - Confirmed: the duplicate check read the key column by position.
+  - Confirmed: a test that passed by construction.
+  - All are fixed, and the coverage test now fails on six SQL mutants.
+- Vib decided "leave it for now" on GCAT's Hawk 16A typo. S101146 carries Satcat 100146, so
+  satellite 100146 (a Chinese object) will read "Hawk 16A", owned by HawkEye 360.
+- Expected at 07:10 UTC on 2026-11-15: one alert, "!! gcat coverage: 98.2% (69999; 1309
+  without ...)". GCAT is still fresh then, so part 3 is first pulled at 19:10.
+- After the 19:10 UTC nightly on 2026-11-15 (not before 19:30):
+  - gcat_satcat lands about 71,350 rows and gcat_psatcat about 29,100, both ok.
+  - The coverage line reads above 99.9% with no "!!", and NORAD 100000 and up has 2 or fewer
+    satellites without a GCAT id.
+  - About 46 satellites are added; every step exits 0; the slug gate and publish assertions
+    pass.
+  - Spot-check SpaceX's fleet (it should gain about 850), "United States", and NORAD 100146
+    ("Hawk 16A").
+  - Re-bake the landing snapshot (deploy/landing-snapshot.sh), commit "Landing: snapshot
+    2026-11-15", and run check_landing.
+  - Tick the spec's production criterion.

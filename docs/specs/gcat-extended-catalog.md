@@ -1,6 +1,8 @@
 # Spec: GCAT's extended catalog (NORAD 100000 and above)
 
 **Status:** active. Found and drafted autonomously on 2026-11-14 during the post-nightly check.
+Live since 2026-11-14 21:12 UTC (space 23d63cd, deployed with Vib's go-ahead); the production
+criterion waits for the first 19:10 UTC run that pulls part 3 (2026-11-15).
 **Owner:** Vib
 **Repos touched:** space
 **Last updated:** 2026-11-14
@@ -123,31 +125,34 @@ and that a gap of this kind can never again sit silent for four months.
   unpadded number at 100000 and above.
 
 ## Acceptance criteria
-- [ ] A GCAT pull fetches `satcat.tsv` and `satcat100k.tsv` into one `gcat_satcat` run whose
+- [x] A GCAT pull fetches `satcat.tsv` and `satcat100k.tsv` into one `gcat_satcat` run whose
   `rows_ingested` is the sum of both parts and whose `bytes_downloaded` is the sum of both
   downloads.
   `pytest tests/test_ingest_gcat.py -k parts` passes.
-- [ ] The payload catalog does the same with `psatcat.tsv` and `psatcat100k.tsv`.
+- [x] The payload catalog does the same with `psatcat.tsv` and `psatcat100k.tsv`.
   `pytest tests/test_ingest_gcat.py -k payload` passes.
-- [ ] A part-3 failure after its retries leaves no rows from that run and closes the run
+- [x] A part-3 failure after its retries leaves no rows from that run and closes the run
   `error`, naming the failed URL.
   `pytest tests/test_ingest_gcat.py -k fails` passes.
-- [ ] A key present in both parts fails the run before any row lands, and the key column is
+- [x] A key present in both parts fails the run before any row lands, and the key column is
   found by name.
   `pytest tests/test_ingest_gcat.py -k "duplicate or by_name"` passes.
-- [ ] A part with no data rows or no key column fails the run before any row lands.
+- [x] A part with no data rows or no key column fails the run before any row lands.
   `pytest tests/test_ingest_gcat.py -k "not_a_catalog_part or only_a_header"` passes.
-- [ ] `polite_get` behaves exactly as before.
+- [x] `polite_get` behaves exactly as before.
   `pytest tests/test_ingest_runlog.py` passes unchanged.
-- [ ] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
+- [x] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
   it with `!!` above 1% without.
   `pytest tests/test_build_graph_summary.py` passes, and the coverage test fails when the SQL
   loses its DISTINCT, its NULL-NORAD filter, its `valid_to` filter, its snapshot join, its
   `status = 'ok'` filter, or takes the oldest run instead of the newest (six mutants checked).
-- [ ] The notable-reentries lookup finds the GCAT row for an ISS-deployed object with a
+- [x] The notable-reentries lookup finds the GCAT row for an ISS-deployed object with a
   six-digit NORAD.
   `pytest tests/test_api_stories.py -k jcat` passes.
-- [ ] Full suite, ruff and the dash check are clean.
+- [x] Full suite, ruff and the dash check are clean.
+  2026-11-14 on main 23d63cd: 632 passed, 117 skipped; ruff clean; 0 dashes in added lines.
+  Every `-k` selector above collects and passes its tests. Reviewed by three lenses with a
+  refuter each, then a fix-round reviewer (verdict: ok to merge).
 - [ ] On production after the first 19:10 UTC run that pulls part 3: `gcat_satcat` lands about
   71,350 rows; the summary reads `gcat coverage:` above 99.9%; satellites with a NORAD of
   100000 or more and no GCAT id number 2 or fewer (the GCAT lag plus 101146); every step exits
@@ -159,7 +164,8 @@ and that a gap of this kind can never again sit silent for four months.
   number be anchored by its number when its COSPAR piece agrees with SATCAT for that number?
   That changes the approved anchor rule in three places that must agree (the matcher's NORAD
   pass, `bus.py` rule 1, `churn.expire_moved_gcat_keys`). Telling GCAT's maintainer about the
-  typo is an outward action, also his call.
+  typo is an outward action, also his call. **Vib, 2026-11-14: leave it for now.** It ships as
+  described under Edge cases; revisit if GCAT keeps the typo or a second such row appears.
 - Published numbers move when part 3 lands: SpaceX's fleet and the bus and manufacturer
   cohorts gain the objects catalogued since July, "United States" loses most of the 853, and
   the graph gains 46 satellites. The landing snapshot is re-baked after that run.
@@ -181,3 +187,6 @@ and that a gap of this kind can never again sit silent for four months.
 - 2026-11-14 (review): check any new code that reads columns against the loader's rule
   (columns by name, never by position, because GCAT reorders them). The first duplicate check
   took the first column by position.
+- 2026-11-14: Deployed at 21:12 UTC. A read-only preview on production printed the line the
+  07:10 run will send: `!! gcat coverage: 98.2% (69999; 1309 without, newest NORAD 101357,
+  ...)`. One expected alert; it should clear on the 19:10 run that pulls part 3.
