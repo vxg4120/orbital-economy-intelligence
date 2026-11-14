@@ -76,22 +76,30 @@ def _seed_satellite(cur, norad, gcat_keys=(), expired_keys=()):
 
 @pytest.mark.db
 def test_coverage_counts_satellites_whose_gcat_key_is_in_the_newest_snapshot(db_conn):
-    """Seeded inside db_conn's transaction, which is never committed. The seeded GCAT run is the
+    """Seeded inside db_conn's transaction, which is never committed. The middle GCAT run is the
     newest OK one, which is what the claims pass reads; a satellite whose current GCAT link names
     a key that run lacks (an empty part 3 on a later night) has no GCAT data and must count as
-    without. The reserved NORAD range is the top of the catalog, so the seeded gaps are newest."""
-    with db_conn.cursor() as cur:
+    without. As in production, the dropped key is still in an older retained OK run, and a newer
+    run that has not finished (status NULL) holds it too; neither may count. The reserved NORAD
+    range is the top of the catalog, so the seeded gaps are the newest."""
+
+    def run(cur, status, keys):
         cur.execute(
             "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
-            "VALUES ('gcat', 'gcat_satcat_coverage_test', now(), now(), 'ok') "
-            "RETURNING ingest_run_id"
+            "VALUES ('gcat', 'gcat_satcat_coverage_test', now(), now(), %s) "
+            "RETURNING ingest_run_id",
+            (status,),
         )
-        run = cur.fetchone()[0]
-        in_run = ["S909999990", "S909999991", "S909999993", "S909999995"]
+        run_id = cur.fetchone()[0]
         cur.executemany(
             "INSERT INTO raw_gcat_satcat (jcat, ingest_run_id) VALUES (%s, %s)",
-            [(key, run) for key in in_run],
+            [(key, run_id) for key in keys],
         )
+
+    with db_conn.cursor() as cur:
+        run(cur, "ok", ["S909999992"])  # an older retained snapshot that still had the key
+        run(cur, "ok", ["S909999990", "S909999991", "S909999993", "S909999995"])  # the newest OK
+        run(cur, None, ["S909999992"])  # in flight: not a snapshot yet
         before = build_graph._gcat_coverage(cur)
 
         _seed_satellite(cur, 909999991, gcat_keys=["S909999991", "S909999990"])  # two keys: once

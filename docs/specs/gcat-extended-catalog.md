@@ -47,8 +47,8 @@ and that a gap of this kind can never again sit silent for four months.
 - 2026-11-14: **A run lands both parts or neither.** If part 3 fails after its retries, the
   whole run closes `error` and the readers keep the previous complete run. Rejected: landing
   part 1 alone, because claims closes the GCAT claims of every satellite missing from the
-  newest run, so a partial run would retract 1,308 satellites' claims and reopen them the next
-  night.
+  newest run, so a partial run would retract the claims of the 1,353 satellites part 3 links
+  (1,307 existing and 46 it creates) and reopen them the next night.
 - 2026-11-14: **`runlog.polite_get_parts` fetches several URLs under one run row**, and
   `polite_get` becomes its one-URL case, so the freshness check, the retries and the error row
   have one implementation.
@@ -142,7 +142,8 @@ and that a gap of this kind can never again sit silent for four months.
 - [ ] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
   it with `!!` above 1% without.
   `pytest tests/test_build_graph_summary.py` passes, and the coverage test fails when the SQL
-  loses its DISTINCT, its NULL-NORAD filter, its `valid_to` filter or its snapshot join.
+  loses its DISTINCT, its NULL-NORAD filter, its `valid_to` filter, its snapshot join, its
+  `status = 'ok'` filter, or takes the oldest run instead of the newest (six mutants checked).
 - [ ] The notable-reentries lookup finds the GCAT row for an ISS-deployed object with a
   six-digit NORAD.
   `pytest tests/test_api_stories.py -k jcat` passes.
@@ -173,8 +174,10 @@ and that a gap of this kind can never again sit silent for four months.
   the snapshot shrinking; three reviewers found this independently. Measure against the data
   the readers use (the newest snapshot), and test the guard with the failure it exists for.
 - 2026-11-14 (review): a test whose assertion is true by construction (with + without equals
-  the total) guards nothing. The coverage test now asserts exact deltas from a seeded baseline
-  and was checked against four mutants of its SQL.
+  the total) guards nothing. The coverage test now asserts exact deltas from a seeded baseline.
+  A fix-round reviewer then found it still passed with the snapshot join loosened, because its
+  dropped key was in no run at all; in production the key is still in older retained runs. The
+  test now seeds that, and fails on all six mutants of its SQL.
 - 2026-11-14 (review): check any new code that reads columns against the loader's rule
   (columns by name, never by position, because GCAT reorders them). The first duplicate check
   took the first column by position.
