@@ -155,7 +155,8 @@ rule for non-recovery + an orbit-raise/positive-slope whitelist. But that is the
   the *reentry-date* target and for dead-vs-alive classification.
 - **GCAT labels (`raw_gcat_psatcat.extra`, CC-BY 4.0, cite McDowell).** Availability checked:
   of 55,764 psatcat rows, **`TDate` (decay) is real for 23,151** and **`TOp` for 23,481**;
-  `TLast` is populated for all but noisily. Map jcat → NORAD via `jcat = 'S' || lpad(norad,5,'0')`.
+  `TLast` is populated for all but noisily. Map jcat → NORAD via `jcat = 'S' || lpad(norad,5,'0')`
+  up to 99999; from 100000 the key is unpadded (`'S' || norad`), and `lpad` would truncate it.
   `TDate` becomes a corroborating decay label and `TOp` a *candidate end-of-operations* label.
   **Leakage/quality warning — verified, do not skip:** GCAT dates are inconsistent across object
   classes. For deorbiting Starlinks `TDate` is provisional and *early* (49131: `TDate "2026 May 5?"`

@@ -276,3 +276,43 @@ def test_notable_reentries_sql_reads_gcat_release_dates_for_iss_pieces_only(db_c
         "ISS (ZARYA)": (False, None),  # 1998-067A is the station itself
     }
     assert [r["name"] for r in rows] == ["Swift", "LEOPARD", "ISS (ZARYA)", "Foras Promineo"]
+
+
+@pytest.mark.db
+def test_notable_reentries_sql_builds_the_jcat_of_a_six_digit_norad(db_conn):
+    """GCAT renders S00001 to S99999 with five digits and S100000 onward unpadded, and Postgres
+    lpad truncates, so 'S' || lpad('100123', 5, '0') is 'S10012'. An ISS piece catalogued after
+    the July 2026 rollover must still find its own GCAT row."""
+    db_conn.row_factory = dict_row
+    with db_conn.cursor() as cur:
+        cur.execute("""
+            CREATE TEMP TABLE satellite (
+                satellite_id bigint, norad_id bigint, cospar_id text, canonical_name text,
+                object_type text, launch_date date, decay_date date);
+            CREATE TEMP TABLE operator (
+                operator_id bigint, canonical_name text, operator_class text);
+            CREATE TEMP TABLE satellite_operator (
+                satellite_id bigint, operator_id bigint, role text, valid_to date,
+                confidence numeric);
+            CREATE TEMP TABLE raw_gcat_satcat (
+                jcat text, norad_id bigint, extra jsonb, ingest_run_id bigint);
+            INSERT INTO satellite VALUES
+                (1, 100123, '1998-067AB', 'ROLLOVER CUBESAT', 'PAYLOAD', '1998-11-20', '2026-11-03'),
+                (2, 67687, '1998-067YD', 'LEOPARD', 'PAYLOAD', '1998-11-20', '2026-11-02');
+        """)
+        cur.executemany(
+            "INSERT INTO raw_gcat_satcat VALUES (%s, %s, %s, %s)",
+            [
+                ("S100123", 100123, Jsonb({"SDate": "2026 Aug  4 0900"}), 9140),
+                ("S67687", 67687, Jsonb({"SDate": "2026 Feb  3 1055"}), 9140),
+            ],
+        )
+        cur.execute(_NOTABLE_REENTRIES_SQL,
+                    {"ref": dt.date(2026, 11, 12), "days": 30, "n": 8})
+        rows = cur.fetchall()
+    db_conn.rollback()
+
+    assert {r["name"]: r["gcat_sdate"] for r in rows} == {
+        "ROLLOVER CUBESAT": "2026 Aug  4 0900",
+        "LEOPARD": "2026 Feb  3 1055",
+    }
