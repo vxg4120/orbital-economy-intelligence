@@ -519,11 +519,13 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 
 ## Next session (paused 2026-11-12 23:58 UTC for a terminal restart)
 Nothing is running: no workflow, no background job, no uncommitted change in either repo.
-- [ ] (still open) After the 2026-11-13 07:10 UTC nightly, NORAD 48587 resolves to a decay date of
+- [x] After the 2026-11-13 07:10 UTC nightly, NORAD 48587 resolves to a decay date of
       2025-01-07 (`SELECT decay_date FROM satellite WHERE norad_id = 48587` on the box, and its
       resolver page). The rolled-back dry run on production changed exactly that one row. The
       nightly summary now prints "decay messages outvoted: 1 (NORAD 48587)" in refresh.log
       (space e09c308), so check that line as well as the row.
+      Checked 2026-11-15: /api/satellites/48587 reads decay_date 2025-01-07, and every run's
+      summary since has printed "decay messages outvoted: 1 (NORAD 48587)".
 - [x] Independent review (Claude reviewer agents; Codex is paused) of the merges that have not had
       one: 7e3a8ca (the outvote rule), 4907f3c (UCS out of the copy) and a033089 (the prune
       guard). Lenses: the rule's correctness, every consumer of decay_date (the Conflicts page,
@@ -651,3 +653,29 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
     conflicts, and the landing says "3,700+" substantive conflicts. Part 3 adds GCAT
     status and decay claims for 1,307 satellites.
   - Tick the spec's production criterion.
+
+## Review (2026-11-15 19:55 UTC, GCAT part 3 on production)
+- The 07:10 UTC run sent the one expected alert ("!! gcat coverage: 98.2% ... 1309 without")
+  and nothing else.
+- The 19:10 UTC run pulled part 3. Every step exited 0, no alert was sent, and the slug gate
+  and publish assertions passed.
+  - [x] gcat_satcat landed 71,400 rows and gcat_psatcat 29,157, both ok.
+  - [x] The coverage line reads "gcat coverage: 100.0% (71397; 0 without)", so no satellite at
+        NORAD 100000 and above lacks a GCAT id.
+  - [x] Satellites grew by 89, not about 46. Of those, 16 are new in CelesTrak's SATCAT and 46
+        are the classified USA 726 to USA 771. The other 27 are Starlinks and a Starship (NORAD
+        101358 to 101384) that GCAT catalogued before CelesTrak. SATCAT upserts on norad_id,
+        so they join SATCAT's record when it lists them.
+  - [x] SpaceX holds 611 satellites at 100000 and above, 606 of them Starlinks, not the 850 or
+        so forecast. That forecast misread "most of SATCAT's 853 US rows"; only 580 of those
+        were Starlinks. "United States" holds 2 there.
+  - [x] Hawk 16A: GCAT fixed the typo upstream. 100146 reads "Xiguang 2-03" (Xinghuo
+        Chuanming), and 101146 reads "Hawk 16A" (HawkEye 360). The open question is closed,
+        and Vib does not need to contact GCAT's maintainer.
+  - [x] Public conflict figures still hold: 3,523 decay (README) and 3,728 in all (landing
+        "3,700+").
+  - [x] Landing re-baked and live (space 544ec19): 71,397 satellites and 13.6M element sets.
+        check_landing passes.
+  - [x] Spec docs/specs/gcat-extended-catalog.md: production criterion ticked, status done.
+- [ ] After CelesTrak lists NORAD 101358 to 101384, confirm they stay one satellite each and
+      the build exits 0. The upsert means this should need no action.

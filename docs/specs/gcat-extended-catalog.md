@@ -1,11 +1,11 @@
 # Spec: GCAT's extended catalog (NORAD 100000 and above)
 
-**Status:** active. Found and drafted autonomously on 2026-11-14 during the post-nightly check.
-Live since 2026-11-14 21:12 UTC (space 23d63cd, deployed with Vib's go-ahead); the production
-criterion waits for the first 19:10 UTC run that pulls part 3 (2026-11-15).
+**Status:** done. Found and drafted autonomously on 2026-11-14 during the post-nightly check.
+Live since 2026-11-14 21:12 UTC (space 23d63cd, deployed with Vib's go-ahead). Every criterion
+is met, the production one on the 2026-11-15 19:10 UTC run, the first to pull part 3.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-11-14
+**Last updated:** 2026-11-15
 
 ## Goal
 The US catalog ran out of five-digit numbers in July 2026 and continued at 100000 (Starlink
@@ -106,7 +106,10 @@ and that a gap of this kind can never again sit silent for four months.
   (a truncated file): it lands as published; the coverage line, measured against that snapshot,
   alerts once more than 1% of the graph has lost its GCAT entry, and a smaller truncation goes
   unalerted.
-- **GCAT's Hawk 16A typo.** Part 3 row S101146 is Hawk 16A (piece 2026-239C) but carries
+- **GCAT's Hawk 16A typo (resolved upstream before our first pull).** On 2026-11-15 GCAT's
+  S101146 carries Satcat 101146 and S100146 carries none, so satellite 100146 keeps its Chinese
+  owner and Hawk 16A (101146) has its own satellite, owned by HawkEye 360. The rest of this
+  entry records the behaviour the typo would have caused. Part 3 row S101146 is Hawk 16A (piece 2026-239C) but carries
   Satcat 100146, which SATCAT and GCAT's own S100146 (NNA, piece 2026-170D) give to a Chinese
   object. It is the only row in either part whose JCAT number differs from its Satcat (part 1:
   0 of 69,999). Under the approved anchor rule the row's Satcat wins, so satellite 100146 will
@@ -153,11 +156,17 @@ and that a gap of this kind can never again sit silent for four months.
   2026-11-14 on main 23d63cd: 632 passed, 117 skipped; ruff clean; 0 dashes in added lines.
   Every `-k` selector above collects and passes its tests. Reviewed by three lenses with a
   refuter each, then a fix-round reviewer (verdict: ok to merge).
-- [ ] On production after the first 19:10 UTC run that pulls part 3: `gcat_satcat` lands about
+- [x] On production after the first 19:10 UTC run that pulls part 3: `gcat_satcat` lands about
   71,350 rows; the summary reads `gcat coverage:` above 99.9%; satellites with a NORAD of
   100000 or more and no GCAT id number 2 or fewer (the GCAT lag plus 101146); every step exits
   0; the slug gate and publish assertions pass. NORAD 100146's card reads "Hawk 16A", owner
   HawkEye 360, as described under Edge cases, until Vib decides the open question.
+  2026-11-15, the 19:10 UTC run (ingest runs 9290 and 9291): `gcat_satcat` landed 71,400 rows
+  and `gcat_psatcat` 29,157, both ok. The summary read `gcat coverage: 100.0% (71397; 0
+  without)` with no `!!`, so no satellite at 100000 or above lacks a GCAT id (GCAT has caught
+  up to 101357, and 101146 has its own row). Every step exited 0, the slug gate and the publish
+  assertions passed, and no alert was sent. The Hawk 16A clause no longer applies: GCAT fixed
+  the typo first, and 100146 reads "Xiguang 2-03", owned by Xinghuo Chuanming.
 
 ## Open questions
 - **Hawk 16A (decision for Vib).** Should a GCAT S row whose Satcat disagrees with its own
@@ -166,9 +175,17 @@ and that a gap of this kind can never again sit silent for four months.
   pass, `bus.py` rule 1, `churn.expire_moved_gcat_keys`). Telling GCAT's maintainer about the
   typo is an outward action, also his call. **Vib, 2026-11-14: leave it for now.** It ships as
   described under Edge cases; revisit if GCAT keeps the typo or a second such row appears.
+  **Closed 2026-11-15:** GCAT corrected the row before our first pull, so no rule change and
+  no message to the maintainer are needed. The question reopens only if a second S row's
+  Satcat disagrees with its own number (none does on 2026-11-15).
 - Published numbers move when part 3 lands: SpaceX's fleet and the bus and manufacturer
   cohorts gain the objects catalogued since July, "United States" loses most of the 853, and
   the graph gains 46 satellites. The landing snapshot is re-baked after that run.
+  **Measured 2026-11-15:** the graph gained 89 satellites (71,308 to 71,397), SpaceX holds 611
+  at NORAD 100000 and above, "United States" holds 2 there, and bus attribution grew from
+  27,850 to 29,067 satellites. The landing snapshot was re-baked (space 544ec19). The public
+  conflict figures still hold: 3,523 decay conflicts (the README's figure) and 3,728
+  substantive conflicts in all (the landing's "3,700+").
 
 ## Decision log & lessons learned
 - 2026-11-14: The defect was found by a number that never moved. A source count that is flat
@@ -190,3 +207,22 @@ and that a gap of this kind can never again sit silent for four months.
 - 2026-11-14: Deployed at 21:12 UTC. A read-only preview on production printed the line the
   07:10 run will send: `!! gcat coverage: 98.2% (69999; 1309 without, newest NORAD 101357,
   ...)`. One expected alert; it should clear on the 19:10 run that pulls part 3.
+- 2026-11-15: The 07:10 UTC run sent exactly that alert and nothing else. The 19:10 run pulled
+  part 3 and cleared it (evidence under the production criterion).
+- 2026-11-15: Two estimates were off, and both are now explained.
+  - The graph gained 89 satellites, not 46. Of those, 16 are new in CelesTrak's SATCAT. The
+    other 73 are GCAT rows with a NORAD that SATCAT does not carry: the 46 classified payloads
+    expected (USA 726 to USA 771), plus 26 Starlinks and one Starship (NORAD 101358 to 101384)
+    that GCAT catalogued before CelesTrak did.
+  - GCAT now runs ahead of CelesTrak at the top of the range. A satellite created from a GCAT
+    NORAD joins SATCAT's record when SATCAT lists it, because SATCAT's insert is an upsert on
+    `norad_id` (`identity/match.py`, `_upsert_norad`), so this cannot duplicate a satellite.
+  - SpaceX now holds 611 satellites in the range, 606 of them Starlinks, not the 850 or so
+    forecast. The 853 were every SATCAT row
+    with owner code US at 100000 and above. Only 580 of them were Starlinks; GCAT's part 3 has
+    606 including the 26 newer ones, all now owned by SpaceX. The rest belong to US government
+    operators, Planet, Rocket Lab and others, which kept their own owners.
+  - Lesson: compute a forecast number with the query that will check it. Turning "most of 853"
+    into "about 850" made a correct result look like a 30% shortfall.
+- 2026-11-15: GCAT fixed the Hawk 16A typo upstream before our first pull, which closed Vib's
+  open question without a rule change.
