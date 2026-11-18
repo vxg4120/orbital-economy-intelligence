@@ -355,3 +355,7 @@ def test_a_failed_part_fails_the_run_and_names_its_url(clean_db, slept):
     runs, status, notes = _last_run(clean_db, "ep23")
     assert (runs, status) == (1, "error")
     assert notes.startswith(f"{URL_PART2}: ")
+    with clean_db.cursor() as cur:
+        cur.execute("SELECT bytes_downloaded FROM ingest_run WHERE endpoint = 'ep23' "
+                    "ORDER BY ingest_run_id DESC LIMIT 1")
+        assert cur.fetchone()[0] == len("part one")  # the part that did download

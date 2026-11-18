@@ -205,8 +205,10 @@ ORDER BY g.date DESC, g.launch_key DESC
 # pieces the query also reads GCAT's SDate, the day the object separated from its parent, from
 # the newest raw GCAT row for the same NORAD number. The JCAT key is S plus the number, five
 # digits up to 99999 and unpadded from 100000 (lpad would truncate S100123 to S10012), which is
-# the primary-key path; requiring GCAT's own NORAD to match keeps a piece whose GCAT row names
-# no number (24 of the 412 on 2026-11-13) on the "deployed from the ISS" fallback.
+# the primary-key path. The newest row for that key is picked first and must then carry the same
+# NORAD number, so a piece whose GCAT row names no number (24 of the 412 on 2026-11-13) stays on
+# the "deployed from the ISS" fallback, and so does one whose newest row has since dropped its
+# number: an older run's release date never outlives GCAT's correction.
 # satellite.launch_date itself stays as cataloged: the launch groups key on it.
 _NOTABLE_REENTRIES_SQL = f"""
 WITH {_OWNER_CTE},
@@ -226,15 +228,14 @@ SELECT n.satellite_id, n.name, n.date, n.launched, n.owner, n.deployed_from_iss,
        g.sdate AS gcat_sdate
 FROM notable n
 LEFT JOIN LATERAL (
-    SELECT r.extra->>'SDate' AS sdate
+    SELECT r.extra->>'SDate' AS sdate, r.norad_id
     FROM raw_gcat_satcat r
     WHERE n.deployed_from_iss AND n.norad_id >= 1
       AND r.jcat = 'S' || CASE WHEN n.norad_id < 100000 THEN lpad(n.norad_id::text, 5, '0')
                                ELSE n.norad_id::text END
-      AND r.norad_id = n.norad_id
     ORDER BY r.ingest_run_id DESC
     LIMIT 1
-) g ON true
+) g ON g.norad_id = n.norad_id
 ORDER BY n.date DESC, n.satellite_id DESC
 """
 
