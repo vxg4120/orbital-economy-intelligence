@@ -679,3 +679,7 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
   - [x] Spec docs/specs/gcat-extended-catalog.md: production criterion ticked, status done.
 - [ ] After CelesTrak lists NORAD 101358 to 101384, confirm they stay one satellite each and
       the build exits 0. The upsert means this should need no action.
+      2026-11-18 04:35 UTC: still unlisted. CelesTrak reaches 101410, but its new numbers are
+      other objects (launches 2026-257 and 2026-258 and debris), and no COSPAR is held by two
+      satellites. The five nightlies from 2026-11-15 19:10 to 2026-11-17 19:10 exited 0 with no
+      alert; the last read "gcat coverage: 100.0% (71399; 10 without)", ordinary GCAT lag.
