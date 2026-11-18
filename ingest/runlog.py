@@ -124,7 +124,8 @@ def polite_get_parts(
     responses in `urls` order, each tagged like polite_get's (the shared `.oei_run_id`, its own
     `.oei_bytes` and `.oei_retries`), or None when the endpoint is fresh. Each part gets its own
     retries. When one part fails the run closes `error` and nothing is returned, so a caller
-    can never land a partial snapshot; with more than one URL the error row names the part.
+    can never land a partial snapshot; with more than one URL the error row names the part, and
+    its byte count is what the earlier parts downloaded.
     """
     if fresh_within(conn, source, endpoint, min_interval):
         run_id = start_run(conn, source, endpoint)
@@ -145,7 +146,10 @@ def polite_get_parts(
                 note = f"after {len(retries)} retries ({', '.join(retries)}): {note}"
             if len(urls) > 1:
                 note = f"{url}: {note}"
-            finish_run(conn, run_id, rows=0, bytes_dl=0, status="error", notes=note[:2000])
+            finish_run(
+                conn, run_id, rows=0, bytes_dl=sum(p.oei_bytes for p in parts),
+                status="error", notes=note[:2000],
+            )
             raise
         response.oei_run_id = run_id
         response.oei_bytes = len(response.content)

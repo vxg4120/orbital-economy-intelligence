@@ -258,6 +258,8 @@ def test_notable_reentries_sql_reads_gcat_release_dates_for_iss_pieces_only(db_c
             [
                 ("S67687", 67687, Jsonb({"SDate": "2026 Jan  1"}), 8690),
                 ("S67687", 67687, Jsonb({"SDate": "2026 Feb  3 1055"}), 8840),
+                # An older run named the number; the newest no longer does, and it decides.
+                ("S66912", 66912, Jsonb({"SDate": "2025 Nov 30 0800"}), 8690),
                 ("S66912", None, Jsonb({"SDate": "2025 Dec  2 0950"}), 8840),
                 ("S28485", 28485, Jsonb({"SDate": "2004 Nov 20 1836"}), 8840),
                 ("S25544", 25544, Jsonb({"SDate": "1998 Nov 20 0640"}), 8840),
