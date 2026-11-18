@@ -692,5 +692,5 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - [x] Two Codex Medium findings fixed (space 62771ec, CI green on 1014481): the stories
       release-date lookup takes the newest GCAT row first, and a failed multi-part pull records
       the bytes it downloaded. Neither changes production output today (the one key whose newest
-      row dropped its NORAD, S66057, is not an ISS piece). Not yet deployed; the next image
-      rebuild carries it. The test cleanup scope stays as recorded in the spec.
+      row dropped its NORAD, S66057, is not an ISS piece). Deployed 2026-11-18 06:38 UTC
+      (oei-api rebuilt at f3cca7f; both changes confirmed inside the container, sites 200). The test cleanup scope stays as recorded in the spec.
