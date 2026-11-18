@@ -687,3 +687,10 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
       other objects (launches 2026-257 and 2026-258 and debris), and no COSPAR is held by two
       satellites. The five nightlies from 2026-11-15 19:10 to 2026-11-17 19:10 exited 0 with no
       alert; the last read "gcat coverage: 100.0% (71399; 10 without)", ordinary GCAT lag.
+      2026-11-18 06:30 UTC: still unlisted (0 of the 27 in raw_satcat), still 27 satellites
+      for 27 numbers.
+- [x] Two Codex Medium findings fixed (space 62771ec, CI green on 1014481): the stories
+      release-date lookup takes the newest GCAT row first, and a failed multi-part pull records
+      the bytes it downloaded. Neither changes production output today (the one key whose newest
+      row dropped its NORAD, S66057, is not an ISS piece). Not yet deployed; the next image
+      rebuild carries it. The test cleanup scope stays as recorded in the spec.
