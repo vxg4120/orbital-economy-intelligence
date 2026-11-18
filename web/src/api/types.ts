@@ -104,6 +104,9 @@ export interface Assertion {
   value: string;
   source: string;
   observed_at: string;
+  /** Present and true on a GCAT decay_date claim whose phase ended in something other than a
+      decay (a docking, a transfer, a departure to deep space). The date is not a decay date. */
+  phase_end?: boolean;
 }
 
 export interface LatestElements {

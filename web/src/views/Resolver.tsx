@@ -212,6 +212,21 @@ export function ResultsList({
   );
 }
 
+/** One source claim. GCAT's date is the end of a phase of the object's history, so when that
+    phase did not end in a decay the row says so, because it sits under "decay_date". */
+export function AssertionLine({ a }: { a: Assertion }) {
+  return (
+    <div className="assert-line">
+      <SourceBadge source={a.source} />
+      <span className="assert-val">
+        {a.value}
+        {a.phase_end ? <span className="assert-note">end of a phase, not a decay</span> : null}
+      </span>
+      <span className="assert-when num">{fmtDate(a.observed_at)}</span>
+    </div>
+  );
+}
+
 function IdentityCard({ detail }: { detail: SatelliteDetail }) {
   const s = detail.satellite;
   const conflicts = new Set(detail.conflicts);
@@ -318,11 +333,7 @@ function IdentityCard({ detail }: { detail: SatelliteDetail }) {
                       ) : null}
                     </div>
                     {rows.map((a, i) => (
-                      <div className="assert-line" key={`${a.source}-${i}`}>
-                        <SourceBadge source={a.source} />
-                        <span className="assert-val">{a.value}</span>
-                        <span className="assert-when num">{fmtDate(a.observed_at)}</span>
-                      </div>
+                      <AssertionLine a={a} key={`${a.source}-${i}`} />
                     ))}
                   </div>
                 );
