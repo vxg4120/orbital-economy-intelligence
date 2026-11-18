@@ -181,12 +181,23 @@ def test_the_card_does_not_badge_a_phase_date_as_a_decay_conflict(seeded):
     for name in CASES:
         body = card(name)
         assert ("decay_date" in body["conflicts"]) == (name in EXPECT_CONFLICT), name
-    # The claim itself stays on the card, and the response keeps its four fields.
-    transferred = card("transferred")
-    gcat_dates = [a for a in transferred["assertions"]
-                  if a["attribute"] == "decay_date" and a["source"] == "gcat"]
-    assert [a["value"] for a in gcat_dates] == ["2015 Feb 18"]
-    assert set(gcat_dates[0]) == {"attribute", "value", "source", "observed_at"}
+    # The claim itself stays on the card, marked as the end of a phase so that the page can
+    # say it is not a decay date. A date that did end in a decay, and every other claim, keeps
+    # its four fields.
+    def gcat_date(name):
+        return next(a for a in card(name)["assertions"]
+                    if a["attribute"] == "decay_date" and a["source"] == "gcat")
+
+    transferred = gcat_date("transferred")
+    assert transferred["value"] == "2015 Feb 18"
+    assert set(transferred) == {"attribute", "value", "source", "observed_at", "phase_end"}
+    assert transferred["phase_end"] is True
+    for name in ("deep_space", "docked_others_differ", "no_status", "unmapped", "grappled_only"):
+        assert gcat_date(name).get("phase_end") is True, name
+    for name in ("reentered", "probably", "landed_same_day"):
+        assert set(gcat_date(name)) == {"attribute", "value", "source", "observed_at"}, name
+    assert all("phase_end" not in a for a in card("transferred")["assertions"]
+               if not (a["attribute"] == "decay_date" and a["source"] == "gcat"))
 
 
 def test_a_gcat_date_is_compared_only_when_its_own_key_ended_in_a_decay():

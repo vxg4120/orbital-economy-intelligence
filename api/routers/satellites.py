@@ -55,17 +55,19 @@ def _conflict_key(attr: str, source: str, value, status_map: dict):
     return " ".join(str(value).split()).upper() or None
 
 
+def _is_phase_end(a, gcat_decay_keys: set) -> bool:
+    """Whether a claim is a GCAT date that ended a phase in something other than a decay."""
+    return (a["attribute"] == "decay_date" and a["source"] == "gcat"
+            and a["source_key"] not in gcat_decay_keys)
+
+
 def _comparable_claims(assertions, gcat_decay_keys: set) -> list:
     """The claims that can disagree, in the order given. A GCAT decay_date claim is left out
     unless the status on its own GCAT key maps to DECAYED (identity/decay_claims.py): GCAT's
     DDate is the time a phase ended, so under a docking or a transfer it is not a decay date,
     and setting it against SATCAT's decay date badged a conflict that nobody claimed (the
     cubesat 40452: transferred into the ISS in February 2015, decayed that December)."""
-    return [
-        a for a in assertions
-        if not (a["attribute"] == "decay_date" and a["source"] == "gcat"
-                and a["source_key"] not in gcat_decay_keys)
-    ]
+    return [a for a in assertions if not _is_phase_end(a, gcat_decay_keys)]
 
 
 def _conflict_attributes(assertions, status_map: dict) -> list[str]:
@@ -285,6 +287,9 @@ def detail(satellite_id: int, db=Depends(get_db)):
                       for r in cur.fetchall()}
     conflicts = _conflict_attributes(_comparable_claims(assertions, gcat_decay_keys), status_map)
     for a in assertions:
+        # The row sits under "decay_date" on the card, so the response says when it is not one.
+        if _is_phase_end(a, gcat_decay_keys):
+            a["phase_end"] = True
         del a["source_key"]  # read only to pair a GCAT date with its status; not in the response
 
     return {

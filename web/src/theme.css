@@ -1286,6 +1286,11 @@ button {
   color: var(--ink-faint);
   font-size: var(--fs-micro);
 }
+.assert-note {
+  margin-left: 8px;
+  color: var(--ink-faint);
+  font-size: var(--fs-micro);
+}
 
 /* =============================================================================
    Identity card (Resolver detail)
