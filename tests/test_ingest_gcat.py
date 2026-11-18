@@ -59,7 +59,7 @@ def test_process_satcat_rows_maps_types_nulls_dashes_and_keeps_extra():
     by_norad = {typed.get("norad_id"): (typed, extra) for typed, extra in processed}
 
     typed, extra = by_norad[900000001]
-    assert typed["jcat"] == "2020-001A"
+    assert typed["jcat"] == "S900000001"
     assert typed["decay_date"] is None  # '-' -> NULL
     assert typed["perigee_km"] == pytest.approx(550)
     assert typed["apogee_km"] == pytest.approx(560)
@@ -69,7 +69,7 @@ def test_process_satcat_rows_maps_types_nulls_dashes_and_keeps_extra():
 
 def test_process_satcat_rows_missing_satcat_number_is_null_norad():
     processed = gcat_loader.process_satcat_rows(gcat_loader.parse_tsv(SATCAT_FIXTURE.read_text()))
-    analyst = next(typed for typed, _ in processed if typed.get("jcat") == "OEI-ANALYST-1")
+    analyst = next(typed for typed, _ in processed if typed.get("jcat") == "S900000099")
     assert analyst.get("norad_id") is None
 
 
@@ -129,7 +129,7 @@ def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpo
 
     with clean_db.cursor() as cur:
         cur.execute(
-            "SELECT norad_id, name, extra FROM raw_gcat_satcat WHERE jcat = 'OEI-ANALYST-1'"
+            "SELECT norad_id, name, extra FROM raw_gcat_satcat WHERE jcat = 'S900000099'"
         )
         norad_id, name, extra = cur.fetchone()
     assert norad_id is None
@@ -137,7 +137,7 @@ def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpo
     assert extra == {"ODate": None}  # unmapped column preserved, dash normalized to NULL
 
     with clean_db.cursor() as cur:
-        cur.execute("SELECT count(*) FROM raw_gcat_psatcat WHERE jcat LIKE '2020-00%A'")
+        cur.execute("SELECT count(*) FROM raw_gcat_psatcat WHERE jcat IN ('S900000001', 'S900000002')")
         (count,) = cur.fetchone()
     assert count == 2
 
@@ -157,7 +157,7 @@ def test_a_pull_lands_both_parts_of_the_s_catalog_in_one_run(clean_db, monkeypat
     assert (status, rows) == ("ok", 5)
     assert bytes_dl == len(SATCAT_FIXTURE.read_bytes()) + len(SATCAT_100K_FIXTURE.read_bytes())
     assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == [
-        "2020-001A", "2020-002A", "OEI-ANALYST-1", "S900100001", "S900100002",
+        "S900000001", "S900000002", "S900000099", "S900100001", "S900100002",
     ]
     with clean_db.cursor() as cur:
         cur.execute(
@@ -183,7 +183,7 @@ def test_the_payload_catalog_lands_both_parts_in_one_run(clean_db, monkeypatch, 
     assert (status, rows) == ("ok", 3)
     assert bytes_dl == len(PSATCAT_FIXTURE.read_bytes()) + len(PSATCAT_100K_FIXTURE.read_bytes())
     assert _landed_jcats(clean_db, "raw_gcat_psatcat", run_id) == [
-        "2020-001A", "2020-002A", "S900100001",
+        "S900000001", "S900000002", "S900100001",
     ]
 
 
@@ -212,17 +212,17 @@ def test_a_duplicate_key_across_parts_fails_the_run_before_any_row_lands(
 ):
     monkeypatch.setattr(gcat_loader, "DATA_DIR", tmp_path)
     overlapping = SATCAT_100K_FIXTURE.read_text() + (
-        "2020-002A\t900000002\tA\tP\tOEI-TEST-SAT-2\t-\t-\t-\tO\t-\t-\t-\t-\t-\t-"
+        "S900000002\t900000002\tA\tP\tOEI-TEST-SAT-2\t-\t-\t-\tO\t-\t-\t-\t-\t-\t-"
         "\t-\t-\t-\t-\t-\t-\n"
     )
     _serve(satcat_100k=overlapping)
 
-    with pytest.raises(ValueError, match="2020-002A"):
+    with pytest.raises(ValueError, match="S900000002"):
         gcat_loader.run(clean_db)
 
     [(run_id, status, rows, _bytes, notes)] = _runs(clean_db, "gcat_satcat_test")
     assert (status, rows) == ("error", 0)
-    assert "2020-002A" in notes
+    assert "S900000002" in notes
     assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == []
 
 
@@ -276,6 +276,34 @@ def test_a_part_that_is_not_a_catalog_part_fails_the_parse(body, problem):
     land part 1 alone as an ok run, and the claims pass would close every claim part 3 made."""
     with pytest.raises(ValueError, match=f"satcat100k: {problem}"):
         gcat_loader.parse_parts([SATCAT_FIXTURE.read_text(), body], names=["satcat", "satcat100k"])
+
+
+@pytest.mark.parametrize("body", [
+    "#JCAT\tSatcat\tName\nService unavailable\n",
+    "#JCAT\tSatcat\tName\nS100000\t100000\tA\n<html>error</html>\n",
+    "#JCAT\tSatcat\tName\n\t100000\tA\n",
+])
+def test_a_jcat_part_with_any_key_that_is_not_an_s_number_fails_the_parse(body):
+    """A real header followed by an error message parses into a row whose key is the message.
+    Every key in GCAT's S catalog is S plus five or more digits (all 100,557 on production on
+    2026-11-18), so any other key means the file is not the catalog (Codex review, 2026-11-18)."""
+    with pytest.raises(ValueError, match="satcat100k: key not an S catalog number"):
+        gcat_loader.parse_parts([SATCAT_FIXTURE.read_text(), body], names=["satcat", "satcat100k"])
+
+
+def test_a_short_part_with_one_genuine_row_parses():
+    rows = gcat_loader.parse_parts(
+        [SATCAT_FIXTURE.read_text(), "#JCAT\tSatcat\tName\nS100000\t100000\tA\n"],
+        names=["satcat", "satcat100k"],
+    )
+    assert rows[-1]["JCAT"] == "S100000"
+
+
+def test_an_orgs_file_with_only_blank_codes_fails_the_parse():
+    """Org codes are free text (production has "UAE AD"), so orgs needs only one real code."""
+    with pytest.raises(ValueError, match="orgs: no code values"):
+        gcat_loader.parse_parts(["#Code\tName\n\tA\n\tB\n"], key="code", names=["orgs"])
+    assert len(gcat_loader.parse_parts(["#Code\tName\nUAE AD\tA\n"], key="code")) == 1
 
 
 @pytest.mark.db

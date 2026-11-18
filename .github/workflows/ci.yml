@@ -105,6 +105,10 @@ jobs:
                        body=(fx / "gcat_satcat_sample.tsv").read_text(), status=200)
               mock.add(responses.GET, gcat_loader.PSATCAT_URL,
                        body=(fx / "gcat_psatcat_sample.tsv").read_text(), status=200)
+              mock.add(responses.GET, gcat_loader.SATCAT_100K_URL,
+                       body=(fx / "gcat_satcat100k_sample.tsv").read_text(), status=200)
+              mock.add(responses.GET, gcat_loader.PSATCAT_100K_URL,
+                       body=(fx / "gcat_psatcat100k_sample.tsv").read_text(), status=200)
               mock.add(responses.GET, celestrak_gp.URL_TMPL.format(group="active"),
                        body=(fx / "gp_sample.json").read_text(), status=200)
               conn = get_conn()
