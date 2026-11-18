@@ -608,7 +608,11 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
     have no element set to settle it either way.
   - The review queue on production still holds decay_conflict cases built from the old top 20,
     which were nearly all GCAT phase dates. Removing them is a database write.
-  - The satellite card still lists a GCAT phase-end date under decay_date with no label.
+  - [x] The satellite card still lists a GCAT phase-end date under decay_date with no label.
+        Done 2026-11-18 06:16 UTC (space a55e88f, Vib: "go ahead and merge and deploy it"):
+        GET /api/satellites/{id} marks the claim with phase_end, and the card prints "end of a
+        phase, not a decay" beside the value. Verified live on 40452 and 879; PS-1 (a real
+        decay disagreement) carries no mark; every page and API answered 200 after the rebuild.
 - After the 07:10 UTC nightly on 2026-11-14: check "display name overrides: 8", "unmapped
   status values: 0", /api/satellites/40452 without a status conflict, and the ingest retry log.
 
