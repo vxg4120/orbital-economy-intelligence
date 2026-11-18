@@ -253,3 +253,11 @@ and that a gap of this kind can never again sit silent for four months.
     names and parent rollups. The text-encoding
     finding does not apply in production: GCAT serves charset=utf-8, and no landed name is
     mis-decoded.
+- 2026-11-18 (follow-up): two of the recorded findings are now fixed (merge of
+  fix/codex-mediums). The stories lookup picks the newest GCAT row for the key before it checks
+  the NORAD, so a correction to NNA drops the old release date
+  (`pytest tests/test_api_stories.py -k iss_pieces_only` fails on the old query). A failed
+  multi-part pull records the bytes of the parts that did download
+  (`pytest tests/test_ingest_runlog.py -k failed_part`). The test cleanup scope stays as it is:
+  `cleanup_since` is shared by every DB test and only ever runs against the local dev database,
+  so a narrower cleanup would be a test-infrastructure change with no production effect.
