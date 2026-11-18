@@ -5,7 +5,7 @@ Live since 2026-11-14 21:12 UTC (space 23d63cd, deployed with Vib's go-ahead). E
 is met, the production one on the 2026-11-15 19:10 UTC run, the first to pull part 3.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-11-15
+**Last updated:** 2026-11-18
 
 ## Goal
 The US catalog ran out of five-digit numbers in July 2026 and continued at 100000 (Starlink
@@ -142,6 +142,13 @@ and that a gap of this kind can never again sit silent for four months.
   `pytest tests/test_ingest_gcat.py -k "duplicate or by_name"` passes.
 - [x] A part with no data rows or no key column fails the run before any row lands.
   `pytest tests/test_ingest_gcat.py -k "not_a_catalog_part or only_a_header"` passes.
+- [x] A part whose rows are not catalog rows fails the run: in the S catalog files every key
+  must be S plus five or more digits, and orgs.tsv needs one non-blank code (added
+  2026-11-18 after the Codex review).
+  `pytest tests/test_ingest_gcat.py -k "not_an_s_number or one_genuine or blank_codes"` passes.
+- [x] CI's "Generate DQ report from synthetic fixtures" step serves all four GCAT fixtures and
+  exits 0 on a fresh database (added 2026-11-18; it had failed on every push since 23d63cd).
+  Replayed locally on a throwaway database, and green on the push of the fix.
 - [x] `polite_get` behaves exactly as before.
   `pytest tests/test_ingest_runlog.py` passes unchanged.
 - [x] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
@@ -226,3 +233,20 @@ and that a gap of this kind can never again sit silent for four months.
     into "about 850" made a correct result look like a 30% shortfall.
 - 2026-11-15: GCAT fixed the Hawk 16A typo upstream before our first pull, which closed Vib's
   open question without a rule change.
+- 2026-11-18 (Codex verify pass, the first since Codex returned): nine of ten criteria passed.
+  Two findings were real and are fixed (space, branch fix/gcat-key-validation).
+  - A real header followed by an error message passed the catalog-file check, because it
+    parses into one row keyed by the message. Every key in the S catalog files must now be
+    S plus five or more digits (all 100,557 on production are), and orgs.tsv needs one
+    non-blank code. Org codes stay free text: production has "UAE AD". The synthetic fixtures
+    used COSPAR-style JCATs, which real GCAT never does, so they now use S900000001 to
+    S900000003.
+  - CI's report step registered only the two original GCAT URLs, so every push since the
+    merge failed CI and nobody saw it. Lesson: a red CI that alerts no one is not a check.
+    After a merge, read the CI result of the push, not only the local suite.
+  - Recorded, not changed. Stories filters by NORAD before it picks the newest run, so a later
+    Satcat correction to NNA would keep the older release date; this predates the split. The
+    DB test cleanup deletes every run above its starting id on the shared dev database, which
+    also predates it. A failed multi-part run records 0 bytes downloaded. The text-encoding
+    finding does not apply in production: GCAT serves charset=utf-8, and no landed name is
+    mis-decoded.

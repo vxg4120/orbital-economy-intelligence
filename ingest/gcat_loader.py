@@ -14,6 +14,7 @@ is dropped) — only the mapping table needs updating, not the parser.
 
 import datetime as dt
 import logging
+import re
 from pathlib import Path
 
 from psycopg.types.json import Jsonb
@@ -44,6 +45,8 @@ MIN_INTERVAL = runlog.DAILY
 DATA_DIR = Path("data/gcat")
 
 MISSING_MARKERS = {"", "-"}
+# Every key in GCAT's S catalog files: S00001 to S99999 padded, S100000 onward unpadded.
+_S_NUMBER = re.compile(r"S[0-9]{5,}")
 
 # GCAT header name (normalized: lowercased, alnum-only) -> raw_gcat_satcat column
 _SATCAT_FIELD_MAP = {
@@ -292,6 +295,10 @@ def parse_parts(texts: list[str], key: str = "jcat", names: list[str] | None = N
       other column here, since GCAT reorders columns). A part that answers 200 with only its
       header, or with an error page, would otherwise land the other parts alone as an ok run,
       and the claims pass would close every claim the missing part made.
+    - In the S catalog files (key jcat) every key must be S plus five or more digits. A real
+      header followed by an error message parses into a row keyed by the message, which would
+      otherwise land as the whole of that part. Org codes are free text ("UAE AD"), so orgs.tsv
+      needs only one non-blank code.
     - A key in more than one file raises: the parts of GCAT's S catalog are disjoint number
       ranges, so a repeat means the split changed, and landing it would break the raw table's
       (jcat, run) key mid-transaction. A repeat within one file is left to the landing, as before
@@ -306,7 +313,15 @@ def parse_parts(texts: list[str], key: str = "jcat", names: list[str] | None = N
         key_column = next((h for h in file_rows[0] if _norm_key(h) == key), None)
         if key_column is None:
             raise ValueError(f"{name}: no {key} column")
-        keys = {_clean(row[key_column]) for row in file_rows} - {None}
+        all_keys = [_clean(row[key_column]) for row in file_rows]
+        if key == "jcat":
+            bad = [k for k in all_keys if k is None or not _S_NUMBER.fullmatch(k)]
+            if bad:
+                shown = ", ".join(repr(k or "") for k in bad[:5])
+                raise ValueError(f"{name}: key not an S catalog number ({len(bad)} rows: {shown})")
+        keys = set(all_keys) - {None}
+        if not keys:
+            raise ValueError(f"{name}: no {key} values")
         repeated += sorted(keys & earlier)
         earlier |= keys
         rows += file_rows
