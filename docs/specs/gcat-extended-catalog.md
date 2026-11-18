@@ -149,6 +149,7 @@ and that a gap of this kind can never again sit silent for four months.
 - [x] CI's "Generate DQ report from synthetic fixtures" step serves all four GCAT fixtures and
   exits 0 on a fresh database (added 2026-11-18; it had failed on every push since 23d63cd).
   Replayed locally on a throwaway database (exit 0, report written).
+  GitHub Actions run 44241054402 on merge 949f5ab: all three jobs green.
 - [x] `polite_get` behaves exactly as before.
   `pytest tests/test_ingest_runlog.py` passes unchanged.
 - [x] The summary prints `gcat coverage:`, counted against the newest GCAT snapshot, and starts
