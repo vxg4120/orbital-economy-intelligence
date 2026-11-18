@@ -69,7 +69,7 @@ def test_process_satcat_rows_maps_types_nulls_dashes_and_keeps_extra():
 
 def test_process_satcat_rows_missing_satcat_number_is_null_norad():
     processed = gcat_loader.process_satcat_rows(gcat_loader.parse_tsv(SATCAT_FIXTURE.read_text()))
-    analyst = next(typed for typed, _ in processed if typed.get("jcat") == "S900000003")
+    analyst = next(typed for typed, _ in processed if typed.get("jcat") == "S900000099")
     assert analyst.get("norad_id") is None
 
 
@@ -129,7 +129,7 @@ def test_run_lands_both_tsvs(clean_db, monkeypatch, tmp_path, _unique_gcat_endpo
 
     with clean_db.cursor() as cur:
         cur.execute(
-            "SELECT norad_id, name, extra FROM raw_gcat_satcat WHERE jcat = 'S900000003'"
+            "SELECT norad_id, name, extra FROM raw_gcat_satcat WHERE jcat = 'S900000099'"
         )
         norad_id, name, extra = cur.fetchone()
     assert norad_id is None
@@ -157,7 +157,7 @@ def test_a_pull_lands_both_parts_of_the_s_catalog_in_one_run(clean_db, monkeypat
     assert (status, rows) == ("ok", 5)
     assert bytes_dl == len(SATCAT_FIXTURE.read_bytes()) + len(SATCAT_100K_FIXTURE.read_bytes())
     assert _landed_jcats(clean_db, "raw_gcat_satcat", run_id) == [
-        "S900000001", "S900000002", "S900000003", "S900100001", "S900100002",
+        "S900000001", "S900000002", "S900000099", "S900100001", "S900100002",
     ]
     with clean_db.cursor() as cur:
         cur.execute(
