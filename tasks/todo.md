@@ -569,8 +569,8 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - Every page and API on the three hosts answered 200 after each deploy.
 - Subagents hit the weekly limit (resets 2026-11-17); the last reviews ran inline.
 - Left for Vib: the GitHub repo descriptions (OEI says "four catalogs", exodossier says
-  "first exoplanet MCP server"); an explicit `shm_size` for the db container (needs a
-  restart); the space-weather view dominated by Starlink (needs a DROP MATERIALIZED VIEW);
+  "first exoplanet MCP server"); an explicit `shm_size` for the db container (DONE 2026-11-19
+  00:32 UTC at Vib's go: shm_size 1g in 7f1e1c0, db recreated, healthy in 12 s, both APIs 200); the space-weather view dominated by Starlink (needs a DROP MATERIALIZED VIEW);
   ISS-deployed lifetimes in bus_benchmarks.sql (a methodology bump); the decay predicate in
   v_congestion_exposure; "≥2 identifiers" in quality/report.py; 33 of 34 famous exo hosts
   flagged disputed on Follow-up (a product choice); NORAD 56915 with a stale decay date and
@@ -694,3 +694,10 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
       the bytes it downloaded. Neither changes production output today (the one key whose newest
       row dropped its NORAD, S66057, is not an ISS piece). Deployed 2026-11-18 06:38 UTC
       (oei-api rebuilt at f3cca7f; both changes confirmed inside the container, sites 200). The test cleanup scope stays as recorded in the spec.
+- [x] 2026-11-19 00:32 UTC: db recreated with shm_size 1g (space 7f1e1c0). Parallel queries had
+      hit "could not resize shared memory segment ... No space left on device" on 2026-11-13
+      with Docker's 64 MB default. /dev/shm now reads 1.0G; both nightlies of 2026-11-18 had
+      exited clean beforehand (19:10 landed 71,410 GCAT rows, coverage 100.0%).
+- [x] 2026-11-19 00:43 UTC: GET /api/operators 12.7 s -> 1.2 s (space a7dbafe, deployed). The
+      league read latest status with a DISTINCT ON over 4.95M history rows, twice per request;
+      it now reads mv_latest_satellite_status, identical counts for all 1,480 operators.
