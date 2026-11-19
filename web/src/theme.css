@@ -1286,8 +1286,9 @@ button {
   color: var(--ink-faint);
   font-size: var(--fs-micro);
 }
+/* On its own line under the value: beside it, the note wrapped mid-phrase in the narrow panel. */
 .assert-note {
-  margin-left: 8px;
+  display: block;
   color: var(--ink-faint);
   font-size: var(--fs-micro);
 }
