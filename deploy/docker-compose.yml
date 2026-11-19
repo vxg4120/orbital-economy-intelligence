@@ -16,6 +16,10 @@ services:
   db:
     image: timescale/timescaledb:2.28.2-pg17
     container_name: orbital-db
+    # Docker's default /dev/shm is 64 MB, and parallel hash joins ran out of it on 2026-11-13
+    # ("could not resize shared memory segment ... No space left on device"). This is a ceiling,
+    # not a reservation.
+    shm_size: 1g
     environment:
       POSTGRES_USER: oei
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
