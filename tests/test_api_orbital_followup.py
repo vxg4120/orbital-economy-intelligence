@@ -224,6 +224,10 @@ def test_active_sort_orders_actual_sql_with_ties_and_zero_fleets(db_conn):
                          ELSE 'INACTIVE' END,
                     now()
                 FROM satellite_operator;
+            -- The league reads latest status from mv_latest_satellite_status; shadow it too.
+            CREATE TEMP TABLE mv_latest_satellite_status AS
+                SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
+                FROM satellite_status_history ORDER BY satellite_id, observed_at DESC;
         """)
     client = client_for(operators.router, db_conn)
     pages = [client.get(f"/api/operators?sort=active&limit=2&offset={offset}")
@@ -400,6 +404,10 @@ def test_league_counts_operators_with_nothing_left_in_orbit_apart(db_conn):
                 (11, 'ACTIVE', now()), (12, 'DECAYED', now()),
                 (21, 'ACTIVE', now() - interval '2 years'), (21, 'DECAYED', now()),
                 (22, 'DECAYED', now());
+            -- The league reads latest status from mv_latest_satellite_status; shadow it too.
+            CREATE TEMP TABLE mv_latest_satellite_status AS
+                SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
+                FROM satellite_status_history ORDER BY satellite_id, observed_at DESC;
         """)
     try:
         body = client_for(operators.router, db_conn).get("/api/operators").json()

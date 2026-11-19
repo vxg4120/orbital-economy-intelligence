@@ -32,11 +32,13 @@ _SORTS = {
 # Current owned fleet per operator, joined to latest status. The shared CTE feeds both the
 # paged SELECT and a separate count(*) so the pagination total is stable at any offset (a
 # windowed count(*) OVER() vanishes to 0 once OFFSET passes the last row).
+# Latest status comes from mv_latest_satellite_status (migration 0025), refreshed by the nightly
+# right after build_graph. The live DISTINCT ON sorted all 4.95M history rows, 5.3 s per query
+# and so 12.7 s per request; the view gives identical counts for all 1,480 operators on
+# production (checked 2026-11-19) in 0.1 s.
 _LEAGUE_CTE = """
 WITH latest_status AS (
-    SELECT DISTINCT ON (satellite_id) satellite_id, canonical_status
-    FROM satellite_status_history
-    ORDER BY satellite_id, observed_at DESC
+    SELECT satellite_id, canonical_status FROM mv_latest_satellite_status
 ),
 owned AS (
     SELECT DISTINCT operator_id, satellite_id
