@@ -198,9 +198,11 @@ is authoritative for it. Both parts do nothing, cleanly, until Vib creates the a
   decay_date 180 vs 178 ms, owner 274 vs 266 ms, satellite detail 22 vs 20 ms (noise).
 
 ## Open questions
-- (Vib) **Predictions.** TIP messages (1 / hour) and 60-day predictions (1 / week) are in the
-  same DECAY class. Worth a separate weekly pull for a "reentering soon" view?
-- (Vib) **The July gap backfill** (Edge cases): run it once the account exists?
+- (Vib, MOVED 2026-11-19) **Predictions.** Now docs/specs/spacetrack-reentry-predictions.md.
+  Correction: TIP is a class of its own (1 / hour); the 60-day predictions (1 / week) are the
+  ones inside the DECAY class.
+- (Vib, SETTLED 2026-11-19: not run) **The July gap backfill** (Edge cases). Nothing on the
+  sites reads those element sets, and it would be about 500 live requests.
 - (Claude, SETTLED 2026-11-12: snapshot, built locally by folding landings, no extra pull)
   **Window vs. snapshot for the decay feed.** A 30-day window makes the claims feed
   close a claim when its object ages out. Either the next step pulls every Historical message
