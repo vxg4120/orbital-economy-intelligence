@@ -1,6 +1,6 @@
 # Spec: a decay date the tracking contradicts
 
-**Status:** active. Decided by Vib on 2026-11-19 ("Yes sounds good go for"), built 2026-11-20.
+**Status:** active. Decided by Vib on 2026-11-19 ("Yes sounds good go for"), built 2026-11-20 UTC.
 **Owner:** Vib
 **Repos touched:** space
 **Last updated:** 2026-11-20
@@ -50,7 +50,8 @@ element sets.
   thousand rows where the table is ten million.
 
 ## Constraints
-- No claim is deleted or changed. The set-aside claim stays in the claim table, on the card and
+- No claim is deleted or changed. (The resolver's own earlier DECAYED rows for a set-aside
+  source are deleted from `satellite_status_history`; that table is resolver output.) The set-aside claim stays in the claim table, on the card and
   on the Conflicts page.
 - No migration and no manual database write. The nightly's `build_graph` applies the rule.
 - No deploy or rebuild during the nightly windows (07:05 to 07:30 and 19:05 to 19:30 UTC).
@@ -62,8 +63,9 @@ element sets.
   `decay dates set aside, tracked after: N  (NORAD ...)` in refresh.log.
 - `GET /api/satellites/{id}`: a set-aside decay_date claim carries `tracked_after: true`, and
   the card prints "not used: tracked in orbit after this date" under the value.
-- The status history is append-only and the newest row wins, so the status changes on the
-  first nightly after the deploy, when SATCAT's claim is observed again.
+- Readers take the newest row of `satellite_status_history`. `_resolve_status` deletes the
+  DECAYED rows a set-aside source resolved on earlier nights, so the status changes on the
+  first build after the deploy whatever the feeds' timestamps are.
 
 ## Edge cases
 - A GCAT phase date (Hubble's 1990 deployment, status ATT) is removed by the phase filter first
@@ -71,7 +73,14 @@ element sets.
 - An object with no element set is never contradicted. Most decayed objects have none.
 - One source's date is contradicted and another's is not: the other's date is resolved, and the
   card still shows the disagreement between them.
-- The set-aside source is the only one with a status: the status is left unresolved.
+- The set-aside source is the only one with a status: its old DECAYED rows are deleted and the
+  status is left unresolved.
+- A satellite holding two keys for one source: the skip is by satellite and source, so a stale
+  date on one key also mutes a DECAYED status on the other. None of the three is such a case.
+- The card picks the lesser key per source and reads the live element table, where the resolver
+  picks the greater key and reads the view. The mark can differ from the resolver's call for a
+  two-key satellite, or for twelve hours at the 30-day boundary. The key order is the open
+  decision already listed in tasks/todo.md.
 - A source gives a stale decay date and an in-orbit status: the status still votes, since only
   a DECAYED reading is contradicted.
 - The conflict readers in SQL (`CURRENT_DECAY_CLAIMS_SQL`: the Conflicts page, the DQ report,
@@ -79,7 +88,7 @@ element sets.
   since each has one decay claim. Open question 1.
 
 ## Acceptance criteria
-- [x] `pytest -q -W error tests/test_decay_tracked_after.py`: 18 pass. Eight mutations of the
+- [x] `pytest -q -W error tests/test_decay_tracked_after.py`: 18 pass. Eleven mutations of the
       rule each fail at least one test.
 - [x] `pytest -q -W error` and `ruff check .` are clean; `npx vitest run`, `npx tsc --noEmit
       -p .` and `npm run build` pass in `web/`.
@@ -98,6 +107,12 @@ element sets.
    have no element set to settle it. This rule does not reach them. Vib.
 
 ## Decision log & lessons learned
+- 2026-11-20 (Claude reviewer, verified by Claude). Skipping a vote is not enough in a table
+  where the newest row wins. The first cut inserted the fall-through row and left the old
+  DECAYED rows, which stayed newest whenever SATCAT's timestamp trailed GCAT's (it does: SATCAT
+  loads first) and for ever when nothing fell through. The tests missed it because every
+  seeded satellite began with an empty history. They now seed earlier DECAYED rows dated after
+  everything else and read the status the way the readers do.
 - 2026-11-20 (Claude). For GCAT, a set-aside date always sits beside a DECAYED status, because
   the phase filter has already removed every GCAT date whose status is anything else. A test
   that tried to show "a non-decay status still votes" with a GCAT claim passed for the wrong

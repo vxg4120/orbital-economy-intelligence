@@ -189,6 +189,20 @@ def seeded(db_conn):
                         seed_claim(cur, target, source, "decay_date", date, run, key=key)
                     if status is not None:
                         seed_claim(cur, target, source, "status", status, run, key=key)
+                    if status is not None and STATUS[status] == "DECAYED":
+                        # what this source resolved on earlier nights, the last of them later
+                        # than any claim here is observed, so it is the row a reader would pick
+                        cur.execute(
+                            "INSERT INTO satellite_status_history "
+                            "(satellite_id, canonical_status, observed_at, source) VALUES "
+                            "(%s, 'DECAYED', '2026-01-01T00:00:00Z', %s), "
+                            "(%s, 'DECAYED', '2099-01-01T00:00:00Z', %s)",
+                            (sat, source, sat, source))
+                if name == "stale_date_in_orbit":
+                    cur.execute(
+                        "INSERT INTO satellite_status_history "
+                        "(satellite_id, canonical_status, observed_at, source) VALUES "
+                        "(%s, 'ACTIVE', '2026-01-01T00:00:00Z', 'satcat')", (sat,))
                 if epoch is not None:
                     cur.execute(
                         "INSERT INTO gp_elements (norad_id, epoch, mean_motion, eccentricity, "
@@ -227,14 +241,35 @@ def test_the_resolver_sets_aside_a_decay_date_the_tracking_contradicts(seeded):
 def test_the_source_whose_decay_date_is_set_aside_does_not_call_the_object_decayed(seeded):
     """GCAT leads the status precedence, so without this the card would say DECAYED with no
     decay date while the object is tracked at 482 km. The status falls through to the next
-    source, and an object with no other status is left unresolved."""
+    source, and an object with no other status is left unresolved.
+
+    Each source that said DECAYED here also resolved DECAYED on earlier nights, and the last
+    of those rows is newer than anything this run writes. The status is read the way every
+    reader reads it (newest row, then source), so the old rows of a set-aside source have to
+    go, and nobody else's may."""
     conn, ids = seeded
     _resolve(conn)
     with conn.cursor() as cur:
-        cur.execute("SELECT s.canonical_name, h.canonical_status FROM satellite s "
-                    "LEFT JOIN satellite_status_history h USING (satellite_id) "
-                    "WHERE s.satellite_id = ANY(%s)", (list(ids.values()),))
+        cur.execute("SELECT s.canonical_name, "
+                    "(SELECT h.canonical_status FROM satellite_status_history h "
+                    " WHERE h.satellite_id = s.satellite_id "
+                    " ORDER BY h.observed_at DESC, h.source LIMIT 1) "
+                    "FROM satellite s WHERE s.satellite_id = ANY(%s)", (list(ids.values()),))
         assert dict(cur.fetchall()) == EXPECT_STATUS
+        # one_of_two: GCAT's rows go, SATCAT's own DECAYED rows stay
+        cur.execute("SELECT source, count(*) FROM satellite_status_history "
+                    "WHERE satellite_id = %s AND canonical_status = 'DECAYED' GROUP BY 1",
+                    (ids["one_of_two"],))
+        assert cur.fetchall() == [("satcat", 3)]
+        # a set-aside source's row that is not DECAYED stays
+        cur.execute("SELECT count(*) FROM satellite_status_history WHERE satellite_id = %s "
+                    "AND source = 'satcat' AND canonical_status = 'ACTIVE' "
+                    "AND observed_at = '2026-01-01T00:00:00Z'", (ids["stale_date_in_orbit"],))
+        assert cur.fetchone()[0] == 1
+        # an untouched object keeps its history
+        cur.execute("SELECT count(*) FROM satellite_status_history WHERE satellite_id = %s "
+                    "AND source = 'gcat'", (ids["no_elements"],))
+        assert cur.fetchone()[0] == 3
 
 
 @pytest.mark.db
@@ -257,7 +292,8 @@ def test_the_whole_resolver_applies_both_halves(seeded):
     with conn.cursor() as cur:
         cur.execute("SELECT s.decay_date, h.canonical_status, h.source FROM satellite s "
                     "JOIN satellite_status_history h USING (satellite_id) "
-                    "WHERE s.satellite_id = %s", (ids["stale_gcat"],))
+                    "WHERE s.satellite_id = %s ORDER BY h.observed_at DESC, h.source LIMIT 1",
+                    (ids["stale_gcat"],))
         assert cur.fetchall() == [(None, "ACTIVE", "satcat")]
 
 

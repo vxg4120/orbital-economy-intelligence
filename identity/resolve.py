@@ -272,7 +272,13 @@ def _resolve_status(conn, order, stats, decay_set_aside=None) -> None:
     decay_set_aside is _resolve_decay_date's return: a source whose decay date was set aside
     because the object is still tracked does not vote DECAYED, and the status falls through to
     the next source. Without this GCAT, which leads the precedence, kept NORAD 56915 DECAYED
-    with no decay date while SATCAT had it operational at 482 km."""
+    with no decay date while SATCAT had it operational at 482 km.
+
+    The DECAYED rows that source resolved on earlier nights are retracted as well. Readers take
+    the newest row of satellite_status_history, and the fall-through source's row is not always
+    newer (SATCAT loads before GCAT, and on a night neither is pulled no time moves at all),
+    while an object with nothing to fall through to gets no new row. Left in place, the old
+    DECAYED row would stay the answer. The claims themselves are untouched."""
     decay_set_aside = decay_set_aside or {}
     mapping = _status_mapping(conn)
     data = _assertions(conn, "status")
@@ -304,6 +310,12 @@ def _resolve_status(conn, order, stats, decay_set_aside=None) -> None:
                 (sat_id, canonical, observed, src),
             )
             resolved += 1
+        for sat_id, sources in decay_set_aside.items():
+            cur.execute(
+                "DELETE FROM satellite_status_history WHERE satellite_id = %s "
+                "AND source = ANY(%s) AND canonical_status = 'DECAYED'",
+                (sat_id, sorted(sources)),
+            )
     stats["unmapped_status"] = sorted(unmapped)
     stats["status_resolved"] = resolved
 
