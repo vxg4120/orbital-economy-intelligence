@@ -23,8 +23,10 @@ A second rule, since 2026-11-20, is about any source's decay date: tracked_after
 element set is a measurement of an object in orbit, so a decay date is contradicted when the
 object's latest element set is dated more than TRACKED_AFTER_DAYS after it. The resolver sets
 such a claim aside (identity/resolve.py) and the satellite card marks it
-(api/routers/satellites.py). The SQL readers below do not apply it: on 2026-11-20 it held for
-three objects, each with a single decay claim, so none of them was in a conflict to begin with.
+(api/routers/satellites.py). The SQL readers below do not apply it, and should not: a date
+that is set aside still disagrees with the other source's date, and that disagreement is what
+the Conflicts page reports. On 2026-11-20 it held for twelve GCAT claims: three were the
+object's only decay claim, and nine sat about a year before a SATCAT date that already won.
 """
 
 import datetime as dt

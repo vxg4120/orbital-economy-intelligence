@@ -702,3 +702,25 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - [x] 2026-11-19 00:43 UTC: GET /api/operators 12.7 s -> 1.2 s (space a7dbafe, deployed). The
       league read latest status with a DISTINCT ON over 4.95M history rows, twice per request;
       it now reads mv_latest_satellite_status, identical counts for all 1,480 operators.
+
+## Review (2026-11-20 03:10 UTC, a decay date the tracking contradicts; stale review cases)
+- Vib, 2026-11-19: "Yes sounds good go for" on the resolver rule and on removing the stale
+  review cases. Spec: docs/specs/decay-tracked-after.md. Live as space 6f5a8b8.
+- The rule: a decay claim is set aside when the object's latest element set is dated more than
+  30 days after it, and that source does not vote DECAYED for the status. Its earlier DECAYED
+  rows in satellite_status_history are deleted in the same pass (a Claude reviewer found that
+  the old row would otherwise stay the newest; Codex is still paused).
+- It sets aside 12 GCAT claims. Three change the card: 56915 (GCAT's reentry is really
+  59615's, entered under the transposed number), 44547 and 24946 (collided, parent body still
+  tracked). Nine are GCAT dates a year early that SATCAT already outranks.
+- [ ] After the 07:10 UTC nightly on 2026-11-20: refresh.log has "decay dates set aside,
+      tracked after: 12" and "decay messages outvoted: 1"; the cards of 56915 and 44547 read
+      ACTIVE with no decay date, 24946 reads INACTIVE with none; 65077 and 45699 are unchanged.
+- Review queue: 10 of the 20 decay_conflict cases were GCAT phase dates (case ids 187, 188,
+  189, 190, 192, 193, 195, 201, 204, 206). Deleted on production with their dossiers at 02:56
+  UTC; backup at /root/backups/gold_case_decay_phase_dates_20261120.json on the box. The other
+  10 are real conflicts and stay. `python scripts/build_gold_queue.py --type decay_conflict`
+  would draw the stratum back up to 20; not run, since it is a further write.
+- README: the decay-conflict count now reads "about 3,500".
+- Still open for Vib: which key wins when a satellite holds two for one source (the resolver
+  takes the greater, the readers and the card the lesser); whether to report the GCAT typos.

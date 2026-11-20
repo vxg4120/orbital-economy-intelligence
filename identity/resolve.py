@@ -207,7 +207,7 @@ def _resolve_decay_date(conn, order, stats=None) -> dict[int, set[str]]:
         # the nightly's build summary, so a second firing can be seen in refresh.log.
         stats["decay_messages_outvoted"] = sorted(outvoted)
     # Last, so the two rules above see every claim. Any source's claim can be set aside: on
-    # 2026-11-20 all three that were (NORAD 24946, 44547, 56915) were GCAT's.
+    # 2026-11-20 all twelve that were set aside were GCAT's.
     epochs = _latest_epochs(conn)
     set_aside: dict[int, set[str]] = {}
     for sat, by_source in data.items():

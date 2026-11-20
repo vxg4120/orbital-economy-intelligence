@@ -310,7 +310,7 @@ def _print_summary(s: dict) -> None:
     # Printed at 0 too, because a drop to 0 is how the log would show that Space-Track corrected
     # or withdrew the bad message.
     print(_outvoted_line(s.get("decay_messages_outvoted", [])))
-    # Three on 2026-11-20 (NORAD 24946, 44547, 56915). A jump means a source published a batch
+    # Twelve on 2026-11-20. A jump means a source published a batch
     # of decay dates for objects that are still tracked, or the element feed went wrong.
     print(_tracked_after_line(s.get("decay_dates_tracked_after", [])))
     print(f"display name overrides:  {s.get('display_name_overrides', 0)}")

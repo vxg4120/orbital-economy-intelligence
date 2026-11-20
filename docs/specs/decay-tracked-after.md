@@ -21,6 +21,14 @@ element sets.
   last element set published for it), 17 (Dragon C206.6), and then 196 (56915), 2,072 (44547)
   and 6,357 (24946).
 - All three large gaps come from a GCAT decay claim that is the object's only decay claim.
+- Measured per claim after the deploy (read-only, the resolver's own functions): the rule sets
+  aside 12 GCAT claims. The other nine (NORAD 45699, 46349, 48332, 48584, 52534, 53796, 57430,
+  58307, 59615) are GCAT dates about a year before SATCAT's, on objects tracked until SATCAT's
+  date. SATCAT already outranks GCAT, so their resolved date and DECAYED status do not change;
+  the card now marks GCAT's date as not used.
+- NORAD 59615 explains 56915. GCAT gives 59615 "2025 May  7 1041" and 56915 "2026 May  7 1041",
+  and SATCAT has 59615 decaying on 2026-05-07. The reentry is 59615's, entered a second time
+  under the transposed number.
 
 ## Architecture decisions
 - 2026-11-20. A decay claim is set aside when the latest element set is dated more than 30 days
@@ -84,8 +92,8 @@ element sets.
 - A source gives a stale decay date and an in-orbit status: the status still votes, since only
   a DECAYED reading is contradicted.
 - The conflict readers in SQL (`CURRENT_DECAY_CLAIMS_SQL`: the Conflicts page, the DQ report,
-  the review queue) do not apply the rule. None of the three objects is in a decay conflict,
-  since each has one decay claim. Open question 1.
+  the review queue) do not apply the rule. Nine of the twelve set-aside dates disagree with a
+  SATCAT date, and that stays a counted conflict, since the sources do disagree.
 
 ## Acceptance criteria
 - [x] `pytest -q -W error tests/test_decay_tracked_after.py`: 18 pass. Eleven mutations of the
@@ -93,20 +101,28 @@ element sets.
 - [x] `pytest -q -W error` and `ruff check .` are clean; `npx vitest run`, `npx tsc --noEmit
       -p .` and `npm run build` pass in `web/`.
 - [ ] After the first nightly on the new code, refresh.log has
-      `decay dates set aside, tracked after: 3  (NORAD 24946, 44547, 56915)` and
+      `decay dates set aside, tracked after: 12  (NORAD 24946, 44547, 45699, 46349, 48332,
+      48584, 52534, 53796, 56915, 57430, 58307, 59615)` and
       `decay messages outvoted: 1  (NORAD 48587)`.
 - [ ] After that nightly, `GET /api/satellites/{id}` for the three: `decay_date` is null, the
       GCAT decay claim has `tracked_after: true`, and the newest status is ACTIVE for 56915 and
       44547 (SATCAT `+`) and INACTIVE for 24946 (SATCAT `-`).
-- [ ] NORAD 65077 (the 17-day gap) keeps decay date 2026-01-15 and DECAYED.
+- [ ] NORAD 65077 (the 17-day gap) keeps decay date 2026-01-15 and DECAYED, and so does 45699
+      with 2026-03-28 (one of the nine whose GCAT date loses to SATCAT anyway).
+- [x] Live 2026-11-20 03:05 UTC (space 6f5a8b8): the card API marks the GCAT date
+      `tracked_after` on 24946, 44547, 56915 and 45699, and leaves 40452 and 65077 as
+      `phase_end`. Every site answered 200 after the rebuild.
 
 ## Open questions
-1. Should the SQL conflict readers leave out a set-aside claim? It needs GCAT's loose dates
-   parsed in SQL, and it changes no count today. Vib.
+1. Report the 56915 and 59615 transposition, and the nine year-early dates, to GCAT? Vib.
 2. 35 objects have a decay date while SATCAT reports them in orbit with no decay date, and most
    have no element set to settle it. This rule does not reach them. Vib.
 
 ## Decision log & lessons learned
+- 2026-11-20 (Claude). Measure a per-claim rule per claim. The first measurement compared the
+  resolved date with the latest epoch and found three objects; the rule looks at every claim
+  and finds twelve, because nine stale GCAT dates were already losing to SATCAT. The outcome
+  for those nine is right, but the count in the log line would have looked like a fault.
 - 2026-11-20 (Claude reviewer, verified by Claude). Skipping a vote is not enough in a table
   where the newest row wins. The first cut inserted the fall-through row and left the old
   DECAYED rows, which stayed newest whenever SATCAT's timestamp trailed GCAT's (it does: SATCAT
