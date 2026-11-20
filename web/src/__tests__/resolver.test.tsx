@@ -50,9 +50,16 @@ describe("AssertionLine", () => {
     expect(html).toContain("2015 Feb 18");
     expect(html).toContain("end of a phase, not a decay");
   });
+  it("says that a decay date was not used when the object was tracked after it", () => {
+    const html = renderToStaticMarkup(<AssertionLine a={{ ...claim, value: "2026 May  7 1041", tracked_after: true }} />);
+    expect(html).toContain("2026 May  7 1041");
+    expect(html).toContain("not used: tracked in orbit after this date");
+    expect(html).not.toContain("end of a phase");
+  });
   it("adds nothing to a claim that is a decay date", () => {
     const html = renderToStaticMarkup(<AssertionLine a={claim} />);
     expect(html).toContain("2015 Feb 18");
     expect(html).not.toContain("end of a phase");
+    expect(html).not.toContain("not used");
   });
 });

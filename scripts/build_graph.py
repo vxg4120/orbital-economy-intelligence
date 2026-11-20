@@ -158,6 +158,11 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
             (list(resolve_stats.get("decay_messages_outvoted", [])),),
         )
         outvoted_norad = [row[0] for row in cur.fetchall()]
+        cur.execute(
+            "SELECT norad_id FROM satellite WHERE satellite_id = ANY(%s) ORDER BY norad_id",
+            (list(resolve_stats.get("decay_dates_tracked_after", [])),),
+        )
+        tracked_after_norad = [row[0] for row in cur.fetchall()]
         gcat_coverage = _gcat_coverage(cur)
     review_size = _review_size(review_csv)
     total = satellites or 1
@@ -176,6 +181,7 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         "unmapped_status": resolve_stats.get("unmapped_status", []),
         "unmatched_owners": resolve_stats.get("unmatched_owners", []),
         "decay_messages_outvoted": outvoted_norad,
+        "decay_dates_tracked_after": tracked_after_norad,
         "display_name_overrides": resolve_stats.get("display_name_overrides", 0),
         "gcat_coverage": gcat_coverage,
         "review_queue_size": review_size,
@@ -245,15 +251,25 @@ def _review_size(review_csv) -> int:
         return max(sum(1 for _ in fh) - 1, 0)  # minus header
 
 
-def _outvoted_line(norad_ids: list[int], shown: int = 20) -> str:
-    """The summary line for the decay messages that both catalogs outvoted (identity/resolve.py),
-    with their NORAD ids, so a second firing can be read in refresh.log after a nightly."""
-    line = f"decay messages outvoted: {len(norad_ids)}"
+def _norad_line(label: str, norad_ids: list[int], shown: int = 20) -> str:
+    line = f"{label}: {len(norad_ids)}"
     if norad_ids:
         ids = ", ".join(str(n) for n in norad_ids[:shown])
         more = f" and {len(norad_ids) - shown} more" if len(norad_ids) > shown else ""
         line += f"  (NORAD {ids}{more})"
     return line
+
+
+def _outvoted_line(norad_ids: list[int], shown: int = 20) -> str:
+    """The summary line for the decay messages that both catalogs outvoted (identity/resolve.py),
+    with their NORAD ids, so a second firing can be read in refresh.log after a nightly."""
+    return _norad_line("decay messages outvoted", norad_ids, shown)
+
+
+def _tracked_after_line(norad_ids: list[int], shown: int = 20) -> str:
+    """The summary line for the objects whose decay date was set aside because an element set
+    is dated more than thirty days after it (identity/decay_claims.py, tracked_after)."""
+    return _norad_line("decay dates set aside, tracked after", norad_ids, shown)
 
 
 def _print_summary(s: dict) -> None:
@@ -294,6 +310,9 @@ def _print_summary(s: dict) -> None:
     # Printed at 0 too, because a drop to 0 is how the log would show that Space-Track corrected
     # or withdrew the bad message.
     print(_outvoted_line(s.get("decay_messages_outvoted", [])))
+    # Three on 2026-11-20 (NORAD 24946, 44547, 56915). A jump means a source published a batch
+    # of decay dates for objects that are still tracked, or the element feed went wrong.
+    print(_tracked_after_line(s.get("decay_dates_tracked_after", [])))
     print(f"display name overrides:  {s.get('display_name_overrides', 0)}")
     if "claims" in s:
         changed = ", ".join(f"{src} closed {closed} opened {opened}"

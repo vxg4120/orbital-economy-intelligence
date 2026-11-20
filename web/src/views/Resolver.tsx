@@ -213,7 +213,9 @@ export function ResultsList({
 }
 
 /** One source claim. GCAT's date is the end of a phase of the object's history, so when that
-    phase did not end in a decay the row says so, because it sits under "decay_date". */
+    phase did not end in a decay the row says so, because it sits under "decay_date". A decay
+    date that the resolver set aside, because the object's element sets go on for more than
+    thirty days after it, says that too. */
 export function AssertionLine({ a }: { a: Assertion }) {
   return (
     <div className="assert-line">
@@ -221,6 +223,7 @@ export function AssertionLine({ a }: { a: Assertion }) {
       <span className="assert-val">
         {a.value}
         {a.phase_end ? <span className="assert-note">end of a phase, not a decay</span> : null}
+        {a.tracked_after ? <span className="assert-note">not used: tracked in orbit after this date</span> : null}
       </span>
       <span className="assert-when num">{fmtDate(a.observed_at)}</span>
     </div>

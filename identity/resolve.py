@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from identity.decay_claims import tracked_after
 from identity.normalize import canonical_object_type, has_day, parse_date_loose
 
 _PRECEDENCE_DEFAULT = Path(__file__).with_name("precedence.yml")
@@ -172,7 +173,23 @@ def _contradicted_by_catalogs(by_source: dict) -> bool:
             and abs((st - sc).days) > MESSAGE_OUTLIER_DAYS)
 
 
-def _resolve_decay_date(conn, order, stats=None) -> None:
+def _latest_epochs(conn) -> dict[int, object]:
+    """Per satellite, the epoch of its latest element set. Read from mv_latest_gp_element, which
+    the nightly refreshes after this build, so it is one ingest (twelve hours) behind the
+    element table: nothing against a rule that asks for more than thirty days."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT s.satellite_id, e.epoch FROM mv_latest_gp_element e "
+            "JOIN satellite s ON s.norad_id = e.norad_id"
+        )
+        return dict(cur.fetchall())
+
+
+def _resolve_decay_date(conn, order, stats=None) -> dict[int, set[str]]:
+    """Resolve each satellite's decay date. Returns {satellite_id: sources} for the decay claims
+    set aside because the object was tracked long after them (identity/decay_claims.py,
+    tracked_after), which _resolve_status needs: a source whose decay date the tracking
+    contradicts does not get to call the object decayed either."""
     data = _assertions(conn, "decay_date")
     is_decay = _gcat_ddate_is_decay(conn)
     phase_dates = [sat for sat, by_source in data.items()
@@ -189,6 +206,22 @@ def _resolve_decay_date(conn, order, stats=None) -> None:
         # The satellite ids, not only a count: scripts/build_graph.py prints their NORAD ids in
         # the nightly's build summary, so a second firing can be seen in refresh.log.
         stats["decay_messages_outvoted"] = sorted(outvoted)
+    # Last, so the two rules above see every claim. Any source's claim can be set aside: on
+    # 2026-11-20 all three that were (NORAD 24946, 44547, 56915) were GCAT's.
+    epochs = _latest_epochs(conn)
+    set_aside: dict[int, set[str]] = {}
+    for sat, by_source in data.items():
+        stale = {src for src, (value, _observed) in by_source.items()
+                 if tracked_after(value, epochs.get(sat))}
+        if stale:
+            set_aside[sat] = stale
+    for sat, stale in set_aside.items():
+        for src in stale:
+            del data[sat][src]
+        if not data[sat]:
+            del data[sat]  # the retraction below then clears a date resolved on an earlier night
+    if stats is not None:
+        stats["decay_dates_tracked_after"] = sorted(set_aside)
     with conn.cursor() as cur:
         for sat_id, by_source in data.items():
             picked = _pick(by_source, order)
@@ -210,6 +243,7 @@ def _resolve_decay_date(conn, order, stats=None) -> None:
             "WHERE decay_date IS NOT NULL AND NOT (satellite_id = ANY(%s))",
             (list(data.keys()),),
         )
+    return set_aside
 
 
 # --- status -------------------------------------------------------------------
@@ -231,9 +265,15 @@ def _canonical(mapping: dict, src: str, value: str) -> str | None:
     return canonical
 
 
-def _resolve_status(conn, order, stats) -> None:
+def _resolve_status(conn, order, stats, decay_set_aside=None) -> None:
     """Resolve canonical status, falling through UNKNOWN so GCAT's physical phase yields to
-    SATCAT's operational code; unmapped source values resolve to UNKNOWN and are counted."""
+    SATCAT's operational code; unmapped source values resolve to UNKNOWN and are counted.
+
+    decay_set_aside is _resolve_decay_date's return: a source whose decay date was set aside
+    because the object is still tracked does not vote DECAYED, and the status falls through to
+    the next source. Without this GCAT, which leads the precedence, kept NORAD 56915 DECAYED
+    with no decay date while SATCAT had it operational at 482 km."""
+    decay_set_aside = decay_set_aside or {}
     mapping = _status_mapping(conn)
     data = _assertions(conn, "status")
     unmapped = set()
@@ -251,6 +291,8 @@ def _resolve_status(conn, order, stats) -> None:
                     continue  # unmapped -> UNKNOWN, keep looking
                 if canonical == "UNKNOWN":
                     continue  # fall through to the next source
+                if canonical == "DECAYED" and src in decay_set_aside.get(sat_id, ()):
+                    continue  # the tracking contradicts this source's decay
                 winner = (canonical, src, observed)
                 break
             if winner is None:
@@ -369,8 +411,8 @@ def resolve(conn, precedence_path=None) -> dict:
     stats: dict = {}
     _resolve_name(conn, prec["name"])
     _resolve_object_type(conn, prec["object_type"])
-    _resolve_decay_date(conn, prec["decay_date"], stats)
-    _resolve_status(conn, prec["status"], stats)
+    decay_set_aside = _resolve_decay_date(conn, prec["decay_date"], stats)
+    _resolve_status(conn, prec["status"], stats, decay_set_aside)
     _resolve_owner(conn, prec["owner"], stats)
     stats["display_name_overrides"] = _apply_display_name_overrides(conn)
     return stats
