@@ -18,7 +18,43 @@ The rule is per claim: a GCAT decay_date claim counts when the current GCAT stat
 own source key maps to DECAYED. GCAT marks an uncertain phase with a trailing "?" ("R?" is
 reentered, probably), and the phase is the same, as in the resolver's _canonical. A date whose
 key carries no status, or a status the map does not know, is not counted.
+
+A second rule, since 2026-11-20, is about any source's decay date: tracked_after() below. An
+element set is a measurement of an object in orbit, so a decay date is contradicted when the
+object's latest element set is dated more than TRACKED_AFTER_DAYS after it. The resolver sets
+such a claim aside (identity/resolve.py) and the satellite card marks it
+(api/routers/satellites.py). The SQL readers below do not apply it: on 2026-11-20 it held for
+three objects, each with a single decay claim, so none of them was in a conflict to begin with.
 """
+
+import datetime as dt
+
+from identity.normalize import last_possible_day
+
+# Production, 2026-11-20: of 882 objects with a resolved decay date and an element set, 9 had an
+# element set dated after the decay date. The gaps were 1 day (five objects, the ordinary lag
+# between a reentry and the last element set published for it), 17 days (Dragon C206.6), and
+# then 196, 2,072 and 6,357 days: NORAD 56915, a Starlink that GCAT has as reentered while
+# SATCAT has it operational at 482 km, and 44547 and 24946, both GCAT status C ("collided"),
+# whose parent bodies are still tracked. Thirty days separates the two groups with room on
+# both sides, and it is the same month the decay-message rule in resolve.py uses.
+TRACKED_AFTER_DAYS = 30
+
+
+def tracked_after(value, latest_epoch) -> bool:
+    """Whether a decay date is contradicted by the object's latest element set: the element set
+    is dated more than TRACKED_AFTER_DAYS after the date. A date that gives only a month or a
+    year is measured from the end of that span, since the object may have decayed at any time
+    in it. An epoch with a time is compared by its UTC day."""
+    last_day = last_possible_day(value)
+    if last_day is None or latest_epoch is None:
+        return False
+    if isinstance(latest_epoch, dt.datetime):
+        if latest_epoch.tzinfo is not None:
+            latest_epoch = latest_epoch.astimezone(dt.timezone.utc)
+        latest_epoch = latest_epoch.date()
+    return (latest_epoch - last_day).days > TRACKED_AFTER_DAYS
+
 
 # The GCAT keys of each satellite whose current status claim maps to DECAYED. A CTE body: the
 # readers below join their picked decay claims to it on (satellite_id, source_key).

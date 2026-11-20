@@ -7,6 +7,9 @@
 # seed, but no UCS export is loaded in production (see the README), so ucs contributes nothing
 # there either. spacetrack_decay has carried claims since 2026-11-12, and resolve.py sets aside
 # a message that both catalogs contradict.
+# A decay date of any source is set aside when the object's latest element set is dated more
+# than 30 days after it, and that source then does not vote DECAYED for the status either
+# (identity/decay_claims.py, tracked_after; since 2026-11-20).
 owner: [operator_seed, gcat, ucs, satcat]        # curated seed beats catalogs; commercial > coarse code
 status: [gcat, satcat, ucs]                       # GCAT authoritative for decay; falls through for live ops
 decay_date: [spacetrack_decay, satcat, gcat]      # decay messages > SATCAT > GCAT; a message both catalogs contradict is set aside (resolve.py)

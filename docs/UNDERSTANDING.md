@@ -205,11 +205,15 @@ name:        [ucs, gcat, satcat]                    # commercial names beat upli
 
 Higher-precedence slots can be **reserved for later phases**: `operator_seed` has no claims feed
 yet, so the next source simply wins. `spacetrack_decay` was such a slot until 2026-11-12, when
-Space-Track's decay messages became a claims feed, and `decay_date` now has two narrow exceptions
+Space-Track's decay messages became a claims feed, and `decay_date` now has three narrow exceptions
 in `identity/resolve.py`. A GCAT date counts only when GCAT's status for the same key is a decay
 (a grapple or a docking date is not), and a Space-Track message is set aside when SATCAT and a
 GCAT date that gives a day agree to within one day and the message is more than 30 days from
-SATCAT (NORAD 48587, whose message is a year early). **Worked example, one satellite
+SATCAT (NORAD 48587, whose message is a year early). And any source's decay date is set aside
+when the object's latest element set is dated more than 30 days after it, since an object that
+is still being tracked had not decayed; that source then does not vote DECAYED for the status
+either (three objects on 2026-11-20, among them a Starlink that GCAT had as reentered while it
+flew at 482 km). **Worked example, one satellite
 resolving through conflict:** take an ex-OneWeb bird. Its assertions: SATCAT says `owner=UK`
 (country code), GCAT says `owner=ONEWEB`, and status: SATCAT `+` (ACTIVE), GCAT `O` (in-orbit →
 UNKNOWN). Resolution:

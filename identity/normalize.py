@@ -180,6 +180,18 @@ def has_day(s) -> bool:
     return _parse_date_and_precision(s)[1] == "day"
 
 
+def last_possible_day(s) -> dt.date | None:
+    """The last day a source's date can mean: the date itself when it gives a day, the last day
+    of the month for 'YYYY Mon', December 31 for a bare year. None if it does not parse."""
+    d, precision = _parse_date_and_precision(s)
+    if d is None or precision == "day":
+        return d
+    if precision == "year":
+        return dt.date(d.year, 12, 31)
+    first_of_next = dt.date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    return first_of_next - dt.timedelta(days=1)
+
+
 def _parse_date_and_precision(s) -> tuple[dt.date | None, str | None]:
     """parse_date_loose's date and how much of it the source gave: 'day', 'month' or 'year',
     or (None, None) when it does not parse."""

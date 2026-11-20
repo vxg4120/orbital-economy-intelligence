@@ -69,6 +69,10 @@ gcat:
   # Reviewed and kept 2026-10-16 (Vib): a collided object is no longer an operating satellite;
   # its debris, if tracked, enters the catalog as separate objects, so DECAYED is the honest
   # end state for the parent and nothing in-orbit is left under its identity.
+  # Narrowed 2026-11-20 (Vib): when the parent body is still tracked more than 30 days after
+  # the collision date (Yunhai-1 02 and Iridium 33 are), the resolver sets the decay date aside
+  # and this DECAYED does not vote, so the status falls through to SATCAT's
+  # (identity/decay_claims.py, tracked_after). The mapping itself is unchanged.
   "C": {canonical: DECAYED, notes: "Collided: destroyed in a collision event."}
   "R": {canonical: DECAYED, notes: "Reentered: destroyed in the atmosphere after natural decay."}
   "D": {canonical: DECAYED, notes: "Deorbited: destroyed via an active deorbit maneuver."}

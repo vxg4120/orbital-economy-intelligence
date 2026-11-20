@@ -15,7 +15,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.deps import get_db
-from identity.decay_claims import GCAT_DECAY_KEYS_SQL
+from identity.decay_claims import GCAT_DECAY_KEYS_SQL, tracked_after
 from identity.normalize import canonical_object_type, norm_name, parse_date_loose
 
 
@@ -286,10 +286,14 @@ def detail(satellite_id: int, db=Depends(get_db)):
         status_map = {(r["source"], r["source_value"]): r["canonical_status"]
                       for r in cur.fetchall()}
     conflicts = _conflict_attributes(_comparable_claims(assertions, gcat_decay_keys), status_map)
+    latest_epoch = latest_elements["epoch"] if latest_elements else None
     for a in assertions:
-        # The row sits under "decay_date" on the card, so the response says when it is not one.
+        # The row sits under "decay_date" on the card, so the response says when it is not one,
+        # and when the resolver set it aside because the object was tracked long after it.
         if _is_phase_end(a, gcat_decay_keys):
             a["phase_end"] = True
+        elif a["attribute"] == "decay_date" and tracked_after(a["value"], latest_epoch):
+            a["tracked_after"] = True
         del a["source_key"]  # read only to pair a GCAT date with its status; not in the response
 
     return {

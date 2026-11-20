@@ -107,6 +107,9 @@ export interface Assertion {
   /** Present and true on a GCAT decay_date claim whose phase ended in something other than a
       decay (a docking, a transfer, a departure to deep space). The date is not a decay date. */
   phase_end?: boolean;
+  /** Present and true on a decay_date claim the resolver set aside: the object's latest
+      element set is dated more than thirty days after the date. */
+  tracked_after?: boolean;
 }
 
 export interface LatestElements {

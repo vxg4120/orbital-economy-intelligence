@@ -28,7 +28,7 @@ Built from one polite pull each of CelesTrak SATCAT (69,705 objects) and Jonatha
   added yet.
 - **35 status disagreements** where SATCAT still lists an object as ACTIVE/INACTIVE while GCAT has
   already recorded its reentry (DECAYED). *Nobody agrees on what state a satellite is in.*
-- **3,523 decay-date conflicts** across sources, compared on parsed dates and not on string
+- **About 3,500 decay-date conflicts** across sources, compared on parsed dates and not on string
   formatting. A GCAT date counts only when it ended a phase of the object's history in a decay,
   so the date of a docking or of a transfer into the ISS is not compared.
 - **170 stale post-M&A owners**: objects the catalog still credits to a company that has since
