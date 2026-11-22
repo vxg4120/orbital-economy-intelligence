@@ -4,7 +4,8 @@ Space-Track publishes these 60-day decay predictions once a week (ingest/spacetr
 migration 0029). They are predictions, not decays: nothing here feeds the resolver, the decay
 dates or the Conflicts page. The payload is the current set (the newest OK weekly pull), cut to
 the predicted dates from today to WINDOW_DAYS ahead, without the objects whose satellite already
-carries a decay date, payloads first and then by predicted date. The SPA phrases it on the
+carries a decay date, payloads first and then by predicted date. ``as_of`` is the issue date of
+the newest prediction in the set; older ones can sit beside it, and each row carries its own. The SPA phrases it on the
 Overview as "Reentering soon" (docs/specs/spacetrack-reentry-predictions.md).
 
 The set moves once a week, so it is served from the warm cache like /api/stories.
@@ -25,29 +26,38 @@ router = APIRouter(tags=["reentries"])
 
 WINDOW_DAYS = 60
 
-# The newest OK pull, from the ledger (a pull that landed nothing still counts), and the newest
-# prediction epoch in the current set.
-_META_SQL = """
-SELECT i.started_at AS pulled_at, i.rows_ingested AS rows,
-       (SELECT max(msg_epoch) FROM v_reentry_prediction_latest) AS issued
-FROM ingest_run i
-WHERE i.source = 'spacetrack' AND i.endpoint = 'decay_60day' AND i.status = 'ok'
-ORDER BY i.ingest_run_id DESC
-LIMIT 1
-"""
-
+# One statement, so the pull it describes and the rows it returns come from one snapshot: a
+# pull committing between two queries would otherwise pair one week's issue date with another
+# week's objects. The view's own newest run is the same `newest` run inside one statement. The
+# meta columns repeat on every row, and the LEFT JOIN keeps one row of them when the window
+# holds no object.
 _UPCOMING_SQL = f"""
-WITH {_OWNER_CTE}
-SELECT p.norad_cat_id AS norad_id, p.satellite_id,
-       COALESCE(s.canonical_name, p.object_name) AS name, s.object_type, ow.owner,
-       p.predicted_date, p.msg_epoch
-FROM v_reentry_prediction_latest p
-LEFT JOIN satellite s ON s.satellite_id = p.satellite_id
-LEFT JOIN owner ow ON ow.satellite_id = p.satellite_id
-WHERE p.predicted_date >= %(today)s
-  AND p.predicted_date <= %(today)s::date + %(days)s
-  AND s.decay_date IS NULL
-ORDER BY s.object_type IS DISTINCT FROM 'PAYLOAD', p.predicted_date, p.norad_cat_id
+WITH {_OWNER_CTE},
+newest AS (
+    SELECT started_at AS pulled_at
+    FROM ingest_run
+    WHERE source = 'spacetrack' AND endpoint = 'decay_60day' AND status = 'ok'
+    ORDER BY ingest_run_id DESC
+    LIMIT 1
+),
+issued AS (SELECT max(msg_epoch) AS issued FROM v_reentry_prediction_latest),
+upcoming AS (
+    SELECT p.norad_cat_id AS norad_id, p.satellite_id,
+           COALESCE(s.canonical_name, p.object_name) AS name, s.object_type, ow.owner,
+           p.predicted_date, p.msg_epoch
+    FROM v_reentry_prediction_latest p
+    LEFT JOIN satellite s ON s.satellite_id = p.satellite_id
+    LEFT JOIN owner ow ON ow.satellite_id = p.satellite_id
+    WHERE p.predicted_date >= %(today)s
+      AND p.predicted_date <= %(today)s::date + %(days)s
+      AND s.decay_date IS NULL
+)
+SELECT newest.pulled_at, issued.issued, u.*
+FROM (SELECT 1) one
+LEFT JOIN newest ON true
+LEFT JOIN issued ON true
+LEFT JOIN upcoming u ON true
+ORDER BY u.object_type IS DISTINCT FROM 'PAYLOAD', u.predicted_date, u.norad_id
 """
 
 _TYPE_KEYS = {"PAYLOAD": "payload", "ROCKET_BODY": "rocket_body", "DEBRIS": "debris"}
@@ -79,14 +89,13 @@ def counts(rows: list[dict]) -> dict:
 def build_upcoming(db: psycopg.Connection, today: dt.date | None = None) -> dict:
     today = today or dt.datetime.now(dt.UTC).date()
     with db.cursor() as cur:
-        cur.execute(_META_SQL)
-        meta = cur.fetchone()
         cur.execute(_UPCOMING_SQL, {"today": today, "days": WINDOW_DAYS})
-        rows = [upcoming_row(r) for r in cur.fetchall()]
-    issued = meta["issued"] if meta else None
+        fetched = cur.fetchall()
+    head = fetched[0]
+    rows = [upcoming_row(r) for r in fetched if r["norad_id"] is not None]
     return {
-        "as_of": issued.date().isoformat() if issued else None,
-        "pulled_at": meta["pulled_at"].isoformat() if meta else None,
+        "as_of": head["issued"].date().isoformat() if head["issued"] else None,
+        "pulled_at": head["pulled_at"].isoformat() if head["pulled_at"] else None,
         "window_days": WINDOW_DAYS,
         "predicted_through": (today + dt.timedelta(days=WINDOW_DAYS)).isoformat(),
         "counts": counts(rows),

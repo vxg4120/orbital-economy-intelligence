@@ -124,9 +124,10 @@ def test_coverage_counts_satellites_whose_gcat_key_is_in_the_newest_snapshot(db_
 _NOW = dt.datetime(2026, 11, 26, 7, 30, tzinfo=dt.UTC)
 
 
-def _reentry_line(capsys, pulled_at, rows, failed=0):
+def _reentry_line(capsys, pulled_at, rows, failed=0, objects=None):
     build_graph._print_summary(_summary(reentry_predictions={
-        "pulled_at": pulled_at, "rows": rows, "failed_since": failed, "now": _NOW}))
+        "pulled_at": pulled_at, "rows": rows, "failed_since": failed, "now": _NOW,
+        "objects": rows if objects is None else objects}))
     [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
     return line
 
@@ -134,6 +135,12 @@ def _reentry_line(capsys, pulled_at, rows, failed=0):
 def test_reentry_predictions_line_names_the_count_and_the_pull_date(capsys):
     line = _reentry_line(capsys, dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), 412)
     assert line == "reentry predictions:     412 objects (as of 2026-11-25)"
+
+
+def test_reentry_predictions_count_objects_not_messages(capsys):
+    """A pull can carry two messages for one object (two weekly bulletins in its 8 days)."""
+    line = _reentry_line(capsys, dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), 3, objects=2)
+    assert line == "reentry predictions:     2 objects (as of 2026-11-25)"
 
 
 def test_reentry_predictions_alert_on_an_empty_pull(capsys):

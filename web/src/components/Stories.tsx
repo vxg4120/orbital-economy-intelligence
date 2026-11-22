@@ -444,7 +444,8 @@ function andList(items: string[]): string {
 export function soonLead(r: UpcomingReentries): string {
   if (r.pulled_at === null) return "Space-Track's weekly reentry predictions have not been pulled yet.";
   const total = r.rows.length;
-  if (total === 0) return `Space-Track predicts no reentry in the next ${r.window_days} days.`;
+  if (total === 0)
+    return `None of the objects in Space-Track's newest predictions has a predicted reentry date in the next ${r.window_days} days.`;
   const c = r.counts;
   const kinds = andList(
     [
@@ -469,18 +470,29 @@ export function soonLead(r: UpcomingReentries): string {
   return lead;
 }
 
-export function ReenteringSoon({ r }: { r: UpcomingReentries }) {
+/** The rows to list: the payloads other than Starlink (the API sends payloads first, each
+    group by predicted date), or when there is none, every other object other than Starlink,
+    by predicted date. Starlinks are only counted, in the lead. */
+function soonShown(r: UpcomingReentries): { rows: UpcomingReentry[]; payloads: boolean } {
   const payloads = r.rows.filter((x) => x.object_type === "PAYLOAD" && !isStarlink(x));
-  const shown = (payloads.length > 0 ? payloads : r.rows).slice(0, SOON_SHOWN);
+  if (payloads.length > 0) return { rows: payloads.slice(0, SOON_SHOWN), payloads: true };
+  const others = r.rows
+    .filter((x) => !isStarlink(x))
+    .sort((a, b) => a.predicted_date.localeCompare(b.predicted_date) || a.norad_id - b.norad_id);
+  return { rows: others.slice(0, SOON_SHOWN), payloads: false };
+}
+
+export function ReenteringSoon({ r }: { r: UpcomingReentries }) {
+  const { rows: shown, payloads } = soonShown(r);
   return (
     <Panel title="Reentering soon" meta={`predictions · ${r.window_days} days`}>
       <p className="story__lead">{soonLead(r)}</p>
       {shown.length > 0 ? (
         <>
           <h3 className="story__sub">
-            {payloads.length > 0
+            {payloads
               ? "The payloads expected first, other than Starlink"
-              : "The objects expected first"}
+              : "The objects expected first, other than Starlink"}
           </h3>
           <ul className="downlist downlist--two">
             {shown.map((x) => (
@@ -507,7 +519,7 @@ export function ReenteringSoon({ r }: { r: UpcomingReentries }) {
       <p className="hint story__hint">
         These are predictions, not reentries, and a predicted date can move by days as an object
         comes down. Space-Track publishes them once a week
-        {r.as_of ? `, and this set was issued on ${longDate(r.as_of)}` : ""}. A prediction never
+        {r.as_of ? `, and the newest prediction in this set was issued on ${longDate(r.as_of)}` : ""}. A prediction never
         changes a decay date on this site. Starlink is a name match.
       </p>
     </Panel>

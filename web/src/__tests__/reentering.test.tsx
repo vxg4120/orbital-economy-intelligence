@@ -41,19 +41,29 @@ describe("ReenteringSoon", () => {
     expect(out).toContain("predicted");
   });
 
-  it("falls back to every object, and names one the graph has not matched", () => {
-    const rows = base.rows.filter((x) => x.object_type !== "PAYLOAD");
+  it("falls back to every object other than Starlink, by date, and names unmatched ones", () => {
+    const rows = base.rows.filter((x) => x.object_type !== "PAYLOAD" || x.name?.startsWith("STARLINK"));
     const out = html({ ...base, rows });
-    expect(out).toContain("The objects expected first");
-    expect(out).toContain("OBJECT A");
+    expect(out).toContain("The objects expected first, other than Starlink");
+    expect(out).not.toContain("STARLINK-1009");
     expect(out).toContain("not in the catalog graph yet");
     expect(out).not.toContain('href="/resolver/null"');
+    // By predicted date across types: the unmatched object (Oct 18) leads the rocket body.
+    expect(out.indexOf("OBJECT A")).toBeLessThan(out.indexOf("CZ-2C R/B"));
+    expect(out.indexOf("CZ-2C R/B")).toBeLessThan(out.indexOf("FENGYUN 1C DEB"));
+  });
+
+  it("lists nothing when every object is a Starlink", () => {
+    const rows = base.rows.filter((x) => x.name?.startsWith("STARLINK"));
+    const out = html({ ...base, rows, counts: { ...empty.counts, payload: 2, starlink: 2 } });
+    expect(out).not.toContain("expected first");
+    expect(out).toContain("All of the payloads are Starlink satellites.");
   });
 
   it("says the dates are predictions and when the set was issued", () => {
     const out = html(base);
     expect(out).toContain("These are predictions, not reentries");
-    expect(out).toContain("this set was issued on October 14");
+    expect(out).toContain("the newest prediction in this set was issued on October 14");
     expect(out).toContain("A prediction never changes a decay date on this site.");
   });
 
@@ -61,7 +71,9 @@ describe("ReenteringSoon", () => {
     expect(soonLead({ ...empty, as_of: null, pulled_at: null })).toBe(
       "Space-Track's weekly reentry predictions have not been pulled yet.",
     );
-    expect(soonLead(empty)).toBe("Space-Track predicts no reentry in the next 60 days.");
+    expect(soonLead(empty)).toBe(
+      "None of the objects in Space-Track's newest predictions has a predicted reentry date in the next 60 days.",
+    );
     expect(html({ ...empty, as_of: null, pulled_at: null })).not.toContain("was issued on");
   });
 

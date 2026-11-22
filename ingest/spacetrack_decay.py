@@ -85,10 +85,14 @@ def parse_row(row: dict) -> dict | None:
     }
 
 
-def land_rows(conn, rows: list[dict], run_id: int, table: str = TABLE) -> int:
+def land_rows(conn, rows: list[dict], run_id: int, table: str = TABLE, parse=None,
+              commit: bool = True) -> int:
     """Land the messages into `table` (this one, or the predictions table of
-    ingest/spacetrack_predictions.py, which has the same columns) and commit."""
-    parsed = [p for p in (parse_row(r) for r in rows) if p is not None]
+    ingest/spacetrack_predictions.py, which has the same columns), each parsed by `parse`
+    (parse_row by default). With commit=False the caller commits, so it can close the ledger row
+    in the same transaction."""
+    parse = parse or parse_row
+    parsed = [p for p in (parse(r) for r in rows) if p is not None]
     if len(parsed) < len(rows):
         logger.warning("%s: skipped %d message(s) without a NORAD id", table,
                        len(rows) - len(parsed))
@@ -98,7 +102,8 @@ def land_rows(conn, rows: list[dict], run_id: int, table: str = TABLE) -> int:
             f"VALUES ({', '.join(['%s'] * len(_COLUMNS))})",
             [[p[c] for c in _COLUMNS[:-1]] + [run_id] for p in parsed],
         )
-    conn.commit()
+    if commit:
+        conn.commit()
     return len(parsed)
 
 

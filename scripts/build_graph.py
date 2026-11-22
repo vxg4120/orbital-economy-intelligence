@@ -253,8 +253,9 @@ PREDICTIONS_MAX_AGE = dt.timedelta(days=9)
 
 
 def _reentry_predictions(cur) -> dict:
-    """The newest OK weekly predictions pull (when it started and the rows it landed), the
-    failed pulls since it, and the database clock to age it by."""
+    """The newest OK weekly predictions pull (when it started and the messages it landed), the
+    objects in the current set (one per NORAD number, v_reentry_prediction_latest), the failed
+    pulls since it, and the database clock to age it by."""
     cur.execute(
         "SELECT ingest_run_id, started_at, rows_ingested FROM ingest_run "
         "WHERE source = 'spacetrack' AND endpoint = 'decay_60day' AND status = 'ok' "
@@ -268,8 +269,10 @@ def _reentry_predictions(cur) -> dict:
         (newest[0] if newest else 0,),
     )
     failed, now = cur.fetchone()
+    cur.execute("SELECT count(*) FROM v_reentry_prediction_latest")
+    objects = cur.fetchone()[0]
     return {"pulled_at": newest[1] if newest else None, "rows": newest[2] if newest else None,
-            "failed_since": failed, "now": now}
+            "objects": objects, "failed_since": failed, "now": now}
 
 
 def _reentry_predictions_line(p: dict) -> str:
@@ -282,7 +285,7 @@ def _reentry_predictions_line(p: dict) -> str:
         if failed:
             return f"!! {label}none landed; {failed} pull(s) failed"
         return f"{label}none pulled yet (the first pull is a Wednesday nightly)"
-    line = f"{label}{p['rows']} objects (as of {p['pulled_at']:%Y-%m-%d})"
+    line = f"{label}{p['objects']} objects (as of {p['pulled_at']:%Y-%m-%d})"
     if failed:
         line += f"; {failed} pull(s) failed since"
     if not p["rows"]:

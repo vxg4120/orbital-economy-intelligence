@@ -30,11 +30,16 @@ CREATE INDEX IF NOT EXISTS raw_spacetrack_decay_prediction_norad
     ON raw_spacetrack_decay_prediction (norad_cat_id);
 
 -- 2. The current prediction per object: the newest OK 'decay_60day' run is the whole set, one
---    row per NORAD id (the lowest PRECEDENCE, then the newest MSG_EPOCH). The newest run is
---    taken from the ledger, not from the rows, so an OK run that landed nothing empties the view
---    instead of leaving last week's predictions on show (the limit recorded for
---    v_spacetrack_decay_actual in migration 0027). satellite_id is the satellite the NORAD id
---    currently identifies, NULL for an object the graph has not matched.
+--    row per NORAD id. A pull asks for eight days of messages, so it can hold last week's
+--    bulletin beside this week's: the newest MSG_EPOCH wins, then the lowest PRECEDENCE (the
+--    glossary says lower is more recent data), then the earliest predicted date and the
+--    verbatim epoch, so the pick is deterministic and an undated message loses to a dated one
+--    of the same issue. The newest run is taken from the ledger, not from the rows, so an OK
+--    run that landed nothing empties the view instead of leaving last week's predictions on
+--    show (the limit recorded for v_spacetrack_decay_actual in migration 0027). satellite_id
+--    is the satellite whose canonical NORAD number this is (satellite.norad_id is unique), so
+--    an object GCAT catalogued before SATCAT still finds its satellite; NULL when the graph has
+--    no such satellite.
 CREATE OR REPLACE VIEW v_reentry_prediction_latest AS
 WITH latest AS (
     SELECT max(ingest_run_id) AS run_id
@@ -43,7 +48,7 @@ WITH latest AS (
 )
 SELECT DISTINCT ON (r.norad_cat_id)
     r.norad_cat_id,
-    si.satellite_id,
+    s.satellite_id,
     r.object_name,
     r.decay_date AS predicted_date,
     r.decay_epoch,
@@ -52,8 +57,6 @@ SELECT DISTINCT ON (r.norad_cat_id)
     r.ingest_run_id
 FROM raw_spacetrack_decay_prediction r
 JOIN latest ON r.ingest_run_id = latest.run_id
-LEFT JOIN satellite_identifier si
-  ON si.source = 'satcat' AND si.id_type = 'norad' AND si.valid_to IS NULL
- AND si.id_value = r.norad_cat_id::text
-ORDER BY r.norad_cat_id, r.precedence ASC NULLS LAST, r.msg_epoch DESC NULLS LAST,
-         si.satellite_id;
+LEFT JOIN satellite s ON s.norad_id = r.norad_cat_id
+ORDER BY r.norad_cat_id, r.msg_epoch DESC NULLS LAST, r.precedence ASC NULLS LAST,
+         r.decay_date ASC NULLS LAST, r.decay_epoch;

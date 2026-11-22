@@ -106,3 +106,38 @@ def test_counts_name_starlink_payloads_only():
             {"object_type": None, "name": None}]
     assert counts(rows) == {"payload": 1, "rocket_body": 0, "debris": 1, "unknown": 1,
                             "starlink": 1}
+
+
+@pytest.mark.db
+def test_the_real_view_finds_a_satellite_by_its_canonical_norad_number(db_conn):
+    """A satellite GCAT catalogued before SATCAT has its NORAD number but no SATCAT identifier.
+    The view finds it by satellite.norad_id, so a decayed one stays off the list and a live
+    one keeps its resolver link. One transaction, rolled back."""
+    db_conn.row_factory = dict_row
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute("INSERT INTO ingest_run (source, endpoint, started_at, finished_at, "
+                        "status, rows_ingested) VALUES ('spacetrack', 'decay_60day', now(), "
+                        "now(), 'ok', 3) RETURNING ingest_run_id")
+            run = cur.fetchone()["ingest_run_id"]
+            sats = {}
+            for norad, decayed in ((900000701, "2030-01-01"), (900000702, None)):
+                cur.execute("INSERT INTO satellite (norad_id, canonical_name, object_type, "
+                            "decay_date) VALUES (%s, %s, 'PAYLOAD', %s) RETURNING satellite_id",
+                            (norad, f"GCAT ONLY {norad}", decayed))
+                sats[norad] = cur.fetchone()["satellite_id"]
+            for norad in (900000701, 900000702, 900000703):
+                cur.execute("INSERT INTO raw_spacetrack_decay_prediction (norad_cat_id, "
+                            "object_name, msg_epoch, decay_epoch, decay_date, source, payload, "
+                            "ingest_run_id) VALUES (%s, %s, '2030-01-02 06:00Z', '2030-01-20', "
+                            "'2030-01-20', '60day_msg', '{}', %s)",
+                            (norad, f"ST {norad}", run))
+        body = build_upcoming(db_conn, today=TODAY)
+        assert [(r["norad_id"], r["satellite_id"], r["name"]) for r in body["rows"]] == [
+            (900000702, sats[900000702], "GCAT ONLY 900000702"),
+            (900000703, None, "ST 900000703"),
+        ]
+        assert body["as_of"] == "2030-01-02"
+    finally:
+        db_conn.row_factory = None
+        db_conn.rollback()
