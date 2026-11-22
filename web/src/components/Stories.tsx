@@ -1,6 +1,12 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import type { EnvironmentResponse, StoriesReentry, StoriesResponse } from "../api/types";
+import type {
+  EnvironmentResponse,
+  StoriesReentry,
+  StoriesResponse,
+  UpcomingReentries,
+  UpcomingReentry,
+} from "../api/types";
 import { useWidth } from "../hooks/useWidth";
 import { fmtInt, fmtPct } from "../lib/format";
 import {
@@ -415,6 +421,111 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
         {r.notable.some((n) => n.deployed_from_iss)
           ? " For a satellite deployed from the ISS, the time up counts from its release from the station, as GCAT records it, because SATCAT gives these satellites the station's 1998 launch date."
           : ""}
+      </p>
+    </Panel>
+  );
+}
+
+/* ---- c2. Reentering soon -------------------------------------------------- */
+
+const SOON_SHOWN = 8;
+
+/** A Starlink payload, by name: the API counts counts.starlink the same way. */
+function isStarlink(x: UpcomingReentry): boolean {
+  return x.object_type === "PAYLOAD" && (x.name ?? "").toLowerCase().startsWith("starlink");
+}
+
+/** "a", "a and b", "a, b and c". */
+function andList(items: string[]): string {
+  if (items.length < 2) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/** The lead sentence for Space-Track's weekly 60-day predictions. */
+export function soonLead(r: UpcomingReentries): string {
+  if (r.pulled_at === null) return "Space-Track's weekly reentry predictions have not been pulled yet.";
+  const total = r.rows.length;
+  if (total === 0)
+    return (
+      `None of the objects in Space-Track's newest predictions is listed here for the next ${r.window_days} days. ` +
+      "An object is left out when it has already come down, when its predicted date is outside that window, or when its date cannot be read."
+    );
+  const c = r.counts;
+  const kinds = andList(
+    [
+      c.payload > 0 ? plural(c.payload, "payload") : "",
+      c.rocket_body > 0 ? plural(c.rocket_body, "rocket body", "rocket bodies") : "",
+      c.debris > 0 ? plural(c.debris, "piece of debris", "pieces of debris") : "",
+      c.unknown > 0 ? plural(c.unknown, "object of unknown type", "objects of unknown type") : "",
+    ].filter(Boolean),
+  );
+  const verb = total === 1 ? "object will reenter" : "objects will reenter";
+  let lead = `Space-Track predicts that ${fmtInt(total)} ${verb} in the next ${r.window_days} days: ${kinds}.`;
+  if (c.starlink > 0) {
+    lead +=
+      c.starlink === c.payload
+        ? c.payload === 1
+          ? " The payload is a Starlink satellite."
+          : " All of the payloads are Starlink satellites."
+        : c.starlink === 1
+          ? " One of the payloads is a Starlink satellite."
+          : ` ${fmtInt(c.starlink)} of the payloads are Starlink satellites.`;
+  }
+  return lead;
+}
+
+/** The rows to list: the payloads other than Starlink (the API sends payloads first, each
+    group by predicted date), or when there is none, every other object other than Starlink,
+    by predicted date. Starlink payloads are only counted, in the lead. */
+function soonShown(r: UpcomingReentries): { rows: UpcomingReentry[]; payloads: boolean } {
+  const payloads = r.rows.filter((x) => x.object_type === "PAYLOAD" && !isStarlink(x));
+  // isStarlink only matches payloads, so Starlink debris stays listed with the other debris.
+  if (payloads.length > 0) return { rows: payloads.slice(0, SOON_SHOWN), payloads: true };
+  const others = r.rows
+    .filter((x) => !isStarlink(x))
+    .sort((a, b) => a.predicted_date.localeCompare(b.predicted_date) || a.norad_id - b.norad_id);
+  return { rows: others.slice(0, SOON_SHOWN), payloads: false };
+}
+
+export function ReenteringSoon({ r }: { r: UpcomingReentries }) {
+  const { rows: shown, payloads } = soonShown(r);
+  return (
+    <Panel title="Reentering soon" meta={`predictions · ${r.window_days} days`}>
+      <p className="story__lead">{soonLead(r)}</p>
+      {shown.length > 0 ? (
+        <>
+          <h3 className="story__sub">
+            {payloads
+              ? "The payloads expected first, other than Starlink"
+              : "The objects expected first, other than Starlink"}
+          </h3>
+          <ul className="downlist downlist--two">
+            {shown.map((x) => (
+              <li key={x.norad_id} className="downlist__row">
+                <span className="downlist__name">
+                  {x.satellite_id !== null ? (
+                    <Link to={`/resolver/${x.satellite_id}`}>{x.name ?? `NORAD ${x.norad_id}`}</Link>
+                  ) : (
+                    <span>{x.name ?? `NORAD ${x.norad_id}`}</span>
+                  )}
+                  <span className="downlist__owner">
+                    {x.satellite_id !== null ? operatorName(x.owner) : "not in the catalog graph yet"}
+                  </span>
+                </span>
+                <span className="downlist__when num">
+                  {shortDate(x.predicted_date)}
+                  <span className="downlist__up">predicted</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      <p className="hint story__hint">
+        These are predictions, not reentries, and a predicted date can move by days as an object
+        comes down. Space-Track publishes them once a week
+        {r.as_of ? `, and the newest prediction in this set was issued on ${longDate(r.as_of)}` : ""}. A prediction never
+        changes a decay date on this site. Starlink is a name match.
       </p>
     </Panel>
   );

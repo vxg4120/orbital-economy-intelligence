@@ -147,6 +147,9 @@ def test_the_lock_is_released_when_a_top_up_finishes(monkeypatch):
     monkeypatch.setenv("SPACETRACK_PASSWORD", "pw")
     monkeypatch.setattr(topup, "gp_topup", lambda *a, **k: 0)
     monkeypatch.setattr(topup.spacetrack_decay, "run", lambda *a, **k: 0)
+    # Stubbed too: unstubbed, it reads the real clock and is due from Wednesday 17:00 to Friday
+    # 17:00 UTC, when the stand-in client fails it and main() returns 1.
+    monkeypatch.setattr(topup.spacetrack_predictions, "run", lambda *a, **k: 0)
     first, other = get_conn(), get_conn()
     try:
         assert topup.main([], conn=first, out=lambda s: None,

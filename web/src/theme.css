@@ -3851,6 +3851,13 @@ button {
 .downlist__up {
   color: var(--ink-faint);
 }
+@media (min-width: 720px) {
+  .downlist--two {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+}
 
 /* the constellation race: small multiples on hairline gutters */
 .race {

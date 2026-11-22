@@ -64,6 +64,7 @@ SNAPSHOT_TABLES = [
     "raw_supgp_status",
     "raw_ucs",
     "raw_spacetrack_decay",
+    "raw_spacetrack_decay_prediction",
 ]
 
 

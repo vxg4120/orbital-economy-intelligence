@@ -6,6 +6,8 @@ Every run reported ok. The coverage line is the downstream signal that was missi
 of the graph it starts with "!!", which the nightly forwards to ALERT_URL.
 """
 
+import datetime as dt
+
 import pytest
 
 from scripts import build_graph
@@ -115,3 +117,84 @@ def test_coverage_counts_satellites_whose_gcat_key_is_in_the_newest_snapshot(db_
     assert after["newest_without"][:3] == [909999994, 909999993, 909999992]
     assert None not in after["newest_without"]
     assert len(after["newest_without"]) <= 5
+
+
+# --- the weekly 60-day reentry predictions (docs/specs/spacetrack-reentry-predictions.md) ---
+
+_NOW = dt.datetime(2026, 11, 26, 7, 30, tzinfo=dt.UTC)
+
+
+def _reentry_line(capsys, pulled_at, rows, failed=0, objects=None):
+    build_graph._print_summary(_summary(reentry_predictions={
+        "pulled_at": pulled_at, "rows": rows, "failed_since": failed, "now": _NOW,
+        "objects": rows if objects is None else objects}))
+    [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
+    return line
+
+
+def test_reentry_predictions_line_names_the_count_and_the_pull_date(capsys):
+    line = _reentry_line(capsys, dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), 412)
+    assert line == "reentry predictions:     412 objects (as of 2026-11-25)"
+
+
+def test_reentry_predictions_count_objects_not_messages(capsys):
+    """A pull can carry two messages for one object (two weekly bulletins in its 8 days)."""
+    line = _reentry_line(capsys, dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), 3, objects=2)
+    assert line == "reentry predictions:     2 objects (as of 2026-11-25)"
+
+
+def test_reentry_predictions_alert_on_an_empty_pull(capsys):
+    line = _reentry_line(capsys, dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), 0)
+    assert line.startswith("!! reentry predictions:")
+    assert line.endswith("the newest pull landed no prediction")
+
+
+@pytest.mark.parametrize("age_days, alerts", [(9, False), (9.01, True)])
+def test_reentry_predictions_alert_when_the_newest_pull_is_over_9_days_old(capsys, age_days,
+                                                                           alerts):
+    line = _reentry_line(capsys, _NOW - dt.timedelta(days=age_days), 400, failed=2)
+    assert line.startswith("!!") is alerts
+    assert "; 2 pull(s) failed since" in line
+
+
+def test_reentry_predictions_before_the_first_pull(capsys):
+    assert not _reentry_line(capsys, None, None).startswith("!!")
+    assert _reentry_line(capsys, None, None, failed=1) == (
+        "!! reentry predictions:     none landed; 1 pull(s) failed")
+
+
+def test_a_summary_without_predictions_prints_no_reentry_line(capsys):
+    build_graph._print_summary(_summary())
+    assert "reentry predictions" not in capsys.readouterr().out
+
+
+def test_reentry_predictions_alert_when_no_date_can_be_read(capsys):
+    """The DECAY_EPOCH format is only known from the first live pull; if the strict parse reads
+    none of it, the panel is empty, and the summary says why."""
+    build_graph._print_summary(_summary(reentry_predictions={
+        "pulled_at": dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), "rows": 400,
+        "objects": 380, "dated": 0, "failed_since": 0, "now": _NOW}))
+    [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
+    assert line.startswith("!! reentry predictions:")
+    assert line.endswith("no prediction has a readable date")
+
+
+def test_a_failed_predictions_read_alerts_without_failing_the_build(capsys):
+    build_graph._print_summary(_summary(reentry_predictions={"error": "UndefinedTable"}))
+    [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
+    assert line == "!! reentry predictions:     unavailable (UndefinedTable)"
+
+
+@pytest.mark.db
+def test_the_predictions_read_runs_in_a_savepoint(db_conn):
+    """A failing query inside it leaves the build's transaction usable."""
+    with db_conn.cursor() as cur:
+        cur.execute("CREATE TEMP TABLE build_probe (x int)")
+        cur.execute("INSERT INTO build_probe VALUES (1)")
+        cur.execute("CREATE TEMP VIEW v_reentry_prediction_latest AS "
+                    "SELECT 1 / 0 AS predicted_date")
+        assert build_graph._reentry_predictions(cur) == {"error": "DivisionByZero"}
+        cur.execute("SELECT x FROM build_probe")
+        assert cur.fetchall() == [(1,)]
+    db_conn.rollback()
+

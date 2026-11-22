@@ -1,9 +1,10 @@
 # Spec: Space-Track reentry predictions ("reentering soon")
 
-**Status:** draft (written 2026-11-19 at Vib's go; the build waits for Vib's read of this spec)
+**Status:** active (phase 1 built 2026-11-22 at Vib's go; the first live pull is the Wednesday
+2026-11-25 19:10 UTC nightly)
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-11-19
+**Last updated:** 2026-11-22
 
 ## Goal
 Space-Track publishes, once a week, a 60-day decay prediction for every object it expects to
@@ -51,6 +52,18 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
   17:00 UTC. On a normal week that is the Wednesday 19:10 run; if that run fails, the next
   nightly retries. Rejected: a separate cron entry. Because: the nightly already holds the
   Space-Track credentials, the step log, the `!!` alert path and the publish order.
+- 2026-11-22 (Claude): **Retries stop 48 hours after Wednesday 17:00 UTC** (the Wednesday 19:10
+  run and the three nightlies after it). Rejected: retrying every nightly until the next
+  Wednesday. Because: an open-ended gate would make the first pull after a deploy happen on
+  whatever weekday the deploy lands, and Space-Track asks for this query on Wednesdays. A week
+  missed past the window is caught by the 9-day age alert.
+- 2026-11-22 (Vib, "proceed however you think best is recommended"): the three open questions
+  closed on Claude's recommendations. The weekly 60-day query is treated as its own allowance,
+  because the public guidelines list it on a row of its own beside DECAY's one a day. The list
+  is a panel on the Overview, below the latest reentries. TIP stays out of phase 1.
+- 2026-11-22 (Claude): **The view finds the newest run in the ledger, not in the rows.** An OK
+  run that landed nothing then empties the view, so last week's set is never shown as current.
+  This avoids the limit recorded for `v_spacetrack_decay_actual` (migration 0027, review M-5).
 - 2026-11-19 (Claude): **Snapshot semantics.** The newest OK `decay_60day` run is the whole
   prediction set, the same rule the other Space-Track readers follow. An object missing from it
   has no current prediction.
@@ -59,8 +72,12 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
   stable order). Eight days covers one week of messages plus a day of slack.
 
 ## Constraints
-- At most one 60-day query per week, after Wednesday 17:00 UTC. The nightly Historical pull
-  keeps its query, its 23-hour gate and its endpoint unchanged.
+- At most two attempts at the 60-day query per week (the Wednesday 19:10 nightly and one
+  retry), all within 48 hours after Wednesday 17:00 UTC, and none once one has succeeded. An
+  attempt is one ledger row, which a crashed run leaves as 'running' and still counts. Inside an
+  attempt the client retries a throttled or failed request as it does for every Space-Track
+  query. The nightly Historical pull keeps its query, its 23-hour gate and its endpoint
+  unchanged.
 - Unattended agents never set or change Space-Track credentials, never trigger a live pull and
   never move the top-up cursor. Development and tests use recorded fixtures only. The first
   live pull is the nightly's, or a manual run with Vib present.
@@ -73,25 +90,34 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
   predictions, whose source is Space-Track, and how old the prediction is.
 
 ## Interfaces & dependencies
-- Migration (next free number): `raw_spacetrack_decay_prediction`, the same columns as
+- Migration 0029: `raw_spacetrack_decay_prediction`, the same columns as
   `raw_spacetrack_decay` (norad_cat_id, object_name, intldes, country, msg_epoch, decay_epoch,
   decay_date, source, msg_type, precedence, payload, ingest_run_id, loaded_at), with indexes on
   ingest_run_id and norad_cat_id. A view `v_reentry_prediction_latest`: from the newest OK
-  `decay_60day` run, one row per NORAD (lowest PRECEDENCE, then newest MSG_EPOCH; the glossary
-  says lower PRECEDENCE is more recent data).
-- `ingest/spacetrack_predictions.py`: `due(conn, now)` (the Wednesday gate), `parse_row`
-  (reuses `ingest/spacetrack_decay.parse_row`), `run(conn, client)` through
-  `client.query_ledgered("decay_60day", QUERY)`.
+  `decay_60day` run in the ledger, one row per NORAD (newest MSG_EPOCH, then lowest PRECEDENCE,
+  then the earliest predicted date and the verbatim epoch), with `satellite_id` from the unique
+  `satellite.norad_id`.
+- `ingest/spacetrack_predictions.py`: `due(conn, now)` (the Wednesday gate and the attempt
+  cap), `parse_row` (the Historical parser's columns with a strict `predicted_date`), and
+  `run(conn, client, now)` through `client.query_ledgered("decay_60day", QUERY)`, which commits
+  the rows and the OK ledger update in one transaction.
 - The nightly: the existing `oei_spacetrack` step calls the predictions pull after the
   Historical pull, so a missing credential stays one clean exit 0 with no request.
-- API: `GET /api/reentries/upcoming` returns `{as_of, predicted_through, rows: [{norad_id,
-  satellite_id|null, name, object_type, owner|null, predicted_date, msg_epoch}], counts:
-  {payload, rocket_body, debris, unknown}}`, with rows from today to 60 days ahead, payloads
-  first, and objects whose satellite already has a decay date left out.
-- Web: a "Reentering soon" panel on the Overview beside the notable reentries (placement is
-  an open question), each row linking to its resolver page when the satellite is in the graph.
+- API (`api/routers/reentries.py`, warm-cached): `GET /api/reentries/upcoming` returns
+  `{as_of, pulled_at, window_days, predicted_through, rows: [{norad_id, satellite_id|null, name,
+  object_type, owner|null, predicted_date, msg_epoch}], counts: {payload, rocket_body, debris,
+  unknown, starlink}}`, with rows from today to 60 days ahead, payloads first and then by
+  predicted date, and objects whose satellite already has a decay date left out. `as_of` is the
+  newest MSG_EPOCH in the set and `pulled_at` the start of the newest OK pull; both are null
+  before the first pull.
+- Web: a "Reentering soon" panel on the Overview below the latest reentries, listing up to 8
+  payloads other than Starlink (every object other than Starlink payloads, by date, when there
+  is none), each row linking to its resolver page when the satellite is in the graph. The panel
+  stays off the page until the first weekly pull has landed (`pulled_at` null), and while the
+  endpoint fails.
 - Build summary line: `reentry predictions: N objects (as of YYYY-MM-DD)`, which starts with
-  `!!` when the newest run is more than 9 days old or landed 0 rows.
+  `!!` when the newest run is more than 9 days old or landed 0 rows. Before any OK run it reads
+  "none pulled yet" without an alert, and alerts once a pull has failed.
 
 ## Edge cases
 - **An empty answer on a Wednesday.** The set normally holds many objects, so 0 rows is landed
@@ -103,40 +129,56 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
 - **An object not in the graph yet** (a new NORAD number): shown with Space-Track's name and no
   resolver link.
 - **Several messages for one NORAD in a run:** the view keeps one (see Interfaces).
-- **DECAY_EPOCH format.** The Historical rows send a date or a date and time;
-  `_decay_date` degrades anything else to NULL and keeps the text. A row with a NULL predicted
-  date is kept in the table and left off the list.
+- **DECAY_EPOCH format.** The Historical rows send a date or a date and time ("2026-11-15
+  0:00:00"). The predictions path accepts only those shapes and gives anything else a NULL
+  predicted date while keeping the text, so "2027" never becomes 1 January. A row with a NULL
+  predicted date is kept in the table and left off the list.
+- **Two bulletins in one pull.** Eight days of MSG_EPOCH can hold last week's bulletin beside
+  this week's, so the view keeps each object's newest message. An object that only last week's
+  bulletin names still shows that prediction; the first live pull shows whether that happens.
+- **A known satellite that SATCAT does not list yet.** GCAT catalogues some objects first, so
+  the view finds satellites by `satellite.norad_id` (unique), not by a SATCAT identifier: on
+  2026-11-22 one satellite in production had a NORAD number and no current SATCAT identifier.
 - **Starlink.** SpaceX deorbits Starlinks on purpose, so they may dominate the list. The panel
   groups them into one line with a count, the same treatment the notable reentries give.
 
 ## Acceptance criteria
 - [ ] The migration applies on a fresh database and on a copy of production's schema, and adds
   no row to any identity table. `python scripts/migrate.py` exits 0 twice in a row.
-- [ ] `pytest tests/test_ingest_spacetrack_predictions.py` passes, covering: the Wednesday
-  gate (Tuesday no, Wednesday 16:59 no, Wednesday 19:10 yes, Thursday 07:10 yes when Wednesday
-  failed, no when it succeeded), the exact query string, parsing from a recorded fixture, the
-  endpoint name `decay_60day`, and a 0-row answer landing OK.
-- [ ] A test proves that a `decay_60day` run leaves the claims feed and
-  `v_spacetrack_decay_actual` byte-identical (rows before and after compared).
-- [ ] `pytest tests/test_api_reentries.py` passes: the 60-day window, the drop of decayed
-  satellites and past dates, payloads first, and graph-less objects without a satellite id.
-- [ ] The build summary prints `reentry predictions:` and starts it with `!!` for a run older
-  than 9 days or with 0 rows (`pytest tests/test_build_graph_summary.py -k reentry`).
+- [x] `pytest tests/test_ingest_spacetrack_predictions.py` passes, covering: the Wednesday
+  gate (Tuesday no, Wednesday 16:59 no, Wednesday 17:00 and 19:10 yes, Thursday 07:10 yes when
+  Wednesday failed, no when it succeeded, no after two failed attempts, no from Friday 17:00),
+  one clock shared by the gate and the ledger, the exact query string, parsing from a fixture
+  (synthetic, in the shape of production's DECAY rows, until the first live pull is recorded),
+  the endpoint name `decay_60day`, a 0-row answer landing OK, and rows and OK committed
+  together.
+- [x] A test proves that a `decay_60day` run leaves the claims feed and
+  `v_spacetrack_decay_actual` identical: with a Historical landing folded, it compares every
+  row of the view, the folded messages, the claims and the feed's progress, and the next fold
+  finds nothing. Landing the predictions in `raw_spacetrack_decay` instead makes it fail.
+- [x] `pytest tests/test_api_reentries.py` passes: the 60-day window, the drop of decayed
+  satellites and past dates, payloads first, graph-less objects without a satellite id, and the
+  real view finding a GCAT-only satellite by its NORAD number.
+- [x] The build summary prints `reentry predictions:` and starts it with `!!` for a run older
+  than 9 days or with 0 rows (`pytest tests/test_build_graph_summary.py -k reentry`), and it
+  counts objects, not messages.
 - [ ] Full suite, ruff, the web build and the dash check are clean; CI is green on the merge.
+  (Local, 2026-11-22: 701 passed and 117 skipped, ruff, 115 web tests, the build and the dash
+  check clean; CI pending.)
 - [ ] On production after the first Wednesday 19:10 UTC run: one OK `decay_60day` run, the
   summary line without `!!`, the Historical pull and the claims counts unchanged from the night
   before, and `/api/reentries/upcoming` answering 200 in under 1 s.
 
 ## Open questions
-- (Vib) **Does the weekly 60-day query count against DECAY's one query a day?** The public
-  table lists them as separate rows, which reads as separate allowances, but the full API page
-  is behind the login. If they share one allowance, the Wednesday evening run skips the
-  Historical pull that day (its 23-hour gate makes up for it the next morning).
-- (Vib) **Placement:** a panel on the Overview, or a route of its own (`/reentries`)?
+- CLOSED 2026-11-22 (see the decision log): the shared-allowance question, the placement and
+  TIP. If Space-Track ever says the 60-day query does count against DECAY's one a day, the
+  Wednesday predictions pull moves to Thursday 07:10 and the Historical pull of that morning
+  is skipped, so no UTC day holds two DECAY queries.
 - (Vib) **Phase 2, TIP:** a daily TIP pull (`INSERT_EPOCH>now-1`, well inside one an hour)
   would give the final reentry windows and locations for the objects coming down within days.
-- (Claude) The size of the 60-day set and the exact DECAY_EPOCH format, from the first live
-  pull; the estimates above are recorded as such until then.
+- (Claude) From the first live pull: the size of the 60-day set, the exact DECAY_EPOCH format,
+  whether eight days of MSG_EPOCH hold one bulletin or two, and a real sample to record as the
+  test fixture.
 
 ## Decision log & lessons learned
 - 2026-11-19 (Claude): written after Vib's go. The July `gp_history` gap backfill stays undone
@@ -144,3 +186,33 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
 - 2026-11-19 (Claude): the top-up spec said TIP messages are "in the same DECAY class". The
   public documentation shows a separate TIP class with its own hourly limit; the 60-day
   predictions are the ones inside DECAY.
+- 2026-11-22 (Claude, from the Codex verify pass; each finding checked before acting):
+  - Accepted and fixed: the view matched satellites only through a current SATCAT identifier,
+    so a GCAT-only satellite lost its link and, if decayed, stayed on the list (production had
+    one such satellite); the gate capped successes, not attempts, so a failing week could pull
+    every nightly in the window (now at most two attempts); the rows committed before the OK, so
+    a crash between the two could repeat a download (now one transaction); the API read its
+    metadata and its rows in two statements (now one snapshot); the view's pick was not
+    deterministic for ties and let last week's bulletin win on PRECEDENCE (now the newest
+    MSG_EPOCH first); the loose date parse read "2027" as 1 January (now strict); the summary
+    counted messages as objects; and the panel claimed "no reentry" for a filtered-empty list,
+    dated the whole set by its newest message, and fell back to Starlinks.
+  - Accepted, tests: the Thursday test mixed the database clock with the test clock and would
+    have failed on a database (one clock now), and the isolation test compared counts rather
+    than rows.
+  - Checked, no change: churn's identifier expiry date is the newest OK run of any source, but
+    ingest_all runs earlier on the same night, so a predictions pull never moves it. The test
+    cleanup deletes every run above a baseline, the shared pattern of tests/fixtures/dbutil.py
+    on a local database. Headings and owner labels follow the existing panels' style.
+- 2026-11-22 (Claude, from the review workflow: four reviewers and a skeptic per finding):
+  - Confirmed by two reviewers and fixed: tests/test_spacetrack_topup.py's lock test left the
+    new predictions part unstubbed, so it read the real clock and failed from Wednesday 17:00
+    to Friday 17:00 UTC, the week of the first live pull included.
+  - Confirmed and fixed: the empty-list lead said no object had a date in the window, though
+    objects are also left out when they have come down or their date cannot be read; it now
+    says so.
+  - Low, fixed: Starlink is a payload name match on both sides, so Starlink debris stays in
+    the fallback list as the API counts it; the summary alerts when no object has a readable
+    date (the DECAY_EPOCH format is unconfirmed until the first live pull); and the summary's
+    queries run in a savepoint, so a failure there costs the line, not the night's build.
+

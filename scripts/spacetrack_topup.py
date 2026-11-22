@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Nightly Space-Track top-up: new gp_history element sets, then actual decays.
+"""Nightly Space-Track top-up: new gp_history element sets, actual decays, then the weekly
+60-day reentry predictions.
 
 Runs in deploy/nightly-refresh.sh after ingest_all and before build_graph. Without
 SPACETRACK_IDENTITY / SPACETRACK_PASSWORD it prints one line and exits 0, making no request.
@@ -15,12 +16,15 @@ backfill command to fill it, so a long outage can never turn into one giant nigh
 
 decay: ingest/spacetrack_decay.py, one query a day.
 
+predictions: ingest/spacetrack_predictions.py, one query a week, on Wednesdays after 17:00 UTC
+(docs/specs/spacetrack-reentry-predictions.md).
+
 Rate limits (Space-Track: <30 requests/minute, <300/hour): the client spaces requests 3 s
 apart (<=20/minute) and an HourlyPacer on the client's per-attempt hook caps the run at
 MAX_REQUESTS_PER_HOUR, retries included. A plan larger than MAX_PLANNED_REQUESTS is refused
 before any request, so the pacer never has to put the nightly to sleep for an hour.
 
-Usage: python scripts/spacetrack_topup.py [--only gp|decay] [--dry-run]
+Usage: python scripts/spacetrack_topup.py [--only gp|decay|predictions] [--dry-run]
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.db import get_conn  # noqa: E402
-from ingest import runlog, spacetrack_decay  # noqa: E402
+from ingest import runlog, spacetrack_decay, spacetrack_predictions  # noqa: E402
 from ingest.spacetrack_client import SpaceTrackClient, land_gp_history  # noqa: E402
 from scripts import backfill_gp_history as bf  # noqa: E402
 
@@ -207,8 +211,9 @@ def gp_topup(conn, client, *, now=None, fleet_provider=None, operators=None,
 
 
 def _parse_args(argv):
-    ap = argparse.ArgumentParser(description="Nightly Space-Track top-up (gp_history + decay).")
-    ap.add_argument("--only", choices=["gp", "decay"], help="run one part only")
+    ap = argparse.ArgumentParser(
+        description="Nightly Space-Track top-up (gp_history, decay, 60-day predictions).")
+    ap.add_argument("--only", choices=["gp", "decay", "predictions"], help="run one part only")
     ap.add_argument("--dry-run", action="store_true",
                     help="print tonight's gp_history window and plan; no requests")
     return ap.parse_args(argv)
@@ -237,15 +242,17 @@ def main(argv=None, conn=None, client_factory=None, now=None, out=print) -> int:
         pacer = bf.HourlyPacer(MAX_REQUESTS_PER_HOUR)
         factory = client_factory or (lambda c, **kw: SpaceTrackClient(c, **kw))
         client = factory(conn, identity=identity, password=password, pre_request=pacer.acquire)
-        parts = [args.only] if args.only else ["gp", "decay"]
+        parts = [args.only] if args.only else ["gp", "decay", "predictions"]
         if args.dry_run:
             parts = [p for p in parts if p == "gp"]
         for part in parts:
             try:
                 if part == "gp":
                     gp_topup(conn, client, now=now, dry_run=args.dry_run, out=out)
-                else:
+                elif part == "decay":
                     spacetrack_decay.run(conn, client, out=out)
+                else:
+                    spacetrack_predictions.run(conn, client, now=now, out=out)
             except Exception as exc:  # one part failing must not stop the other
                 conn.rollback()
                 print(f"[spacetrack_topup] {part} failed: {type(exc).__name__}: {exc}",

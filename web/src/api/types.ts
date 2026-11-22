@@ -1020,6 +1020,33 @@ export interface StoriesReentry {
   released?: string | null; // the day the station released it, per GCAT's SDate
 }
 
+/** One Space-Track 60-day reentry prediction (api/routers/reentries.py). A prediction, never a
+    decay: the resolver and the decay dates do not read it. */
+export interface UpcomingReentry {
+  norad_id: number;
+  satellite_id: number | null; // null for an object the graph has not matched yet
+  name: string | null;
+  object_type: string | null; // PAYLOAD, ROCKET_BODY, DEBRIS, UNKNOWN; null when unmatched
+  owner: string | null;
+  predicted_date: string;
+  msg_epoch: string | null; // when Space-Track issued the prediction
+}
+
+export interface UpcomingReentries {
+  as_of: string | null; // the newest prediction's issue date; null before the first pull
+  pulled_at: string | null;
+  window_days: number;
+  predicted_through: string;
+  counts: {
+    payload: number;
+    rocket_body: number;
+    debris: number;
+    unknown: number;
+    starlink: number; // payloads whose name starts with "Starlink"
+  };
+  rows: UpcomingReentry[]; // payloads first, then by predicted date
+}
+
 export interface StoriesConstellation {
   key: "starlink" | "oneweb" | "kuiper" | "qianfan" | "guowang";
   operator: string;
