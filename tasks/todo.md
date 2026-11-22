@@ -754,5 +754,17 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - GCAT: its file as published on 2026-11-22 still carries the ten entries listed in the spec
   (nine DDates a year early, and S56915 holding S59615's reentry). A short note to GCAT is
   drafted for Vib; not sent.
-- [ ] Vib: send the GCAT note, or leave it (GCAT fixed the Hawk 16A typo on its own).
+- [x] Vib: send the GCAT note, or leave it (GCAT fixed the Hawk 16A typo on its own).
+      Sent 2026-11-22 21:00 UTC (Vib: "yes go for it", then he approved the final text and the
+      sender address in a dialog). From vibhavgupta2@gmail.com to planet4589@gmail.com, the
+      address jsr.html publishes for corrections; subject "GCAT satcat: ten DDates that
+      disagree with tracking". An eleven-agent check first found that the draft overstated:
+      only five of the nine are a pure year slip, and the SATCAT in question is CelesTrak's.
+      The note offers a list of seven more rows (six confident); it is in the spec
+      (docs/specs/decay-tracked-after.md) if he asks. A reply would arrive in the vgupta998
+      inbox; search `from:planet4589@gmail.com` only.
+- [ ] If GCAT fixes the rows, the nightly's "decay dates set aside, tracked after" count drops
+      below 12 by itself, and 56915 stops carrying a GCAT decay claim. Nothing to change here.
+- [ ] S63359 and S63360 (Electron 63 Kick Stage and Stage 2) look swapped between GCAT and
+      CelesTrak. Not reported; needs the element-set history of both first.
 - [ ] The 10 new decay cases have no research dossier. The dossier pass is a separate job.

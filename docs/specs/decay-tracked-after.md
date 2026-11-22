@@ -48,7 +48,29 @@ Each object's element sets run to SATCAT's decay date, about a year after GCAT's
 | S56915 | Starlink 5965 | 2026 May  7 1041 (R, 134W 33S) | none, operational | 2026-11-21, 482 by 484 km |
 
 S56915 carries the reentry that belongs to S59615: the same day and minute, with the year
-S59615's own row lacks.
+S59615's own row lacks. They are the only two rows in GCAT with Dest 134W 33S.
+
+Checked again on 2026-11-22 by an eleven-agent verification before a note went to GCAT's
+author (five agents on the claims, two on the contact, three reviews, one final check of 63
+values against the raw files). All ten hold, with these refinements:
+- Only five are the SATCAT date with the year changed (S45699, S46349, S52534, S53796,
+  S59615, each 365 days). The other four also differ in the day (S48332 369 days, S48584 366,
+  S57430 363, S58307 371), so "a year early" is approximate and "typo" is not established.
+- S48332 has carried "2025 Jan  8 1530?" with Status R since GCAT's update of 2025 Jan 24
+  (Wayback copy), a year before the decay. S58307 was set to "2025 Jul 17" in the update of
+  2026 Jul 17, the day its sibling S58316 (Flock 4q-34) decayed.
+- For S58307 the element sets held stop on 2026-07-07, so SATCAT's 2026-07-23 is not confirmed
+  by them. Every decay date here is CelesTrak's copy of SATCAT; nobody read Space-Track's.
+- GCAT's own definitions leave no other reading: DDate is the end of the current phase, R is
+  a reentry, and none of the ten has a later phase in ecat.
+- A comparison of GCAT with CelesTrak alone (no element sets needed) finds 16 rows launched
+  since 2019 with a DDate 330 to 400 days before SATCAT's decay: these nine and seven more,
+  S46774 Starlink 1939, S51840 Jilin-1 GaoFen 03D 10, S56195 GHOST-1, S56933 Otter Pup,
+  S61465 deb CZ-6A Y21, S64342 Electron 66 Stage 2 (six at high confidence; the last two have
+  a DDate before GCAT's own launch date) and S61805 deb CZ-6A Y21 (doubtful, GCAT may be
+  right). S51167 deb Kosmos-1408 (launched 1982) is an eighth, confirmed.
+- One more of the S56915 kind: S63359 Electron 63 Kick Stage carries a reentry that CelesTrak
+  gives to 63360, and 63359 has current element sets. Not reported; it needs its own check.
 
 ## Architecture decisions
 - 2026-11-20. A decay claim is set aside when the latest element set is dated more than 30 days
@@ -134,8 +156,8 @@ S59615's own row lacks.
       `phase_end`. Every site answered 200 after the rebuild.
 
 ## Open questions
-1. Report the ten entries in the table above to GCAT? A note is drafted for Vib (2026-11-22);
-   nothing is sent without his yes. Vib.
+1. Closed 2026-11-22: the ten entries were reported to GCAT's author by email, with Vib's
+   approval of the final text. If he asks for the further rows, the list is above.
 2. 35 objects have a decay date while SATCAT reports them in orbit with no decay date, and most
    have no element set to settle it. This rule does not reach them. Vib.
 
