@@ -111,8 +111,10 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
   newest MSG_EPOCH in the set and `pulled_at` the start of the newest OK pull; both are null
   before the first pull.
 - Web: a "Reentering soon" panel on the Overview below the latest reentries, listing up to 8
-  payloads other than Starlink (every object when there is none), each row linking to its
-  resolver page when the satellite is in the graph.
+  payloads other than Starlink (every object other than Starlink payloads, by date, when there
+  is none), each row linking to its resolver page when the satellite is in the graph. The panel
+  stays off the page until the first weekly pull has landed (`pulled_at` null), and while the
+  endpoint fails.
 - Build summary line: `reentry predictions: N objects (as of YYYY-MM-DD)`, which starts with
   `!!` when the newest run is more than 9 days old or landed 0 rows. Before any OK run it reads
   "none pulled yet" without an alert, and alerts once a pull has failed.

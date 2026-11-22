@@ -130,8 +130,9 @@ export function Overview() {
                 <ComingDown s={st} />
               </div>
 
-              {/* Space-Track's weekly predictions; left out while they fail to load */}
-              {upcoming.data ? <ReenteringSoon r={upcoming.data} /> : null}
+              {/* Space-Track's weekly predictions; left out until the first weekly pull has
+                  landed, and while they fail to load */}
+              {upcoming.data?.pulled_at ? <ReenteringSoon r={upcoming.data} /> : null}
             </>
           );
         }}
