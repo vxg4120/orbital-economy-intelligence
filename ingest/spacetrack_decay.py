@@ -4,8 +4,8 @@ One query a day: the decay messages of type 'Historical' (an object that has act
 reentered; the other types are predictions) whose MSG_EPOCH falls in the last WINDOW_DAYS days.
 Space-Track's DECAY class is limited to one query a day, so the ledger gate is 23 hours rather
 than runlog.DAILY's 20, which would let two pulls land inside one 24-hour span. Predictions are
-not pulled: the 60-day predictions inside the same class are limited to one query a week
-(docs/specs/spacetrack-topup.md, Open questions).
+not pulled here: the 60-day predictions inside the same class are limited to one query a week and
+land in a table of their own (ingest/spacetrack_predictions.py).
 
 The view v_spacetrack_decay_actual reads the newest OK run of this table. The resolver reads
 these messages through identity/claims.py, which folds every OK landing into
@@ -85,13 +85,16 @@ def parse_row(row: dict) -> dict | None:
     }
 
 
-def land_rows(conn, rows: list[dict], run_id: int) -> int:
+def land_rows(conn, rows: list[dict], run_id: int, table: str = TABLE) -> int:
+    """Land the messages into `table` (this one, or the predictions table of
+    ingest/spacetrack_predictions.py, which has the same columns) and commit."""
     parsed = [p for p in (parse_row(r) for r in rows) if p is not None]
     if len(parsed) < len(rows):
-        logger.warning("decay: skipped %d message(s) without a NORAD id", len(rows) - len(parsed))
+        logger.warning("%s: skipped %d message(s) without a NORAD id", table,
+                       len(rows) - len(parsed))
     with conn.cursor() as cur:
         cur.executemany(
-            f"INSERT INTO {TABLE} ({', '.join(_COLUMNS)}) "
+            f"INSERT INTO {table} ({', '.join(_COLUMNS)}) "
             f"VALUES ({', '.join(['%s'] * len(_COLUMNS))})",
             [[p[c] for c in _COLUMNS[:-1]] + [run_id] for p in parsed],
         )

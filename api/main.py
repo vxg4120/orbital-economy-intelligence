@@ -21,6 +21,7 @@ from api.routers import (
     filings,
     operators,
     reachability,
+    reentries,
     review,
     satellites,
     stats,
@@ -72,6 +73,7 @@ app.include_router(reachability.router, prefix="/api")
 app.include_router(filings.router, prefix="/api")
 app.include_router(environment.router, prefix="/api")
 app.include_router(stories.router, prefix="/api")
+app.include_router(reentries.router, prefix="/api")
 
 
 @app.get("/api/health", tags=["health"])

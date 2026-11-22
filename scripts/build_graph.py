@@ -8,6 +8,7 @@ whole build is safe to re-run.
 
 from __future__ import annotations
 
+import datetime as dt
 import sys
 from pathlib import Path
 
@@ -164,6 +165,7 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         )
         tracked_after_norad = [row[0] for row in cur.fetchall()]
         gcat_coverage = _gcat_coverage(cur)
+        reentry_predictions = _reentry_predictions(cur)
     review_size = _review_size(review_csv)
     total = satellites or 1
     return {
@@ -184,6 +186,7 @@ def summarize(conn, prob_stats, resolve_stats, review_csv, enrich_stats=None) ->
         "decay_dates_tracked_after": tracked_after_norad,
         "display_name_overrides": resolve_stats.get("display_name_overrides", 0),
         "gcat_coverage": gcat_coverage,
+        "reentry_predictions": reentry_predictions,
         "review_queue_size": review_size,
         "auto_links": prob_stats.get("auto_links", 0),
         "ambiguous_cospar_links": prob_stats.get("ambiguous_cospar_links", 0),
@@ -240,6 +243,52 @@ def _gcat_coverage_line(satellites: int, coverage: dict) -> str:
     line += ")"
     if coverage["without"] * 100 > satellites:
         line = f"!! {line}: more than 1% of satellites have no GCAT entry"
+    return line
+
+
+# Space-Track publishes the 60-day predictions weekly and the nightly retries a missed Wednesday
+# for 48 hours (ingest/spacetrack_predictions.py), so a newest pull older than this means at
+# least one week was missed.
+PREDICTIONS_MAX_AGE = dt.timedelta(days=9)
+
+
+def _reentry_predictions(cur) -> dict:
+    """The newest OK weekly predictions pull (when it started and the rows it landed), the
+    failed pulls since it, and the database clock to age it by."""
+    cur.execute(
+        "SELECT ingest_run_id, started_at, rows_ingested FROM ingest_run "
+        "WHERE source = 'spacetrack' AND endpoint = 'decay_60day' AND status = 'ok' "
+        "ORDER BY ingest_run_id DESC LIMIT 1"
+    )
+    newest = cur.fetchone()
+    cur.execute(
+        "SELECT count(*), now() FROM ingest_run "
+        "WHERE source = 'spacetrack' AND endpoint = 'decay_60day' AND status = 'error' "
+        "AND ingest_run_id > %s",
+        (newest[0] if newest else 0,),
+    )
+    failed, now = cur.fetchone()
+    return {"pulled_at": newest[1] if newest else None, "rows": newest[2] if newest else None,
+            "failed_since": failed, "now": now}
+
+
+def _reentry_predictions_line(p: dict) -> str:
+    """The summary line for the weekly 60-day reentry predictions, starting with "!!" when no
+    pull has landed although one was tried, when the newest pull landed nothing, or when it is
+    older than PREDICTIONS_MAX_AGE."""
+    label = f"{'reentry predictions:':<25}"
+    failed = p["failed_since"]
+    if p["pulled_at"] is None:
+        if failed:
+            return f"!! {label}none landed; {failed} pull(s) failed"
+        return f"{label}none pulled yet (the first pull is a Wednesday nightly)"
+    line = f"{label}{p['rows']} objects (as of {p['pulled_at']:%Y-%m-%d})"
+    if failed:
+        line += f"; {failed} pull(s) failed since"
+    if not p["rows"]:
+        return f"!! {line}: the newest pull landed no prediction"
+    if p["now"] - p["pulled_at"] > PREDICTIONS_MAX_AGE:
+        return f"!! {line}: the newest pull is more than {PREDICTIONS_MAX_AGE.days} days old"
     return line
 
 
@@ -313,6 +362,8 @@ def _print_summary(s: dict) -> None:
     # Twelve on 2026-11-20. A jump means a source published a batch
     # of decay dates for objects that are still tracked, or the element feed went wrong.
     print(_tracked_after_line(s.get("decay_dates_tracked_after", [])))
+    if "reentry_predictions" in s:
+        print(_reentry_predictions_line(s["reentry_predictions"]))
     print(f"display name overrides:  {s.get('display_name_overrides', 0)}")
     if "claims" in s:
         changed = ", ".join(f"{src} closed {closed} opened {opened}"

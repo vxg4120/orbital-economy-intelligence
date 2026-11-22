@@ -18,6 +18,7 @@ _RAW_TABLES_BY_RUN = (
     "raw_ucs",
     "raw_supgp_status",
     "raw_spacetrack_decay",
+    "raw_spacetrack_decay_prediction",
 )
 
 

@@ -46,6 +46,7 @@ import type {
   Stats,
   StatusConflictRow,
   StoriesResponse,
+  UpcomingReentries,
   DecayConflictRow,
   StaleOwnerRow,
   Verdict,
@@ -78,6 +79,7 @@ import busHistoryFixture from "./fixtures/bus_history.json";
 import reachabilityFixture from "./fixtures/reachability.json";
 import reachabilityPassesFixture from "./fixtures/reachability_passes.json";
 import storiesFixture from "./fixtures/stories.json";
+import upcomingReentriesFixture from "./fixtures/reentries_upcoming.json";
 
 import { naturalDir, type SortDir } from "../lib/busSort";
 
@@ -596,6 +598,12 @@ export function getSatelliteTrack(id: number): Promise<LifeTrack> {
 export function getStories(): Promise<StoriesResponse> {
   if (MOCK) return delay(storiesFixture as unknown as StoriesResponse);
   return realGet<StoriesResponse>("/stories");
+}
+
+/** Space-Track's weekly 60-day reentry predictions (api/routers/reentries.py), warm-cached. */
+export function getUpcomingReentries(): Promise<UpcomingReentries> {
+  if (MOCK) return delay(upcomingReentriesFixture as UpcomingReentries);
+  return realGet<UpcomingReentries>("/reentries/upcoming");
 }
 
 export function getAuditSummary(): Promise<AuditSummary> {

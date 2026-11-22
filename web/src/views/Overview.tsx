@@ -5,6 +5,7 @@ import {
   getEnvironment,
   getStats,
   getStories,
+  getUpcomingReentries,
 } from "../api/client";
 import type { Stats } from "../api/types";
 import { useApi } from "../hooks/useApi";
@@ -24,6 +25,7 @@ import {
   FleetShare,
   LatestLaunches,
   LaunchTempo,
+  ReenteringSoon,
   weatherLead,
 } from "../components/Stories";
 import { Async, Loading } from "../components/States";
@@ -34,6 +36,7 @@ export function Overview() {
   const audit = useApi(() => getAuditSummary(), []);
   const congestion = useApi(() => getCongestion(), []);
   const env = useApi(() => getEnvironment(60), []);
+  const upcoming = useApi(() => getUpcomingReentries(), []);
   const s = stories.data;
 
   return (
@@ -126,6 +129,9 @@ export function Overview() {
                 <LatestLaunches s={st} />
                 <ComingDown s={st} />
               </div>
+
+              {/* Space-Track's weekly predictions; left out while they fail to load */}
+              {upcoming.data ? <ReenteringSoon r={upcoming.data} /> : null}
             </>
           );
         }}
