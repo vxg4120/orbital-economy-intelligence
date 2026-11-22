@@ -31,6 +31,25 @@ element sets.
   and SATCAT has 59615 decaying on 2026-05-07. The reentry is 59615's, entered a second time
   under the transposed number.
 
+## The GCAT entries behind the rule (GCAT's satcat.tsv as published 2026-11-22 04:06 UTC)
+Each object's element sets run to SATCAT's decay date, about a year after GCAT's DDate.
+
+| JCAT | GCAT name | GCAT DDate | SATCAT decay | Last element set |
+|---|---|---|---|---|
+| S45699 | Starlink 1398 | 2025 Mar 28 1534 | 2026-03-28 | 2026-03-28, 143 by 149 km |
+| S46349 | Starlink 1575 | 2025 Apr 10 0900? | 2026-04-10 | 2026-04-10, 154 by 160 km |
+| S48332 | Starlink 2511 | 2025 Jan  8 1530? | 2026-01-12 | 2026-01-12, 167 by 170 km |
+| S48584 | Starlink 2238 | 2025 Apr 30 1733 | 2026-05-01 | 2026-05-01, 151 by 159 km |
+| S52534 | Starlink 3952 | 2025 Apr 17 1935 | 2026-04-17 | 2026-04-17, 146 by 218 km |
+| S53796 | Starlink 4721 | 2024 Aug 31 | 2025-08-31 | 2025-08-31, 176 by 185 km |
+| S57430 | Starlink 30189 | 2025 May  1 0749 | 2026-04-29 | 2026-04-28, 231 by 241 km |
+| S58307 | Flock 4q-23 | 2025 Jul 17 | 2026-07-23 | 2026-07-07, 293 by 302 km |
+| S59615 | Starlink 31761 | 2025 May  7 1041 | 2026-05-07 | 2026-05-07, 203 by 229 km |
+| S56915 | Starlink 5965 | 2026 May  7 1041 (R, 134W 33S) | none, operational | 2026-11-21, 482 by 484 km |
+
+S56915 carries the reentry that belongs to S59615: the same day and minute, with the year
+S59615's own row lacks.
+
 ## Architecture decisions
 - 2026-11-20. A decay claim is set aside when the latest element set is dated more than 30 days
   after it (`identity/decay_claims.py`, `tracked_after`, `TRACKED_AFTER_DAYS = 30`). Rejected:
@@ -115,7 +134,8 @@ element sets.
       `phase_end`. Every site answered 200 after the rebuild.
 
 ## Open questions
-1. Report the 56915 and 59615 transposition, and the nine year-early dates, to GCAT? Vib.
+1. Report the ten entries in the table above to GCAT? A note is drafted for Vib (2026-11-22);
+   nothing is sent without his yes. Vib.
 2. 35 objects have a decay date while SATCAT reports them in orbit with no decay date, and most
    have no element set to settle it. This rule does not reach them. Vib.
 

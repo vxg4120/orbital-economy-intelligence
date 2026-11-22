@@ -725,3 +725,23 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - README: the decay-conflict count now reads "about 3,500".
 - Still open for Vib: which key wins when a satellite holds two for one source (the resolver
   takes the greater, the readers and the card the lesser); whether to report the GCAT typos.
+
+## Review (2026-11-22 04:10 UTC, post-nightly check, one key pick, review queue refilled)
+- Vib, 2026-11-21: "proceed however you recommed is the best option forward".
+- The tracked-after rule held on the nightlies: refresh.log reads "decay dates set aside,
+  tracked after: 12" and "decay messages outvoted: 1 (NORAD 48587)". 56915 and 44547 read
+  ACTIVE with no decay date, 24946 INACTIVE with none; 65077, 45699 and 59615 are unchanged.
+  The spec (docs/specs/decay-tracked-after.md) is done.
+- One key pick (space 3622386, live 04:04 UTC): the decay-conflict readers, the satellite card
+  and the review queue's evidence now take the greater key of a two-key satellite, as the
+  resolver does. No satellite holds two keys of one source with a claim today, so no count
+  moved. Deploy order was agreed with the session building reentry predictions (vgupta-85),
+  which deploys after rebasing on this main.
+- Review queue: `build_gold_queue.py --type decay_conflict` run on production at 04:05 UTC. The
+  stratum is 20 again: the 10 kept cases (case ids 191 to 205, dossiers intact) and 10 new ones
+  (636 to 645, no dossiers yet). All 20 are real SATCAT against GCAT disagreements.
+- GCAT: its file as published on 2026-11-22 still carries the ten entries listed in the spec
+  (nine DDates a year early, and S56915 holding S59615's reentry). A short note to GCAT is
+  drafted for Vib; not sent.
+- [ ] Vib: send the GCAT note, or leave it (GCAT fixed the Hawk 16A typo on its own).
+- [ ] The 10 new decay cases have no research dossier. The dossier pass is a separate job.
