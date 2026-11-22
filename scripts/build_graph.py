@@ -12,6 +12,7 @@ import datetime as dt
 import sys
 from pathlib import Path
 
+import psycopg
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -254,8 +255,19 @@ PREDICTIONS_MAX_AGE = dt.timedelta(days=9)
 
 def _reentry_predictions(cur) -> dict:
     """The newest OK weekly predictions pull (when it started and the messages it landed), the
-    objects in the current set (one per NORAD number, v_reentry_prediction_latest), the failed
-    pulls since it, and the database clock to age it by."""
+    objects in the current set (one per NORAD number, v_reentry_prediction_latest) and how many
+    of them have a readable predicted date, the failed pulls since it, and the database clock to
+    age it by. The queries run in a savepoint: the summary runs inside the graph build's
+    transaction, and a failure here (the view missing before migration 0029, say) must cost
+    this line, not the night's build."""
+    try:
+        with cur.connection.transaction():
+            return _reentry_predictions_query(cur)
+    except psycopg.Error as exc:
+        return {"error": type(exc).__name__}
+
+
+def _reentry_predictions_query(cur) -> dict:
     cur.execute(
         "SELECT ingest_run_id, started_at, rows_ingested FROM ingest_run "
         "WHERE source = 'spacetrack' AND endpoint = 'decay_60day' AND status = 'ok' "
@@ -269,17 +281,20 @@ def _reentry_predictions(cur) -> dict:
         (newest[0] if newest else 0,),
     )
     failed, now = cur.fetchone()
-    cur.execute("SELECT count(*) FROM v_reentry_prediction_latest")
-    objects = cur.fetchone()[0]
+    cur.execute("SELECT count(*), count(predicted_date) FROM v_reentry_prediction_latest")
+    objects, dated = cur.fetchone()
     return {"pulled_at": newest[1] if newest else None, "rows": newest[2] if newest else None,
-            "objects": objects, "failed_since": failed, "now": now}
+            "objects": objects, "dated": dated, "failed_since": failed, "now": now}
 
 
 def _reentry_predictions_line(p: dict) -> str:
     """The summary line for the weekly 60-day reentry predictions, starting with "!!" when no
-    pull has landed although one was tried, when the newest pull landed nothing, or when it is
-    older than PREDICTIONS_MAX_AGE."""
+    pull has landed although one was tried, when the newest pull landed nothing, when none of
+    its objects has a readable predicted date (the panel would be empty), when it is older than
+    PREDICTIONS_MAX_AGE, or when the summary could not read the predictions at all."""
     label = f"{'reentry predictions:':<25}"
+    if "error" in p:
+        return f"!! {label}unavailable ({p['error']})"
     failed = p["failed_since"]
     if p["pulled_at"] is None:
         if failed:
@@ -290,6 +305,8 @@ def _reentry_predictions_line(p: dict) -> str:
         line += f"; {failed} pull(s) failed since"
     if not p["rows"]:
         return f"!! {line}: the newest pull landed no prediction"
+    if p["objects"] and not p.get("dated", p["objects"]):
+        return f"!! {line}: no prediction has a readable date"
     if p["now"] - p["pulled_at"] > PREDICTIONS_MAX_AGE:
         return f"!! {line}: the newest pull is more than {PREDICTIONS_MAX_AGE.days} days old"
     return line

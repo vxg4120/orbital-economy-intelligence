@@ -202,3 +202,15 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
     ingest_all runs earlier on the same night, so a predictions pull never moves it. The test
     cleanup deletes every run above a baseline, the shared pattern of tests/fixtures/dbutil.py
     on a local database. Headings and owner labels follow the existing panels' style.
+- 2026-11-22 (Claude, from the review workflow: four reviewers and a skeptic per finding):
+  - Confirmed by two reviewers and fixed: tests/test_spacetrack_topup.py's lock test left the
+    new predictions part unstubbed, so it read the real clock and failed from Wednesday 17:00
+    to Friday 17:00 UTC, the week of the first live pull included.
+  - Confirmed and fixed: the empty-list lead said no object had a date in the window, though
+    objects are also left out when they have come down or their date cannot be read; it now
+    says so.
+  - Low, fixed: Starlink is a payload name match on both sides, so Starlink debris stays in
+    the fallback list as the API counts it; the summary alerts when no object has a readable
+    date (the DECAY_EPOCH format is unconfirmed until the first live pull); and the summary's
+    queries run in a savepoint, so a failure there costs the line, not the night's build.
+

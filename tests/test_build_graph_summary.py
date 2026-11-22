@@ -166,3 +166,35 @@ def test_reentry_predictions_before_the_first_pull(capsys):
 def test_a_summary_without_predictions_prints_no_reentry_line(capsys):
     build_graph._print_summary(_summary())
     assert "reentry predictions" not in capsys.readouterr().out
+
+
+def test_reentry_predictions_alert_when_no_date_can_be_read(capsys):
+    """The DECAY_EPOCH format is only known from the first live pull; if the strict parse reads
+    none of it, the panel is empty, and the summary says why."""
+    build_graph._print_summary(_summary(reentry_predictions={
+        "pulled_at": dt.datetime(2026, 11, 25, 19, 10, tzinfo=dt.UTC), "rows": 400,
+        "objects": 380, "dated": 0, "failed_since": 0, "now": _NOW}))
+    [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
+    assert line.startswith("!! reentry predictions:")
+    assert line.endswith("no prediction has a readable date")
+
+
+def test_a_failed_predictions_read_alerts_without_failing_the_build(capsys):
+    build_graph._print_summary(_summary(reentry_predictions={"error": "UndefinedTable"}))
+    [line] = [x for x in capsys.readouterr().out.splitlines() if "reentry predictions:" in x]
+    assert line == "!! reentry predictions:     unavailable (UndefinedTable)"
+
+
+@pytest.mark.db
+def test_the_predictions_read_runs_in_a_savepoint(db_conn):
+    """A failing query inside it leaves the build's transaction usable."""
+    with db_conn.cursor() as cur:
+        cur.execute("CREATE TEMP TABLE build_probe (x int)")
+        cur.execute("INSERT INTO build_probe VALUES (1)")
+        cur.execute("CREATE TEMP VIEW v_reentry_prediction_latest AS "
+                    "SELECT 1 / 0 AS predicted_date")
+        assert build_graph._reentry_predictions(cur) == {"error": "DivisionByZero"}
+        cur.execute("SELECT x FROM build_probe")
+        assert cur.fetchall() == [(1,)]
+    db_conn.rollback()
+

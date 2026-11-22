@@ -506,6 +506,15 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
 - [x] Space-Track open questions, settled 2026-11-19 at Vib's go: the July gap backfill is not
   run, and the "reentering soon" pull has a draft spec (docs/specs/spacetrack-reentry-predictions.md)
   waiting for Vib's read, with three questions for him in it.
+- [x] Reentry predictions phase 1 built 2026-11-22 at Vib's "proceed however you think best is
+  recommended": the three questions closed on the recommendations (its own weekly allowance, an
+  Overview panel, no TIP yet). Migration 0029, the weekly pull in the nightly top-up, GET
+  /api/reentries/upcoming and the "Reentering soon" panel; Codex verify pass and a review
+  workflow applied (spec decision log).
+- [ ] After the Wednesday 2026-11-25 19:10 UTC nightly: one OK decay_60day run, the
+  "reentry predictions:" summary line without "!!", the Historical pull and the claims counts
+  unchanged from the night before, /api/reentries/upcoming 200 in under 1 s, and a real sample
+  recorded as the test fixture (spec acceptance criteria and open questions).
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
 - [x] **UCS is not in production** (never ingested: the loader is an optional seed and the box has
   no UCS file), yet the copy claimed it. Settled 2026-11-12 at Vib's "proceed how you see fit":

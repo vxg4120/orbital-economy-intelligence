@@ -53,6 +53,17 @@ describe("ReenteringSoon", () => {
     expect(out.indexOf("CZ-2C R/B")).toBeLessThan(out.indexOf("FENGYUN 1C DEB"));
   });
 
+  it("keeps Starlink debris in the fallback list, as the API counts it as debris", () => {
+    const rows = [
+      { ...base.rows[6], norad_id: 1, name: "STARLINK-1007 DEB", predicted_date: "2026-10-20" },
+    ];
+    const out = html({ ...base, rows, counts: { ...empty.counts, debris: 1 } });
+    expect(out).toContain("STARLINK-1007 DEB");
+    expect(soonLead({ ...base, rows, counts: { ...empty.counts, debris: 1 } })).not.toContain(
+      "Starlink",
+    );
+  });
+
   it("lists nothing when every object is a Starlink", () => {
     const rows = base.rows.filter((x) => x.name?.startsWith("STARLINK"));
     const out = html({ ...base, rows, counts: { ...empty.counts, payload: 2, starlink: 2 } });
@@ -72,7 +83,8 @@ describe("ReenteringSoon", () => {
       "Space-Track's weekly reentry predictions have not been pulled yet.",
     );
     expect(soonLead(empty)).toBe(
-      "None of the objects in Space-Track's newest predictions has a predicted reentry date in the next 60 days.",
+      "None of the objects in Space-Track's newest predictions is listed here for the next 60 days. " +
+        "An object is left out when it has already come down, when its predicted date is outside that window, or when its date cannot be read.",
     );
     expect(html({ ...empty, as_of: null, pulled_at: null })).not.toContain("was issued on");
   });

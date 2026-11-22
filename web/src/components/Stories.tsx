@@ -430,8 +430,9 @@ export function ComingDown({ s }: { s: StoriesResponse }) {
 
 const SOON_SHOWN = 8;
 
+/** A Starlink payload, by name: the API counts counts.starlink the same way. */
 function isStarlink(x: UpcomingReentry): boolean {
-  return (x.name ?? "").toLowerCase().startsWith("starlink");
+  return x.object_type === "PAYLOAD" && (x.name ?? "").toLowerCase().startsWith("starlink");
 }
 
 /** "a", "a and b", "a, b and c". */
@@ -445,7 +446,10 @@ export function soonLead(r: UpcomingReentries): string {
   if (r.pulled_at === null) return "Space-Track's weekly reentry predictions have not been pulled yet.";
   const total = r.rows.length;
   if (total === 0)
-    return `None of the objects in Space-Track's newest predictions has a predicted reentry date in the next ${r.window_days} days.`;
+    return (
+      `None of the objects in Space-Track's newest predictions is listed here for the next ${r.window_days} days. ` +
+      "An object is left out when it has already come down, when its predicted date is outside that window, or when its date cannot be read."
+    );
   const c = r.counts;
   const kinds = andList(
     [
@@ -472,9 +476,10 @@ export function soonLead(r: UpcomingReentries): string {
 
 /** The rows to list: the payloads other than Starlink (the API sends payloads first, each
     group by predicted date), or when there is none, every other object other than Starlink,
-    by predicted date. Starlinks are only counted, in the lead. */
+    by predicted date. Starlink payloads are only counted, in the lead. */
 function soonShown(r: UpcomingReentries): { rows: UpcomingReentry[]; payloads: boolean } {
   const payloads = r.rows.filter((x) => x.object_type === "PAYLOAD" && !isStarlink(x));
+  // isStarlink only matches payloads, so Starlink debris stays listed with the other debris.
   if (payloads.length > 0) return { rows: payloads.slice(0, SOON_SHOWN), payloads: true };
   const others = r.rows
     .filter((x) => !isStarlink(x))
