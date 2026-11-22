@@ -162,9 +162,9 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
 - [x] The build summary prints `reentry predictions:` and starts it with `!!` for a run older
   than 9 days or with 0 rows (`pytest tests/test_build_graph_summary.py -k reentry`), and it
   counts objects, not messages.
-- [ ] Full suite, ruff, the web build and the dash check are clean; CI is green on the merge.
-  (Local, 2026-11-22: 701 passed and 117 skipped, ruff, 115 web tests, the build and the dash
-  check clean; CI pending.)
+- [x] Full suite, ruff, the web build and the dash check are clean; CI is green on the merge.
+  (2026-11-22: CI run 44986743053 on bd12018 green on all three jobs, the db job at 699 passed
+  and 122 skipped; merged as d98a45d.)
 - [ ] On production after the first Wednesday 19:10 UTC run: one OK `decay_60day` run, the
   summary line without `!!`, the Historical pull and the claims counts unchanged from the night
   before, and `/api/reentries/upcoming` answering 200 in under 1 s.
@@ -215,4 +215,10 @@ the claims feed, `satellite.decay_date` and the Conflicts page stay exactly as t
     the fallback list as the API counts it; the summary alerts when no object has a readable
     date (the DECAY_EPOCH format is unconfirmed until the first live pull); and the summary's
     queries run in a savepoint, so a failure there costs the line, not the night's build.
+- 2026-11-22 04:53 UTC (Claude): deployed d98a45d (oei-api rebuilt on the box, migration 0029
+  applied by scripts/migrate.py in the container). All four sites answered 200;
+  /api/reentries/upcoming answered 200 in 0.66 s with an empty set; the gate reads not due,
+  with the next window opening 2026-11-25 17:00 UTC; the summary line reads "none pulled yet".
+  Baseline for the first live night: v_spacetrack_decay_actual 315 rows and 704 open
+  spacetrack_decay claims.
 

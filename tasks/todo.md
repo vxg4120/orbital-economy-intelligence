@@ -510,10 +510,12 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
   recommended": the three questions closed on the recommendations (its own weekly allowance, an
   Overview panel, no TIP yet). Migration 0029, the weekly pull in the nightly top-up, GET
   /api/reentries/upcoming and the "Reentering soon" panel; Codex verify pass and a review
-  workflow applied (spec decision log).
+  workflow applied (spec decision log). Deployed d98a45d at 04:53 UTC on 2026-11-22, migration
+  0029 applied; the panel stays hidden until the first pull lands.
 - [ ] After the Wednesday 2026-11-25 19:10 UTC nightly: one OK decay_60day run, the
   "reentry predictions:" summary line without "!!", the Historical pull and the claims counts
-  unchanged from the night before, /api/reentries/upcoming 200 in under 1 s, and a real sample
+  unchanged from the night before (baseline 2026-11-22: 315 actual-decay rows, 704 open
+  spacetrack_decay claims), /api/reentries/upcoming 200 in under 1 s, and a real sample
   recorded as the test fixture (spec acceptance criteria and open questions).
 - Codex review is paused (subscription ended 2026-10-21); reviews use Claude reviewer agents.
 - [x] **UCS is not in production** (never ingested: the loader is an optional seed and the box has
