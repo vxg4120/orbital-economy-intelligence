@@ -110,11 +110,11 @@ def _identifiers(cur, satellite_id):
 def _assertions(cur, satellite_id):
     cur.execute(
         # The current claim per (attribute, source) with api/routers/satellites.py's tie-breaker
-        # (the lesser key, for a satellite holding two keys of one source), so a reviewer judges
-        # the claim the site shows.
+        # (the greater key, for a satellite holding two keys of one source, as the resolver has
+        # it), so a reviewer judges the claim the site shows.
         "SELECT DISTINCT ON (attribute, source) attribute, value, source, observed_to "
         "FROM v_current_claim WHERE satellite_id = %s "
-        "ORDER BY attribute, source, source_key",
+        "ORDER BY attribute, source, source_key DESC",
         (satellite_id,),
     )
     return [

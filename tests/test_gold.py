@@ -293,8 +293,8 @@ def test_assertion_evidence_is_the_newest_claim_per_source(gold_txn):
 @pytest.mark.db
 def test_assertion_evidence_breaks_ties_like_the_api(gold_txn):
     """Two GCAT keys can resolve to one satellite and claim different values in the same run.
-    The evidence must pick the claim the satellite page shows (the lowest source_key), not
-    whichever row the scan happens to meet first."""
+    The evidence must pick the claim the satellite page shows (the greatest source_key, the
+    resolver's pick, since 2026-11-22), not whichever row the scan happens to meet first."""
     with gold_txn.cursor() as cur:
         cur.execute(
             "INSERT INTO satellite (norad_id, canonical_name) VALUES (%s, 'ZZ GOLD TIE') "
@@ -310,7 +310,7 @@ def test_assertion_evidence_breaks_ties_like_the_api(gold_txn):
         seed_claim(cur, sat, "gcat", "owner", "ZZ SECOND KEY", run, key="S99999")
         seed_claim(cur, sat, "gcat", "owner", "ZZ FIRST KEY", run, key="S00001")
         evidence = _assertions(cur, sat)
-    assert [e["value"] for e in evidence] == ["ZZ FIRST KEY"]
+    assert [e["value"] for e in evidence] == ["ZZ SECOND KEY"]
 
 
 @pytest.mark.db

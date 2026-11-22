@@ -233,3 +233,45 @@ def test_the_audit_report_counts_two_decay_sources_without_phase_dates(seeded):
     assert added_conflicts == len(EXPECT_CONFLICT)
     # Two real decay sources: reentered, probably, landed_same_day and docked_others_differ.
     assert added_denominator == 4
+
+
+@pytest.mark.db
+def test_a_satellite_with_two_keys_is_read_through_the_key_the_resolver_picks(db_conn):
+    """A merged object can hold two GCAT keys, each with its own decay date. The resolver takes
+    the greater key's claim. The conflict readers and the card took the lesser until 2026-11-22,
+    so for such an object the card could show a date the resolver never weighed, and badge a
+    conflict with SATCAT that the resolved date does not have. No satellite held two keys of
+    one source with a claim on that day, so the difference was waiting, not live."""
+    try:
+        norad = BASE + 60
+        with db_conn.cursor() as cur:
+            build_graph.seed_status_map(db_conn)
+            cur.execute(
+                "INSERT INTO ingest_run (source, endpoint, started_at, finished_at, status) "
+                "VALUES ('satcat', 'test://two-keys', now(), now(), 'ok') RETURNING ingest_run_id")
+            run = cur.fetchone()[0]
+            cur.execute("INSERT INTO satellite (norad_id, canonical_name) "
+                        "VALUES (%s, 'ZZ TEST TWO KEYS') RETURNING satellite_id", (norad,))
+            sat = cur.fetchone()[0]
+            seed_claim(cur, sat, "satcat", "decay_date", "2021-06-01", run, key=str(norad))
+            for key, date in ((f"S{norad}", "2020 Jan  1"), (f"S{norad + 1}", "2021 Jun  1")):
+                seed_claim(cur, sat, "gcat", "decay_date", date, run, key=key)
+                seed_claim(cur, sat, "gcat", "status", "R", run, key=key)
+            assert resolve._assertions(db_conn, "decay_date")[sat]["gcat"][0] == "2021 Jun  1"
+            cur.execute(f"SELECT source, value FROM ({CURRENT_DECAY_CLAIMS_SQL}) c "
+                        "WHERE satellite_id = %s ORDER BY source", (sat,))
+            assert cur.fetchall() == [("gcat", "2021 Jun  1"), ("satcat", "2021-06-01")]
+            assert sat not in [row[1] for row in gold._decay_disagreements(cur)]
+            evidence = gold._assertions(cur, sat)
+            assert [e["value"] for e in evidence
+                    if (e["attribute"], e["source"]) == ("decay_date", "gcat")] == ["2021 Jun  1"]
+        db_conn.row_factory = dict_row
+        app = FastAPI()
+        app.include_router(satellites.router, prefix="/api")
+        app.dependency_overrides[get_db] = lambda: db_conn
+        body = TestClient(app).get(f"/api/satellites/{sat}").json()
+        assert [a["value"] for a in body["assertions"]
+                if (a["attribute"], a["source"]) == ("decay_date", "gcat")] == ["2021 Jun  1"]
+        assert "decay_date" not in body["conflicts"]
+    finally:
+        db_conn.rollback()

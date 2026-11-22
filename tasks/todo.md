@@ -713,9 +713,10 @@ Nothing is running: no workflow, no background job, no uncommitted change in eit
 - It sets aside 12 GCAT claims. Three change the card: 56915 (GCAT's reentry is really
   59615's, entered under the transposed number), 44547 and 24946 (collided, parent body still
   tracked). Nine are GCAT dates a year early that SATCAT already outranks.
-- [ ] After the 07:10 UTC nightly on 2026-11-20: refresh.log has "decay dates set aside,
+- [x] After the 07:10 UTC nightly on 2026-11-20: refresh.log has "decay dates set aside,
       tracked after: 12" and "decay messages outvoted: 1"; the cards of 56915 and 44547 read
       ACTIVE with no decay date, 24946 reads INACTIVE with none; 65077 and 45699 are unchanged.
+      Checked 2026-11-22 04:00 UTC against the 2026-11-21 19:10 run: all of it holds.
 - Review queue: 10 of the 20 decay_conflict cases were GCAT phase dates (case ids 187, 188,
   189, 190, 192, 193, 195, 201, 204, 206). Deleted on production with their dossiers at 02:56
   UTC; backup at /root/backups/gold_case_decay_phase_dates_20261120.json on the box. The other
