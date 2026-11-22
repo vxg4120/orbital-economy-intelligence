@@ -70,16 +70,17 @@ GCAT_DECAY_KEYS_SQL = """
 """
 
 # Each source's current decay claim per satellite, less the GCAT phase dates. When a satellite
-# holds two keys for one source, the lesser key's claim is the one compared, as these readers
-# have always had it (the resolver takes the greater key; no satellite with a decay conflict
-# held two GCAT decay claims on 2026-11-13, so the two picks agree on every row counted today).
+# holds two keys for one source, the greater key's claim is the one compared, the pick the
+# resolver makes (identity/resolve.py, _assertions). Until 2026-11-22 these readers took the
+# lesser key; no satellite held two keys of one source with a claim on that day, so the change
+# moved no count.
 CURRENT_DECAY_CLAIMS_SQL = f"""
 WITH picked AS (
     SELECT DISTINCT ON (satellite_id, source)
            satellite_id, source, source_key, value, observed_to
     FROM v_current_claim
     WHERE attribute = 'decay_date'
-    ORDER BY satellite_id, source, source_key
+    ORDER BY satellite_id, source, source_key DESC
 ),
 gcat_decay_keys AS ({GCAT_DECAY_KEYS_SQL})
 SELECT p.satellite_id, p.source, p.value, p.observed_to AS observed_at

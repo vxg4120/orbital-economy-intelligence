@@ -1,9 +1,10 @@
 # Spec: a decay date the tracking contradicts
 
-**Status:** active. Decided by Vib on 2026-11-19 ("Yes sounds good go for"), built 2026-11-20 UTC.
+**Status:** done; every criterion met on the 2026-11-20 07:10 UTC nightly and checked again
+after the 2026-11-21 19:10 UTC run. Decided by Vib on 2026-11-19 ("Yes sounds good go for"), built 2026-11-20 UTC.
 **Owner:** Vib
 **Repos touched:** space
-**Last updated:** 2026-11-20
+**Last updated:** 2026-11-22
 
 ## Goal
 An element set is a measurement of an object in orbit. When an object's latest element set is
@@ -85,10 +86,10 @@ element sets.
   status is left unresolved.
 - A satellite holding two keys for one source: the skip is by satellite and source, so a stale
   date on one key also mutes a DECAYED status on the other. None of the three is such a case.
-- The card picks the lesser key per source and reads the live element table, where the resolver
-  picks the greater key and reads the view. The mark can differ from the resolver's call for a
-  two-key satellite, or for twelve hours at the 30-day boundary. The key order is the open
-  decision already listed in tasks/todo.md.
+- The card reads the live element table, where the resolver reads the view, so the mark can
+  differ from the resolver's call for twelve hours at the 30-day boundary. (Until 2026-11-22
+  the card also picked the lesser key per source where the resolver picks the greater; the
+  readers now pick the greater key too.)
 - A source gives a stale decay date and an in-orbit status: the status still votes, since only
   a DECAYED reading is contradicted.
 - The conflict readers in SQL (`CURRENT_DECAY_CLAIMS_SQL`: the Conflicts page, the DQ report,
@@ -100,14 +101,14 @@ element sets.
       rule each fail at least one test.
 - [x] `pytest -q -W error` and `ruff check .` are clean; `npx vitest run`, `npx tsc --noEmit
       -p .` and `npm run build` pass in `web/`.
-- [ ] After the first nightly on the new code, refresh.log has
+- [x] After the first nightly on the new code, refresh.log has
       `decay dates set aside, tracked after: 12  (NORAD 24946, 44547, 45699, 46349, 48332,
       48584, 52534, 53796, 56915, 57430, 58307, 59615)` and
       `decay messages outvoted: 1  (NORAD 48587)`.
-- [ ] After that nightly, `GET /api/satellites/{id}` for the three: `decay_date` is null, the
+- [x] After that nightly, `GET /api/satellites/{id}` for the three: `decay_date` is null, the
       GCAT decay claim has `tracked_after: true`, and the newest status is ACTIVE for 56915 and
       44547 (SATCAT `+`) and INACTIVE for 24946 (SATCAT `-`).
-- [ ] NORAD 65077 (the 17-day gap) keeps decay date 2026-01-15 and DECAYED, and so does 45699
+- [x] NORAD 65077 (the 17-day gap) keeps decay date 2026-01-15 and DECAYED, and so does 45699
       with 2026-03-28 (one of the nine whose GCAT date loses to SATCAT anyway).
 - [x] Live 2026-11-20 03:05 UTC (space 6f5a8b8): the card API marks the GCAT date
       `tracked_after` on 24946, 44547, 56915 and 45699, and leaves 40452 and 65077 as

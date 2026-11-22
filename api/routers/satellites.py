@@ -253,7 +253,7 @@ def detail(satellite_id: int, db=Depends(get_db)):
             "SELECT DISTINCT ON (attribute, source) attribute, value, source, "
             "observed_to AS observed_at, source_key "
             "FROM v_current_claim WHERE satellite_id = %s "
-            "ORDER BY attribute, source, source_key",
+            "ORDER BY attribute, source, source_key DESC",
             (satellite_id,),
         )
         assertions = cur.fetchall()
