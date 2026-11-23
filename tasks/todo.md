@@ -499,8 +499,10 @@ backups nightly (newest 2026-11-11 02:43 UTC). Containers rebuilt 20:51 UTC.
   it is completed when asked to cancel. A ghost entry; later runs on the same code are green.
 
 ## Still Vib's
-- Google Search Console: verify the three hosts and paste the token where the comment in each
-  index.html says (web/index.html in both apps, deploy/landing/index.html).
+- [x] Google Search Console, done 2026-11-22 at Vib's ask: the three hosts were added as URL
+  prefix properties and verified by HTML tag (one token for the account, in all three
+  index.html files: space 733f4b9, exodossier e5f59f0), and each sitemap.xml was submitted
+  (3, 8 and 6 pages discovered). Keep the tag in place, or verification lapses.
 - [x] The untracked `page.html` (a saved OpenHands marketing page from 2026-10-15, left over from
   the job search) was moved to the Trash on 2026-11-12 at Vib's OK.
 - [x] Space-Track open questions, settled 2026-11-19 at Vib's go: the July gap backfill is not
